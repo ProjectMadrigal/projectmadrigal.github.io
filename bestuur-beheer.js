@@ -117,7 +117,7 @@
     zoekveld.addEventListener('input', teken);
     D.vervang(vak, ctx.kop('Boeken', 'Zoek een boek om het aan te passen, of voeg een nieuw boek toe. Alles komt in het tabblad Catalogus van de spreadsheet.'),
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwBoek(vak, ctx); } }, '+ Nieuw boek toevoegen'),
-        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers bij Google')),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers (Google en Open Library)')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
     teken();
   }
@@ -199,11 +199,11 @@
   /* ---------- Ontbrekende covers zoeken via deze browser ---------- */
 
   /*
-   * Google Books weigert vragen vanuit Apps Script vaak. Vanuit een gewone browser lukt het wel.
-   * Deze browser vraagt dus de covers op bij Google, en stuurt per 20 boeken door naar de
-   * web-app, die ze in de Catalogus zet.
+   * Google Books en Open Library weigeren vragen vanuit Apps Script vaak. Vanuit een gewone
+   * browser lukt het wel. Deze browser zoekt dus de covers (eerst Google, dan Open Library),
+   * en stuurt per 20 boeken door naar de web-app, die ze in de Catalogus zet.
    */
-  var COVERS_VERSIE = '5'; // staat in de voortgang: zo zie je of je browser de nieuwste versie gebruikt
+  var COVERS_VERSIE = '6'; // staat in de voortgang: zo zie je of je browser de nieuwste versie gebruikt
   var COVERS_PER_PORTIE = 20;
   var COVERS_PAUZE_MS = 350;
 
@@ -262,41 +262,102 @@
     }, function () { return { fout: 'Geen verbinding met Google.', storing: true }; });
   }
 
+  /* Open Library: cover van het werk (andere uitgave), op ISBN of op titel en auteur. */
+
+  var OL_PAUZE_MS = 1000; // Open Library vraagt om rustig te zoeken
+
+  function normaliseer(t) {
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  function titelSleutel(t) { return normaliseer(String(t || '').replace(/\(.*?\)/g, ' ').split(':')[0]); }
+  function achternaam(a) {
+    var eerste = String(a || '').split(/;|&| en | and /)[0];
+    var delen = normaliseer(eerste.indexOf(',') > -1 ? eerste.split(',')[0] : eerste).split(' ');
+    return delen[delen.length - 1] || '';
+  }
+  function gelijkenis(a, b) {
+    if (!a && !b) return 1;
+    var m = a.length, n = b.length, vorige = [], huidige;
+    for (var j = 0; j <= n; j++) vorige[j] = j;
+    for (var i = 1; i <= m; i++) {
+      huidige = [i];
+      for (var k = 1; k <= n; k++) huidige[k] = Math.min(vorige[k] + 1, huidige[k - 1] + 1, vorige[k - 1] + (a.charAt(i - 1) === b.charAt(k - 1) ? 0 : 1));
+      vorige = huidige;
+    }
+    return 1 - vorige[n] / Math.max(m, n);
+  }
+
+  /** Eén vraag aan Open Library. Geeft { docs } of { fout, wacht }. */
+  function vraagOl(parameters) {
+    return fetch('https://openlibrary.org/search.json?' + parameters + '&fields=key,title,author_name,cover_i&limit=5')
+      .then(function (r) {
+        if (r.status === 429) return { fout: 'Open Library vraagt om te wachten.', wacht: true };
+        if (r.status >= 400) return { fout: 'Open Library: code ' + r.status };
+        return r.json().then(function (d) { return { docs: d.docs || [] }; });
+      }, function () { return { fout: 'Geen verbinding met Open Library.' }; });
+  }
+
+  /** Zoekt een cover bij Open Library. Geeft { cover, bron } , {} (niets gevonden) of { fout, wacht }. */
+  function zoekOl(b) {
+    var opIsbn = b.isbn ? vraagOl('isbn=' + b.isbn) : Promise.resolve({ docs: [] });
+    return opIsbn.then(function (a) {
+      if (a.fout) return a;
+      if (a.docs.length && a.docs[0].cover_i) return { cover: 'https://covers.openlibrary.org/b/id/' + a.docs[0].cover_i + '-M.jpg', bron: 'ol-isbn' };
+      if (!b.t) return {};
+      var titel = titelSleutel(b.t), naam = achternaam(b.a);
+      return wacht(b.isbn ? OL_PAUZE_MS : 0).then(function () {
+        return vraagOl('title=' + encodeURIComponent(titel) + (naam ? '&author=' + encodeURIComponent(naam) : ''));
+      }).then(function (t) {
+        if (t.fout) return t;
+        for (var i = 0; i < t.docs.length; i++) {
+          var d = t.docs[i];
+          if (!d.cover_i || gelijkenis(titel, titelSleutel(d.title)) < 0.85) continue;
+          if (naam && (d.author_name || []).map(achternaam).indexOf(naam) === -1) continue;
+          return { cover: 'https://covers.openlibrary.org/b/id/' + d.cover_i + '-M.jpg', bron: 'ol-titel' };
+        }
+        return {};
+      });
+    });
+  }
+
   function toonCoversZoeken(vak, ctx) {
     var stop = false;
     var voortgang = el('progress', { max: '1', value: '0', style: 'width:100%' });
     var status = el('p', { 'aria-live': 'polite' }, 'Lijst ophalen...');
-    var stopKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; stopKnop.disabled = true; status.textContent = 'Stoppen na deze portie...'; } }, 'Stop');
-    D.vervang(vak, ctx.kop('Ontbrekende covers zoeken', 'Deze browser vraagt bij Google Books een cover voor elk boek met een ISBN zonder cover. Wat gevonden wordt, komt meteen in de Catalogus. Laat dit venster open tot het klaar is. Je kan altijd stoppen en later verdergaan.'),
+    var stopKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; stopKnop.disabled = true; status.textContent = 'Stoppen...'; } }, 'Stop');
+    D.vervang(vak, ctx.kop('Ontbrekende covers zoeken', 'Deze browser zoekt een cover voor elk boek zonder cover: eerst bij Google Books (jouw uitgave), dan bij Open Library (soms een andere uitgave). Wat gevonden wordt, komt meteen in de Catalogus. Laat dit venster open tot het klaar is. Je kan altijd stoppen en later verdergaan.'),
       voortgang, status, knoppen(stopKnop, el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
 
     B.voerUit('beheerCoversLijst').then(function (r) {
       if (!r.ok) { status.textContent = r.fout || 'De lijst laden lukte niet.'; return; }
       var boeken = r.boeken, sleutel = r.sleutel;
-      if (!boeken.length) { status.textContent = 'Alle boeken met een ISBN hebben een cover, of werden al bij Google opgezocht.'; stopKnop.hidden = true; return; }
-      if (!sleutel) { status.textContent = 'Let op: er staat geen google_books_api_key in Instellingen. Zonder sleutel stopt Google snel.'; }
+      if (!boeken.length) { status.textContent = 'Er zijn geen boeken meer zonder cover die nog opgezocht moeten worden.'; stopKnop.hidden = true; return; }
       voortgang.max = boeken.length;
-      var gedaan = 0, covers = 0, gezocht = [], resultaten = [], overgeslagen = 0, naElkaar = 0;
+      var gedaan = 0, covers = 0, items = [], googleUit = !sleutel, googleReden = sleutel ? '' : 'geen google_books_api_key',
+        googleNaElkaar = 0, olUit = false, olNaElkaar = 0;
 
-      function stuur() {
-        if (!gezocht.length) return Promise.resolve({ ok: true });
-        var pakket = { gezocht: gezocht, resultaten: resultaten };
-        gezocht = []; resultaten = [];
-        return B.voerUit('beheerCoversBewaren', pakket).then(function (a) { if (a.ok) covers += a.covers; return a; });
+      /** Bewaart de gevonden covers. Is de web-app even bezig (bv. met een script), dan tot 5 keer opnieuw. */
+      function stuur(poging) {
+        if (!items.length) return Promise.resolve({ ok: true });
+        var pakket = { items: items };
+        return B.voerUit('beheerCoversBewaren', pakket).then(function (a) {
+          if (!a.ok && /druk/i.test(a.fout || '') && (poging || 1) < 5) {
+            toon('De spreadsheet is even bezig, opnieuw over 30 seconden...');
+            return wacht(30000).then(function () { return stuur((poging || 1) + 1); });
+          }
+          if (a.ok) { covers += a.covers; items = []; }
+          return a;
+        });
       }
-
       function toon(tekst) {
         voortgang.value = gedaan;
-        status.textContent = '[versie ' + COVERS_VERSIE + '] ' + gedaan + ' van ' + boeken.length + ' opgezocht, ' + covers + ' covers gevonden' +
-          (overgeslagen ? ', ' + overgeslagen + ' overgeslagen door storingen bij Google (komen later terug)' : '') + '.' + (tekst ? ' ' + tekst : '');
+        status.textContent = '[versie ' + COVERS_VERSIE + '] ' + gedaan + ' van ' + boeken.length + ' opgezocht, ' + covers + ' covers gevonden.' +
+          (googleUit ? ' Google: overgeslagen (' + googleReden + ').' : '') + (olUit ? ' Open Library: overgeslagen.' : '') + (tekst ? ' ' + tekst : '');
       }
+      function einde(tekst) { return stuur().then(function () { toon(tekst); stopKnop.hidden = true; }); }
 
-      function volgende(i) {
-        if (stop || i >= boeken.length) {
-          return stuur().then(function () { toon(stop ? 'Gestopt. Klik later opnieuw om verder te gaan.' : 'Klaar.'); stopKnop.hidden = true; });
-        }
-        var b = boeken[i];
-        // Bij een storing van Google: tot 5 keer opnieuw, telkens langer wachten (2, 4, 8, 16 seconden).
+      /** Google met tot 5 pogingen bij een storing. */
+      function google(b) {
         function probeer(poging) {
           return vraagGoogle(b.isbn, sleutel).then(function (a) {
             if (a.storing && poging < 5 && !stop) {
@@ -306,31 +367,47 @@
             return a;
           });
         }
-        return probeer(1).then(function (a) {
-          if (a.fout && a.storing) {
-            // Dit boek lukt nu niet: overslaan zonder aan te vinken, het komt een volgende keer terug.
-            overgeslagen++; naElkaar++;
-            if (naElkaar >= 10) {
-              return stuur().then(function () { toon('Google weigerde 10 boeken na elkaar (' + a.fout + '). Gestopt. Probeer het later opnieuw.'); stopKnop.hidden = true; });
+        return probeer(1);
+      }
+
+      function volgende(i) {
+        if (stop) return einde('Gestopt. Klik later opnieuw om verder te gaan.');
+        if (i >= boeken.length) return einde('Klaar.');
+        if (googleUit && olUit) return einde('Google en Open Library weigeren allebei. Probeer het later opnieuw.');
+        var b = boeken[i];
+        var item = { boek_id: b.id, google: false, ol: false };
+        var stap = (b.g && !googleUit) ? google(b) : Promise.resolve(null);
+        return stap.then(function (a) {
+          if (a && a.fout) {
+            if (a.storing) { if (++googleNaElkaar >= 10) { googleUit = true; googleReden = 'blijvende storing'; } }
+            else { googleUit = true; googleReden = a.fout; }
+          } else if (a) {
+            googleNaElkaar = 0;
+            item.google = true;
+            if (a.info) {
+              var v = a.info, links = v.imageLinks || {};
+              item.meta = { beschrijving: v.description || '', uitgeverij: v.publisher || '', jaartal: v.publishedDate || '', paginas: v.pageCount || '', taal: v.language || '' };
+              var c = links.thumbnail || links.smallThumbnail || '';
+              if (c) { item.cover = c; item.bron = 'google'; }
             }
-            gedaan++;
-            return wacht(COVERS_PAUZE_MS).then(function () { return volgende(i + 1); });
           }
-          if (a.fout) {
-            // Daglimiet of een probleem met de sleutel: stoppen, en niets aanvinken voor dit boek.
-            return stuur().then(function () { toon('Google meldt: ' + a.fout + (a.limiet ? ' Probeer het morgen opnieuw.' : '')); stopKnop.hidden = true; });
+          if (item.cover || !b.o || olUit) return null;
+          return wacht(OL_PAUZE_MS).then(function () { return zoekOl(b); });
+        }).then(function (o) {
+          if (o && o.fout) {
+            if (++olNaElkaar >= 10) olUit = true;
+            if (o.wacht) { toon('Open Library vraagt om te wachten, even pauze...'); return wacht(60000); }
+          } else if (o) {
+            olNaElkaar = 0;
+            item.ol = true;
+            if (o.cover) { item.cover = o.cover; item.bron = o.bron; }
           }
-          naElkaar = 0;
-          gezocht.push(b.id);
-          if (a.info) {
-            var v = a.info, links = v.imageLinks || {};
-            resultaten.push({ boek_id: b.id, cover: links.thumbnail || links.smallThumbnail || '', beschrijving: v.description || '',
-              uitgeverij: v.publisher || '', jaartal: v.publishedDate || '', paginas: v.pageCount || '', taal: v.language || '' });
-          }
+        }).then(function () {
+          if (item.google || item.ol) items.push(item);
           gedaan++;
-          var bewaar = gezocht.length >= COVERS_PER_PORTIE ? stuur() : Promise.resolve({ ok: true });
+          var bewaar = items.length >= COVERS_PER_PORTIE ? stuur() : Promise.resolve({ ok: true });
           return bewaar.then(function (s) {
-            if (!s.ok) { toon('Bewaren lukte niet: ' + (s.fout || '') + ' Gestopt.'); stopKnop.hidden = true; return; }
+            if (!s.ok) return einde('Bewaren lukte niet: ' + (s.fout || '') + ' Gestopt.');
             toon('');
             return wacht(COVERS_PAUZE_MS).then(function () { return volgende(i + 1); });
           });
