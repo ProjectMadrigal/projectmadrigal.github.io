@@ -155,6 +155,8 @@ var CV_ANDERE_UITGAVE = 'andere uitgave (Open Library)';
 
 var CV_TITEL_AUTEUR = 'titel en auteur (Open Library)';
 
+var IA_BRON = 'Internet Archive';
+
 var WEEKDAGEN = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
 
 var MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
@@ -323,7 +325,7 @@ var KOLOMMEN = {
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'cover_url', 'startpagina', 'toegevoegd_op',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
-    'cover_bron', 'cover_gezocht', 'bol_gezocht'
+    'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht'
   ],
   'Onderwerpen': ['genre', 'filtergroepen', 'aantal_boeken'],
   'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief'],
@@ -351,7 +353,7 @@ var KOLOMMEN = {
 var DATUMKOLOMMEN = [
   'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
-  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht'
+  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht'
 ];
 
 var INSTELLING_GROEPEN = [
@@ -1321,7 +1323,7 @@ function controleerGrenzen(actie, ctx) {
  * Bewaart wat de browser bij Google Books en Open Library vond.
  * invoer.items: [{ boek_id, google, ol, bron, cover, meta: { beschrijving, uitgeverij, jaartal, paginas, taal } }]
  *   google / ol: dit boek werd daar opgezocht (dan krijgt het een datum in gb_gecontroleerd / cover_gezocht)
- *   bron: 'google', 'ol-isbn' of 'ol-titel'
+ *   bron: 'google', 'ol-isbn', 'ol-titel' of 'ia' (Internet Archive)
  * Enkel lege velden worden aangevuld, en enkel covers van Google of Open Library.
  * (Oudere versie van de knop: { gezocht, resultaten } met enkel Google.)
  */
@@ -1343,6 +1345,7 @@ function coversBewaren(staat, invoer) {
     var velden = {};
     if (it.google) velden.gb_gecontroleerd = staat.vandaag;
     if (it.ol) velden.cover_gezocht = staat.vandaag;
+    if (it.ia) velden.ia_gezocht = staat.vandaag;
     var cover = String(it.cover || '').replace(/^http:/, 'https:');
     var m = it.meta || {};
     if (it.google || it.bron === 'google') {
@@ -1358,6 +1361,10 @@ function coversBewaren(staat, invoer) {
     if (!velden.cover_url && isLeeg(boek.cover_url) && (it.bron === 'ol-isbn' || it.bron === 'ol-titel') && isOlCover(cover)) {
       velden.cover_url = cover;
       velden.cover_bron = it.bron === 'ol-isbn' ? CV_ANDERE_UITGAVE : CV_TITEL_AUTEUR;
+    }
+    if (!velden.cover_url && isLeeg(boek.cover_url) && it.bron === 'ia' && /^https:\/\/archive\.org\/services\/img\/[A-Za-z0-9._-]+$/.test(cover)) {
+      velden.cover_url = cover;
+      velden.cover_bron = IA_BRON;
     }
     if (velden.cover_url) covers++;
     wijzig(boek, velden);
@@ -1381,6 +1388,7 @@ function coversBewaren(staat, invoer) {
  * De boeken zonder cover die de browser nog moet opzoeken.
  *   g: nog niet bij Google opgezocht (enkel met een ISBN)
  *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
+ *   i: nog niet bij Internet Archive opgezocht (enkel met een ISBN)
  */
 function coversTeZoeken(staat) {
   var boeken = [];
@@ -1389,7 +1397,8 @@ function coversTeZoeken(staat) {
     var isbn = /^\d{13}$/.test(String(b.isbn || '')) ? String(b.isbn) : '';
     var g = !!isbn && isLeeg(b.gb_gecontroleerd);
     var o = isLeeg(b.cover_gezocht) && (!!isbn || !isLeeg(b.titel));
-    if (g || o) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o });
+    var i = !!isbn && isLeeg(b.ia_gezocht);
+    if (g || o || i) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o, i: i });
   });
   return { ok: true, boeken: boeken, sleutel: String(staat.inst.google_books_api_key || '') };
 }
@@ -1751,6 +1760,11 @@ function heeftGoogleBooksNodig(boek) {
   return isLeeg(boek.cover_url);
 }
 
+/** Heeft dit boek nog een cover van Internet Archive nodig? */
+function heeftIaNodig(boek) {
+  return isLeeg(boek.cover_url) && isLeeg(boek.ia_gezocht) && /^\d{13}$/.test(String(boek.isbn || ''));
+}
+
 /** Heeft dit boek nog iets nodig van Open Library? */
 function heeftOpenLibraryNodig(boek) {
   var isbn = String(boek.isbn || '');
@@ -1847,6 +1861,29 @@ function htmlNaarTekst(html) {
     .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
     .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/** Kiest uit het antwoord van Internet Archive de eerste bruikbare link, of ''. */
+function iaCoverUitAntwoord(data) {
+  var docs = (data && data.response && data.response.docs) || [];
+  for (var i = 0; i < docs.length; i++) {
+    var url = iaCoverUrl(docs[i].identifier);
+    if (url) return url;
+  }
+  return '';
+}
+
+/** De link naar de afbeelding van een boek bij Internet Archive. Enkel veilige namen. */
+function iaCoverUrl(identifier) {
+  var id = String(identifier || '');
+  return /^[A-Za-z0-9._-]+$/.test(id) ? 'https://archive.org/services/img/' + id : '';
+}
+
+/** De zoekvraag voor Internet Archive: het ISBN in 13 en in 10 cijfers. */
+function iaZoekUrl(isbn) {
+  var nummers = [String(isbn), isbn13Naar10(isbn)].filter(Boolean).join(' OR ');
+  return 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent('isbn:(' + nummers + ')') +
+    '&fl%5B%5D=identifier&fl%5B%5D=title&rows=3&output=json';
 }
 
 /** Het getal in een boek-ID: B0123 wordt 123. */
@@ -1991,7 +2028,7 @@ function installeer() {
   // Niet-publieke kolommen van de Catalogus grijs markeren.
   var cat = ss.getSheetByName('Catalogus');
   var catKop = cat.getRange(1, 1, 1, cat.getLastColumn()).getValues()[0].map(schoon);
-  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht', 'bol_gezocht'].forEach(function (k) {
+  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht'].forEach(function (k) {
     var i = catKop.indexOf(k);
     if (i > -1) {
       cat.getRange(1, i + 1).setBackground('#d9d9d9').setNote('Niet publiek. Deze kolom verschijnt nooit op de website.');
@@ -2984,6 +3021,7 @@ function onOpen() {
     .addItem('7. Vertaal de beschrijvingen (Nederlands en Engels)', 'vertaalBeschrijvingen')
     .addItem('8. Zoek covers van andere uitgaven (Open Library)', 'zoekCoversAndereUitgaven')
     .addItem('9. Zoek covers bij bol.com', 'zoekCoversBol')
+    .addItem('10. Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
     .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol')
     .addItem('Zoek afgebroken beschrijvingen opnieuw (volledig)', 'herstelAfgebrokenBeschrijvingen')
     .addSeparator()
@@ -4862,6 +4900,14 @@ function zoekCoversAndereUitgaven() {
   try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
 }
 
+/* ---------- Internet Archive ---------- */
+
+/*
+ * Internet Archive (archive.org) heeft miljoenen ingescande boeken, ook oudere en tweedehands
+ * uitgaven. We zoeken op ISBN (13 en 10 cijfers) en nemen de afbeelding van het gevonden boek:
+ * meestal een scan of foto van de voorkant. Elk opgezocht boek krijgt een datum in ia_gezocht.
+ */
+
 /** Menu: zoekt covers bij bol.com, in porties. */
 function zoekCoversBol() {
   var start = Date.now();
@@ -4901,6 +4947,42 @@ function zoekCoversBol() {
   if (gevonden) leegCache();
   logboek('menu', 'zoekCoversBol', verwerkt + ' opgezocht, ' + gevonden + ' covers gevonden, ' + rest + ' te gaan' + (fout ? '. bol.com meldt: ' + fout : ''));
   try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij bol.com, ' + gevonden + ' covers gevonden.' + (fout ? ' bol.com meldt: ' + fout : ''), 'Madrigal', 15); } catch (e) { Logger.log(fout); }
+}
+
+/** Menu: zoekt covers bij Internet Archive, in porties. */
+function zoekCoversInternetArchive() {
+  var start = Date.now();
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
+  try {
+    var tabel = leesTabel('Catalogus');
+    if (tabel.kop.indexOf('ia_gezocht') === -1) { meld('De kolom ia_gezocht ontbreekt nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.'); return; }
+    var vandaag = vandaagTekst();
+    var teDoen = tabel.rijen.filter(heeftIaNodig);
+    for (var i = 0; i < teDoen.length; i++) {
+      if (Date.now() - start > CV_MAX_LOOPTIJD_MS) break;
+      var boek = teDoen[i];
+      var r = haalJson(iaZoekUrl(boek.isbn));
+      if (r.code === 429 || r.code >= 500 || !r.data) { wachten = true; fout = 'code ' + r.code; break; }
+      var url = iaCoverUitAntwoord(r.data);
+      var velden = { ia_gezocht: vandaag };
+      if (url) { velden.cover_url = url; velden.cover_bron = IA_BRON; gevonden++; }
+      wijzig(boek, velden);
+      verwerkt++;
+      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      Utilities.sleep(CV_PAUZE_MS);
+    }
+    bewaarTabel(tabel);
+    rest = tabel.rijen.filter(heeftIaNodig).length;
+  } finally {
+    lock.releaseLock();
+  }
+  verwijderTriggers('zoekCoversInternetArchive');
+  if (rest > 0) ScriptApp.newTrigger('zoekCoversInternetArchive').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
+  if (gevonden) leegCache();
+  logboek('menu', 'zoekCoversInternetArchive', verwerkt + ' opgezocht, ' + gevonden + ' covers gevonden, ' + rest + ' te gaan' + (fout ? ' (Internet Archive: ' + fout + ', later verder)' : ''));
+  try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Internet Archive, ' + gevonden + ' covers gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
 }
 
 /** Menu: boeken zonder cover nog eens laten opzoeken bij Google (maakt gb_gecontroleerd leeg). */

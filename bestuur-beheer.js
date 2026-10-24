@@ -125,7 +125,7 @@
     zoekveld.addEventListener('input', teken);
     D.vervang(vak, ctx.kop('Boeken', 'Zoek een boek om het aan te passen, of voeg een nieuw boek toe. Alles komt in het tabblad Catalogus van de spreadsheet.'),
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwBoek(vak, ctx); } }, '+ Nieuw boek toevoegen'),
-        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers (Google en Open Library)'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers (Google, Open Library, Internet Archive)'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
     teken();
@@ -292,7 +292,7 @@
    * browser lukt het wel. Deze browser zoekt dus de covers (eerst Google, dan Open Library),
    * en stuurt per 20 boeken door naar de web-app, die ze in de Catalogus zet.
    */
-  var COVERS_VERSIE = '6'; // staat in de voortgang: zo zie je of je browser de nieuwste versie gebruikt
+  var COVERS_VERSIE = '7'; // staat in de voortgang: zo zie je of je browser de nieuwste versie gebruikt
   var COVERS_PER_PORTIE = 20;
   var COVERS_PAUZE_MS = 350;
 
@@ -409,12 +409,31 @@
     });
   }
 
+  /* Internet Archive: ingescande boeken, op ISBN (13 en 10 cijfers). */
+
+  /** Zoekt een boek bij Internet Archive. Geeft { cover }, {} (niets gevonden) of { fout }. */
+  function zoekIa(isbn) {
+    var nummers = [isbn, isbn13Naar10(isbn)].filter(Boolean).join(' OR ');
+    var url = 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent('isbn:(' + nummers + ')') + '&fl%5B%5D=identifier&rows=3&output=json';
+    return fetch(url).then(function (r) {
+      if (r.status >= 400) return { fout: 'Internet Archive: code ' + r.status };
+      return r.json().then(function (d) {
+        var docs = (d.response && d.response.docs) || [];
+        for (var i = 0; i < docs.length; i++) {
+          var id = String(docs[i].identifier || '');
+          if (/^[A-Za-z0-9._-]+$/.test(id)) return { cover: 'https://archive.org/services/img/' + id };
+        }
+        return {};
+      });
+    }, function () { return { fout: 'Geen verbinding met Internet Archive.' }; });
+  }
+
   function toonCoversZoeken(vak, ctx) {
     var stop = false;
     var voortgang = el('progress', { max: '1', value: '0', style: 'width:100%' });
     var status = el('p', { 'aria-live': 'polite' }, 'Lijst ophalen...');
     var stopKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; stopKnop.disabled = true; status.textContent = 'Stoppen...'; } }, 'Stop');
-    D.vervang(vak, ctx.kop('Ontbrekende covers zoeken', 'Deze browser zoekt een cover voor elk boek zonder cover: eerst bij Google Books (jouw uitgave), dan bij Open Library (soms een andere uitgave). Wat gevonden wordt, komt meteen in de Catalogus. Laat dit venster open tot het klaar is. Je kan altijd stoppen en later verdergaan.'),
+    D.vervang(vak, ctx.kop('Ontbrekende covers zoeken', 'Deze browser zoekt een cover voor elk boek zonder cover: eerst bij Google Books (jouw uitgave), dan bij Open Library (soms een andere uitgave), dan bij Internet Archive (ingescande boeken). Wat gevonden wordt, komt meteen in de Catalogus. Laat dit venster open tot het klaar is. Je kan altijd stoppen en later verdergaan.'),
       voortgang, status, knoppen(stopKnop, el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
 
     B.voerUit('beheerCoversLijst').then(function (r) {
@@ -423,7 +442,7 @@
       if (!boeken.length) { status.textContent = 'Er zijn geen boeken meer zonder cover die nog opgezocht moeten worden.'; stopKnop.hidden = true; return; }
       voortgang.max = boeken.length;
       var gedaan = 0, covers = 0, items = [], googleUit = !sleutel, googleReden = sleutel ? '' : 'geen google_books_api_key',
-        googleNaElkaar = 0, olUit = false, olNaElkaar = 0;
+        googleNaElkaar = 0, olUit = false, olNaElkaar = 0, iaUit = false, iaNaElkaar = 0;
 
       /** Bewaart de gevonden covers. Is de web-app even bezig (bv. met een script), dan tot 5 keer opnieuw. */
       function stuur(poging) {
@@ -441,7 +460,8 @@
       function toon(tekst) {
         voortgang.value = gedaan;
         status.textContent = '[versie ' + COVERS_VERSIE + '] ' + gedaan + ' van ' + boeken.length + ' opgezocht, ' + covers + ' covers gevonden.' +
-          (googleUit ? ' Google: overgeslagen (' + googleReden + ').' : '') + (olUit ? ' Open Library: overgeslagen.' : '') + (tekst ? ' ' + tekst : '');
+          (googleUit ? ' Google: overgeslagen (' + googleReden + ').' : '') + (olUit ? ' Open Library: overgeslagen.' : '') +
+          (iaUit ? ' Internet Archive: overgeslagen.' : '') + (tekst ? ' ' + tekst : '');
       }
       function einde(tekst) { return stuur().then(function () { toon(tekst); stopKnop.hidden = true; }); }
 
@@ -462,7 +482,7 @@
       function volgende(i) {
         if (stop) return einde('Gestopt. Klik later opnieuw om verder te gaan.');
         if (i >= boeken.length) return einde('Klaar.');
-        if (googleUit && olUit) return einde('Google en Open Library weigeren allebei. Probeer het later opnieuw.');
+        if (googleUit && olUit && iaUit) return einde('Google, Open Library en Internet Archive weigeren alle drie. Probeer het later opnieuw.');
         var b = boeken[i];
         var item = { boek_id: b.id, google: false, ol: false };
         var stap = (b.g && !googleUit) ? google(b) : Promise.resolve(null);
@@ -491,8 +511,18 @@
             item.ol = true;
             if (o.cover) { item.cover = o.cover; item.bron = o.bron; }
           }
+          if (item.cover || !b.i || iaUit) return null;
+          return wacht(500).then(function () { return zoekIa(b.isbn); });
+        }).then(function (ia) {
+          if (ia && ia.fout) {
+            if (++iaNaElkaar >= 10) iaUit = true;
+          } else if (ia) {
+            iaNaElkaar = 0;
+            item.ia = true;
+            if (ia.cover) { item.cover = ia.cover; item.bron = 'ia'; }
+          }
         }).then(function () {
-          if (item.google || item.ol) items.push(item);
+          if (item.google || item.ol || item.ia) items.push(item);
           gedaan++;
           var bewaar = items.length >= COVERS_PER_PORTIE ? stuur() : Promise.resolve({ ok: true });
           return bewaar.then(function (s) {

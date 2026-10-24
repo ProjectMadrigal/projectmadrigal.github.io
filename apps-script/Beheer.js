@@ -369,6 +369,7 @@ function beheerInstellingBewaren(invoer, wie) {
  * De boeken zonder cover die de browser nog moet opzoeken.
  *   g: nog niet bij Google opgezocht (enkel met een ISBN)
  *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
+ *   i: nog niet bij Internet Archive opgezocht (enkel met een ISBN)
  */
 function coversTeZoeken(staat) {
   var boeken = [];
@@ -377,7 +378,8 @@ function coversTeZoeken(staat) {
     var isbn = /^\d{13}$/.test(String(b.isbn || '')) ? String(b.isbn) : '';
     var g = !!isbn && isLeeg(b.gb_gecontroleerd);
     var o = isLeeg(b.cover_gezocht) && (!!isbn || !isLeeg(b.titel));
-    if (g || o) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o });
+    var i = !!isbn && isLeeg(b.ia_gezocht);
+    if (g || o || i) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o, i: i });
   });
   return { ok: true, boeken: boeken, sleutel: String(staat.inst.google_books_api_key || '') };
 }
@@ -395,7 +397,7 @@ function isOlCover(url) {
  * Bewaart wat de browser bij Google Books en Open Library vond.
  * invoer.items: [{ boek_id, google, ol, bron, cover, meta: { beschrijving, uitgeverij, jaartal, paginas, taal } }]
  *   google / ol: dit boek werd daar opgezocht (dan krijgt het een datum in gb_gecontroleerd / cover_gezocht)
- *   bron: 'google', 'ol-isbn' of 'ol-titel'
+ *   bron: 'google', 'ol-isbn', 'ol-titel' of 'ia' (Internet Archive)
  * Enkel lege velden worden aangevuld, en enkel covers van Google of Open Library.
  * (Oudere versie van de knop: { gezocht, resultaten } met enkel Google.)
  */
@@ -417,6 +419,7 @@ function coversBewaren(staat, invoer) {
     var velden = {};
     if (it.google) velden.gb_gecontroleerd = staat.vandaag;
     if (it.ol) velden.cover_gezocht = staat.vandaag;
+    if (it.ia) velden.ia_gezocht = staat.vandaag;
     var cover = String(it.cover || '').replace(/^http:/, 'https:');
     var m = it.meta || {};
     if (it.google || it.bron === 'google') {
@@ -432,6 +435,10 @@ function coversBewaren(staat, invoer) {
     if (!velden.cover_url && isLeeg(boek.cover_url) && (it.bron === 'ol-isbn' || it.bron === 'ol-titel') && isOlCover(cover)) {
       velden.cover_url = cover;
       velden.cover_bron = it.bron === 'ol-isbn' ? CV_ANDERE_UITGAVE : CV_TITEL_AUTEUR;
+    }
+    if (!velden.cover_url && isLeeg(boek.cover_url) && it.bron === 'ia' && /^https:\/\/archive\.org\/services\/img\/[A-Za-z0-9._-]+$/.test(cover)) {
+      velden.cover_url = cover;
+      velden.cover_bron = IA_BRON;
     }
     if (velden.cover_url) covers++;
     wijzig(boek, velden);

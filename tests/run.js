@@ -1174,6 +1174,20 @@ test('bol.com: beste afbeelding uit een onbekend antwoord, sleutels nooit zichtb
   assert.ok(groepen.indexOf('geheim') === -1 && groepen.indexOf('bol_client') === -1);
 });
 
+test('Internet Archive: zoeken op ISBN 13 en 10, enkel veilige links, met bron en datum', () => {
+  assert.ok(decodeURIComponent(M.iaZoekUrl('9780141439518')).includes('isbn:(9780141439518 OR 0141439513)'));
+  assert.strictEqual(M.iaCoverUitAntwoord({ response: { docs: [{ identifier: 'slecht/../pad' }, { identifier: 'prideprejudice00aust' }] } }), 'https://archive.org/services/img/prideprejudice00aust');
+  assert.strictEqual(M.iaCoverUitAntwoord({ response: { docs: [] } }), '');
+  const s = maakStaat('2026-10-24');
+  assert.ok(M.coversTeZoeken(s).boeken.find((b) => b.id === 'B0001').i);
+  const r = M.coversBewaren(s, { items: [
+    { boek_id: 'B0001', ia: true, bron: 'ia', cover: 'https://archive.org/services/img/prideprejudice00aust' },
+    { boek_id: 'B0002', ia: true, bron: 'ia', cover: 'https://archive.org/services/img/x"onclick' }
+  ] });
+  assert.strictEqual(r.covers, 1);
+  gelijk([s.catalogus[0].cover_bron, s.catalogus[0].ia_gezocht, s.catalogus[1].cover_url || ''], ['Internet Archive', '2026-10-24', '']);
+});
+
 console.log('\nBack-up');
 test('back-up: naam met de datum', () => {
   assert.strictEqual(M.backupNaam('2026-10-24'), 'Madrigal back-up 2026-10-24');
