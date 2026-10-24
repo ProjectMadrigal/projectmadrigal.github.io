@@ -621,9 +621,9 @@ function beheerInstellingBewaren(invoer, wie) {
 /* ---------- Covers zoeken via de browser van het bestuur ---------- */
 
 /*
- * Google Books weigert vaak vragen vanuit Apps Script (servers van Google, zonder land).
- * Daarom vraagt de browser van het bestuur de covers op, en bewaart het script wat gevonden
- * is. De browser krijgt daarvoor de google_books_api_key: enkel wie de code van het bestuur
+ * Google Books en Open Library weigeren vaak vragen vanuit Apps Script: die komen van servers
+ * van Google, die veel andere scripts delen. Daarom vraagt de browser van het bestuur de covers
+ * op, en bewaart het script wat gevonden is. De browser krijgt daarvoor de google_books_api_key: enkel wie de code van het bestuur
  * heeft, ziet die. Beperk de sleutel in de Google Cloud Console tot de Books API.
  */
 
@@ -1234,45 +1234,71 @@ function controleerGrenzen(actie, ctx) {
 }
 
 /**
- * Bewaart wat de browser bij Google Books vond.
- * invoer: { gezocht: [boek-ID's], resultaten: [{ boek_id, cover, beschrijving, uitgeverij, jaartal, paginas, taal }] }
- * Enkel lege velden worden aangevuld. Elk gezocht boek krijgt een datum in gb_gecontroleerd.
+ * Bewaart wat de browser bij Google Books en Open Library vond.
+ * invoer.items: [{ boek_id, google, ol, bron, cover, meta: { beschrijving, uitgeverij, jaartal, paginas, taal } }]
+ *   google / ol: dit boek werd daar opgezocht (dan krijgt het een datum in gb_gecontroleerd / cover_gezocht)
+ *   bron: 'google', 'ol-isbn' of 'ol-titel'
+ * Enkel lege velden worden aangevuld, en enkel covers van Google of Open Library.
+ * (Oudere versie van de knop: { gezocht, resultaten } met enkel Google.)
  */
 function coversBewaren(staat, invoer) {
-  var gezocht = (invoer.gezocht || []).slice(0, 200).map(String);
-  var perId = {};
-  (invoer.resultaten || []).slice(0, 200).forEach(function (r) { perId[String(r.boek_id)] = r; });
-  var covers = 0;
-  gezocht.forEach(function (id) {
-    var boek = boekVan(staat, id);
+  var items = invoer.items;
+  if (!items && invoer.gezocht) {
+    var perId = {};
+    (invoer.resultaten || []).forEach(function (r) { perId[String(r.boek_id)] = r; });
+    items = invoer.gezocht.map(function (id) {
+      var r = perId[String(id)] || {};
+      return { boek_id: id, google: true, bron: r.cover ? 'google' : '', cover: r.cover, meta: r };
+    });
+  }
+  var covers = 0, n = 0;
+  (items || []).slice(0, 200).forEach(function (it) {
+    var boek = boekVan(staat, String(it.boek_id));
     if (!boek) return;
-    var r = perId[id];
-    var info = null;
-    if (r) {
-      var cover = String(r.cover || '').replace(/^http:/, 'https:');
-      info = {
-        imageLinks: isGoogleCover(cover) ? { thumbnail: cover } : null,
-        description: tekstInvoer(r.beschrijving, 5000), publisher: tekstInvoer(r.uitgeverij, 120),
-        publishedDate: tekstInvoer(r.jaartal, 20), pageCount: parseerGetal(r.paginas) || 0, language: tekstInvoer(r.taal, 5)
+    n++;
+    var velden = {};
+    if (it.google) velden.gb_gecontroleerd = staat.vandaag;
+    if (it.ol) velden.cover_gezocht = staat.vandaag;
+    var cover = String(it.cover || '').replace(/^http:/, 'https:');
+    var m = it.meta || {};
+    if (it.google || it.bron === 'google') {
+      var info = {
+        imageLinks: it.bron === 'google' && isGoogleCover(cover) ? { thumbnail: cover } : null,
+        description: tekstInvoer(m.beschrijving, 5000), publisher: tekstInvoer(m.uitgeverij, 120),
+        publishedDate: tekstInvoer(m.jaartal, 20), pageCount: parseerGetal(m.paginas) || 0, language: tekstInvoer(m.taal, 5)
       };
+      var gb = verwerkGoogleBooks(boek, info);
+      Object.keys(gb).forEach(function (k) { velden[k] = gb[k]; });
+      if (gb.cover_url) velden.cover_bron = 'Google Books';
     }
-    var velden = verwerkGoogleBooks(boek, info);
-    if (velden.cover_url) { velden.cover_bron = 'Google Books'; covers++; }
-    velden.gb_gecontroleerd = staat.vandaag;
+    if (!velden.cover_url && isLeeg(boek.cover_url) && (it.bron === 'ol-isbn' || it.bron === 'ol-titel') && isOlCover(cover)) {
+      velden.cover_url = cover;
+      velden.cover_bron = it.bron === 'ol-isbn' ? CV_ANDERE_UITGAVE : CV_TITEL_AUTEUR;
+    }
+    if (velden.cover_url) covers++;
     wijzig(boek, velden);
   });
-  if (gezocht.length) {
+  if (n) {
     staat.catalogusGewijzigd = true;
-    staat.log.push(['covers via de browser', gezocht.length + ' opgezocht, ' + covers + ' covers']);
+    staat.log.push(['covers via de browser', n + ' opgezocht, ' + covers + ' covers']);
   }
   return { ok: true, covers: covers };
 }
 
-/** De boeken met een ISBN die nog geen cover hebben en nog niet bij Google opgezocht zijn. */
+/**
+ * De boeken zonder cover die de browser nog moet opzoeken.
+ *   g: nog niet bij Google opgezocht (enkel met een ISBN)
+ *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
+ */
 function coversTeZoeken(staat) {
-  var boeken = staat.catalogus.filter(function (b) {
-    return !isLeeg(b.boek_id) && isLeeg(b.cover_url) && isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''));
-  }).map(function (b) { return { id: String(b.boek_id), isbn: String(b.isbn) }; });
+  var boeken = [];
+  staat.catalogus.forEach(function (b) {
+    if (isLeeg(b.boek_id) || !isLeeg(b.cover_url)) return;
+    var isbn = /^\d{13}$/.test(String(b.isbn || '')) ? String(b.isbn) : '';
+    var g = !!isbn && isLeeg(b.gb_gecontroleerd);
+    var o = isLeeg(b.cover_gezocht) && (!!isbn || !isLeeg(b.titel));
+    if (g || o) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o });
+  });
   return { ok: true, boeken: boeken, sleutel: String(staat.inst.google_books_api_key || '') };
 }
 
@@ -2005,7 +2031,6 @@ function isDatumObject(waarde) {
   return Object.prototype.toString.call(waarde) === '[object Date]' && !isNaN(waarde.getTime());
 }
 
-/** Enkel covers van Google zelf, via https. */
 function isGoogleCover(url) {
   return /^https:\/\/(books\.google\.[a-z.]+|books\.googleusercontent\.com|[a-z0-9-]+\.googleusercontent\.com)\//.test(String(url || ''));
 }
@@ -2023,6 +2048,11 @@ function isInstellingKop(sleutel) {
 /** Geeft true als een waarde leeg is (niets, lege tekst of enkel spaties). */
 function isLeeg(waarde) {
   return waarde === null || waarde === undefined || String(waarde).trim() === '';
+}
+
+/** Enkel covers van Open Library zelf, in het vaste formaat. */
+function isOlCover(url) {
+  return /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-[SML]\.jpg$/.test(String(url || ''));
 }
 
 /** Is de bib open op deze datum? Juiste weekdag en niet in gesloten_data. */
@@ -2818,7 +2848,7 @@ function olTekst(description) {
 /** Zoekt bij Open Library. Geeft { docs } of { limiet: true }. */
 function olZoek(parameters) {
   var r = haalJson('https://openlibrary.org/search.json?' + parameters + '&fields=key,title,author_name,cover_i&limit=5');
-  if (r.code === 429 || r.code >= 500) return { limiet: true };
+  if (r.code === 429 || r.code >= 500) return { limiet: true, code: r.code };
   return { docs: (r.data && r.data.docs) || [] };
 }
 
@@ -4648,7 +4678,7 @@ function zoekCoversAndereUitgaven() {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
-  var verwerkt = 0, gevonden = 0, rest = 0, limiet = false;
+  var verwerkt = 0, gevonden = 0, rest = 0, limiet = false, code = 0;
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('cover_gezocht') === -1 || tabel.kop.indexOf('cover_bron') === -1) {
@@ -4663,14 +4693,14 @@ function zoekCoversAndereUitgaven() {
       var cover = 0, bron = '';
       if (/^\d{13}$/.test(String(boek.isbn || ''))) {
         var opIsbn = olZoek('isbn=' + boek.isbn);
-        if (opIsbn.limiet) { limiet = true; break; }
+        if (opIsbn.limiet) { limiet = true; code = opIsbn.code; break; }
         if (opIsbn.docs.length && opIsbn.docs[0].cover_i) { cover = opIsbn.docs[0].cover_i; bron = CV_ANDERE_UITGAVE; }
         Utilities.sleep(CV_PAUZE_MS);
       }
       if (!cover && !isLeeg(boek.titel)) {
         var vraag = 'title=' + encodeURIComponent(titelSleutel(boek.titel)) + (achternaam(boek.auteur) ? '&author=' + encodeURIComponent(achternaam(boek.auteur)) : '');
         var opTitel = olZoek(vraag);
-        if (opTitel.limiet) { limiet = true; break; }
+        if (opTitel.limiet) { limiet = true; code = opTitel.code; break; }
         cover = kiesOlWerk(boek, opTitel.docs);
         if (cover) bron = CV_TITEL_AUTEUR;
         Utilities.sleep(CV_PAUZE_MS);
@@ -4689,7 +4719,7 @@ function zoekCoversAndereUitgaven() {
   verwijderTriggers('zoekCoversAndereUitgaven');
   if (rest > 0) ScriptApp.newTrigger('zoekCoversAndereUitgaven').timeBased().after((limiet ? 30 : 1) * 60 * 1000).create();
   if (gevonden) leegCache();
-  logboek('menu', 'zoekCoversAndereUitgaven', verwerkt + ' opgezocht, ' + gevonden + ' covers van andere uitgaven gevonden, ' + rest + ' te gaan' + (limiet ? ' (Open Library vraagt om te wachten)' : ''));
+  logboek('menu', 'zoekCoversAndereUitgaven', verwerkt + ' opgezocht, ' + gevonden + ' covers van andere uitgaven gevonden, ' + rest + ' te gaan' + (limiet ? ' (Open Library weigert, code ' + code + ': vanuit Apps Script gaat het traag. Sneller: Bestuursscherm > Boeken > Zoek ontbrekende covers)' : ''));
   var tekst = verwerkt + ' boeken opgezocht, ' + gevonden + ' covers gevonden.';
   tekst += rest > 0 ? ' Nog ' + rest + ' te gaan: het script gaat vanzelf verder.' : ' Alles is verwerkt. Kijk de covers met cover_bron "' + CV_TITEL_AUTEUR + '" even na.';
   try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }

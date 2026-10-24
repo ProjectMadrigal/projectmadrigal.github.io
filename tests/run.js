@@ -1105,7 +1105,8 @@ test('covers via de browser: lijst, enkel covers van Google, enkel lege velden',
   s.catalogus[1].isbn = '9780141439518';
   s.catalogus[2].isbn = '9789044641035'; s.catalogus[2].uitgeverij = 'Eigen uitgeverij';
   const lijst = M.coversTeZoeken(s);
-  gelijk([lijst.boeken.map((b) => b.id), lijst.sleutel], [['B0001', 'B0002', 'B0003'], 'sleutel-test']);
+  gelijk([lijst.boeken.filter((b) => b.g).map((b) => b.id), lijst.sleutel], [['B0001', 'B0002', 'B0003'], 'sleutel-test']);
+  gelijk(lijst.boeken.filter((b) => !b.isbn).map((b) => b.id), ['B0004', 'Z0001']); // zonder ISBN: enkel Open Library op titel
   const r = M.coversBewaren(s, {
     gezocht: ['B0002', 'B0003', 'B0001'],
     resultaten: [
@@ -1118,7 +1119,20 @@ test('covers via de browser: lijst, enkel covers van Google, enkel lege velden',
   gelijk([s.catalogus[1].cover_bron, s.catalogus[1].uitgeverij], ['Google Books', 'Penguin']);
   gelijk([s.catalogus[2].cover_url || '', s.catalogus[2].uitgeverij], ['', 'Eigen uitgeverij']); // vreemde link geweigerd, eigen waarde blijft
   gelijk(['B0001', 'B0002', 'B0003'].map((id) => s.catalogus.find((b) => b.boek_id === id).gb_gecontroleerd), ['2026-10-24', '2026-10-24', '2026-10-24']);
-  assert.strictEqual(M.coversTeZoeken(s).boeken.length, 0);
+  assert.strictEqual(M.coversTeZoeken(s).boeken.filter((b) => b.g).length, 0);
+});
+test('covers via de browser: Open Library-covers met bron, enkel in het vaste formaat', () => {
+  const s = maakStaat('2026-10-24');
+  const r = M.coversBewaren(s, { items: [
+    { boek_id: 'B0001', google: true, ol: true, bron: 'ol-isbn', cover: 'https://covers.openlibrary.org/b/id/123-M.jpg' },
+    { boek_id: 'B0002', ol: true, bron: 'ol-titel', cover: 'https://covers.openlibrary.org/b/id/456-M.jpg' },
+    { boek_id: 'B0003', ol: true, bron: 'ol-titel', cover: 'https://evil.test/x.jpg' },
+    { boek_id: 'B0004', ol: true }
+  ] });
+  assert.strictEqual(r.covers, 2);
+  gelijk([s.catalogus[0].cover_bron, s.catalogus[0].gb_gecontroleerd, s.catalogus[0].cover_gezocht], ['andere uitgave (Open Library)', '2026-10-24', '2026-10-24']);
+  gelijk([s.catalogus[1].cover_bron, s.catalogus[1].gb_gecontroleerd || ''], ['titel en auteur (Open Library)', '']);
+  gelijk([s.catalogus[2].cover_url || '', s.catalogus[3].cover_gezocht], ['', '2026-10-24']);
 });
 
 test('Google: tweede zoekvorm neemt enkel een uitgave met precies dit ISBN', () => {

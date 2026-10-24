@@ -54,7 +54,7 @@ function kiesOlWerk(boek, docs) {
 /** Zoekt bij Open Library. Geeft { docs } of { limiet: true }. */
 function olZoek(parameters) {
   var r = haalJson('https://openlibrary.org/search.json?' + parameters + '&fields=key,title,author_name,cover_i&limit=5');
-  if (r.code === 429 || r.code >= 500) return { limiet: true };
+  if (r.code === 429 || r.code >= 500) return { limiet: true, code: r.code };
   return { docs: (r.data && r.data.docs) || [] };
 }
 
@@ -66,7 +66,7 @@ function zoekCoversAndereUitgaven() {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
-  var verwerkt = 0, gevonden = 0, rest = 0, limiet = false;
+  var verwerkt = 0, gevonden = 0, rest = 0, limiet = false, code = 0;
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('cover_gezocht') === -1 || tabel.kop.indexOf('cover_bron') === -1) {
@@ -81,14 +81,14 @@ function zoekCoversAndereUitgaven() {
       var cover = 0, bron = '';
       if (/^\d{13}$/.test(String(boek.isbn || ''))) {
         var opIsbn = olZoek('isbn=' + boek.isbn);
-        if (opIsbn.limiet) { limiet = true; break; }
+        if (opIsbn.limiet) { limiet = true; code = opIsbn.code; break; }
         if (opIsbn.docs.length && opIsbn.docs[0].cover_i) { cover = opIsbn.docs[0].cover_i; bron = CV_ANDERE_UITGAVE; }
         Utilities.sleep(CV_PAUZE_MS);
       }
       if (!cover && !isLeeg(boek.titel)) {
         var vraag = 'title=' + encodeURIComponent(titelSleutel(boek.titel)) + (achternaam(boek.auteur) ? '&author=' + encodeURIComponent(achternaam(boek.auteur)) : '');
         var opTitel = olZoek(vraag);
-        if (opTitel.limiet) { limiet = true; break; }
+        if (opTitel.limiet) { limiet = true; code = opTitel.code; break; }
         cover = kiesOlWerk(boek, opTitel.docs);
         if (cover) bron = CV_TITEL_AUTEUR;
         Utilities.sleep(CV_PAUZE_MS);
@@ -107,7 +107,7 @@ function zoekCoversAndereUitgaven() {
   verwijderTriggers('zoekCoversAndereUitgaven');
   if (rest > 0) ScriptApp.newTrigger('zoekCoversAndereUitgaven').timeBased().after((limiet ? 30 : 1) * 60 * 1000).create();
   if (gevonden) leegCache();
-  logboek('menu', 'zoekCoversAndereUitgaven', verwerkt + ' opgezocht, ' + gevonden + ' covers van andere uitgaven gevonden, ' + rest + ' te gaan' + (limiet ? ' (Open Library vraagt om te wachten)' : ''));
+  logboek('menu', 'zoekCoversAndereUitgaven', verwerkt + ' opgezocht, ' + gevonden + ' covers van andere uitgaven gevonden, ' + rest + ' te gaan' + (limiet ? ' (Open Library weigert, code ' + code + ': vanuit Apps Script gaat het traag. Sneller: Bestuursscherm > Boeken > Zoek ontbrekende covers)' : ''));
   var tekst = verwerkt + ' boeken opgezocht, ' + gevonden + ' covers gevonden.';
   tekst += rest > 0 ? ' Nog ' + rest + ' te gaan: het script gaat vanzelf verder.' : ' Alles is verwerkt. Kijk de covers met cover_bron "' + CV_TITEL_AUTEUR + '" even na.';
   try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
