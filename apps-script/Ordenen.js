@@ -25,7 +25,7 @@ var INSTELLING_GROEPEN = [
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
   ['Aanraders', ['aanraders_uit_stocklijst', 'aanraders_verbergen', 'nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal']],
-  ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key']],
+  ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
   ['Rooster', ['rooster_url', 'rooster_code', 'rooster_link']],
   ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden']],
   ['Back-up', ['backup_map', 'backup_bewaren']],

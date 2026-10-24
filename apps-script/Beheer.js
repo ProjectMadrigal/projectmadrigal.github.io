@@ -28,7 +28,7 @@ var BEHEER_INHOUD = {
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
-var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key'];
+var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret'];
 
 /** Lange teksten: meer tekens toegelaten en regeleinden blijven staan. */
 var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en'];
@@ -441,4 +441,49 @@ function coversBewaren(staat, invoer) {
     staat.log.push(['covers via de browser', n + ' opgezocht, ' + covers + ' covers']);
   }
   return { ok: true, covers: covers };
+}
+
+/* ---------- Foto van een cover, genomen in de bib ---------- */
+
+/*
+ * Een bestuurslid neemt in de bib een foto van de cover (gsm). De browser verkleint die
+ * en stuurt ze door. Het script bewaart ze in een map op Google Drive (instelling cover_map),
+ * deelt ze als "iedereen met de link mag bekijken" en zet de link in cover_url.
+ */
+
+var FOTO_MAX_BYTES = 1500000;
+var FOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+/**
+ * Bewaart een foto als cover van een boek.
+ * invoer: { boek_id, data (base64, zonder "data:..."), mime }
+ * bewaar: functie (bestandsnaam, base64, mime) -> publieke link (Drive). Apart, zodat de tests zonder Drive kunnen.
+ */
+function coverUploaden(staat, invoer, bewaar) {
+  var boek = boekVan(staat, invoer.boek_id);
+  if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  var mime = String(invoer.mime || '');
+  if (!FOTO_TYPES[mime]) return { ok: false, fout: 'Enkel een foto als JPG, PNG of WebP.' };
+  var data = String(invoer.data || '').replace(/^data:[^,]*,/, '');
+  if (!/^[A-Za-z0-9+/=]+$/.test(data)) return { ok: false, fout: 'Deze foto kon niet gelezen worden.' };
+  if (data.length * 0.75 > FOTO_MAX_BYTES) return { ok: false, fout: 'Deze foto is te groot. Probeer opnieuw: de site verkleint ze normaal vanzelf.' };
+  var url = bewaar(String(boek.boek_id) + '.' + FOTO_TYPES[mime], data, mime);
+  if (!/^https:\/\//.test(String(url || ''))) return { ok: false, fout: 'Bewaren op Google Drive lukte niet.' };
+  wijzig(boek, { cover_url: url, cover_bron: 'foto in de bib' });
+  staat.catalogusGewijzigd = true;
+  staat.log.push(['cover-foto', String(boek.boek_id)]);
+  return { ok: true, tekst: 'De foto is de cover van "' + schoon(boek.titel) + '".', cover_url: url };
+}
+
+/** Bewaart een foto in de map voor covers op Google Drive en geeft een publieke link terug. */
+function bewaarFotoInDrive(bestandsnaam, base64, mime) {
+  var naam = leesInstellingen().cover_map || 'Project Madrigal covers';
+  var mappen = DriveApp.getFoldersByName(naam);
+  var map = mappen.hasNext() ? mappen.next() : DriveApp.createFolder(naam);
+  // Een oude foto van hetzelfde boek naar de prullenbak.
+  var oud = map.getFilesByName(bestandsnaam);
+  while (oud.hasNext()) oud.next().setTrashed(true);
+  var bestand = map.createFile(Utilities.newBlob(Utilities.base64Decode(base64), mime, bestandsnaam));
+  bestand.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return 'https://lh3.googleusercontent.com/d/' + bestand.getId();
 }

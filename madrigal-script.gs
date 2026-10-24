@@ -52,7 +52,8 @@ var ACTIES = {
   beheerInhoudBewaren: 'bestuur',
   beheerInstellingBewaren: 'bestuur',
   beheerCoversLijst: 'bestuur',
-  beheerCoversBewaren: 'bestuur'
+  beheerCoversBewaren: 'bestuur',
+  beheerCoverUpload: 'bestuur'
 };
 
 /* ---------- Staat lezen en bewaren ---------- */
@@ -77,10 +78,14 @@ var BEHEER_INHOUD = {
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
-var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key'];
+var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret'];
 
 /** Lange teksten: meer tekens toegelaten en regeleinden blijven staan. */
 var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en'];
+
+var FOTO_MAX_BYTES = 1500000;
+
+var FOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 var BS_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
@@ -92,6 +97,12 @@ var BS_USER_AGENT = 'ProjectMadrigal-catalogus (Google Apps Script; queer biblio
 
 /** Open Library gaf niets terwijl Google weigerde: Google moet het nog opzoeken. */
 var BS_ENKEL_OL = 'OL ';
+
+var BOL_PAUZE_MS = 300;
+
+var BOL_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
+
+var BOL_API = 'https://api.bol.com/marketing/catalog/v1';
 
 /** Kolomnamen in Stock en Zines, en hoe ze in de Catalogus heten. */
 var BRONKOLOMMEN = {
@@ -264,6 +275,9 @@ var STANDAARD_INSTELLINGEN = [
   ['bewaartermijn_afgesloten_uitleningen_maanden', 12, 'Na hoeveel maanden de koppeling tussen een teruggebrachte uitlening en de lener gewist wordt.'],
   ['goodreads_shelf', '', 'Naam van de Goodreads-shelf met de boeken van Madrigal, precies zoals op Goodreads. Leeg: alle boeken uit de export.'],
   ['google_books_api_key', '', 'Optioneel. Een sleutel voor de Google Books-API, zodat covers sneller opgezocht worden. Leeg werkt ook, maar trager.'],
+  ['bol_client_id', '', 'Optioneel. Client ID van een partneraccount bij bol.com (Marketing Catalog API), voor covers van Nederlandstalige boeken.'],
+  ['bol_client_secret', '', 'Optioneel. Client Secret van dat partneraccount. Blijft op de server.'],
+  ['cover_map', 'Project Madrigal covers', 'Naam van de map op Google Drive voor foto\'s van covers die je in de bib neemt.'],
   ['zines_te_koop_uitleenbaar', 'nee', 'nee: zines met genre "verkoop" zijn niet uitleenbaar.'],
   ['tekst_welkom', 'Welkom in de catalogus van Project Madrigal, de queer bib van Antwerpen. Zoek, snuister en kom langs om te lenen.', 'Welkomsttekst bovenaan de publieke catalogus.'],
   ['tekst_uitleg_lenen', 'Je leent gratis, je betaalt enkel 5 euro borg per boek. Die krijg je terug als je het boek terugbrengt. Je mag 2 boeken tegelijk lenen, voor 4 weken. Kom langs op vrijdag tijdens de openingsuren.', 'Uitleg over lenen in de publieke catalogus: wanneer open, hoe lang, hoeveel.'],
@@ -309,7 +323,7 @@ var KOLOMMEN = {
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'cover_url', 'startpagina', 'toegevoegd_op',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
-    'cover_bron', 'cover_gezocht'
+    'cover_bron', 'cover_gezocht', 'bol_gezocht'
   ],
   'Onderwerpen': ['genre', 'filtergroepen', 'aantal_boeken'],
   'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief'],
@@ -337,7 +351,7 @@ var KOLOMMEN = {
 var DATUMKOLOMMEN = [
   'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
-  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht'
+  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht'
 ];
 
 var INSTELLING_GROEPEN = [
@@ -351,7 +365,7 @@ var INSTELLING_GROEPEN = [
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
   ['Aanraders', ['aanraders_uit_stocklijst', 'aanraders_verbergen', 'nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal']],
-  ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key']],
+  ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
   ['Rooster', ['rooster_url', 'rooster_code', 'rooster_link']],
   ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden']],
   ['Back-up', ['backup_map', 'backup_bewaren']],
@@ -492,7 +506,7 @@ function baliecatalogus(staat) {
   return staat.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && !isLeeg(b.titel); }).map(function (b) {
     var info = {
       id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), i: schoon(b.isbn),
-      x: aantalExemplaren(b), u: isUitleenbaar(b)
+      x: aantalExemplaren(b), u: isUitleenbaar(b), c: !isLeeg(b.cover_url)
     };
     // st: zodat de vrijwilliger het weet. Gevoelig (verborgen of zichtbaar) mag je gewoon uitlenen.
     var status = boekStatus(b);
@@ -851,6 +865,19 @@ function bestuurGegevens(staat, onderwerpRijen) {
   };
 }
 
+/** Bewaart een foto in de map voor covers op Google Drive en geeft een publieke link terug. */
+function bewaarFotoInDrive(bestandsnaam, base64, mime) {
+  var naam = leesInstellingen().cover_map || 'Project Madrigal covers';
+  var mappen = DriveApp.getFoldersByName(naam);
+  var map = mappen.hasNext() ? mappen.next() : DriveApp.createFolder(naam);
+  // Een oude foto van hetzelfde boek naar de prullenbak.
+  var oud = map.getFilesByName(bestandsnaam);
+  while (oud.hasNext()) oud.next().setTrashed(true);
+  var bestand = map.createFile(Utilities.newBlob(Utilities.base64Decode(base64), mime, bestandsnaam));
+  bestand.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return 'https://lh3.googleusercontent.com/d/' + bestand.getId();
+}
+
 /** Schrijft alle wijzigingen van een staat terug naar de spreadsheet. */
 function bewaarStaat(staat) {
   ['Leners', 'Uitleningen', 'Reservaties', 'Uitzonderingen'].forEach(function (naam) {
@@ -996,6 +1023,63 @@ function boekVan(staat, boekId) {
     if (String(staat.catalogus[i].boek_id).toUpperCase() === id) return staat.catalogus[i];
   }
   return null;
+}
+
+/**
+ * Zoekt in een antwoord van bol.com de beste link naar een afbeelding. We weten niet zeker hoe
+ * het antwoord eruitziet, dus we zoeken overal naar https-links naar afbeeldingen, en nemen
+ * die met een breedte het dichtst bij 550 pixels (of anders de eerste).
+ */
+function bolAfbeelding(data) {
+  var kandidaten = [];
+  (function zoek(w, breedte) {
+    if (!w) return;
+    if (typeof w === 'string') {
+      if (/^https:\/\/[^\s"'<>]+\.(jpe?g|png|webp)(\?[^\s"'<>]*)?$/i.test(w)) kandidaten.push({ url: w, breedte: breedte || 0 });
+      return;
+    }
+    if (Array.isArray(w)) { w.forEach(function (x) { zoek(x, breedte); }); return; }
+    if (typeof w === 'object') {
+      var b = Number(w.width || w.breedte || 0) || breedte;
+      Object.keys(w).forEach(function (k) { zoek(w[k], b); });
+    }
+  })(data, 0);
+  if (!kandidaten.length) return '';
+  kandidaten.sort(function (a, b) {
+    var da = a.breedte ? Math.abs(a.breedte - 550) : 9999, db = b.breedte ? Math.abs(b.breedte - 550) : 9999;
+    return da - db;
+  });
+  return kandidaten[0].url;
+}
+
+/** Een toegangsbewijs (token) van bol.com, 4 minuten bewaard. Geeft { token } of { fout }. */
+function bolToken(inst) {
+  if (!inst.bol_client_id || !inst.bol_client_secret) return { fout: 'Vul bol_client_id en bol_client_secret in bij Instellingen.' };
+  var cache = CacheService.getScriptCache();
+  var bewaard = cache.get('bol_token');
+  if (bewaard) return { token: bewaard };
+  var r = UrlFetchApp.fetch('https://login.bol.com/token?grant_type=client_credentials', {
+    method: 'post', muteHttpExceptions: true,
+    headers: { Authorization: 'Basic ' + Utilities.base64Encode(inst.bol_client_id + ':' + inst.bol_client_secret), Accept: 'application/json' }
+  });
+  var data = null;
+  try { data = JSON.parse(r.getContentText()); } catch (e) { data = null; }
+  if (r.getResponseCode() !== 200 || !data || !data.access_token) {
+    return { fout: 'bol.com gaf geen toegang (code ' + r.getResponseCode() + '). Kijk de Client ID en Client Secret na.' };
+  }
+  cache.put('bol_token', data.access_token, 240);
+  return { token: data.access_token };
+}
+
+/** Vraagt iets op bij de Marketing Catalog API. Geeft { code, data }. */
+function bolVraag(pad, token) {
+  var r = UrlFetchApp.fetch(BOL_API + pad, {
+    muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', 'Accept-Language': 'nl' }
+  });
+  var data = null;
+  try { data = JSON.parse(r.getContentText()); } catch (e) { data = null; }
+  return { code: r.getResponseCode(), data: data };
 }
 
 /** Bestuur: de borg van een uitlening als terugbetaald noteren. */
@@ -1285,6 +1369,14 @@ function coversBewaren(staat, invoer) {
   return { ok: true, covers: covers };
 }
 
+/* ---------- Foto van een cover, genomen in de bib ---------- */
+
+/*
+ * Een bestuurslid neemt in de bib een foto van de cover (gsm). De browser verkleint die
+ * en stuurt ze door. Het script bewaart ze in een map op Google Drive (instelling cover_map),
+ * deelt ze als "iedereen met de link mag bekijken" en zet de link in cover_url.
+ */
+
 /**
  * De boeken zonder cover die de browser nog moet opzoeken.
  *   g: nog niet bij Google opgezocht (enkel met een ISBN)
@@ -1300,6 +1392,27 @@ function coversTeZoeken(staat) {
     if (g || o) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o });
   });
   return { ok: true, boeken: boeken, sleutel: String(staat.inst.google_books_api_key || '') };
+}
+
+/**
+ * Bewaart een foto als cover van een boek.
+ * invoer: { boek_id, data (base64, zonder "data:..."), mime }
+ * bewaar: functie (bestandsnaam, base64, mime) -> publieke link (Drive). Apart, zodat de tests zonder Drive kunnen.
+ */
+function coverUploaden(staat, invoer, bewaar) {
+  var boek = boekVan(staat, invoer.boek_id);
+  if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  var mime = String(invoer.mime || '');
+  if (!FOTO_TYPES[mime]) return { ok: false, fout: 'Enkel een foto als JPG, PNG of WebP.' };
+  var data = String(invoer.data || '').replace(/^data:[^,]*,/, '');
+  if (!/^[A-Za-z0-9+/=]+$/.test(data)) return { ok: false, fout: 'Deze foto kon niet gelezen worden.' };
+  if (data.length * 0.75 > FOTO_MAX_BYTES) return { ok: false, fout: 'Deze foto is te groot. Probeer opnieuw: de site verkleint ze normaal vanzelf.' };
+  var url = bewaar(String(boek.boek_id) + '.' + FOTO_TYPES[mime], data, mime);
+  if (!/^https:\/\//.test(String(url || ''))) return { ok: false, fout: 'Bewaren op Google Drive lukte niet.' };
+  wijzig(boek, { cover_url: url, cover_bron: 'foto in de bib' });
+  staat.catalogusGewijzigd = true;
+  staat.log.push(['cover-foto', String(boek.boek_id)]);
+  return { ok: true, tekst: 'De foto is de cover van "' + schoon(boek.titel) + '".', cover_url: url };
 }
 
 /** "1 dag" of "5 dagen". */
@@ -1626,6 +1739,11 @@ function heeftBeschrijvingNodig(boek) {
   return isLeeg(boek.beschrijving);
 }
 
+/** Heeft dit boek nog een cover van bol.com nodig? */
+function heeftBolNodig(boek) {
+  return isLeeg(boek.cover_url) && isLeeg(boek.bol_gezocht) && /^\d{13}$/.test(String(boek.isbn || ''));
+}
+
 /** Heeft dit boek nog een cover nodig van Google Books? */
 function heeftGoogleBooksNodig(boek) {
   if (!/^\d{13}$/.test(String(boek.isbn || ''))) return false;
@@ -1873,7 +1991,7 @@ function installeer() {
   // Niet-publieke kolommen van de Catalogus grijs markeren.
   var cat = ss.getSheetByName('Catalogus');
   var catKop = cat.getRange(1, 1, 1, cat.getLastColumn()).getValues()[0].map(schoon);
-  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht'].forEach(function (k) {
+  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht', 'bol_gezocht'].forEach(function (k) {
     var i = catKop.indexOf(k);
     if (i > -1) {
       cat.getRange(1, i + 1).setBackground('#d9d9d9').setNote('Niet publiek. Deze kolom verschijnt nooit op de website.');
@@ -2865,6 +2983,8 @@ function onOpen() {
     .addItem('6. Zoek ontbrekende beschrijvingen', 'vulBeschrijvingenAan')
     .addItem('7. Vertaal de beschrijvingen (Nederlands en Engels)', 'vertaalBeschrijvingen')
     .addItem('8. Zoek covers van andere uitgaven (Open Library)', 'zoekCoversAndereUitgaven')
+    .addItem('9. Zoek covers bij bol.com', 'zoekCoversBol')
+    .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol')
     .addItem('Zoek afgebroken beschrijvingen opnieuw (volledig)', 'herstelAfgebrokenBeschrijvingen')
     .addSeparator()
     .addItem('Nieuwe boeken verwerken', 'verwerkNieuweBoeken')
@@ -3427,6 +3547,22 @@ function terugbrengen(staat, invoer) {
       (velden.borg_terugbetaald ? ' Borg van ' + bedragTekst(u.borg) + ' terugbetaald.' : (Number(u.borg) > 0 ? ' De borg staat nog open.' : '')),
     apartLeggen: melding ? [melding] : []
   };
+}
+
+/** Menu: test bol.com met één ISBN en toont wat bol.com teruggeeft. */
+function testBol() {
+  var isbn = '9789044641035';
+  try {
+    var eigen = normaliseerIsbn(String(SpreadsheetApp.getActiveRange().getValue() || '')).isbn;
+    if (eigen) isbn = eigen;
+  } catch (e) { /* geen cel gekozen */ }
+  var t = bolToken(leesInstellingen());
+  if (t.fout) { meld(t.fout); return; }
+  var r = bolVraag('/products/' + isbn + '/media', t.token);
+  var tekst = 'bol.com, ISBN ' + isbn + ': code ' + r.code + '. Afbeelding: ' + (bolAfbeelding(r.data) || 'geen gevonden') +
+    '. Antwoord (begin): ' + JSON.stringify(r.data || '').slice(0, 400);
+  logboek('menu', 'testBol', tekst);
+  meld(tekst);
 }
 
 /**
@@ -4131,6 +4267,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'beheerBoekOphalen': antwoord = boekOphalen(staat, invoer); break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
+      case 'beheerCoverUpload': antwoord = coverUploaden(staat, invoer, bewaarFotoInDrive); break;
       case 'beheerBoekBewaren': antwoord = boekAanpassen(staat, invoer); break;
       case 'beheerBoekToevoegen':
         var ids = maakIdGenerator(staat.catalogus);
@@ -4723,6 +4860,47 @@ function zoekCoversAndereUitgaven() {
   var tekst = verwerkt + ' boeken opgezocht, ' + gevonden + ' covers gevonden.';
   tekst += rest > 0 ? ' Nog ' + rest + ' te gaan: het script gaat vanzelf verder.' : ' Alles is verwerkt. Kijk de covers met cover_bron "' + CV_TITEL_AUTEUR + '" even na.';
   try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
+}
+
+/** Menu: zoekt covers bij bol.com, in porties. */
+function zoekCoversBol() {
+  var start = Date.now();
+  var inst = leesInstellingen();
+  var t = bolToken(inst);
+  if (t.fout) { logboek('menu', 'zoekCoversBol', t.fout); meld(t.fout); return; }
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
+  try {
+    var tabel = leesTabel('Catalogus');
+    if (tabel.kop.indexOf('bol_gezocht') === -1) { meld('De kolom bol_gezocht ontbreekt nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.'); return; }
+    var vandaag = vandaagTekst();
+    var teDoen = tabel.rijen.filter(heeftBolNodig);
+    for (var i = 0; i < teDoen.length; i++) {
+      if (Date.now() - start > BOL_MAX_LOOPTIJD_MS) break;
+      var boek = teDoen[i];
+      var r = bolVraag('/products/' + boek.isbn + '/media', t.token);
+      if (r.code === 401) { t = bolToken(inst); if (t.fout) { fout = t.fout; break; } r = bolVraag('/products/' + boek.isbn + '/media', t.token); }
+      if (r.code === 429 || r.code >= 500) { wachten = true; fout = 'code ' + r.code; break; }
+      if (r.code >= 400 && r.code !== 404) { fout = 'code ' + r.code + (r.data && r.data.title ? ': ' + r.data.title : ''); break; }
+      var url = r.code === 200 ? bolAfbeelding(r.data) : '';
+      var velden = { bol_gezocht: vandaag };
+      if (url) { velden.cover_url = url; velden.cover_bron = 'bol.com'; gevonden++; }
+      wijzig(boek, velden);
+      verwerkt++;
+      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      Utilities.sleep(BOL_PAUZE_MS);
+    }
+    bewaarTabel(tabel);
+    rest = tabel.rijen.filter(heeftBolNodig).length;
+  } finally {
+    lock.releaseLock();
+  }
+  verwijderTriggers('zoekCoversBol');
+  if (rest > 0 && (!fout || wachten)) ScriptApp.newTrigger('zoekCoversBol').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
+  if (gevonden) leegCache();
+  logboek('menu', 'zoekCoversBol', verwerkt + ' opgezocht, ' + gevonden + ' covers gevonden, ' + rest + ' te gaan' + (fout ? '. bol.com meldt: ' + fout : ''));
+  try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij bol.com, ' + gevonden + ' covers gevonden.' + (fout ? ' bol.com meldt: ' + fout : ''), 'Madrigal', 15); } catch (e) { Logger.log(fout); }
 }
 
 /** Menu: boeken zonder cover nog eens laten opzoeken bij Google (maakt gb_gecontroleerd leeg). */

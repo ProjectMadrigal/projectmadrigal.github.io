@@ -100,7 +100,15 @@
     ['Uitlenen', ['aantal', 'uitleenbaar']]
   ];
 
+  var vanZonderCover = false; // kwam je van de lijst zonder cover? Dan gaat "Terug" daarheen.
+
+  function terugNaarLijst(vak, ctx) {
+    if (vanZonderCover) toonZonderCover(vak, ctx); else toonBoeken(vak, ctx);
+  }
+
   function toonBoeken(vak, ctx) {
+    vanZonderCover = false;
+    var zonder = (ctx.data.boeken || []).filter(function (b) { return !b.c; }).length;
     var index = Z.maakIndex(ctx.data.boeken || []);
     var zoekveld = el('input', { type: 'search', id: 'beheer-boek-zoek', autocomplete: 'off', placeholder: 'Titel, auteur, ISBN of boek-ID' });
     var lijst = el('div', { 'aria-live': 'polite' });
@@ -117,9 +125,88 @@
     zoekveld.addEventListener('input', teken);
     D.vervang(vak, ctx.kop('Boeken', 'Zoek een boek om het aan te passen, of voeg een nieuw boek toe. Alles komt in het tabblad Catalogus van de spreadsheet.'),
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwBoek(vak, ctx); } }, '+ Nieuw boek toevoegen'),
-        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers (Google en Open Library)')),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers (Google en Open Library)'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
     teken();
+  }
+
+  /** Alle boeken zonder cover, alfabetisch: handig om met je gsm langs de kasten te gaan en foto's te nemen. */
+  function toonZonderCover(vak, ctx) {
+    vanZonderCover = true;
+    var lijst = (ctx.data.boeken || []).filter(function (b) { return !b.c; })
+      .sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
+    var filter = el('input', { type: 'search', id: 'zonder-cover-zoek', autocomplete: 'off', placeholder: 'Titel, auteur of boek-ID' });
+    var vakLijst = el('div', { 'aria-live': 'polite' });
+    function teken() {
+      var q = Z.normaliseer(filter.value);
+      var zichtbaar = lijst.filter(function (b) { return !q || Z.normaliseer([b.t, b.a, b.id].join(' ')).indexOf(q) > -1; }).slice(0, 100);
+      D.vervang(vakLijst, zichtbaar.length ? el('ul', { class: 'kaartlijst' }, zichtbaar.map(function (b) {
+        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { bewerkBoek(vak, ctx, b.id); } },
+          el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · '))));
+      })) : el('p', {}, lijst.length ? 'Geen boek gevonden.' : 'Alle boeken hebben een cover.'));
+    }
+    filter.addEventListener('input', teken);
+    D.vervang(vak, ctx.kop('Boeken zonder cover (' + lijst.length + ')', 'Kies een boek en neem een foto van de cover met je gsm. Tip: leg het boek op een effen achtergrond, met goed licht en zonder schaduw.'),
+      el('div', { class: 'veld' }, el('label', { for: 'zonder-cover-zoek' }, 'Zoek in deze lijst'), filter), vakLijst,
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+    teken();
+  }
+
+  /** Verkleint een foto in de browser tot hoogstens 600 pixels en geeft een JPG terug (base64). */
+  function verkleinFoto(bestand) {
+    return new Promise(function (klaar, mislukt) {
+      var lezer = new FileReader();
+      lezer.onerror = function () { mislukt(new Error('De foto kon niet gelezen worden.')); };
+      lezer.onload = function () {
+        var beeld = new Image();
+        beeld.onerror = function () { mislukt(new Error('Dit bestand is geen foto.')); };
+        beeld.onload = function () {
+          var schaal = Math.min(1, 600 / Math.max(beeld.width, beeld.height));
+          var doek = document.createElement('canvas');
+          doek.width = Math.round(beeld.width * schaal);
+          doek.height = Math.round(beeld.height * schaal);
+          doek.getContext('2d').drawImage(beeld, 0, 0, doek.width, doek.height);
+          klaar(doek.toDataURL('image/jpeg', 0.82));
+        };
+        beeld.src = lezer.result;
+      };
+      lezer.readAsDataURL(bestand);
+    });
+  }
+
+  /** Het blok om een foto van de cover te nemen en te bewaren (enkel voor een bestaand boek). */
+  function fotoBlok(boek, coverVeld, ctx) {
+    var invoer = el('input', { type: 'file', id: 'bb-foto', accept: 'image/*', capture: 'environment' });
+    var voorbeeld = el('img', { alt: 'Voorbeeld van de foto', hidden: true, style: 'max-width:12rem;border-radius:.4rem;display:block;margin-top:.5rem' });
+    var melding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
+    var knop = el('button', { type: 'button', class: 'knop', disabled: true }, 'Gebruik deze foto als cover');
+    var dataUrl = '';
+    invoer.addEventListener('change', function () {
+      var bestand = invoer.files && invoer.files[0];
+      knop.disabled = true; voorbeeld.hidden = true; melding.textContent = '';
+      if (!bestand) return;
+      melding.textContent = 'Foto verkleinen...';
+      verkleinFoto(bestand).then(function (url) {
+        dataUrl = url; voorbeeld.src = url; voorbeeld.hidden = false; knop.disabled = false;
+        melding.textContent = 'Ziet het er goed uit? Klik dan op de knop.';
+      }, function (e) { melding.textContent = e.message; });
+    });
+    knop.addEventListener('click', function () {
+      var klaar = bezig(knop, 'Bezig met bewaren...');
+      B.voerUit('beheerCoverUpload', { boek_id: boek.boek_id, data: dataUrl.split(',')[1], mime: 'image/jpeg' }).then(function (r) {
+        klaar();
+        if (!r.ok) { melding.textContent = r.fout; return; }
+        if (coverVeld) { coverVeld.invoer.value = r.cover_url; coverVeld.oud = r.cover_url; }
+        // Meteen uit de lijst zonder cover halen, zonder alles opnieuw te laden.
+        (ctx.data.boeken || []).forEach(function (b) { if (b.id === String(boek.boek_id)) b.c = true; });
+        knop.disabled = true;
+        melding.textContent = r.tekst + ' De website toont ze binnen enkele minuten.';
+      });
+    });
+    return el('fieldset', { class: 'blok' }, el('legend', {}, 'Foto van de cover'),
+      el('p', { class: 'hulptekst' }, 'Neem met je gsm een foto van de voorkant, of kies een foto. De site verkleint ze en bewaart ze op Google Drive.'),
+      el('div', { class: 'veld' }, el('label', { for: 'bb-foto' }, 'Foto nemen of kiezen'), invoer), voorbeeld, melding, knoppen(knop));
   }
 
   /** Het formulier voor een boek. boek: bestaand boek of {} voor een nieuw. */
@@ -159,8 +246,10 @@
     }
 
     var bewaar = el('button', { type: 'submit', class: 'knop' }, nieuw ? 'Voeg toe aan de catalogus' : 'Bewaar');
-    var formulier = el('form', { novalidate: true }, opzoeken, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
-      fout, knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+    var coverVeld = velden.filter(function (v) { return v.naam === 'cover_url'; })[0];
+    var foto = nieuw ? null : fotoBlok(boek, coverVeld, ctx);
+    var formulier = el('form', { novalidate: true }, opzoeken, foto, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
+      fout, knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, vanZonderCover ? 'Terug naar de lijst zonder cover' : 'Terug naar de boeken')));
 
     function verstuur(toch) {
       var invoer = nieuw ? { velden: gewijzigd(velden, true), herkomst: herkomst.lees(), toch: toch === true } : { boek_id: boek.boek_id, velden: gewijzigd(velden, false) };

@@ -24,6 +24,7 @@ const SCRIPTS = [
   'apps-script/GoogleBooks.js',
   'apps-script/Beschrijvingen.js',
   'apps-script/Covers.js',
+  'apps-script/Bol.js',
   'apps-script/Rooster.js',
   'apps-script/Ordenen.js',
   'apps-script/Grenzen.js',
