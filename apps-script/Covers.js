@@ -112,3 +112,77 @@ function zoekCoversAndereUitgaven() {
   tekst += rest > 0 ? ' Nog ' + rest + ' te gaan: het script gaat vanzelf verder.' : ' Alles is verwerkt. Kijk de covers met cover_bron "' + CV_TITEL_AUTEUR + '" even na.';
   try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
 }
+
+/* ---------- Internet Archive ---------- */
+
+/*
+ * Internet Archive (archive.org) heeft miljoenen ingescande boeken, ook oudere en tweedehands
+ * uitgaven. We zoeken op ISBN (13 en 10 cijfers) en nemen de afbeelding van het gevonden boek:
+ * meestal een scan of foto van de voorkant. Elk opgezocht boek krijgt een datum in ia_gezocht.
+ */
+
+var IA_BRON = 'Internet Archive';
+
+/** Heeft dit boek nog een cover van Internet Archive nodig? */
+function heeftIaNodig(boek) {
+  return isLeeg(boek.cover_url) && isLeeg(boek.ia_gezocht) && /^\d{13}$/.test(String(boek.isbn || ''));
+}
+
+/** De zoekvraag voor Internet Archive: het ISBN in 13 en in 10 cijfers. */
+function iaZoekUrl(isbn) {
+  var nummers = [String(isbn), isbn13Naar10(isbn)].filter(Boolean).join(' OR ');
+  return 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent('isbn:(' + nummers + ')') +
+    '&fl%5B%5D=identifier&fl%5B%5D=title&rows=3&output=json';
+}
+
+/** De link naar de afbeelding van een boek bij Internet Archive. Enkel veilige namen. */
+function iaCoverUrl(identifier) {
+  var id = String(identifier || '');
+  return /^[A-Za-z0-9._-]+$/.test(id) ? 'https://archive.org/services/img/' + id : '';
+}
+
+/** Kiest uit het antwoord van Internet Archive de eerste bruikbare link, of ''. */
+function iaCoverUitAntwoord(data) {
+  var docs = (data && data.response && data.response.docs) || [];
+  for (var i = 0; i < docs.length; i++) {
+    var url = iaCoverUrl(docs[i].identifier);
+    if (url) return url;
+  }
+  return '';
+}
+
+/** Menu: zoekt covers bij Internet Archive, in porties. */
+function zoekCoversInternetArchive() {
+  var start = Date.now();
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
+  try {
+    var tabel = leesTabel('Catalogus');
+    if (tabel.kop.indexOf('ia_gezocht') === -1) { meld('De kolom ia_gezocht ontbreekt nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.'); return; }
+    var vandaag = vandaagTekst();
+    var teDoen = tabel.rijen.filter(heeftIaNodig);
+    for (var i = 0; i < teDoen.length; i++) {
+      if (Date.now() - start > CV_MAX_LOOPTIJD_MS) break;
+      var boek = teDoen[i];
+      var r = haalJson(iaZoekUrl(boek.isbn));
+      if (r.code === 429 || r.code >= 500 || !r.data) { wachten = true; fout = 'code ' + r.code; break; }
+      var url = iaCoverUitAntwoord(r.data);
+      var velden = { ia_gezocht: vandaag };
+      if (url) { velden.cover_url = url; velden.cover_bron = IA_BRON; gevonden++; }
+      wijzig(boek, velden);
+      verwerkt++;
+      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      Utilities.sleep(CV_PAUZE_MS);
+    }
+    bewaarTabel(tabel);
+    rest = tabel.rijen.filter(heeftIaNodig).length;
+  } finally {
+    lock.releaseLock();
+  }
+  verwijderTriggers('zoekCoversInternetArchive');
+  if (rest > 0) ScriptApp.newTrigger('zoekCoversInternetArchive').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
+  if (gevonden) leegCache();
+  logboek('menu', 'zoekCoversInternetArchive', verwerkt + ' opgezocht, ' + gevonden + ' covers gevonden, ' + rest + ' te gaan' + (fout ? ' (Internet Archive: ' + fout + ', later verder)' : ''));
+  try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Internet Archive, ' + gevonden + ' covers gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
+}
