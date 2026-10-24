@@ -10,7 +10,7 @@ function baliecatalogus(staat) {
   return staat.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && !isLeeg(b.titel); }).map(function (b) {
     var info = {
       id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), i: schoon(b.isbn),
-      x: aantalExemplaren(b), u: isUitleenbaar(b)
+      x: aantalExemplaren(b), u: isUitleenbaar(b), c: !isLeeg(b.cover_url)
     };
     // st: zodat de vrijwilliger het weet. Gevoelig (verborgen of zichtbaar) mag je gewoon uitlenen.
     var status = boekStatus(b);

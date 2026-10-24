@@ -1146,6 +1146,34 @@ test('Google: tweede zoekvorm neemt enkel een uitgave met precies dit ISBN', () 
   assert.ok(M.googleBooksUrl('9780141439518', 'k', 'BE', 'vrij').includes('?q=9780141439518&country=BE&key=k'));
 });
 
+console.log('\nFoto van de cover en bol.com');
+test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', () => {
+  const s = maakStaat();
+  const bewaard = [];
+  const bewaar = (naam, data, mime) => { bewaard.push([naam, mime]); return 'https://lh3.googleusercontent.com/d/test123'; };
+  assert.strictEqual(M.coverUploaden(s, { boek_id: 'B0001', data: 'abc', mime: 'application/pdf' }, bewaar).ok, false);
+  assert.strictEqual(M.coverUploaden(s, { boek_id: 'B0001', data: 'niet geldig!', mime: 'image/jpeg' }, bewaar).ok, false);
+  assert.strictEqual(M.coverUploaden(s, { boek_id: 'B0001', data: 'A'.repeat(2100000), mime: 'image/jpeg' }, bewaar).ok, false);
+  assert.strictEqual(M.coverUploaden(s, { boek_id: 'B9999', data: 'QUJD', mime: 'image/jpeg' }, bewaar).ok, false);
+  const r = M.coverUploaden(s, { boek_id: 'B0001', data: 'data:image/jpeg;base64,QUJD', mime: 'image/jpeg' }, bewaar);
+  assert.strictEqual(r.ok, true);
+  gelijk(bewaard, [['B0001.jpg', 'image/jpeg']]);
+  gelijk([s.catalogus[0].cover_url, s.catalogus[0].cover_bron], ['https://lh3.googleusercontent.com/d/test123', 'foto in de bib']);
+  assert.strictEqual(M.ACTIES.beheerCoverUpload, 'bestuur');
+});
+test('bol.com: beste afbeelding uit een onbekend antwoord, sleutels nooit zichtbaar op de site', () => {
+  const antwoord = { images: [
+    { renditions: [{ url: 'https://media.s-bol.com/abc/124x200.jpg', width: 124 }, { url: 'https://media.s-bol.com/abc/550x840.jpg', width: 550 }] },
+    { url: 'https://media.s-bol.com/def/1200x1800.jpg', width: 1200 }] };
+  assert.strictEqual(M.bolAfbeelding(antwoord), 'https://media.s-bol.com/abc/550x840.jpg');
+  assert.strictEqual(M.bolAfbeelding({ image: { url: 'https://media.s-bol.com/x.jpg' } }), 'https://media.s-bol.com/x.jpg');
+  assert.strictEqual(M.bolAfbeelding({ titel: 'geen beeld', link: 'https://www.bol.com/nl/p/x' }), '');
+  assert.strictEqual(M.heeftBolNodig({ isbn: '9789044641035' }), true);
+  assert.strictEqual(M.heeftBolNodig({ isbn: '9789044641035', bol_gezocht: '2026-10-24' }), false);
+  const groepen = JSON.stringify(M.instellingenVoorBeheer([{ _rij: 2, sleutel: 'bol_client_secret', waarde: 'geheim' }, { _rij: 3, sleutel: 'bol_client_id', waarde: 'id' }]));
+  assert.ok(groepen.indexOf('geheim') === -1 && groepen.indexOf('bol_client') === -1);
+});
+
 console.log('\nBack-up');
 test('back-up: naam met de datum', () => {
   assert.strictEqual(M.backupNaam('2026-10-24'), 'Madrigal back-up 2026-10-24');
