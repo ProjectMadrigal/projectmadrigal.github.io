@@ -40,6 +40,21 @@
  "agenda": {
   "komend": [
    {
+    "datum": "2026-11-08",
+    "uur": "14:00",
+    "titel": {
+     "nl": "Antwerp Queer Bookclub",
+     "en": "Antwerp Queer Bookclub"
+    },
+    "tekst": {
+     "nl": "De Antwerp Queer Bookclub komt samen in de bib van Project Madrigal. Hun programma en andere activiteiten vind je op hun Instagram.",
+     "en": "The Antwerp Queer Bookclub meets in the Project Madrigal library. You will find their programme and other activities on their Instagram."
+    },
+    "locatie": "",
+    "afbeelding": "",
+    "link": "https://voorbeeld.test/instagram"
+   },
+   {
     "datum": "2026-11-27",
     "uur": "19:00",
     "titel": {
@@ -229,6 +244,24 @@
     "afbeelding": "",
     "tekst": "Voorbeeldtekst."
    }
+  ]
+ },
+ "bookclub": {
+  "naam": "Antwerp Queer Bookclub",
+  "regel": {
+   "nl": "elke tweede zondag van de maand",
+   "en": "every second Sunday of the month"
+  },
+  "uur": "14:00",
+  "tekst": {
+   "nl": "De Antwerp Queer Bookclub komt samen in de bib van Project Madrigal. Hun programma en andere activiteiten vind je op hun Instagram.",
+   "en": "The Antwerp Queer Bookclub meets in the Project Madrigal library. You will find their programme and other activities on their Instagram."
+  },
+  "link": "https://voorbeeld.test/instagram",
+  "volgende": [
+   "2026-11-08",
+   "2026-12-13",
+   "2027-01-10"
   ]
  }
 }

@@ -20,6 +20,7 @@
     nl: {
       overslaan: 'Ga naar de inhoud',
       menuHome: 'Home', menuBoeken: 'Boeken', menuOver: 'Over ons', menuDoeMee: 'Doe mee', menuLeeslijsten: 'Leeslijsten', menuPeperfabriek: 'Peperfabriek', menu: 'Menu',
+      bcWanneer: 'De bookclub komt {regel} samen in de bib{uur}.', bcOm: ', om {uur}', bcVolgende: 'Volgende keren: {datums}.', bcInstagram: 'Programma en activiteiten op Instagram',
       pfTitel: 'De Peperfabriek', pfProgramma: 'Programma', pfTot: 'tot', pfMeerInfo: 'Meer info bij De Peperfabriek',
       pfLeeg: 'Het programma van De Peperfabriek verschijnt hier binnenkort. Bekijk intussen hun website.', pfVolledig: 'Bekijk het volledige programma',
       pfStandaard: 'De bib van Project Madrigal vind je in De Peperfabriek. Dit staat er de komende weken nog op het programma.',
@@ -91,6 +92,7 @@
     en: {
       overslaan: 'Skip to content',
       menuHome: 'Home', menuBoeken: 'Books', menuOver: 'About us', menuDoeMee: 'Get involved', menuLeeslijsten: 'Reading lists', menuPeperfabriek: 'Peperfabriek', menu: 'Menu',
+      bcWanneer: 'The bookclub meets {regel} in the library{uur}.', bcOm: ', at {uur}', bcVolgende: 'Next meetings: {datums}.', bcInstagram: 'Programme and activities on Instagram',
       pfTitel: 'De Peperfabriek', pfProgramma: 'Programme', pfTot: 'until', pfMeerInfo: 'More info at De Peperfabriek',
       pfLeeg: 'The programme of De Peperfabriek will appear here soon. In the meantime, have a look at their website.', pfVolledig: 'See the full programme',
       pfStandaard: 'You will find the Project Madrigal library in De Peperfabriek. This is what is coming up there.',

@@ -9,7 +9,7 @@
  * De kolommen op _en zijn de Engelse versie. Leeg? Dan toont de site het Nederlands.
  */
 
-var SITE_CACHE_SLEUTEL = 'site_v4'; // v4: met het programma van De Peperfabriek
+var SITE_CACHE_SLEUTEL = 'site_v5'; // v5: met de Antwerp Queer Bookclub
 var SITE_MAX_NIEUWS = 3;
 var SITE_MAX_AANRADERS = 12;
 
@@ -55,6 +55,9 @@ function bouwSiteInhoud(staat, tabellen) {
         locatie: schoon(r.locatie), afbeelding: veiligeCoverUrl(r.afbeelding), link: veiligeCoverUrl(r.link)
       };
     });
+  // De vaste bijeenkomst van de bookclub (zie Bookclub.js) komt er vanzelf bij.
+  var bookclub = bookclubGegevens(inst, staat.vandaag, tabellen.agenda);
+  if (bookclub) events = events.concat(bookclub.events);
   var komend = events.filter(function (e) { return e.datum >= staat.vandaag; }).sort(function (a, b) { return a.datum.localeCompare(b.datum); });
   var voorbij = events.filter(function (e) { return e.datum < staat.vandaag; }).sort(function (a, b) { return b.datum.localeCompare(a.datum); });
 
@@ -144,6 +147,8 @@ function bouwSiteInhoud(staat, tabellen) {
       schenken: { nl: String(inst.tekst_schenken || ''), en: String(inst.tekst_schenken_en || '') || String(inst.tekst_schenken || '') },
       steunen: { nl: String(inst.tekst_steunen || ''), en: String(inst.tekst_steunen_en || '') || String(inst.tekst_steunen || '') }
     },
+    // Blok op de pagina Over ons: de bookclub, met de eerstvolgende datums. null als bookclub_naam leeg is.
+    bookclub: bookclub ? { naam: bookclub.naam, regel: bookclub.regel, uur: bookclub.uur, tekst: bookclub.tekst, link: bookclub.link, volgende: bookclub.volgende } : null,
     // Pagina Peperfabriek: de tekst, het adres van hun programma en de komende activiteiten (zie Peperfabriek.js).
     peperfabriek: {
       tekst: { nl: String(inst.tekst_peperfabriek || ''), en: String(inst.tekst_peperfabriek_en || '') || String(inst.tekst_peperfabriek || '') },
