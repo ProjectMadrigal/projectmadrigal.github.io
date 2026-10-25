@@ -332,6 +332,7 @@
 
   root.MadrigalBeheer = {
     aanmelden: aanmelden, afmelden: afmelden, wisselWie: wisselWie, voerUit: voerUit,
-    uitleenStatus: uitleenStatus, melding: melding, sessie: sessie, toonRooster: toonRooster, staatVraag: staatVraag
+    uitleenStatus: uitleenStatus, melding: melding, sessie: sessie, toonRooster: toonRooster, staatVraag: staatVraag,
+    langeDatum: langeDatum, AVONDSTATUS: AVONDSTATUS
   };
 })(window);

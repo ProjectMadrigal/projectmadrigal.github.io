@@ -42,6 +42,11 @@ var ACTIES = {
   herinneringVerstuurd: 'bestuur',
   lenerAanpassen: 'bestuur',
   aanvraagAfhandelen: 'bestuur',
+  // Van vrijwilligers naar het bestuur (Vrijwilligers.js).
+  voorstelBeschrijving: 'vrijwilliger',
+  voorstelBehandelen: 'bestuur',
+  meldingMaken: 'vrijwilliger',
+  meldingAfhandelen: 'bestuur',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
   // Beheer van de website (Beheer.js). Wat op 'vrijwilliger' staat, kan ook vanuit het vrijwilligersscherm.
@@ -63,7 +68,7 @@ var ACTIES = {
   beheerCoversLijst: 'vrijwilliger',
   beheerCoversBewaren: 'vrijwilliger',
   beheerCoverUpload: 'vrijwilliger',
-  beheerTekstUitFoto: 'bestuur',
+  beheerTekstUitFoto: 'vrijwilliger',
   beheerIaCovers: 'bestuur',
   beheerIaCoversWissen: 'bestuur'
 };
@@ -248,6 +253,7 @@ function voerActieUit(actie, invoer, rol) {
   try {
     var wie = tekstInvoer(invoer.wie, 40) || 'onbekend';
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
+    if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {
       var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie, rol) : beheerInstellingBewaren(invoer, wie);
       if (gewijzigd.ok) leegCache();
@@ -263,8 +269,17 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.aanvragen = openAanvragen(spreadsheet().getSheetByName('Aanvragen') ? leesTabel('Aanvragen').rijen : []);
         antwoord.data.onlineReserveren = staat.inst.online_reserveren === true;
         antwoord.data.voorstellen = telVoorstellen();
+        antwoord.data.beschrijvingVoorstellen = openVoorstellen(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
+        antwoord.data.meldingen = openMeldingen(tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : []);
+        antwoord.data.checklist = shiftChecklist(staat.inst);
         break;
-      case 'vrijwilligerData': antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) }; break;
+      case 'vrijwilligerData':
+        antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) };
+        antwoord.data.voorgesteld = voorgesteldeBoeken(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
+        antwoord.data.checklist = shiftChecklist(staat.inst);
+        break;
+      case 'voorstelBeschrijving':
+      case 'voorstelBehandelen': antwoord = voorstelActie(staat, actie, invoer); break;
       case 'uitlenen': antwoord = uitlenen(staat, invoer); break;
       case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true, staat_boek: invoer.staat_boek, opmerking: invoer.opmerking }); break;
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
