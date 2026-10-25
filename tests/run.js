@@ -1955,5 +1955,32 @@ test('films: verborgen tot films_tonen, kijktip en te koop, uitlenen aan de bali
   assert.strictEqual(a.ok, false);
 });
 
+test('films: export van IMDb of Letterboxd uit een tabblad', () => {
+  const imdb = [
+    ['Position', 'Const', 'Created', 'Modified', 'Description', 'Title', 'Original Title', 'URL', 'Title Type', 'IMDb Rating', 'Runtime (mins)', 'Year', 'Genres', 'Num Votes', 'Release Date', 'Directors'],
+    [1, 'tt0000001', '', '', '', 'Glitter op de dijk', '', 'https://www.imdb.com/title/tt0000001/', 'Movie', 7.1, 96, 2019, 'Drama, Romance, Sci-Fi', 100, '', 'Noor Aerts'],
+    [2, 'tt0000002', '', '', '', 'Een aflevering', '', '', 'TV Episode', 7, 30, 2020, 'Comedy', 1, '', 'Iemand'],
+    [3, 'tt0000003', '', '', '', 'Het lange weekend', '', '', 'Movie', 6, 104, 1987, 'Drama', 1, '', 'Ilo Claes, Jo Dewit']
+  ];
+  const films = M.filmsUitTabel(imdb);
+  gelijk(films.map((f) => [f.titel, f.jaar, f.imdb, f.regie, f.genre, f.duur]), [
+    ['Glitter op de dijk', 2019, 'tt0000001', 'Noor Aerts', 'Drama, Romantiek, Sciencefiction', 96],
+    ['Het lange weekend', 1987, 'tt0000003', 'Ilo Claes, Jo Dewit', 'Drama', 104]
+  ]);
+  const lb = M.filmsUitTabel([['Position', 'Name', 'Year', 'URL', 'Description'], [1, 'Stille lichten', 2021, 'https://boxd.it/verzonnen', '']]);
+  gelijk(lb.map((f) => [f.titel, f.jaar]), [['Stille lichten', 2021]]);
+  assert.strictEqual(M.filmsUitTabel([['Iets', 'Anders'], [1, 2]]), null, 'Geen lijst met films');
+  // In de Catalogus, zonder dubbels: ook niet bij hetzelfde IMDb-nummer met een andere schrijfwijze.
+  const rijen = [{ boek_id: 'F0001', soort: 'film', titel: 'Glitter op de Dijk!', imdb: 'tt0000001' }];
+  let n = 1;
+  assert.strictEqual(M.voegFilmsToe(rijen, films, '2026-10-25', () => 'F' + String(++n).padStart(4, '0')), 1);
+  gelijk([rijen[1].titel, rijen[1].auteur, rijen[1].genre, rijen[1].duur, rijen[1].imdb], ['Het lange weekend', 'Ilo Claes, Jo Dewit', 'Drama', 104, 'tt0000003']);
+  assert.ok(/P345/.test(M.filmVraagImdb(['tt0000003'])));
+  // Wikidata vult enkel aan wat de export niet had.
+  const v = M.filmVelden(rijen[1], { qid: 'Q9', regie: ['Iemand anders'], jaar: 1987, land: ['Nederland'], genre: ['dramafilm'], duur: 100, taal: '', nl: '', en: '' });
+  gelijk([v.auteur, v.genre, v.duur, v.land], [undefined, undefined, undefined, 'Nederland']);
+  assert.ok(/IMDb of Letterboxd/.test(M.daglimietFilmTekst(2 * 3600000)) && /2 uur/.test(M.daglimietFilmTekst(2 * 3600000)));
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

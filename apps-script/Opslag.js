@@ -21,7 +21,7 @@ var KOLOMMEN = {
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
-    'letterboxd', 'wikidata', 'film_gezocht',
+    'letterboxd', 'imdb', 'wikidata', 'film_gezocht',
     // Interne notitie van het bestuur (bv. schade, plaats in de kast). Nooit publiek.
     'notitie'
   ],
