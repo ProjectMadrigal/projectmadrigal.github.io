@@ -797,6 +797,12 @@ test('bezoekers uit GoatCounter: adres, periode en omzetten', () => {
   }, 7);
   gelijk([c.totaal, c.perWeek, c.verloop.map((d) => d.dag), c.paginas.length, c.bronnen[1].naam, c.toestellen.length, c.landen[0].n],
     [42, false, ['2026-10-24', '2026-10-25'], 1, '(onbekend)', 0, 30]);
+  // Foutafhandeling: alles mislukt, onbekende site, of een deel mislukt.
+  const alles = M.gcUitkomst({}, [M.gcFoutRegel('totaal', 404, '{"error":"not found"}')], 7, 'x');
+  gelijk([alles.ok, /totaal: 404 \(\{"error":"not found"\}\)/.test(alles.fout)], [false, true]);
+  assert.ok(/kent de code x niet/.test(M.gcUitkomst({}, [M.gcFoutRegel('totaal', 400, '{"error":"no site at this domain (\\"x.goatcounter.com\\")"}')], 7, 'x').fout));
+  const deel = M.gcUitkomst({ totaal: { total: 3, stats: [] } }, ['landen: 404 (not found)'], 7, 'x');
+  gelijk([deel.ok, deel.cijfers.totaal, deel.waarschuwing], [true, 3, 'Niet alles kwam binnen: landen: 404 (not found)']);
   const jaar = M.verwerkGoatcounter({ totaal: { total: 1, stats: Array.from({ length: 14 }, (_, i) => ({ day: '2026-01-' + String(i + 1).padStart(2, '0'), daily: 1 })) } }, 365);
   gelijk([jaar.perWeek, jaar.verloop.length, jaar.verloop[0].n], [true, 2, 7]);
 });

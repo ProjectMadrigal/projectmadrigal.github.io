@@ -95,17 +95,45 @@ function bezoekersCijfers(invoer) {
   } catch (e) {
     return { ok: false, fout: 'GoatCounter is niet bereikbaar. Probeer het later opnieuw.' };
   }
-  var data = {};
+  var data = {}, mislukt = [];
   for (var i = 0; i < sleutels.length; i++) {
     var code = antwoorden[i].getResponseCode();
-    if (code === 401 || code === 403) return { ok: false, fout: 'GoatCounter weigert de API-sleutel. Kijk na of ze klopt en het recht "Read statistics" heeft.' };
+    var tekst = antwoorden[i].getContentText();
+    if (code === 401 || code === 403) return { ok: false, fout: 'GoatCounter weigert de API-sleutel (' + code + '). Kijk na of ze klopt en het recht "Read statistics" heeft.' };
     if (code === 429) return { ok: false, fout: 'GoatCounter vraagt even te wachten. Probeer het over een minuut opnieuw.' };
-    if (code === 404) return { ok: false, fout: 'GoatCounter kent de code ' + inst.goatcounter_code + ' niet. Kijk de instelling goatcounter_code na.' };
-    if (code >= 200 && code < 300) {
-      try { data[sleutels[i]] = JSON.parse(antwoorden[i].getContentText()); } catch (e) { data[sleutels[i]] = null; }
-    }
+    var json = null;
+    if (code >= 200 && code < 300) { try { json = JSON.parse(tekst); } catch (e) { json = null; } }
+    if (json) data[sleutels[i]] = json;
+    else mislukt.push(gcFoutRegel(sleutels[i], code, tekst));
   }
-  var cijfers = verwerkGoatcounter(data, dagen);
-  try { cache.put(cacheSleutel, JSON.stringify(cijfers), GC_CACHE_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
-  return { ok: true, cijfers: cijfers };
+  var r = gcUitkomst(data, mislukt, dagen, inst.goatcounter_code);
+  if (r.ok && !mislukt.length) {
+    try { cache.put(cacheSleutel, JSON.stringify(r.cijfers), GC_CACHE_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
+  }
+  if (mislukt.length) logboek('bestuur', 'bezoekersCijfers', mislukt.join(' | ').slice(0, 450));
+  return r;
+}
+
+/** Eén regel over een mislukte vraag: welk onderdeel, de code en het begin van het antwoord. */
+function gcFoutRegel(sleutel, code, tekst) {
+  var kort = schoon(String(tekst || '').replace(/<[^>]*>/g, ' ')).slice(0, 120);
+  return sleutel + ': ' + code + (kort ? ' (' + kort + ')' : '');
+}
+
+/**
+ * Wat het bestuursscherm krijgt. Lukte niets, dan een fout met de details per onderdeel.
+ * Lukte een deel, dan de cijfers en een waarschuwing over wat ontbreekt.
+ */
+function gcUitkomst(data, mislukt, dagen, code) {
+  if (!Object.keys(data).length) {
+    var geenSite = mislukt.some(function (m) { return /no site at this domain/i.test(m); });
+    return {
+      ok: false,
+      fout: geenSite ? 'GoatCounter kent de code ' + code + ' niet. Kijk de instelling goatcounter_code na.'
+        : 'GoatCounter gaf geen cijfers. Antwoord per onderdeel: ' + mislukt.join('; ')
+    };
+  }
+  var r = { ok: true, cijfers: verwerkGoatcounter(data, dagen) };
+  if (mislukt.length) r.waarschuwing = 'Niet alles kwam binnen: ' + mislukt.join('; ');
+  return r;
 }
