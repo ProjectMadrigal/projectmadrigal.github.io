@@ -370,6 +370,7 @@ function beheerInstellingBewaren(invoer, wie) {
 
 /**
  * De boeken zonder cover of zonder beschrijving die de browser nog moet opzoeken.
+ * Een beschrijving van Wikipedia telt als ontbrekend voor Google: die vervangt ze.
  *   g: nog niet bij Google opgezocht (enkel met een ISBN): voor een cover en een beschrijving
  *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
  *   i: nog niet bij Internet Archive opgezocht (enkel met een ISBN)
@@ -379,7 +380,7 @@ function coversTeZoeken(staat) {
   staat.catalogus.forEach(function (b) {
     if (isLeeg(b.boek_id)) return;
     var zonderCover = isLeeg(b.cover_url);
-    if (!zonderCover && !isLeeg(b.beschrijving)) return;
+    if (!zonderCover && !isLeeg(b.beschrijving) && !heeftWikiBeschrijving(b)) return;
     var isbn = /^\d{13}$/.test(String(b.isbn || '')) ? String(b.isbn) : '';
     // Google: voor een cover en voor een beschrijving. Open Library en Internet Archive: enkel voor een cover.
     var g = !!isbn && isLeeg(b.gb_gecontroleerd);
@@ -404,7 +405,8 @@ function isOlCover(url) {
  * invoer.items: [{ boek_id, google, ol, bron, cover, meta: { beschrijving, uitgeverij, jaartal, paginas, taal } }]
  *   google / ol: dit boek werd daar opgezocht (dan krijgt het een datum in gb_gecontroleerd / cover_gezocht)
  *   bron: 'google', 'ol-isbn', 'ol-titel' of 'ia' (Internet Archive)
- * Enkel lege velden worden aangevuld, en enkel covers van Google of Open Library.
+ * Enkel lege velden worden aangevuld (behalve een beschrijving van Wikipedia: Google vervangt die),
+ * en enkel covers van Google, Open Library of Internet Archive.
  * (Oudere versie van de knop: { gezocht, resultaten } met enkel Google.)
  */
 function coversBewaren(staat, invoer) {

@@ -1200,6 +1200,28 @@ test('Google via de browser: ook boeken met cover maar zonder beschrijving', () 
   const r = M.coversBewaren(s, { items: [{ boek_id: 'B0001', google: true, meta: { beschrijving: 'Een mooie beschrijving van het boek.' } }] });
   gelijk([r.covers, r.beschrijvingen, s.catalogus[0].beschrijving, s.catalogus[0].cover_url, s.vertalingNodig], [0, 1, 'Een mooie beschrijving van het boek.', 'https://x.test/c.jpg', true]);
 });
+test('Google vervangt een beschrijving van Wikipedia, niet een eigen tekst', () => {
+  const s = maakStaat('2026-10-25');
+  Object.assign(s.catalogus[0], { cover_url: 'https://x.test/c.jpg', beschrijving: 'Tekst van Wikipedia.', beschrijving_en: 'Text from Wikipedia.',
+    beschrijving_bron: 'https://nl.wikipedia.org/wiki/Verzonnen_boek', beschrijving_vertaald: '2026-10-24' });
+  Object.assign(s.catalogus[1], { cover_url: 'https://x.test/d.jpg', beschrijving: 'Eigen tekst.', beschrijving_bron: '' });
+  const lijst = M.coversTeZoeken(s).boeken;
+  assert.ok(lijst.find((b) => b.id === 'B0001').g);
+  assert.ok(!lijst.some((b) => b.id === 'B0002'));
+  const r = M.coversBewaren(s, { items: [
+    { boek_id: 'B0001', google: true, meta: { beschrijving: 'De omschrijving van de uitgever.' } },
+    { boek_id: 'B0002', google: true, meta: { beschrijving: 'Andere tekst.' } }
+  ] });
+  const b = s.catalogus[0];
+  gelijk([r.beschrijvingen, b.beschrijving, b.beschrijving_bron, b.beschrijving_en, b.beschrijving_vertaald, s.vertalingNodig],
+    [1, 'De omschrijving van de uitgever.', '', '', '', true]);
+  assert.strictEqual(s.catalogus[1].beschrijving, 'Eigen tekst.');
+  // Vindt Google niets, dan blijft Wikipedia staan.
+  const s2 = maakStaat();
+  Object.assign(s2.catalogus[0], { beschrijving: 'Tekst van Wikipedia.', beschrijving_bron: 'https://en.wikipedia.org/wiki/X' });
+  M.coversBewaren(s2, { items: [{ boek_id: 'B0001', google: true, meta: {} }] });
+  gelijk([s2.catalogus[0].beschrijving, s2.catalogus[0].beschrijving_bron], ['Tekst van Wikipedia.', 'https://en.wikipedia.org/wiki/X']);
+});
 test('Wikipedia: enkel bij goede titel en vermelde auteur, met bronlink', () => {
   const boek = { titel: 'Giovanni\'s Room', auteur: 'Baldwin, James' };
   gelijk(M.kiesWikiTitels(boek, ['Giovanni\'s Room', 'James Baldwin', 'Giovanni\'s Room (novel)', 'Room']), ['Giovanni\'s Room', 'Giovanni\'s Room (novel)']);
