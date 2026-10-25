@@ -24,7 +24,7 @@ var INSTELLING_GROEPEN = [
   ['Uitlenen: herinneringen', ['tekst_herinnering', 'tekst_herinnering_binnenkort']],
   ['Uitlenen: online reserveren', ['online_reserveren']],
   ['Vrijwilligers: shift', ['tekst_checklist_openen', 'tekst_checklist_sluiten', 'tekst_checklist_uitlenen']],
-  ['Vrijwilligers: rooster', ['rooster_link']],
+  ['Vrijwilligers: rooster', ['rooster_link', 'tekst_vaste_events']],
   ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
   ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
@@ -45,7 +45,7 @@ var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
   ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken']],                     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten']],       // website
-  ['#1b1b1c', ['Instellingen', 'Logboek']],                                      // beheer
+  ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
   ['#bdbdbd', ['Stock', 'Zines', 'Goodreads-export']]                            // bronnen, zelden nodig
 ];
 

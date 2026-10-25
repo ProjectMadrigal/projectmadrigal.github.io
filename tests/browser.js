@@ -80,6 +80,7 @@ function antwoord(rol, actie, vraag) {
     }) },
     balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }] }) },
     bestuurCijfers: { ok: true, cijfers: { meestGeleend: [], groepen: [],
+      shifts: { jaar: 2026, personen: [{ naam: 'Kim', bib: 3, backup: 1 }], dicht: [{ datum: '2026-05-01', rol: 'gesloten' }] },
       extraCijfers: { nieuweLeners: [{ maand: 'oktober 2026', aantal: 2 }], nooitUitgeleend: 1, nooitVoorbeelden: [{ boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Aerts, Noor' }], gemiddeldeDagen: 17, afgesloten: 2, actieveLeners: 2 } } },
     nieuweLener: { ok: true, lenersnummer: '14', voornaam: 'Alex', tekst: 'Alex is ingeschreven met lenersnummer 14.' },
     terugbrengen: { ok: true, tekst: '"De verzonnen zee" is terug.' },
@@ -526,6 +527,7 @@ async function meldAan(page, basis, pagina) {
     await page.click('#sectienav button:has-text("Cijfers")');
     await page.waitForSelector('h4:has-text("Nooit uitgeleend")');
     verwacht(/Nooit uitgeleend[\s\S]*Stille lichten/.test(await page.textContent('#sectie')), 'Extra cijfers');
+    verwacht(/Shifts in 2026[\s\S]*Kim[\s\S]*1\/5\/2026: gesloten/.test(await page.textContent('#sectie')), 'Shifts per vrijwilliger ontbreken');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });

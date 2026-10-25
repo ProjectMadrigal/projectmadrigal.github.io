@@ -759,7 +759,28 @@
       cijfers.meestGeleend.length ? staafTabel('Meest geleende boeken', 'Boek', cijfers.meestGeleend.map(function (b) { return [b.titel + (b.auteur ? ' (' + b.auteur + ')' : ''), b.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
       el('h4', {}, 'Uitleningen per filtergroep'),
       cijfers.groepen.length ? staafTabel('Uitleningen per filtergroep', 'Filtergroep', cijfers.groepen.map(function (g) { return [g.groep, g.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
-      extraCijfersBlok());
+      extraCijfersBlok(),
+      shiftsBlok());
+  }
+
+  /** Shifts per vrijwilliger dit jaar (tabblad Shifts), en de avonden dat de bib dicht was. */
+  function shiftsBlok() {
+    var s = cijfers.shifts;
+    if (!s) return null;
+    var tabel = s.personen.length ? el('div', { class: 'tabel-wrap' }, el('table', {},
+      el('caption', { class: 'verborgen' }, 'Shifts per vrijwilliger in ' + s.jaar),
+      el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Vrijwilliger'), el('th', { scope: 'col', class: 'getal' }, 'In de bib'), el('th', { scope: 'col', class: 'getal' }, 'Back-up'))),
+      el('tbody', {}, s.personen.map(function (p) {
+        return el('tr', {}, el('td', {}, p.naam), el('td', { class: 'getal' }, String(p.bib)), el('td', { class: 'getal' }, String(p.backup)));
+      })))) : el('p', {}, 'Nog geen shifts. Neem een oud rooster over via Madrigal > Eenmalig bij de start in de spreadsheet.');
+    return [
+      el('h3', { style: 'margin-top:1.5rem' }, 'Shifts in ' + s.jaar),
+      el('p', { class: 'hulptekst' }, 'Wie hoeveel vrijdagen de bib openhield of back-up was, volgens het tabblad Shifts. Handig om te bedanken.'),
+      tabel,
+      s.dicht.length ? el('div', {}, el('h4', {}, 'Dicht of workshop'), el('ul', {}, s.dicht.map(function (d) {
+        return el('li', {}, D.korteDatum(d.datum) + ': ' + (d.rol === 'workshop' ? 'workshop' : 'gesloten'));
+      }))) : null
+    ];
   }
 
   /** Leners en collectie: nieuwe leners, actieve leners, uitleenduur, boeken die nooit uitgeleend werden. */

@@ -330,6 +330,12 @@ Op `vrijwilliger.html` werken vaste vrijwilligers met een eigen code: de instell
 
 Een nieuwe code maken? Maak de cel `code_vrijwilliger` leeg en kies **Madrigal > Installeer tabbladen**. Dan komt er een nieuwe willekeurige code.
 
+### Vaste events en shifts
+
+- **Vaste events:** de instelling `tekst_vaste_events` (onder Vrijwilligers: rooster) somt de events op die elke maand terugkomen, een regel per event, bv. `T-café: derde vrijdag`. Je kan eerste, tweede, derde, vierde of laatste gebruiken. De eerstvolgende keer komt vanzelf in de agenda van de website, en bij het rooster en Jouw shift. Wijkt een keer af? Zet die dag een eigen event met dezelfde naam in de Agenda. Geen vaste events? Typ `geen`.
+- **Een oud rooster overnemen:** importeer het bestand (een tabblad per maand) via **Bestand > Importeren > Uploaden > Nieuwe bladen invoegen**. Kies dan **Madrigal > Eenmalig bij de start > Neem een oud rooster over uit de tabbladen**. Wie in de bib stond en wie back-up was, komt in het tabblad **Shifts**, net als de avonden dat de bib dicht was of een workshop had. Daarna mag je de geïmporteerde tabbladen verwijderen.
+- **Cijfers:** het bestuursscherm toont onder Cijfers hoeveel vrijdagen elke vrijwilliger dit jaar de bib openhield of back-up was. Namen van vrijwilligers staan nooit op de website.
+
 ### Films
 
 Films (dvd's) staan in de Catalogus, net als de boeken, met soort `film` en een nummer F0001. Je leent ze uit, reserveert ze en brengt ze terug aan de balie zoals een boek. Op de website hebben ze een eigen pagina, `films.html`, met filters op genre, land en periode.

@@ -101,6 +101,7 @@ function roosterOverzicht() {
   }
 
   var data = bouwRoosterOverzicht(antwoorden, vandaag);
+  vulVasteEventsAan(data.avonden, inst);
   data.gekoppeld = true;
   data.link = link;
   data.vandaag = vandaag;

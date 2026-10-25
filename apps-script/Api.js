@@ -330,7 +330,10 @@ function voerActieUit(actie, invoer, rol) {
         var fc = bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen, [], { enkelFilms: true });
         antwoord = { ok: true, boeken: fc.boeken, teksten: fc.teksten, filmsTonen: staat.inst.films_tonen === true };
         break;
-      case 'bestuurCijfers': antwoord = { ok: true, cijfers: bestuurCijfers(staat, leesTabel('Onderwerpen').rijen) }; break;
+      case 'bestuurCijfers':
+        antwoord = { ok: true, cijfers: bestuurCijfers(staat, leesTabel('Onderwerpen').rijen) };
+        antwoord.cijfers.shifts = shiftCijfers(spreadsheet().getSheetByName('Shifts') ? leesTabel('Shifts').rijen : [], staat.vandaag.slice(0, 4));
+        break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;

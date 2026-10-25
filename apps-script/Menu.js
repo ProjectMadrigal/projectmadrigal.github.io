@@ -145,6 +145,7 @@ function onOpen() {
       .addItem('Vul aan uit Goodreads', 'vulAanUitGoodreads')
       .addItem('Neem lopende uitleningen over', 'neemUitleningenOver')
       .addItem('Neem nieuws, agenda en vragen over', 'importeerOudeSite')
+      .addItem('Neem een oud rooster over uit de tabbladen (een tabblad per maand)', 'neemRoosterOverUitTabbladen')
       .addSeparator()
       .addItem('Catalogus wissen en opnieuw opbouwen', 'herbouwCatalogus'))
     .addToUi();

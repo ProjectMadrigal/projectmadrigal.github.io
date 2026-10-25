@@ -62,6 +62,7 @@ var STANDAARD_INSTELLINGEN = [
   ['bookclub_week', 2, 'De hoeveelste week van de maand: 1 tot 4, of 5 voor de laatste.'],
   ['bookclub_dag', 'zondag', 'Op welke weekdag de bookclub samenkomt.'],
   ['bookclub_uur', '', 'Het uur, bv. 14:00 of 14:00 - 16:00. Leeg: enkel de datum.'],
+  ['tekst_vaste_events', 'Genderspectrum: tweede vrijdag\nT-café: derde vrijdag\nACA-volkskeuken: vierde vrijdag', 'Events die elke maand terugkomen. Een regel per event: naam, dubbelpunt, en eerste, tweede, derde, vierde of laatste plus de weekdag. Ze komen vanzelf in de agenda van de website en bij het rooster. Geen vaste events? Typ geen.'],
   ['films_tonen', 'nee', 'Ja: de pagina Films staat in het menu van de website. Nee: enkel het bestuur ziet ze, op een toestel waar het aangemeld is.'],
   ['tekst_films', 'Films over queer leven, liefde en geschiedenis. Leen een dvd zoals je een boek leent.', 'Pagina Films: de tekst bovenaan.'],
   ['tekst_films_en', 'Films about queer life, love and history. Borrow a DVD the way you borrow a book.', 'Pagina Films: de tekst bovenaan, in het Engels.'],

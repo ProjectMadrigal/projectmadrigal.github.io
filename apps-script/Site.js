@@ -58,6 +58,8 @@ function bouwSiteInhoud(staat, tabellen) {
   // De vaste bijeenkomst van de bookclub (zie Bookclub.js) komt er vanzelf bij.
   var bookclub = bookclubGegevens(inst, staat.vandaag, tabellen.agenda);
   if (bookclub) events = events.concat(bookclub.events);
+  // De vaste events van elke maand (zie Shifts.js), telkens de eerstvolgende keer.
+  events = events.concat(vasteEventsVoorAgenda(inst, staat.vandaag, tabellen.agenda));
   var komend = events.filter(function (e) { return e.datum >= staat.vandaag; }).sort(function (a, b) { return a.datum.localeCompare(b.datum); });
   var voorbij = events.filter(function (e) { return e.datum < staat.vandaag; }).sort(function (a, b) { return b.datum.localeCompare(a.datum); });
 

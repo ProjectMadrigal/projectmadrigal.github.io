@@ -51,6 +51,8 @@ var KOLOMMEN = {
   // Van vrijwilligers (Vrijwilligers.js): voorgestelde beschrijvingen en meldingen voor het bestuur.
   'Voorstellen': ['voorstel_id', 'datum', 'boek_id', 'titel', 'tekst', 'voorgesteld_door', 'status', 'behandeld_door', 'datum_behandeld'],
   'Meldingen': ['melding_id', 'datum', 'wie', 'soort', 'onderwerp', 'bericht', 'status', 'afgehandeld_door', 'datum_afgehandeld'],
+  // Archief van de shifts: wie de bib openhield (bib) of back-up was, en gesloten avonden (Shifts.js).
+  'Shifts': ['datum', 'rol', 'naam', 'event'],
   // Briefjes van vrijwilligers voor de volgende shift. Staan 14 dagen op Vandaag, gewist na briefjes_bewaren_dagen.
   'Briefjes': ['briefje_id', 'datum', 'wie', 'tekst', 'status', 'weg_door', 'datum_weg'],
   // Inhoud van de website. Kolommen op _en zijn de Engelse versie (mag leeg: dan toont de site het Nederlands).
