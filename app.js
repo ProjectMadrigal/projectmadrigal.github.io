@@ -344,6 +344,8 @@
           return el('li', {}, el('a', { class: 'label label-aanrader', href: '#/?aanrader=' + encodeURIComponent('Aanrader van ' + n) }, t('aanraderVan', { naam: n })));
         })) : null,
         b.d ? el('p', { class: 'beschrijving' }, (T.taal() === 'en' && b.de) || b.d) : null,
+        b.d && b.db ? el('p', { class: 'hulptekst' }, t('bronWikipedia') + ' ', el('a', { href: b.db, target: '_blank', rel: 'noopener' }, 'Wikipedia'),
+          ' (', el('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/deed.nl', target: '_blank', rel: 'noopener' }, 'CC BY-SA 4.0'), ')' + (T.taal() === 'en' ? '' : t('bronVertaald'))) : null,
         el('dl', { class: 'gegevens' }, rijen.map(function (r) { return [el('dt', {}, r[0]), el('dd', {}, String(r[1]))]; })),
         onderwerpen.length ? el('div', {}, el('h2', { class: 'klein' }, t('onderwerpen')), el('ul', { class: 'labels' }, onderwerpen)) : null,
         el('div', { class: 'knoppen' }, reservatie ? reservatie.knop : null, deelKnop),

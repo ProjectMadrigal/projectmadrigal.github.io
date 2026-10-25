@@ -11,6 +11,7 @@
  *   g   filtergroepen    s  soort (boek/zine)                d  beschrijving
  *   de  beschrijving in het Engels (enkel als die verschilt)
  *   ta  datum waarop het boek in de catalogus kwam (om te sorteren op laatst toegevoegd)
+ *   db  link naar de bron van de beschrijving (enkel Wikipedia: die licentie vraagt een bronvermelding)
  *   w   1 als het boek gevoelige inhoud heeft (label op de website)
  *   c   cover-URL        b  beschikbaarheid { c: code, l: label, t: totaal, v: vrij,
  *                                           d: verwacht terug (datum), k: 1 als te koop }
@@ -43,7 +44,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen) {
       i: schoon(rij.isbn), u: schoon(rij.uitgeverij), j: parseerGetal(rij.jaartal) || '',
       l: schoon(rij.taal), p: parseerGetal(rij.paginas) || '', v: schoon(rij.uitvoering),
       n: jaNee(rij.nieuwstaat) === 'ja' ? 'nieuw' : (jaNee(rij.nieuwstaat) === 'nee' ? 'tweedehands' : ''),
-      d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op)
+      d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
+      db: /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(schoon(rij.beschrijving_bron)) && schoonMetRegels(rij.beschrijving) ? schoon(rij.beschrijving_bron) : ''
     };
     var en = schoonMetRegels(rij.beschrijving_en);
     if (en && en !== extra.d) extra.de = en;

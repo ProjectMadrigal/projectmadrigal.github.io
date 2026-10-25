@@ -1188,6 +1188,49 @@ test('Internet Archive: zoeken op ISBN 13 en 10, enkel veilige links, met bron e
   gelijk([s.catalogus[0].cover_bron, s.catalogus[0].ia_gezocht, s.catalogus[1].cover_url || ''], ['Internet Archive', '2026-10-24', '']);
 });
 
+console.log('\nBeschrijvingen: Google via de browser, Wikipedia, achterkant');
+test('Google via de browser: ook boeken met cover maar zonder beschrijving', () => {
+  const s = maakStaat('2026-10-24');
+  s.catalogus[0].cover_url = 'https://x.test/c.jpg';                                   // cover, geen beschrijving
+  s.catalogus[1].cover_url = 'https://x.test/d.jpg'; s.catalogus[1].beschrijving = 'Al een tekst.'; // niets nodig
+  const lijst = M.coversTeZoeken(s).boeken;
+  const b1 = lijst.find((b) => b.id === 'B0001');
+  gelijk([b1.g, b1.o, b1.i], [true, false, false]);
+  assert.ok(!lijst.some((b) => b.id === 'B0002'));
+  const r = M.coversBewaren(s, { items: [{ boek_id: 'B0001', google: true, meta: { beschrijving: 'Een mooie beschrijving van het boek.' } }] });
+  gelijk([r.covers, r.beschrijvingen, s.catalogus[0].beschrijving, s.catalogus[0].cover_url, s.vertalingNodig], [0, 1, 'Een mooie beschrijving van het boek.', 'https://x.test/c.jpg', true]);
+});
+test('Wikipedia: enkel bij goede titel en vermelde auteur, met bronlink', () => {
+  const boek = { titel: 'Giovanni\'s Room', auteur: 'Baldwin, James' };
+  gelijk(M.kiesWikiTitels(boek, ['Giovanni\'s Room', 'James Baldwin', 'Giovanni\'s Room (novel)', 'Room']), ['Giovanni\'s Room', 'Giovanni\'s Room (novel)']);
+  const goed = { type: 'standard', description: '1956 novel by James Baldwin', extract: 'Giovanni\'s Room is a 1956 novel by James Baldwin. The book focuses on the events in the life of an American man living in Paris.', content_urls: { desktop: { page: 'https://en.wikipedia.org/wiki/Giovanni%27s_Room' } } };
+  assert.strictEqual(M.wikiSamenvattingOk(boek, goed), true);
+  assert.strictEqual(M.wikiSamenvattingOk(boek, Object.assign({}, goed, { type: 'disambiguation' })), false);
+  assert.strictEqual(M.wikiSamenvattingOk(boek, Object.assign({}, goed, { description: 'a room', extract: 'A room is any distinguishable space within a structure, usually separated from other spaces by walls.' })), false);
+  assert.strictEqual(M.wikiLink(goed), 'https://en.wikipedia.org/wiki/Giovanni%27s_Room');
+  assert.strictEqual(M.wikiLink({ content_urls: { desktop: { page: 'https://evil.test/wiki/x' } } }), '');
+  assert.strictEqual(M.heeftWikiNodig({ titel: 'X', auteur: '' }), false);
+});
+test('website: bronvermelding enkel voor een link naar Wikipedia', () => {
+  const s = maakStaat();
+  s.catalogus[0].beschrijving = 'Tekst uit Wikipedia.'; s.catalogus[0].beschrijving_bron = 'https://nl.wikipedia.org/wiki/Voorbeeld';
+  s.catalogus[1].beschrijving = 'Andere tekst.'; s.catalogus[1].beschrijving_bron = 'https://evil.test/x';
+  const p = M.bouwPubliekeCatalogus(s, []);
+  assert.strictEqual(p.boeken.find((b) => b.id === 'B0001').db, 'https://nl.wikipedia.org/wiki/Voorbeeld');
+  assert.ok(!('db' in p.boeken.find((b) => b.id === 'B0002')));
+  M.boekAanpassen(s, { boek_id: 'B0001', velden: { beschrijving: '' } });
+  assert.strictEqual(s.catalogus[0].beschrijving_bron, '');
+});
+test('achterkant: tekst netjes, gesplitste woorden terug aan elkaar, alinea\'s blijven', () => {
+  const ruw = 'Een roman over de ge-\nschiedenis van een\nqueer familie in Antwerpen.\n\nTweede   alinea\nhier.';
+  assert.strictEqual(M.maakOcrTekstNetjes(ruw), 'Een roman over de geschiedenis van een queer familie in Antwerpen.\n\nTweede alinea hier.');
+  assert.strictEqual(M.tekstUitFoto({ data: 'QUJD', mime: 'application/pdf' }, () => 'x').ok, false);
+  assert.strictEqual(M.tekstUitFoto({ data: 'QUJD', mime: 'image/jpeg' }, () => 'kort').ok, false);
+  const r = M.tekstUitFoto({ data: 'data:image/jpeg;base64,QUJD', mime: 'image/jpeg' }, () => ruw);
+  gelijk([r.ok, r.tekst.slice(0, 18)], [true, 'Een roman over de ']);
+  assert.strictEqual(M.ACTIES.beheerTekstUitFoto, 'bestuur');
+});
+
 console.log('\nBack-up');
 test('back-up: naam met de datum', () => {
   assert.strictEqual(M.backupNaam('2026-10-24'), 'Madrigal back-up 2026-10-24');

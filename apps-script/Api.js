@@ -44,7 +44,8 @@ var ACTIES = {
   beheerInstellingBewaren: 'bestuur',
   beheerCoversLijst: 'bestuur',
   beheerCoversBewaren: 'bestuur',
-  beheerCoverUpload: 'bestuur'
+  beheerCoverUpload: 'bestuur',
+  beheerTekstUitFoto: 'bestuur'
 };
 
 /* ---------- Staat lezen en bewaren ---------- */
@@ -206,6 +207,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'roosterOverzicht') return roosterOverzicht(); // leest enkel, geen slot nodig
   if (actie === 'beheerIsbnOpzoeken') return isbnOpzoeken(invoer); // leest enkel bij Open Library en Google Books
   if (actie === 'beheerInhoud') return beheerInhoudGegevens();
+  if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
 
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { ok: false, fout: 'Het is even druk. Probeer het over een paar seconden opnieuw.' };
@@ -249,6 +251,9 @@ function voerActieUit(actie, invoer, rol) {
     }
     // Ook bij een geweigerde actie bewaren we vervallen reservaties.
     bewaarStaat(staat);
+    if (staat.vertalingNodig) {
+      try { planVertaling(2); } catch (e) { /* lukt het niet, dan vertaalt het menu later */ }
+    }
     if (staat.catalogusGewijzigd) {
       bewaarTabel(staat.tabellen.Catalogus);
       werkOnderwerpenBij(); // een nieuw genre komt zo in de vertaaltabel Onderwerpen

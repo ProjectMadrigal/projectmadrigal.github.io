@@ -125,7 +125,7 @@
     zoekveld.addEventListener('input', teken);
     D.vervang(vak, ctx.kop('Boeken', 'Zoek een boek om het aan te passen, of voeg een nieuw boek toe. Alles komt in het tabblad Catalogus van de spreadsheet.'),
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwBoek(vak, ctx); } }, '+ Nieuw boek toevoegen'),
-        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers (Google, Open Library, Internet Archive)'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers en beschrijvingen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
     teken();
@@ -153,8 +153,8 @@
     teken();
   }
 
-  /** Verkleint een foto in de browser tot hoogstens 600 pixels en geeft een JPG terug (base64). */
-  function verkleinFoto(bestand) {
+  /** Verkleint een foto in de browser (standaard tot hoogstens 600 pixels) en geeft een JPG terug (base64). */
+  function verkleinFoto(bestand, max) {
     return new Promise(function (klaar, mislukt) {
       var lezer = new FileReader();
       lezer.onerror = function () { mislukt(new Error('De foto kon niet gelezen worden.')); };
@@ -162,7 +162,7 @@
         var beeld = new Image();
         beeld.onerror = function () { mislukt(new Error('Dit bestand is geen foto.')); };
         beeld.onload = function () {
-          var schaal = Math.min(1, 600 / Math.max(beeld.width, beeld.height));
+          var schaal = Math.min(1, (max || 600) / Math.max(beeld.width, beeld.height));
           var doek = document.createElement('canvas');
           doek.width = Math.round(beeld.width * schaal);
           doek.height = Math.round(beeld.height * schaal);
@@ -176,6 +176,36 @@
   }
 
   /** Het blok om een foto van de cover te nemen en te bewaren (enkel voor een bestaand boek). */
+  /** Het blok om de tekst van de achterkant te laten lezen. Die komt in het veld beschrijving. */
+  function achterkantBlok(beschrijvingVeld) {
+    var invoer = el('input', { type: 'file', id: 'bb-achterkant', accept: 'image/*', capture: 'environment' });
+    var melding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
+    invoer.addEventListener('change', function () {
+      var bestand = invoer.files && invoer.files[0];
+      if (!bestand) return;
+      melding.textContent = 'Foto verkleinen...';
+      // Voor tekstherkenning is een scherpere foto nodig dan voor een cover.
+      verkleinFoto(bestand, 1800).then(function (url) {
+        melding.textContent = 'Tekst lezen, even geduld (tot een halve minuut)...';
+        return B.voerUit('beheerTekstUitFoto', { data: url.split(',')[1], mime: 'image/jpeg' });
+      }).then(function (r) {
+        invoer.value = '';
+        if (!r.ok) { melding.textContent = r.fout; return; }
+        var huidig = beschrijvingVeld.invoer.value.trim();
+        if (huidig && !window.confirm('Er staat al een beschrijving. Wil je die vervangen door de tekst van de foto?')) {
+          melding.textContent = 'De bestaande beschrijving bleef staan.';
+          return;
+        }
+        beschrijvingVeld.invoer.value = r.tekst;
+        beschrijvingVeld.invoer.focus();
+        melding.textContent = 'De tekst staat in het veld Beschrijving (Nederlands). Lees ze na, verbeter wat de herkenning fout las, en klik onderaan op Bewaar.';
+      }, function (e) { melding.textContent = e.message; });
+    });
+    return el('fieldset', { class: 'blok' }, el('legend', {}, 'Tekst van de achterkant'),
+      el('p', { class: 'hulptekst' }, 'Neem een foto van de achterflap, recht van boven en met goed licht. Google leest de tekst en zet ze in het veld Beschrijving. Lees ze altijd na voor je bewaart.'),
+      el('div', { class: 'veld' }, el('label', { for: 'bb-achterkant' }, 'Foto van de achterkant nemen of kiezen'), invoer), melding);
+  }
+
   function fotoBlok(boek, coverVeld, ctx) {
     var invoer = el('input', { type: 'file', id: 'bb-foto', accept: 'image/*', capture: 'environment' });
     var voorbeeld = el('img', { alt: 'Voorbeeld van de foto', hidden: true, style: 'max-width:12rem;border-radius:.4rem;display:block;margin-top:.5rem' });
@@ -248,7 +278,9 @@
     var bewaar = el('button', { type: 'submit', class: 'knop' }, nieuw ? 'Voeg toe aan de catalogus' : 'Bewaar');
     var coverVeld = velden.filter(function (v) { return v.naam === 'cover_url'; })[0];
     var foto = nieuw ? null : fotoBlok(boek, coverVeld, ctx);
-    var formulier = el('form', { novalidate: true }, opzoeken, foto, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
+    var beschrijvingVeld = velden.filter(function (v) { return v.naam === 'beschrijving'; })[0];
+    var achterkant = beschrijvingVeld ? achterkantBlok(beschrijvingVeld) : null;
+    var formulier = el('form', { novalidate: true }, opzoeken, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
       fout, knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, vanZonderCover ? 'Terug naar de lijst zonder cover' : 'Terug naar de boeken')));
 
     function verstuur(toch) {
@@ -292,7 +324,7 @@
    * browser lukt het wel. Deze browser zoekt dus de covers (eerst Google, dan Open Library),
    * en stuurt per 20 boeken door naar de web-app, die ze in de Catalogus zet.
    */
-  var COVERS_VERSIE = '7'; // staat in de voortgang: zo zie je of je browser de nieuwste versie gebruikt
+  var COVERS_VERSIE = '8'; // staat in de voortgang: zo zie je of je browser de nieuwste versie gebruikt
   var COVERS_PER_PORTIE = 20;
   var COVERS_PAUZE_MS = 350;
 
@@ -433,15 +465,15 @@
     var voortgang = el('progress', { max: '1', value: '0', style: 'width:100%' });
     var status = el('p', { 'aria-live': 'polite' }, 'Lijst ophalen...');
     var stopKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; stopKnop.disabled = true; status.textContent = 'Stoppen...'; } }, 'Stop');
-    D.vervang(vak, ctx.kop('Ontbrekende covers zoeken', 'Deze browser zoekt een cover voor elk boek zonder cover: eerst bij Google Books (jouw uitgave), dan bij Open Library (soms een andere uitgave), dan bij Internet Archive (ingescande boeken). Wat gevonden wordt, komt meteen in de Catalogus. Laat dit venster open tot het klaar is. Je kan altijd stoppen en later verdergaan.'),
+    D.vervang(vak, ctx.kop('Ontbrekende covers en beschrijvingen zoeken', 'Deze browser zoekt een cover en een beschrijving voor elk boek waar die ontbreken: eerst bij Google Books (jouw uitgave), dan voor de cover ook bij Open Library (soms een andere uitgave) en Internet Archive (ingescande boeken). Wat gevonden wordt, komt meteen in de Catalogus. Laat dit venster open tot het klaar is. Je kan altijd stoppen en later verdergaan.'),
       voortgang, status, knoppen(stopKnop, el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
 
     B.voerUit('beheerCoversLijst').then(function (r) {
       if (!r.ok) { status.textContent = r.fout || 'De lijst laden lukte niet.'; return; }
       var boeken = r.boeken, sleutel = r.sleutel;
-      if (!boeken.length) { status.textContent = 'Er zijn geen boeken meer zonder cover die nog opgezocht moeten worden.'; stopKnop.hidden = true; return; }
+      if (!boeken.length) { status.textContent = 'Er zijn geen boeken meer zonder cover of beschrijving die nog opgezocht moeten worden.'; stopKnop.hidden = true; return; }
       voortgang.max = boeken.length;
-      var gedaan = 0, covers = 0, items = [], googleUit = !sleutel, googleReden = sleutel ? '' : 'geen google_books_api_key',
+      var gedaan = 0, covers = 0, beschrijvingen = 0, items = [], googleUit = !sleutel, googleReden = sleutel ? '' : 'geen google_books_api_key',
         googleNaElkaar = 0, olUit = false, olNaElkaar = 0, iaUit = false, iaNaElkaar = 0;
 
       /** Bewaart de gevonden covers. Is de web-app even bezig (bv. met een script), dan tot 5 keer opnieuw. */
@@ -453,13 +485,13 @@
             toon('De spreadsheet is even bezig, opnieuw over 30 seconden...');
             return wacht(30000).then(function () { return stuur((poging || 1) + 1); });
           }
-          if (a.ok) { covers += a.covers; items = []; }
+          if (a.ok) { covers += a.covers; beschrijvingen += a.beschrijvingen || 0; items = []; }
           return a;
         });
       }
       function toon(tekst) {
         voortgang.value = gedaan;
-        status.textContent = '[versie ' + COVERS_VERSIE + '] ' + gedaan + ' van ' + boeken.length + ' opgezocht, ' + covers + ' covers gevonden.' +
+        status.textContent = '[versie ' + COVERS_VERSIE + '] ' + gedaan + ' van ' + boeken.length + ' opgezocht, ' + covers + ' covers en ' + beschrijvingen + ' beschrijvingen gevonden.' +
           (googleUit ? ' Google: overgeslagen (' + googleReden + ').' : '') + (olUit ? ' Open Library: overgeslagen.' : '') +
           (iaUit ? ' Internet Archive: overgeslagen.' : '') + (tekst ? ' ' + tekst : '');
       }

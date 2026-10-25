@@ -53,7 +53,8 @@ var ACTIES = {
   beheerInstellingBewaren: 'bestuur',
   beheerCoversLijst: 'bestuur',
   beheerCoversBewaren: 'bestuur',
-  beheerCoverUpload: 'bestuur'
+  beheerCoverUpload: 'bestuur',
+  beheerTekstUitFoto: 'bestuur'
 };
 
 /* ---------- Staat lezen en bewaren ---------- */
@@ -86,6 +87,8 @@ var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antw
 var FOTO_MAX_BYTES = 1500000;
 
 var FOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+var OCR_MAX_BYTES = 4000000;
 
 var BS_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
@@ -322,10 +325,10 @@ var KOLOMMEN = {
   'Catalogus': [
     'boek_id', 'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas',
     'uitvoering', 'nieuwstaat', 'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal',
-    'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'cover_url', 'startpagina', 'toegevoegd_op',
+    'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'toegevoegd_op',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
-    'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht'
+    'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht'
   ],
   'Onderwerpen': ['genre', 'filtergroepen', 'aantal_boeken'],
   'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief'],
@@ -353,7 +356,7 @@ var KOLOMMEN = {
 var DATUMKOLOMMEN = [
   'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
-  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht'
+  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht'
 ];
 
 var INSTELLING_GROEPEN = [
@@ -405,6 +408,12 @@ var STATUS_VERVALLEN = 'vervallen';
 var STATUS_GEANNULEERD = 'geannuleerd';
 
 /* ---------- Opzoeken ---------- */
+
+var WIKI_TALEN = ['nl', 'en'];
+
+var WIKI_PAUZE_MS = 300;
+
+var WIKI_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
 /* ==================== Functies, van A tot Z ==================== */
 
@@ -880,6 +889,14 @@ function bewaarFotoInDrive(bestandsnaam, base64, mime) {
   return 'https://lh3.googleusercontent.com/d/' + bestand.getId();
 }
 
+/* ---------- Tekst van de achterkant (foto + tekstherkenning) ---------- */
+
+/*
+ * Een foto van de achterflap: Google Drive leest de tekst (tekstherkenning, OCR), en die
+ * komt in het veld beschrijving van het bestuursscherm. Daar lees je ze na en bewaar je ze.
+ * Nodig: in Apps Script de service "Drive API" aanzetten (Services > + > Drive API).
+ */
+
 /** Schrijft alle wijzigingen van een staat terug naar de spreadsheet. */
 function bewaarStaat(staat) {
   ['Leners', 'Uitleningen', 'Reservaties', 'Uitzonderingen'].forEach(function (naam) {
@@ -948,7 +965,10 @@ function boekAanpassen(staat, invoer) {
   // Een nieuwe Nederlandse beschrijving: de vertaling opnieuw laten maken.
   if (v.hasOwnProperty('beschrijving') && v.beschrijving !== schoonMetRegels(boek.beschrijving) && !v.hasOwnProperty('beschrijving_en')) {
     v.beschrijving_vertaald = '';
+    staat.vertalingNodig = true;
   }
+  // Maak je de beschrijving leeg, dan valt ook de bronvermelding weg.
+  if (v.hasOwnProperty('beschrijving') && !v.beschrijving) v.beschrijving_bron = '';
   wijzig(boek, v);
   staat.catalogusGewijzigd = true;
   staat.log.push(['boek aangepast', boek.boek_id]);
@@ -1121,7 +1141,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen) {
       i: schoon(rij.isbn), u: schoon(rij.uitgeverij), j: parseerGetal(rij.jaartal) || '',
       l: schoon(rij.taal), p: parseerGetal(rij.paginas) || '', v: schoon(rij.uitvoering),
       n: jaNee(rij.nieuwstaat) === 'ja' ? 'nieuw' : (jaNee(rij.nieuwstaat) === 'nee' ? 'tweedehands' : ''),
-      d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op)
+      d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
+      db: /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(schoon(rij.beschrijving_bron)) && schoonMetRegels(rij.beschrijving) ? schoon(rij.beschrijving_bron) : ''
     };
     var en = schoonMetRegels(rij.beschrijving_en);
     if (en && en !== extra.d) extra.de = en;
@@ -1337,7 +1358,7 @@ function coversBewaren(staat, invoer) {
       return { boek_id: id, google: true, bron: r.cover ? 'google' : '', cover: r.cover, meta: r };
     });
   }
-  var covers = 0, n = 0;
+  var covers = 0, n = 0, beschrijvingen = 0;
   (items || []).slice(0, 200).forEach(function (it) {
     var boek = boekVan(staat, String(it.boek_id));
     if (!boek) return;
@@ -1357,6 +1378,7 @@ function coversBewaren(staat, invoer) {
       var gb = verwerkGoogleBooks(boek, info);
       Object.keys(gb).forEach(function (k) { velden[k] = gb[k]; });
       if (gb.cover_url) velden.cover_bron = 'Google Books';
+      if (gb.beschrijving) { beschrijvingen++; staat.vertalingNodig = true; }
     }
     if (!velden.cover_url && isLeeg(boek.cover_url) && (it.bron === 'ol-isbn' || it.bron === 'ol-titel') && isOlCover(cover)) {
       velden.cover_url = cover;
@@ -1371,9 +1393,9 @@ function coversBewaren(staat, invoer) {
   });
   if (n) {
     staat.catalogusGewijzigd = true;
-    staat.log.push(['covers via de browser', n + ' opgezocht, ' + covers + ' covers']);
+    staat.log.push(['covers via de browser', n + ' opgezocht, ' + covers + ' covers, ' + beschrijvingen + ' beschrijvingen']);
   }
-  return { ok: true, covers: covers };
+  return { ok: true, covers: covers, beschrijvingen: beschrijvingen };
 }
 
 /* ---------- Foto van een cover, genomen in de bib ---------- */
@@ -1385,19 +1407,22 @@ function coversBewaren(staat, invoer) {
  */
 
 /**
- * De boeken zonder cover die de browser nog moet opzoeken.
- *   g: nog niet bij Google opgezocht (enkel met een ISBN)
+ * De boeken zonder cover of zonder beschrijving die de browser nog moet opzoeken.
+ *   g: nog niet bij Google opgezocht (enkel met een ISBN): voor een cover en een beschrijving
  *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
  *   i: nog niet bij Internet Archive opgezocht (enkel met een ISBN)
  */
 function coversTeZoeken(staat) {
   var boeken = [];
   staat.catalogus.forEach(function (b) {
-    if (isLeeg(b.boek_id) || !isLeeg(b.cover_url)) return;
+    if (isLeeg(b.boek_id)) return;
+    var zonderCover = isLeeg(b.cover_url);
+    if (!zonderCover && !isLeeg(b.beschrijving)) return;
     var isbn = /^\d{13}$/.test(String(b.isbn || '')) ? String(b.isbn) : '';
+    // Google: voor een cover en voor een beschrijving. Open Library en Internet Archive: enkel voor een cover.
     var g = !!isbn && isLeeg(b.gb_gecontroleerd);
-    var o = isLeeg(b.cover_gezocht) && (!!isbn || !isLeeg(b.titel));
-    var i = !!isbn && isLeeg(b.ia_gezocht);
+    var o = zonderCover && isLeeg(b.cover_gezocht) && (!!isbn || !isLeeg(b.titel));
+    var i = zonderCover && !!isbn && isLeeg(b.ia_gezocht);
     if (g || o || i) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o, i: i });
   });
   return { ok: true, boeken: boeken, sleutel: String(staat.inst.google_books_api_key || '') };
@@ -1778,6 +1803,11 @@ function heeftVertalingNodig(boek) {
   return !isLeeg(boek.beschrijving) && isLeeg(boek.beschrijving_vertaald);
 }
 
+/** Heeft dit boek nog een beschrijving van Wikipedia nodig? */
+function heeftWikiNodig(boek) {
+  return isLeeg(boek.beschrijving) && isLeeg(boek.wiki_gezocht) && !isLeeg(boek.titel) && !isLeeg(boek.auteur);
+}
+
 /**
  * Menu: wist de Catalogus en bouwt ze opnieuw op uit Stock en Zines.
  * Enkel bedoeld voor de eerste opbouw. Wat je met de hand in de Catalogus
@@ -2028,7 +2058,7 @@ function installeer() {
   // Niet-publieke kolommen van de Catalogus grijs markeren.
   var cat = ss.getSheetByName('Catalogus');
   var catKop = cat.getRange(1, 1, 1, cat.getLastColumn()).getValues()[0].map(schoon);
-  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht'].forEach(function (k) {
+  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht'].forEach(function (k) {
     var i = catKop.indexOf(k);
     if (i > -1) {
       cat.getRange(1, i + 1).setBackground('#d9d9d9').setNote('Niet publiek. Deze kolom verschijnt nooit op de website.');
@@ -2261,6 +2291,14 @@ function kiesOlWerk(boek, docs) {
     return d.cover_i;
   }
   return 0;
+}
+
+/** Kiest uit de zoekresultaten de titels van artikels die goed overeenkomen met de titel van het boek. */
+function kiesWikiTitels(boek, titels) {
+  var gezocht = titelSleutel(boek.titel);
+  return (titels || []).filter(function (t) {
+    return gelijkenis(gezocht, titelSleutel(wikiTitelZonderUitleg(t))) >= 0.85;
+  });
 }
 
 /**
@@ -2771,6 +2809,20 @@ function maakIdGenerator(catalogusRijen) {
   };
 }
 
+/** Maakt herkende tekst netjes: woorden die over twee regels gesplitst werden, terug aan elkaar; alinea's blijven. */
+function maakOcrTekstNetjes(ruw) {
+  var t = String(ruw || '').replace(/\r/g, '')
+    .replace(/(\p{L})-\n(\p{Ll})/gu, '$1$2')     // ge-\nschiedenis wordt geschiedenis
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{2,}/g, '\u0000')                   // alinea's even bewaren
+    .replace(/\n/g, ' ')                              // gewone regeleinden worden spaties
+    .replace(/\u0000/g, '\n\n')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+  return kortAfOpZin(t, BS_MAX_LENGTE);
+}
+
 /**
  * Bepaalt de Nederlandse en de Engelse beschrijving.
  * vertaal(tekst, doeltaal) geeft de vertaling (in Apps Script: LanguageApp).
@@ -2989,6 +3041,22 @@ function normaliseerUitvoering(waarde) {
 
 /* ---------- ISBN ---------- */
 
+/** Tekstherkenning via Google Drive: de foto wordt even een Google Doc, daarna gaat die naar de prullenbak. */
+function ocrViaDrive(base64, mime) {
+  if (typeof Drive === 'undefined' || !Drive.Files) {
+    throw new Error('Zet eerst in Apps Script de service Drive API aan: links naast Services op + klikken, Drive API kiezen en Toevoegen.');
+  }
+  var blob = Utilities.newBlob(Utilities.base64Decode(base64), mime, 'achterkant');
+  var bestand = Drive.Files.create
+    ? Drive.Files.create({ name: 'Madrigal tekstherkenning', mimeType: 'application/vnd.google-apps.document' }, blob, { ocrLanguage: 'nl', fields: 'id' })
+    : Drive.Files.insert({ title: 'Madrigal tekstherkenning', mimeType: 'application/vnd.google-apps.document' }, blob, { ocr: true, ocrLanguage: 'nl' });
+  try {
+    return DocumentApp.openById(bestand.id).getBody().getText();
+  } finally {
+    DriveApp.getFileById(bestand.id).setTrashed(true);
+  }
+}
+
 /** Het adres van een cover bij Open Library, uit het nummer van die cover. */
 function olCoverUrl(coverId) {
   return 'https://covers.openlibrary.org/b/id/' + coverId + '-M.jpg';
@@ -3016,12 +3084,13 @@ function onOpen() {
     .addItem('4. Vul aan uit Open Library', 'vulAanUitOpenLibrary')
     .addItem('5. Zoek ontbrekende covers bij Google Books', 'vulAanUitGoogleBooks')
     .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
-    .addItem('Zoek covers opnieuw bij Google (boeken zonder cover)', 'zoekCoversOpnieuw')
+    .addItem('Zoek opnieuw bij Google (boeken zonder cover of beschrijving)', 'zoekCoversOpnieuw')
     .addItem('6. Zoek ontbrekende beschrijvingen', 'vulBeschrijvingenAan')
     .addItem('7. Vertaal de beschrijvingen (Nederlands en Engels)', 'vertaalBeschrijvingen')
     .addItem('8. Zoek covers van andere uitgaven (Open Library)', 'zoekCoversAndereUitgaven')
     .addItem('9. Zoek covers bij bol.com', 'zoekCoversBol')
     .addItem('10. Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
+    .addItem('11. Zoek beschrijvingen bij Wikipedia', 'zoekBeschrijvingenWikipedia')
     .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol')
     .addItem('Zoek afgebroken beschrijvingen opnieuw (volledig)', 'herstelAfgebrokenBeschrijvingen')
     .addSeparator()
@@ -3535,6 +3604,21 @@ function tabbladVolgorde(namen) {
 /** Tekstveld: opgeschoond en ingekort. */
 function tekstInvoer(waarde, max) {
   return schoon(waarde).slice(0, max || 100);
+}
+
+/**
+ * Leest de tekst van een foto. invoer: { data (base64), mime }
+ * ocr: functie (base64, mime) -> ruwe tekst. Apart, zodat de tests zonder Google kunnen.
+ */
+function tekstUitFoto(invoer, ocr) {
+  var mime = String(invoer.mime || '');
+  if (!FOTO_TYPES[mime]) return { ok: false, fout: 'Enkel een foto als JPG, PNG of WebP.' };
+  var data = String(invoer.data || '').replace(/^data:[^,]*,/, '');
+  if (!/^[A-Za-z0-9+/=]+$/.test(data)) return { ok: false, fout: 'Deze foto kon niet gelezen worden.' };
+  if (data.length * 0.75 > OCR_MAX_BYTES) return { ok: false, fout: 'Deze foto is te groot.' };
+  var tekst = maakOcrTekstNetjes(ocr(data, mime));
+  if (tekst.length < 20) return { ok: false, fout: 'Er stond geen leesbare tekst op de foto. Probeer opnieuw met meer licht, recht van boven.' };
+  return { ok: true, tekst: tekst };
 }
 
 /** Telt een aantal dagen op bij een datum (negatief mag ook). */
@@ -4273,6 +4357,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'roosterOverzicht') return roosterOverzicht(); // leest enkel, geen slot nodig
   if (actie === 'beheerIsbnOpzoeken') return isbnOpzoeken(invoer); // leest enkel bij Open Library en Google Books
   if (actie === 'beheerInhoud') return beheerInhoudGegevens();
+  if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
 
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { ok: false, fout: 'Het is even druk. Probeer het over een paar seconden opnieuw.' };
@@ -4316,6 +4401,9 @@ function voerActieUit(actie, invoer, rol) {
     }
     // Ook bij een geweigerde actie bewaren we vervallen reservaties.
     bewaarStaat(staat);
+    if (staat.vertalingNodig) {
+      try { planVertaling(2); } catch (e) { /* lukt het niet, dan vertaalt het menu later */ }
+    }
     if (staat.catalogusGewijzigd) {
       bewaarTabel(staat.tabellen.Catalogus);
       werkOnderwerpenBij(); // een nieuw genre komt zo in de vertaaltabel Onderwerpen
@@ -4679,6 +4767,25 @@ function wijzig(rij, velden) {
   return rij;
 }
 
+/** Een veilige link naar een artikel van Wikipedia, of ''. */
+function wikiLink(s) {
+  var url = s && s.content_urls && s.content_urls.desktop && s.content_urls.desktop.page;
+  return /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(String(url || '')) ? url : '';
+}
+
+/** Is deze samenvatting van Wikipedia bruikbaar voor dit boek? (geen doorverwijspagina, auteur vermeld) */
+function wikiSamenvattingOk(boek, s) {
+  if (!s || s.type !== 'standard' || !s.extract || String(s.extract).length < 80) return false;
+  var naam = achternaam(boek.auteur);
+  if (!naam) return false;
+  return normaliseerTekst(s.extract + ' ' + (s.description || '')).split(' ').indexOf(naam) > -1;
+}
+
+/** Titel van een artikel zonder "(roman)", "(boek)", ... aan het einde. */
+function wikiTitelZonderUitleg(titel) {
+  return String(titel || '').replace(/\s*\([^)]*\)\s*$/, '');
+}
+
 /** Een willekeurige code van 8 tekens, zonder tekens die je makkelijk verwart (0/O, 1/l). */
 function willekeurigeCode() {
   var tekens = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -4818,6 +4925,50 @@ function zetTekstopmaak(blad, kolommen) {
     var i = kop.indexOf(k);
     if (i > -1 && blad.getMaxRows() > 1) blad.getRange(2, i + 1, blad.getMaxRows() - 1, 1).setNumberFormat('@');
   });
+}
+
+/** Menu: zoekt beschrijvingen bij Wikipedia, in porties. */
+function zoekBeschrijvingenWikipedia() {
+  var start = Date.now();
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
+  try {
+    var tabel = leesTabel('Catalogus');
+    if (tabel.kop.indexOf('wiki_gezocht') === -1 || tabel.kop.indexOf('beschrijving_bron') === -1) {
+      meld('De kolommen wiki_gezocht en beschrijving_bron ontbreken nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.');
+      return;
+    }
+    var vandaag = vandaagTekst();
+    var teDoen = tabel.rijen.filter(heeftWikiNodig);
+    for (var i = 0; i < teDoen.length; i++) {
+      if (Date.now() - start > WIKI_MAX_LOOPTIJD_MS) break;
+      var boek = teDoen[i];
+      var r = {};
+      for (var t = 0; t < WIKI_TALEN.length && !r.tekst && !r.fout; t++) r = zoekWikipedia(boek, WIKI_TALEN[t]);
+      if (r.fout) { wachten = true; fout = r.fout; break; }
+      var velden = { wiki_gezocht: vandaag };
+      if (r.tekst) {
+        velden.beschrijving = r.tekst;
+        velden.beschrijving_bron = r.link;
+        velden.beschrijving_vertaald = '';
+        gevonden++;
+      }
+      wijzig(boek, velden);
+      verwerkt++;
+      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      Utilities.sleep(WIKI_PAUZE_MS);
+    }
+    bewaarTabel(tabel);
+    rest = tabel.rijen.filter(heeftWikiNodig).length;
+  } finally {
+    lock.releaseLock();
+  }
+  verwijderTriggers('zoekBeschrijvingenWikipedia');
+  if (rest > 0) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
+  if (gevonden) { leegCache(); planVertaling(2); }
+  logboek('menu', 'zoekBeschrijvingenWikipedia', verwerkt + ' opgezocht, ' + gevonden + ' beschrijvingen gevonden, ' + rest + ' te gaan' + (fout ? ' (Wikipedia: ' + fout + ', later verder)' : ''));
+  try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Wikipedia, ' + gevonden + ' beschrijvingen gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
 }
 
 /**
@@ -4990,12 +5141,31 @@ function zoekCoversOpnieuw() {
   var tabel = leesTabel('Catalogus');
   var n = 0;
   tabel.rijen.forEach(function (b) {
-    if (isLeeg(b.cover_url) && !isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''))) {
+    if ((isLeeg(b.cover_url) || isLeeg(b.beschrijving)) && !isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''))) {
       wijzig(b, { gb_gecontroleerd: '' });
       n++;
     }
   });
   bewaarTabel(tabel);
-  logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover komen opnieuw aan de beurt bij Google');
-  meld(n + ' boeken zonder cover komen opnieuw aan de beurt. Kies daarna Madrigal > 5. Zoek ontbrekende covers bij Google Books.');
+  logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover of beschrijving komen opnieuw aan de beurt bij Google');
+  meld(n + ' boeken zonder cover of beschrijving komen opnieuw aan de beurt bij Google. Gebruik daarna de knop in het bestuursscherm: Boeken > Zoek ontbrekende covers en beschrijvingen.');
+}
+
+/** Zoekt een boek op bij Wikipedia in één taal. Geeft { tekst, link }, {} of { fout }. */
+function zoekWikipedia(boek, taal) {
+  var basis = 'https://' + taal + '.wikipedia.org';
+  var vraag = titelSleutel(boek.titel) + ' ' + achternaam(boek.auteur);
+  var z = haalJson(basis + '/w/api.php?action=query&list=search&srlimit=5&srprop=&format=json&srsearch=' + encodeURIComponent(vraag));
+  if (z.code === 429 || z.code >= 500) return { fout: 'code ' + z.code };
+  var titels = ((z.data && z.data.query && z.data.query.search) || []).map(function (r) { return r.title; });
+  var kandidaten = kiesWikiTitels(boek, titels);
+  for (var i = 0; i < kandidaten.length && i < 3; i++) {
+    Utilities.sleep(WIKI_PAUZE_MS);
+    var s = haalJson(basis + '/api/rest_v1/page/summary/' + encodeURIComponent(kandidaten[i].replace(/ /g, '_')));
+    if (s.code === 429 || s.code >= 500) return { fout: 'code ' + s.code };
+    if (wikiSamenvattingOk(boek, s.data) && wikiLink(s.data)) {
+      return { tekst: maakBeschrijvingNetjes(s.data.extract), link: wikiLink(s.data) };
+    }
+  }
+  return {};
 }

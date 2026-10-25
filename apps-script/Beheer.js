@@ -137,7 +137,10 @@ function boekAanpassen(staat, invoer) {
   // Een nieuwe Nederlandse beschrijving: de vertaling opnieuw laten maken.
   if (v.hasOwnProperty('beschrijving') && v.beschrijving !== schoonMetRegels(boek.beschrijving) && !v.hasOwnProperty('beschrijving_en')) {
     v.beschrijving_vertaald = '';
+    staat.vertalingNodig = true;
   }
+  // Maak je de beschrijving leeg, dan valt ook de bronvermelding weg.
+  if (v.hasOwnProperty('beschrijving') && !v.beschrijving) v.beschrijving_bron = '';
   wijzig(boek, v);
   staat.catalogusGewijzigd = true;
   staat.log.push(['boek aangepast', boek.boek_id]);
@@ -366,19 +369,22 @@ function beheerInstellingBewaren(invoer, wie) {
  */
 
 /**
- * De boeken zonder cover die de browser nog moet opzoeken.
- *   g: nog niet bij Google opgezocht (enkel met een ISBN)
+ * De boeken zonder cover of zonder beschrijving die de browser nog moet opzoeken.
+ *   g: nog niet bij Google opgezocht (enkel met een ISBN): voor een cover en een beschrijving
  *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
  *   i: nog niet bij Internet Archive opgezocht (enkel met een ISBN)
  */
 function coversTeZoeken(staat) {
   var boeken = [];
   staat.catalogus.forEach(function (b) {
-    if (isLeeg(b.boek_id) || !isLeeg(b.cover_url)) return;
+    if (isLeeg(b.boek_id)) return;
+    var zonderCover = isLeeg(b.cover_url);
+    if (!zonderCover && !isLeeg(b.beschrijving)) return;
     var isbn = /^\d{13}$/.test(String(b.isbn || '')) ? String(b.isbn) : '';
+    // Google: voor een cover en voor een beschrijving. Open Library en Internet Archive: enkel voor een cover.
     var g = !!isbn && isLeeg(b.gb_gecontroleerd);
-    var o = isLeeg(b.cover_gezocht) && (!!isbn || !isLeeg(b.titel));
-    var i = !!isbn && isLeeg(b.ia_gezocht);
+    var o = zonderCover && isLeeg(b.cover_gezocht) && (!!isbn || !isLeeg(b.titel));
+    var i = zonderCover && !!isbn && isLeeg(b.ia_gezocht);
     if (g || o || i) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o, i: i });
   });
   return { ok: true, boeken: boeken, sleutel: String(staat.inst.google_books_api_key || '') };
@@ -411,7 +417,7 @@ function coversBewaren(staat, invoer) {
       return { boek_id: id, google: true, bron: r.cover ? 'google' : '', cover: r.cover, meta: r };
     });
   }
-  var covers = 0, n = 0;
+  var covers = 0, n = 0, beschrijvingen = 0;
   (items || []).slice(0, 200).forEach(function (it) {
     var boek = boekVan(staat, String(it.boek_id));
     if (!boek) return;
@@ -431,6 +437,7 @@ function coversBewaren(staat, invoer) {
       var gb = verwerkGoogleBooks(boek, info);
       Object.keys(gb).forEach(function (k) { velden[k] = gb[k]; });
       if (gb.cover_url) velden.cover_bron = 'Google Books';
+      if (gb.beschrijving) { beschrijvingen++; staat.vertalingNodig = true; }
     }
     if (!velden.cover_url && isLeeg(boek.cover_url) && (it.bron === 'ol-isbn' || it.bron === 'ol-titel') && isOlCover(cover)) {
       velden.cover_url = cover;
@@ -445,9 +452,9 @@ function coversBewaren(staat, invoer) {
   });
   if (n) {
     staat.catalogusGewijzigd = true;
-    staat.log.push(['covers via de browser', n + ' opgezocht, ' + covers + ' covers']);
+    staat.log.push(['covers via de browser', n + ' opgezocht, ' + covers + ' covers, ' + beschrijvingen + ' beschrijvingen']);
   }
-  return { ok: true, covers: covers };
+  return { ok: true, covers: covers, beschrijvingen: beschrijvingen };
 }
 
 /* ---------- Foto van een cover, genomen in de bib ---------- */
@@ -493,4 +500,59 @@ function bewaarFotoInDrive(bestandsnaam, base64, mime) {
   var bestand = map.createFile(Utilities.newBlob(Utilities.base64Decode(base64), mime, bestandsnaam));
   bestand.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return 'https://lh3.googleusercontent.com/d/' + bestand.getId();
+}
+
+/* ---------- Tekst van de achterkant (foto + tekstherkenning) ---------- */
+
+/*
+ * Een foto van de achterflap: Google Drive leest de tekst (tekstherkenning, OCR), en die
+ * komt in het veld beschrijving van het bestuursscherm. Daar lees je ze na en bewaar je ze.
+ * Nodig: in Apps Script de service "Drive API" aanzetten (Services > + > Drive API).
+ */
+
+var OCR_MAX_BYTES = 4000000;
+
+/** Maakt herkende tekst netjes: woorden die over twee regels gesplitst werden, terug aan elkaar; alinea's blijven. */
+function maakOcrTekstNetjes(ruw) {
+  var t = String(ruw || '').replace(/\r/g, '')
+    .replace(/(\p{L})-\n(\p{Ll})/gu, '$1$2')     // ge-\nschiedenis wordt geschiedenis
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{2,}/g, '\u0000')                   // alinea's even bewaren
+    .replace(/\n/g, ' ')                              // gewone regeleinden worden spaties
+    .replace(/\u0000/g, '\n\n')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+  return kortAfOpZin(t, BS_MAX_LENGTE);
+}
+
+/**
+ * Leest de tekst van een foto. invoer: { data (base64), mime }
+ * ocr: functie (base64, mime) -> ruwe tekst. Apart, zodat de tests zonder Google kunnen.
+ */
+function tekstUitFoto(invoer, ocr) {
+  var mime = String(invoer.mime || '');
+  if (!FOTO_TYPES[mime]) return { ok: false, fout: 'Enkel een foto als JPG, PNG of WebP.' };
+  var data = String(invoer.data || '').replace(/^data:[^,]*,/, '');
+  if (!/^[A-Za-z0-9+/=]+$/.test(data)) return { ok: false, fout: 'Deze foto kon niet gelezen worden.' };
+  if (data.length * 0.75 > OCR_MAX_BYTES) return { ok: false, fout: 'Deze foto is te groot.' };
+  var tekst = maakOcrTekstNetjes(ocr(data, mime));
+  if (tekst.length < 20) return { ok: false, fout: 'Er stond geen leesbare tekst op de foto. Probeer opnieuw met meer licht, recht van boven.' };
+  return { ok: true, tekst: tekst };
+}
+
+/** Tekstherkenning via Google Drive: de foto wordt even een Google Doc, daarna gaat die naar de prullenbak. */
+function ocrViaDrive(base64, mime) {
+  if (typeof Drive === 'undefined' || !Drive.Files) {
+    throw new Error('Zet eerst in Apps Script de service Drive API aan: links naast Services op + klikken, Drive API kiezen en Toevoegen.');
+  }
+  var blob = Utilities.newBlob(Utilities.base64Decode(base64), mime, 'achterkant');
+  var bestand = Drive.Files.create
+    ? Drive.Files.create({ name: 'Madrigal tekstherkenning', mimeType: 'application/vnd.google-apps.document' }, blob, { ocrLanguage: 'nl', fields: 'id' })
+    : Drive.Files.insert({ title: 'Madrigal tekstherkenning', mimeType: 'application/vnd.google-apps.document' }, blob, { ocr: true, ocrLanguage: 'nl' });
+  try {
+    return DocumentApp.openById(bestand.id).getBody().getText();
+  } finally {
+    DriveApp.getFileById(bestand.id).setTrashed(true);
+  }
 }
