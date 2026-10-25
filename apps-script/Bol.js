@@ -88,7 +88,7 @@ function zoekCoversBol() {
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
-    if (tabel.kop.indexOf('bol_gezocht') === -1) { meld('De kolom bol_gezocht ontbreekt nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.'); return; }
+    if (tabel.kop.indexOf('bol_gezocht') === -1) { meld('De kolom bol_gezocht ontbreekt nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
     var vandaag = vandaagTekst();
     var teDoen = tabel.rijen.filter(heeftBolNodig);
     for (var i = 0; i < teDoen.length; i++) {

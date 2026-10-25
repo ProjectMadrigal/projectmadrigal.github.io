@@ -2,7 +2,7 @@
  * Covers.js
  * Nog meer covers, voor boeken waar Open Library en Google Books er geen voor hadden.
  *
- *   A. Andere uitgaven via Open Library (dit bestand, menu "8. Zoek covers van andere uitgaven"):
+ *   A. Andere uitgaven via Open Library (dit bestand, menu "Madrigal > Covers > Zoek covers van andere uitgaven"):
  *      1. Open Library groepeert uitgaven per werk. Kent Open Library het ISBN, dan nemen we
  *         de cover van het werk (die kan van een herdruk of een andere vertaling zijn).
  *      2. Kent Open Library het ISBN niet, dan zoeken we op titel en auteur. Enkel als titel
@@ -70,7 +70,7 @@ function zoekCoversAndereUitgaven() {
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('cover_gezocht') === -1 || tabel.kop.indexOf('cover_bron') === -1) {
-      meld('De kolommen cover_gezocht en cover_bron ontbreken nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.');
+      meld('De kolommen cover_gezocht en cover_bron ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.');
       return;
     }
     var vandaag = vandaagTekst();
@@ -202,7 +202,7 @@ function zoekCoversInternetArchive() {
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
-    if (tabel.kop.indexOf('ia_gezocht') === -1) { meld('De kolom ia_gezocht ontbreekt nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.'); return; }
+    if (tabel.kop.indexOf('ia_gezocht') === -1) { meld('De kolom ia_gezocht ontbreekt nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
     var vandaag = vandaagTekst();
     var teDoen = tabel.rijen.filter(heeftIaNodig);
     for (var i = 0; i < teDoen.length; i++) {

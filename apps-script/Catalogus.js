@@ -408,7 +408,7 @@ function geefNieuweBoekenEenId() {
 }
 
 /**
- * Elk uur vanzelf (zie Installeer tabbladen): een boek dat je met de hand in de
+ * Elk uur vanzelf (zie Madrigal > Installeer tabbladen): een boek dat je met de hand in de
  * Catalogus typte, krijgt een boek-ID en verschijnt zo op de website en in Nieuw binnen.
  */
 function verwerkNieuweBoekenAutomatisch() {

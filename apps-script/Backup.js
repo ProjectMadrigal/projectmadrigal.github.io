@@ -39,7 +39,7 @@ function backupMap(naam) {
   return mappen.hasNext() ? mappen.next() : DriveApp.createFolder(naam);
 }
 
-/** Maakt een back-up en ruimt de oudste op. Draait elke week vanzelf (zie Installeer tabbladen). */
+/** Maakt een back-up en ruimt de oudste op. Draait elke week vanzelf (zie Madrigal > Installeer tabbladen). */
 function maakBackup() {
   var inst = leesInstellingen();
   var ss = spreadsheet();

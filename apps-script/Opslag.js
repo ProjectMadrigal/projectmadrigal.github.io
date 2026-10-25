@@ -71,7 +71,7 @@ function vandaagTekst() {
  */
 function leesTabel(naam) {
   var blad = spreadsheet().getSheetByName(naam);
-  if (!blad) throw new Error('Het tabblad "' + naam + '" bestaat niet. Voer eerst "Installeer tabbladen" uit.');
+  if (!blad) throw new Error('Het tabblad "' + naam + '" bestaat niet. Voer eerst "Madrigal > Installeer tabbladen" uit.');
   var waarden = blad.getDataRange().getValues();
   var kop = (waarden[0] || []).map(function (k) { return schoon(k); });
   var rijen = [];
