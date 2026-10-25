@@ -359,7 +359,7 @@ test('ordenen: waarden blijven, oude koppen weg, onbekende sleutels naar Overige
     ['toegangscode_balie', 'geheim1', '']
   ]);
   const waarde = (s) => r.rijen.find((x) => x[0] === s);
-  assert.strictEqual(r.rijen[0][0], '── TOEGANG ──');
+  assert.strictEqual(r.rijen[0][0], '── UITLENEN ──');
   assert.strictEqual(waarde('toegangscode_balie')[1], 'geheim1');
   assert.strictEqual(waarde('max_verlengingen')[1], 3);
   assert.notStrictEqual(waarde('max_verlengingen')[2], 'oude uitleg');
@@ -1225,7 +1225,7 @@ test('instellingen: per groep, codes nooit zichtbaar of aanpasbaar', () => {
   const groepen = M.instellingenVoorBeheer(rijen);
   const tekst = JSON.stringify(groepen);
   assert.ok(tekst.indexOf('geheim') === -1 && tekst.indexOf('code_bestuur') === -1);
-  gelijk(groepen.map((g) => g.titel), ['Website: contact', 'Overige']);
+  gelijk(groepen.map((g) => g.titel), ['Uitlenen: openingsdagen en -uren', 'Overige']);
   assert.strictEqual(M.instellingAanpassen(rijen, { sleutel: 'code_bestuur', waarde: 'x' }).ok, false);
   assert.strictEqual(M.instellingAanpassen(rijen, { sleutel: '── TOEGANG ──', waarde: 'x' }).ok, false);
   assert.strictEqual(M.instellingAanpassen(rijen, { sleutel: 'openingsuren', waarde: 'vrijdag 18-22' }).ok, true);
@@ -1863,6 +1863,15 @@ test('Internet Archive: boeken van vandaag zonder cover opnieuw opzoeken', () =>
     { boek_id: 'B0004', cover_url: '', ia_gezocht: '' }
   ];
   gelijk(M.iaZonderCoverOp(rijen, '2026-10-25').map((b) => b.boek_id), ['B0001']);
+});
+
+test('instellingen: vijf blokken in vaste volgorde, codes onderaan, elke instelling één keer', () => {
+  const blokken = M.INSTELLING_GROEPEN.map((g) => g[0].split(':')[0]).filter((b, i, l) => l.indexOf(b) === i);
+  gelijk(blokken, ['Uitlenen', 'Vrijwilligers', 'Website', 'Privacy', 'Techniek']);
+  const alle = [].concat.apply([], M.INSTELLING_GROEPEN.map((g) => g[1]));
+  assert.strictEqual(alle.length, new Set(alle).size, 'Een instelling staat in twee groepen');
+  const privacy = M.INSTELLING_GROEPEN.find((g) => /^Privacy/.test(g[0]))[1];
+  ['bewaartermijn_afgesloten_uitleningen_maanden', 'aanvragen_bewaren_dagen', 'meldingen_bewaren_dagen'].forEach((k) => assert.ok(privacy.indexOf(k) > -1, k));
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');

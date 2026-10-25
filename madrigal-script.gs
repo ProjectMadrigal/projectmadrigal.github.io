@@ -450,27 +450,30 @@ var DATUMKOLOMMEN = [
  */
 var ACHTERGROND_DUUR_SECONDEN = 6 * 60;
 
+// Vijf blokken, van vaak naar zelden gebruikt: Uitlenen, Vrijwilligers, Website, Privacy, Techniek.
+// De codes staan in Techniek, onderaan: zo staan ze niet meteen in beeld als je het tabblad opent.
 var INSTELLING_GROEPEN = [
-  ['Toegang', ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur']],
   ['Uitlenen', ['uitleentermijn_weken', 'verlengingstermijn_weken', 'max_verlengingen', 'verlengen_niet_bij_reservatie',
     'max_boeken_per_lener', 'waarschuwing_dagen_voor_vervaldatum', 'ophaaltermijn_openingsdagen', 'zines_te_koop_uitleenbaar']],
-  ['Borg en giften', ['borg_per_boek', 'borg_betaalwijzen', 'gift_mogelijk']],
-  ['Openingsdagen', ['openingsdagen', 'terugbrengdatum_op_openingsdag', 'gesloten_data']],
-  ['Herinneringen', ['tekst_herinnering', 'tekst_herinnering_binnenkort']],
-  ['Website: contact', ['adres', 'openingsuren', 'openingsuren_en', 'mail_algemeen', 'mail_events']],
+  ['Uitlenen: borg en giften', ['borg_per_boek', 'borg_betaalwijzen', 'gift_mogelijk']],
+  ['Uitlenen: openingsdagen en -uren', ['openingsdagen', 'terugbrengdatum_op_openingsdag', 'gesloten_data', 'openingsuren', 'openingsuren_en']],
+  ['Uitlenen: herinneringen', ['tekst_herinnering', 'tekst_herinnering_binnenkort']],
+  ['Uitlenen: online reserveren', ['online_reserveren']],
+  ['Vrijwilligers: shift', ['tekst_checklist_openen', 'tekst_checklist_sluiten']],
+  ['Vrijwilligers: rooster', ['rooster_link']],
+  ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
+  ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
   ['Website: leeslijsten', ['leeslijsten_tonen']],
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
   ['Website: Antwerp Queer Bookclub', ['bookclub_naam', 'bookclub_week', 'bookclub_dag', 'bookclub_uur', 'tekst_bookclub', 'tekst_bookclub_en', 'bookclub_link']],
   ['Website: De Peperfabriek', ['peperfabriek_url', 'tekst_peperfabriek', 'tekst_peperfabriek_en', 'peperfabriek_aantal']],
-  ['Aanraders', ['aanraders_uit_stocklijst', 'aanraders_verbergen', 'nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal']],
-  ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
-  ['Rooster', ['rooster_url', 'rooster_code', 'rooster_link']],
-  ['Shift van vrijwilligers', ['tekst_checklist_openen', 'tekst_checklist_sluiten']],
-  ['Bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
-  ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden', 'meldingen_bewaren_dagen']],
-  ['Back-up', ['backup_map', 'backup_bewaren']],
-  ['Online reserveren', ['online_reserveren', 'aanvragen_bewaren_dagen']]
+  ['Privacy: bewaartermijnen', ['bewaartermijn_afgesloten_uitleningen_maanden', 'aanvragen_bewaren_dagen', 'meldingen_bewaren_dagen']],
+  ['Techniek: toegang (codes)', ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur']],
+  ['Techniek: koppeling met het rooster', ['rooster_url', 'rooster_code']],
+  ['Techniek: boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
+  ['Techniek: bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
+  ['Techniek: back-up', ['backup_map', 'backup_bewaren']]
 ];
 
 var TABBLAD_GROEPEN = [
