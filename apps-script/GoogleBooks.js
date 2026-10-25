@@ -91,14 +91,14 @@ function zoekCoversOpnieuw() {
   var tabel = leesTabel('Catalogus');
   var n = 0;
   tabel.rijen.forEach(function (b) {
-    if (isLeeg(b.cover_url) && !isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''))) {
+    if ((isLeeg(b.cover_url) || isLeeg(b.beschrijving)) && !isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''))) {
       wijzig(b, { gb_gecontroleerd: '' });
       n++;
     }
   });
   bewaarTabel(tabel);
-  logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover komen opnieuw aan de beurt bij Google');
-  meld(n + ' boeken zonder cover komen opnieuw aan de beurt. Kies daarna Madrigal > 5. Zoek ontbrekende covers bij Google Books.');
+  logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover of beschrijving komen opnieuw aan de beurt bij Google');
+  meld(n + ' boeken zonder cover of beschrijving komen opnieuw aan de beurt bij Google. Gebruik daarna de knop in het bestuursscherm: Boeken > Zoek ontbrekende covers en beschrijvingen.');
 }
 
 /** Menu: vult covers aan uit Google Books, in porties. */

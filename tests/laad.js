@@ -25,6 +25,7 @@ const SCRIPTS = [
   'apps-script/Beschrijvingen.js',
   'apps-script/Covers.js',
   'apps-script/Bol.js',
+  'apps-script/Wikipedia.js',
   'apps-script/Rooster.js',
   'apps-script/Ordenen.js',
   'apps-script/Grenzen.js',
