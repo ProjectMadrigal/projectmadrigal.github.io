@@ -123,9 +123,14 @@
 
   /**
    * "Lees ook": boeken die op dit boek lijken. Punten voor dezelfde auteur (3), een gedeelde
-   * leeslijst (2), een gedeelde aanrader (1) en elk gedeeld onderwerp (1). Minstens 2 punten:
-   * één gedeeld breed onderwerp alleen is te weinig. Bij gelijke punten: eerst beschikbaar,
-   * daarna een vaste maar per boek andere volgorde, zodat niet altijd dezelfde boeken verschijnen.
+   * leeslijst (2), een gedeelde aanrader (1) en elk gedeeld onderwerp (1).
+   * In drie trappen, zodat elk boek suggesties krijgt:
+   *   1. minstens 2 punten (sterke overeenkomst);
+   *   2. is er nog plaats: 1 punt (één gedeeld onderwerp);
+   *   3. is er nog plaats: dezelfde taal (dezelfde soort, boek of zine, eerst);
+   *   4. is er nog altijd plaats: andere boeken, beschikbare eerst.
+   * Binnen een trap: meer punten eerst, dan beschikbaar, daarna een vaste maar per boek andere
+   * volgorde, zodat niet altijd dezelfde boeken verschijnen.
    */
   function gelijkaardig(boeken, boek, aantal) {
     var Z = root.MadrigalZoeken;
@@ -136,12 +141,14 @@
       for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
       return h;
     };
+    var soort = function (b) { return b.s || 'boek'; };
     return boeken.map(function (b) {
       if (b.id === boek.id) return null;
       var punten = (auteur && b.a && Z.normaliseer(b.a) === auteur ? 3 : 0) + 2 * deel(boek.ll, b.ll) + deel(boek.r, b.r) + deel(boek.g, b.g);
-      return punten >= 2 ? { boek: b, punten: punten, vrij: b.b && b.b.c === 'beschikbaar' ? 1 : 0, meng: meng(b.id) } : null;
+      var trap = punten >= 2 ? 4 : punten === 1 ? 3 : (b.l || '') === (boek.l || '') ? 2 : 1;
+      return { boek: b, trap: trap, punten: punten, zelfdeSoort: soort(b) === soort(boek) ? 1 : 0, vrij: b.b && b.b.c === 'beschikbaar' ? 1 : 0, meng: meng(b.id) };
     }).filter(Boolean).sort(function (a, b) {
-      return b.punten - a.punten || b.vrij - a.vrij || a.meng - b.meng;
+      return b.trap - a.trap || b.punten - a.punten || b.zelfdeSoort - a.zelfdeSoort || b.vrij - a.vrij || a.meng - b.meng;
     }).slice(0, aantal || 6).map(function (x) { return x.boek; });
   }
 

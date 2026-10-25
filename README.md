@@ -188,7 +188,7 @@ Hernoem je een lijst of verwijder je ze, dan past het script ook de boeken in de
 
 Elke lijst krijgt een eigen link om te delen, en een filter **Leeslijst** in de catalogus.
 
-**Lees ook.** Onder elk boek toont de site tot 6 boeken die erop lijken: van dezelfde auteur, uit dezelfde leeslijst, met dezelfde aanrader of met minstens twee dezelfde onderwerpen. Dat gaat vanzelf.
+**Lees ook.** Onder elk boek toont de site 6 andere boeken. Eerst die er sterk op lijken: van dezelfde auteur, uit dezelfde leeslijst, met dezelfde aanrader of met minstens twee dezelfde onderwerpen. Is er nog plaats, dan boeken met één gedeeld onderwerp, daarna boeken in dezelfde taal en ten slotte andere boeken. Beschikbare boeken komen telkens eerst. Dat gaat vanzelf.
 
 ## A4. Nieuws, agenda en veelgestelde vragen
 
