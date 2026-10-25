@@ -142,6 +142,35 @@ function wikiDubbels(kop, rijen) {
   return (kolommen > 1 ? ', ' + kolommen + ' kolommen wiki_gezocht' : '') + (dubbel ? ', ' + dubbel + ' dubbele boek_id\'s' : '');
 }
 
+/**
+ * Menu: probeert stap voor stap wiki_gezocht te bewaren bij het eerste boek dat nog aan de beurt is,
+ * en zet de cel daarna terug leeg. Zo zien we waar het bewaren misloopt.
+ */
+function testWikipediaBewaren() {
+  var tabel = leesTabel('Catalogus');
+  var boek = tabel.rijen.filter(heeftWikiNodig)[0];
+  if (!boek) { meld('Er is geen boek meer dat op Wikipedia wacht.'); return; }
+  var kolom = tabel.kop.indexOf('wiki_gezocht') + 1;
+  var cel = tabel.blad.getRange(boek._rij, kolom);
+  var lees = function () { SpreadsheetApp.flush(); var w = cel.getValue(); return isDatumObject(w) ? parseerDatum(w) : '"' + String(w) + '"'; };
+  var regels = ['rij ' + boek._rij + ' (' + (boek.boek_id || 'zonder boek_id') + '), kolom ' + kolom + ' met kop "' + tabel.blad.getRange(1, kolom).getValue() + '"',
+    'voor: ' + lees() + ', formule: "' + cel.getFormula() + '", opmaak: ' + cel.getNumberFormat() + ', regel: ' + (cel.getDataValidation() ? 'ja' : 'nee') +
+    ', beveiligd: ' + tabel.blad.getProtections(SpreadsheetApp.ProtectionType.RANGE).length + ' bereiken, ' + tabel.blad.getProtections(SpreadsheetApp.ProtectionType.SHEET).length + ' tabblad'];
+  try {
+    wijzig(boek, { wiki_gezocht: vandaagTekst() });
+    regels.push('bewaren zoals de run: ' + (bewaarAchtergrond(tabel) ? 'gelukt' : 'slot bezet') + ', daarna: ' + lees());
+    cel.setValue(new Date());
+    regels.push('rechtstreeks in de cel: ' + lees());
+  } catch (e) {
+    regels.push('fout: ' + e.message);
+  } finally {
+    cel.setValue('');
+    regels.push('teruggezet: ' + lees());
+  }
+  logboek('menu', 'testWikipediaBewaren', regels.join(' | ').slice(0, 450));
+  meld(regels.join('\n'));
+}
+
 /** Menu: zoekt één bekend boek op en toont wat Wikipedia antwoordt. Zo zie je of Wikipedia het script weigert. */
 function testWikipedia() {
   var boek = { titel: 'Giovanni\'s Room', auteur: 'Baldwin, James' };
