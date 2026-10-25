@@ -73,7 +73,7 @@ function zoekWikipedia(boek, taal) {
 function zoekBeschrijvingenWikipedia() {
   var start = Date.now();
   if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meldAlBezig('zoekBeschrijvingenWikipedia'); return; }
-  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '', nietBewaard = 0;
+  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '', nietBewaard = 0, laatste = null, controle = '';
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('wiki_gezocht') === -1 || tabel.kop.indexOf('beschrijving_bron') === -1) {
@@ -96,6 +96,7 @@ function zoekBeschrijvingenWikipedia() {
         gevonden++;
       }
       wijzig(boek, velden);
+      laatste = boek;
       verwerkt++;
       if (verwerkt % 20 === 0 && !bewaarAchtergrond(tabel)) nietBewaard++;
       Utilities.sleep(WIKI_PAUZE_MS);
@@ -103,6 +104,7 @@ function zoekBeschrijvingenWikipedia() {
     if (!bewaarAchtergrond(tabel)) nietBewaard++;
     // Controle: hoeveel boeken heeft de spreadsheet zelf nog nodig? Zo zien we of het bewaren lukte.
     rest = leesTabel('Catalogus').rijen.filter(heeftWikiNodig).length;
+    if (laatste) controle = wikiControle(tabel, laatste);
   } finally {
     stopAchtergrond('zoekBeschrijvingenWikipedia');
   }
@@ -110,8 +112,34 @@ function zoekBeschrijvingenWikipedia() {
   if (rest > 0) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
   if (gevonden) { leegCache(); planVertaling(2); }
   logboek('menu', 'zoekBeschrijvingenWikipedia', verwerkt + ' opgezocht, ' + gevonden + ' beschrijvingen gevonden, ' + rest + ' te gaan volgens de spreadsheet' +
-    (fout ? ' (Wikipedia: ' + fout + ', later verder)' : '') + (nietBewaard ? ' (bewaren lukte ' + nietBewaard + ' keer niet: de spreadsheet was bezet)' : ''));
+    (fout ? ' (Wikipedia: ' + fout + ', later verder)' : '') + (nietBewaard ? ' (bewaren lukte ' + nietBewaard + ' keer niet: de spreadsheet was bezet)' : '') +
+    (controle ? ' | ' + controle : ''));
   try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Wikipedia, ' + gevonden + ' beschrijvingen gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
+}
+
+/**
+ * Controle na het bewaren: wat staat er echt in de cel van het laatst opgezochte boek?
+ * Meldt ook dubbele kolommen en dubbele boek_id's, want die sturen het bewaren naar een andere rij.
+ */
+function wikiControle(tabel, boek) {
+  var kop = tabel.kop;
+  var kolom = kop.indexOf('wiki_gezocht');
+  var cel = tabel.blad.getRange(boek._rij, kolom + 1).getValue();
+  return 'controle rij ' + boek._rij + ' (' + (boek.boek_id || 'zonder boek_id') + '): wiki_gezocht is "' + (isDatumObject(cel) ? parseerDatum(cel) : String(cel)) + '"' +
+    wikiDubbels(kop, tabel.rijen);
+}
+
+/** Tekst over dubbele kolommen wiki_gezocht en dubbele boek_id's, of ''. */
+function wikiDubbels(kop, rijen) {
+  var kolommen = kop.filter(function (k) { return k === 'wiki_gezocht'; }).length;
+  var gezien = {}, dubbel = 0;
+  rijen.forEach(function (r) {
+    if (isLeeg(r.boek_id)) return;
+    var id = String(r.boek_id);
+    if (gezien[id]) dubbel++;
+    gezien[id] = true;
+  });
+  return (kolommen > 1 ? ', ' + kolommen + ' kolommen wiki_gezocht' : '') + (dubbel ? ', ' + dubbel + ' dubbele boek_id\'s' : '');
 }
 
 /** Menu: zoekt één bekend boek op en toont wat Wikipedia antwoordt. Zo zie je of Wikipedia het script weigert. */
