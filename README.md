@@ -653,6 +653,8 @@ node tests/run.js
 
 `tools/bundel.js` maakt `madrigal-script.gs` opnieuw uit de map `apps-script/`. Pas `madrigal-script.gs` nooit met de hand aan. Alle tests moeten "ok" tonen.
 
+GitHub opent bij elke wijziging ook de site in een browser, met verzonnen gegevens (`tests/browser.js`): de pagina's, de catalogus, Lees ook, de leeslijsten en de afgeschermde schermen, in licht en donker, met een controle op toegankelijkheid. De werkwijze voor wie aan de code werkt, staat in [ONTWIKKELEN.md](ONTWIKKELEN.md).
+
 ## D4. Waar alles staat
 
 **In Google (het account van Madrigal)**

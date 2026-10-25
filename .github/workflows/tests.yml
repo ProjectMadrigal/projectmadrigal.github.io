@@ -1,4 +1,6 @@
 # Voert de tests uit bij elke wijziging. Gratis voor publieke repositories.
+#   - tests: de logica van het script en de site (Node, geen browser nodig);
+#   - browser: opent de site in Chromium met verzonnen gegevens (tests/browser.js).
 name: Tests
 on:
   push:
@@ -13,3 +15,16 @@ jobs:
           node-version: 20
       - run: node tests/run.js
       - run: BUNDEL=1 node tests/run.js
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Playwright en axe installeren
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0 axe-core@4.14.0
+          npx playwright install --with-deps chromium
+      - run: node tests/browser.js
