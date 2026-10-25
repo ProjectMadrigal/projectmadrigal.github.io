@@ -237,7 +237,8 @@
       el('p', {}, contact.length ? contact : 'Geen contactgegevens.'),
       el('p', {}, 'Laatste herinnering: ' + (u.laatste_herinnering ? D.korteDatum(u.laatste_herinnering) : 'nog geen')),
       el('details', {}, el('summary', {}, 'Toon de tekst'), el('p', {}, u.herinnering)),
-      el('div', { class: 'knoppen' }, kopieerKnop, verstuurdKnop));
+      el('div', { class: 'knoppen' }, kopieerKnop, verstuurdKnop),
+      uitleenKnoppen(u));
   }
 
   function toonRoosterSectie(vak) {
@@ -296,9 +297,44 @@
         laad();
       });
     });
-    var rij = [fout, el('div', { class: 'knoppen' }, terug, verleng)];
+    var rij = [fout, el('div', { class: 'knoppen' }, terug, verleng), meerOpties(u, fout)];
     D.vervang(vak, rij);
     return vak;
+  }
+
+  /**
+   * Meer opties bij een uitlening: de termijn aanpassen (bestuur), een verlenging annuleren,
+   * of de uitlening annuleren na een vergissing. Een vrijwilliger annuleert enkel uitleningen
+   * van de laatste 7 dagen (dat controleert de web-app).
+   */
+  function meerOpties(u, fout) {
+    function actie(naam, gegevens, knop) {
+      knop.disabled = true;
+      B.voerUit(naam, Object.assign({ uitlening_id: u.uitlening_id }, gegevens)).then(function (r) {
+        knop.disabled = false;
+        if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+        var extra = (r.apartLeggen || []).map(function (m) { return ' ' + m.tekst + '.'; }).join('');
+        B.melding($('melding'), 'ok', (r.tekst || 'Aangepast.') + extra);
+        laad();
+      });
+    }
+    var id = 'dagen-' + u.uitlening_id;
+    var dagen = el('input', { type: 'number', id: id, value: '7', min: '-365', max: '365', step: '1', class: 'kort', inputmode: 'numeric' });
+    var termijn = VRIJWILLIGER ? null : el('div', { class: 'veld' },
+      el('label', { for: id }, 'Termijn aanpassen met zoveel dagen ', el('span', { class: 'hulptekst' }, '(negatief om in te korten, telt niet als verlenging)')),
+      el('div', { class: 'knoppen' }, dagen, el('button', { type: 'button', class: 'knop tweede', onclick: function (e) {
+        actie('vervaldatumAanpassen', { dagen: dagen.value }, e.target);
+      } }, 'Pas de termijn aan')));
+    var verlenging = u.aantal_verlengingen > 0 ? el('button', { type: 'button', class: 'knop tweede', onclick: function (e) {
+      if (!window.confirm('De laatste verlenging van "' + u.titel + '" annuleren? De vorige terugbrengdatum komt terug.')) return;
+      actie('annuleerVerlenging', {}, e.target);
+    } }, 'Annuleer de verlenging') : null;
+    var annuleer = el('button', { type: 'button', class: 'knop tweede gevaar', onclick: function (e) {
+      if (!window.confirm('De uitlening van "' + u.titel + '" annuleren, alsof ze nooit gebeurde? Gebruik dit enkel na een vergissing. Komt het boek gewoon terug, kies dan Teruggebracht.')) return;
+      actie('annuleerUitlening', {}, e.target);
+    } }, 'Annuleer de uitlening');
+    return el('details', { class: 'meer-opties' }, el('summary', {}, 'Meer opties'),
+      termijn, el('div', { class: 'knoppen' }, verlenging, annuleer));
   }
 
   function toonTeLaat(vak) {
@@ -837,7 +873,7 @@
     vandaag: 'Hier zie je wat vandaag aandacht vraagt. Klik op Open om naar het onderdeel te gaan. Staat er niets, dan is alles in orde.',
     telaat: 'Deze boeken hadden al terug moeten zijn. Bestuur: open de herinnering in WhatsApp of je mail, verstuur ze, en klik daarna op Herinnering verstuurd. Met Verstuur de herinneringen een voor een ga je ze snel na elkaar af. Is het boek terug? Klik op Teruggebracht.',
     binnenkort: 'Deze boeken moeten binnenkort terug. Een vriendelijke herinnering op tijd voorkomt dat ze te laat komen. Wil de lener langer lezen? Klik op Verleng.',
-    lopend: 'Alle boeken die nu uitgeleend zijn. Zoek op titel, exemplaar, lenersnummer of voornaam, of toon enkel wat te laat is. Teruggebracht en Verleng werken zoals aan de balie.',
+    lopend: 'Alle boeken die nu uitgeleend zijn. Zoek op titel, exemplaar, lenersnummer of voornaam, of toon enkel wat te laat is. Teruggebracht en Verleng werken zoals aan de balie. Onder Meer opties annuleer je een verlenging of een uitlening na een vergissing. Het bestuur kan er ook de termijn aanpassen, bv. 7 dagen extra.',
     reservaties: 'Per boek de wachtrij. Komt een gereserveerd boek terug, dan legt het uitleenscherm het apart voor de eerste in de rij.',
     aanvragen: 'Reservaties die via de website binnenkwamen. Neem contact op met de lener en handel de aanvraag daarna af.',
     leners: 'Zoek een lener om de gegevens aan te passen, te zien wat die leent of leende, of meteen een boek uit te lenen. Met Nieuwe lener schrijf je iemand in, met dezelfde privacyverklaring als aan de balie.',
