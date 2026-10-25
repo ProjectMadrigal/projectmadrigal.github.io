@@ -428,7 +428,7 @@ Je mag "Madrigal > Installeer tabbladen" later opnieuw uitvoeren. Bestaande tabb
 
    **Nog geen beschrijving?** Drie extra manieren:
    - **De knop in het bestuursscherm** (Boeken > Zoek ontbrekende covers en beschrijvingen) vraagt ook een beschrijving aan Google voor boeken die al een cover hebben. Zijn boeken eerder onterecht als opgezocht aangevinkt, kies dan eerst **Madrigal > Covers > Zoek opnieuw bij Google**.
-   - **Madrigal > Beschrijvingen > Zoek beschrijvingen bij Wikipedia.** Voor bekende boeken: de eerste alinea van het artikel, in het Nederlands of het Engels (het script vertaalt daarna). Enkel als titel en auteur kloppen. De website vermeldt "Bron: Wikipedia" met een link, zoals de licentie CC BY-SA vraagt. De link staat in de kolom `beschrijving_bron`.
+   - **Madrigal > Beschrijvingen > Zoek beschrijvingen bij Wikipedia.** Voor bekende boeken: de eerste alinea van het artikel, in het Nederlands of het Engels (het script vertaalt daarna). Enkel als titel en auteur kloppen. De website vermeldt "Bron: Wikipedia" met een link, zoals de licentie CC BY-SA vraagt. De link staat in de kolom `beschrijving_bron`. Vindt Google later een beschrijving voor hetzelfde boek, dan vervangt die de tekst van Wikipedia en valt de bronvermelding weg. Een tekst die je zelf schreef, blijft altijd staan.
    - **Een foto van de achterkant.** Open een boek in het bestuursscherm en gebruik **Tekst van de achterkant**. Google leest de tekst van de foto en zet ze in het veld Beschrijving. Lees ze na en klik op Bewaar. Nodig: zet in Apps Script de service **Drive API** aan (links naast Services op **+** klikken, **Drive API** kiezen, **Toevoegen**).
 
    **Nog geen cover?** Vijf extra manieren:

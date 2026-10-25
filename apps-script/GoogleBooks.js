@@ -45,11 +45,21 @@ function verwerkGoogleBooks(boek, info) {
   }
   if (isLeeg(boek.paginas) && info.pageCount) v.paginas = Number(info.pageCount);
   if (isLeeg(boek.taal) && GB_TALEN[info.language]) v.taal = GB_TALEN[info.language];
-  if (isLeeg(boek.beschrijving) && info.description) {
+  // Google heeft de omschrijving van het boek zelf: die vervangt ook een tekst van Wikipedia.
+  var wiki = heeftWikiBeschrijving(boek);
+  if ((isLeeg(boek.beschrijving) || wiki) && info.description) {
     var b = schoon(String(info.description).replace(/<[^>]*>/g, ' '));
-    if (b) v.beschrijving = maakBeschrijvingNetjes(b);
+    if (b) {
+      v.beschrijving = maakBeschrijvingNetjes(b);
+      if (wiki) { v.beschrijving_bron = ''; v.beschrijving_en = ''; v.beschrijving_vertaald = ''; }
+    }
   }
   return v;
+}
+
+/** De beschrijving komt van Wikipedia (dan staat er een link naar Wikipedia in beschrijving_bron). */
+function heeftWikiBeschrijving(boek) {
+  return !isLeeg(boek.beschrijving) && /^https:\/\/[a-z]{2,3}\.wikipedia\.org\//.test(String(boek.beschrijving_bron || ''));
 }
 
 /**
@@ -91,14 +101,14 @@ function zoekCoversOpnieuw() {
   var tabel = leesTabel('Catalogus');
   var n = 0;
   tabel.rijen.forEach(function (b) {
-    if ((isLeeg(b.cover_url) || isLeeg(b.beschrijving)) && !isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''))) {
+    if ((isLeeg(b.cover_url) || isLeeg(b.beschrijving) || heeftWikiBeschrijving(b)) && !isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''))) {
       wijzig(b, { gb_gecontroleerd: '' });
       n++;
     }
   });
   bewaarTabel(tabel);
-  logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover of beschrijving komen opnieuw aan de beurt bij Google');
-  meld(n + ' boeken zonder cover of beschrijving komen opnieuw aan de beurt bij Google. Gebruik daarna de knop in het bestuursscherm: Boeken > Zoek ontbrekende covers en beschrijvingen.');
+  logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover of beschrijving (of met een tekst van Wikipedia) komen opnieuw aan de beurt bij Google');
+  meld(n + ' boeken zonder cover of beschrijving (of met een tekst van Wikipedia) komen opnieuw aan de beurt bij Google. Gebruik daarna de knop in het bestuursscherm: Boeken > Zoek ontbrekende covers en beschrijvingen.');
 }
 
 /** Menu: vult covers aan uit Google Books, in porties. */

@@ -1376,7 +1376,8 @@ function controleerGrenzen(actie, ctx) {
  * invoer.items: [{ boek_id, google, ol, bron, cover, meta: { beschrijving, uitgeverij, jaartal, paginas, taal } }]
  *   google / ol: dit boek werd daar opgezocht (dan krijgt het een datum in gb_gecontroleerd / cover_gezocht)
  *   bron: 'google', 'ol-isbn', 'ol-titel' of 'ia' (Internet Archive)
- * Enkel lege velden worden aangevuld, en enkel covers van Google of Open Library.
+ * Enkel lege velden worden aangevuld (behalve een beschrijving van Wikipedia: Google vervangt die),
+ * en enkel covers van Google, Open Library of Internet Archive.
  * (Oudere versie van de knop: { gezocht, resultaten } met enkel Google.)
  */
 function coversBewaren(staat, invoer) {
@@ -1439,6 +1440,7 @@ function coversBewaren(staat, invoer) {
 
 /**
  * De boeken zonder cover of zonder beschrijving die de browser nog moet opzoeken.
+ * Een beschrijving van Wikipedia telt als ontbrekend voor Google: die vervangt ze.
  *   g: nog niet bij Google opgezocht (enkel met een ISBN): voor een cover en een beschrijving
  *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
  *   i: nog niet bij Internet Archive opgezocht (enkel met een ISBN)
@@ -1448,7 +1450,7 @@ function coversTeZoeken(staat) {
   staat.catalogus.forEach(function (b) {
     if (isLeeg(b.boek_id)) return;
     var zonderCover = isLeeg(b.cover_url);
-    if (!zonderCover && !isLeeg(b.beschrijving)) return;
+    if (!zonderCover && !isLeeg(b.beschrijving) && !heeftWikiBeschrijving(b)) return;
     var isbn = /^\d{13}$/.test(String(b.isbn || '')) ? String(b.isbn) : '';
     // Google: voor een cover en voor een beschrijving. Open Library en Internet Archive: enkel voor een cover.
     var g = !!isbn && isLeeg(b.gb_gecontroleerd);
@@ -1833,6 +1835,11 @@ function heeftOpenLibraryNodig(boek) {
 /** Moet deze beschrijving nog vertaald worden? */
 function heeftVertalingNodig(boek) {
   return !isLeeg(boek.beschrijving) && isLeeg(boek.beschrijving_vertaald);
+}
+
+/** De beschrijving komt van Wikipedia (dan staat er een link naar Wikipedia in beschrijving_bron). */
+function heeftWikiBeschrijving(boek) {
+  return !isLeeg(boek.beschrijving) && /^https:\/\/[a-z]{2,3}\.wikipedia\.org\//.test(String(boek.beschrijving_bron || ''));
 }
 
 /** Heeft dit boek nog een beschrijving van Wikipedia nodig? */
@@ -4116,9 +4123,14 @@ function verwerkGoogleBooks(boek, info) {
   }
   if (isLeeg(boek.paginas) && info.pageCount) v.paginas = Number(info.pageCount);
   if (isLeeg(boek.taal) && GB_TALEN[info.language]) v.taal = GB_TALEN[info.language];
-  if (isLeeg(boek.beschrijving) && info.description) {
+  // Google heeft de omschrijving van het boek zelf: die vervangt ook een tekst van Wikipedia.
+  var wiki = heeftWikiBeschrijving(boek);
+  if ((isLeeg(boek.beschrijving) || wiki) && info.description) {
     var b = schoon(String(info.description).replace(/<[^>]*>/g, ' '));
-    if (b) v.beschrijving = maakBeschrijvingNetjes(b);
+    if (b) {
+      v.beschrijving = maakBeschrijvingNetjes(b);
+      if (wiki) { v.beschrijving_bron = ''; v.beschrijving_en = ''; v.beschrijving_vertaald = ''; }
+    }
   }
   return v;
 }
@@ -5235,14 +5247,14 @@ function zoekCoversOpnieuw() {
   var tabel = leesTabel('Catalogus');
   var n = 0;
   tabel.rijen.forEach(function (b) {
-    if ((isLeeg(b.cover_url) || isLeeg(b.beschrijving)) && !isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''))) {
+    if ((isLeeg(b.cover_url) || isLeeg(b.beschrijving) || heeftWikiBeschrijving(b)) && !isLeeg(b.gb_gecontroleerd) && /^\d{13}$/.test(String(b.isbn || ''))) {
       wijzig(b, { gb_gecontroleerd: '' });
       n++;
     }
   });
   bewaarTabel(tabel);
-  logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover of beschrijving komen opnieuw aan de beurt bij Google');
-  meld(n + ' boeken zonder cover of beschrijving komen opnieuw aan de beurt bij Google. Gebruik daarna de knop in het bestuursscherm: Boeken > Zoek ontbrekende covers en beschrijvingen.');
+  logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover of beschrijving (of met een tekst van Wikipedia) komen opnieuw aan de beurt bij Google');
+  meld(n + ' boeken zonder cover of beschrijving (of met een tekst van Wikipedia) komen opnieuw aan de beurt bij Google. Gebruik daarna de knop in het bestuursscherm: Boeken > Zoek ontbrekende covers en beschrijvingen.');
 }
 
 /** Zoekt een boek op bij Wikipedia in één taal. Geeft { tekst, link }, {} of { fout }. */
