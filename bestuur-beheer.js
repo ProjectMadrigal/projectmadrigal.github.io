@@ -102,6 +102,38 @@
     return el('div', { class: 'knoppen' }, Array.prototype.slice.call(arguments));
   }
 
+  /* ---------- Kleine covers in de lijsten ---------- */
+
+  var coverLinksBelofte = null; // { boek_id: link }, één keer per bezoek opgehaald
+
+  function laadCoverLinks() {
+    if (!coverLinksBelofte) {
+      coverLinksBelofte = B.voerUit('beheerCoverLinks').then(function (r) { return r.ok ? r.links : {}; }, function () { return {}; });
+    }
+    return coverLinksBelofte;
+  }
+
+  /** Een kleine cover voor in een lijst. Zonder cover: een grijs vlakje. */
+  function miniCover(b) {
+    var vak = el('span', { class: 'mini-cover', 'aria-hidden': 'true' });
+    if (b.c) {
+      laadCoverLinks().then(function (links) {
+        if (!links[b.id]) return;
+        var beeld = el('img', { src: links[b.id], alt: '', loading: 'lazy' });
+        beeld.addEventListener('error', function () { beeld.remove(); });
+        vak.appendChild(beeld);
+      });
+    }
+    return vak;
+  }
+
+  /** Een knop in een lijst van boeken: kleine cover, titel en daaronder auteur en boek-ID. */
+  function boekKnop(b, opKlik, extra) {
+    return el('button', Object.assign({ type: 'button', class: 'knop keuzeknop met-mini', onclick: opKlik }, extra || {}), miniCover(b),
+      el('span', { class: 'mini-tekst' }, el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · ')),
+        b.st ? el('span', { class: 'labels' }, b.st === 'verloren' ? D.statusLabel('verloren', 'Verloren') : el('span', { class: 'label label-gevoelig' }, 'Gevoelige inhoud')) : null));
+  }
+
   /* ---------- Boeken ---------- */
 
   var GROEPEN_BOEK = [
@@ -176,9 +208,7 @@
       if (!q) { D.vervang(lijst, el('p', { class: 'hulptekst' }, 'Typ minstens een deel van een titel, auteur of ISBN.')); return; }
       var gevonden = Z.zoek(index, q).slice(0, 20).map(function (r) { return r.boek; });
       D.vervang(lijst, gevonden.length ? el('ul', { class: 'kaartlijst' }, gevonden.map(function (b) {
-        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { bewerkBoek(vak, ctx, b.id); } },
-          el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · ')),
-          b.st ? el('span', { class: 'labels' }, b.st === 'verloren' ? D.statusLabel('verloren', 'Verloren') : el('span', { class: 'label label-gevoelig' }, 'Gevoelige inhoud')) : null));
+        return el('li', {}, boekKnop(b, function () { bewerkBoek(vak, ctx, b.id); }));
       })) : el('p', {}, 'Geen boek gevonden.'));
     }
     zoekveld.addEventListener('input', teken);
@@ -266,8 +296,7 @@
       var zichtbaar = lijstBoeken.slice(0, stand.aantal);
       var rest = lijstBoeken.length - zichtbaar.length;
       D.vervang(vakLijst, zichtbaar.length ? el('ul', { class: 'kaartlijst' }, zichtbaar.map(function (b) {
-        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', 'data-id': b.id, onclick: function () { openUitLijst(vak, ctx, b); } },
-          el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · '))));
+        return el('li', {}, boekKnop(b, function () { openUitLijst(vak, ctx, b); }, { 'data-id': b.id }));
       })) : el('p', {}, alle.length ? 'Geen boek gevonden.' : cover ? 'Alle boeken hebben een cover.' : 'Alle boeken hebben een beschrijving.'),
       rest > 0 ? el('p', {}, zichtbaar.length + ' van ' + lijstBoeken.length + ' boeken getoond.') : null,
       rest > 0 ? knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () {
@@ -375,6 +404,7 @@
         if (coverVeld) { coverVeld.invoer.value = r.cover_url; coverVeld.oud = r.cover_url; coverVeld.invoer.dispatchEvent(new Event('input')); }
         // Meteen uit de lijst zonder cover halen, zonder alles opnieuw te laden.
         (ctx.data.boeken || []).forEach(function (b) { if (b.id === String(boek.boek_id)) b.c = true; });
+        if (coverLinksBelofte) coverLinksBelofte.then(function (l) { l[String(boek.boek_id)] = r.cover_url; });
         knop.disabled = true;
         melding.textContent = r.tekst + ' De website toont ze binnen enkele minuten.';
       });
@@ -403,8 +433,57 @@
     return el('div', { class: 'blok' }, beeld, tekst);
   }
 
+  /**
+   * Eén boek opzoeken vanuit het formulier: eerst Google Books (op ISBN, anders op titel en auteur),
+   * dan Open Library voor een cover. Enkel lege velden worden ingevuld. Je kijkt na en bewaart zelf.
+   */
+  function zoekBlok(velden, sleutel) {
+    var melding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
+    var knop = el('button', { type: 'button', class: 'knop tweede' }, 'Zoek dit boek op het internet');
+    function veldVan(naam) { return velden.filter(function (v) { return v.naam === naam; })[0]; }
+    function waarde(naam) { var v = veldVan(naam); return v ? v.lees() : ''; }
+    knop.addEventListener('click', function () {
+      var isbn = String(waarde('isbn')).replace(/[^0-9X]/gi, '');
+      var titel = waarde('titel'), auteur = waarde('auteur');
+      if (!/^\d{13}$/.test(isbn) && !titel) { melding.textContent = 'Vul eerst een ISBN of een titel in.'; return; }
+      var klaar = bezig(knop, 'Bezig met zoeken...');
+      var google = /^\d{13}$/.test(isbn) ? vraagGoogle(isbn, sleutel) : vraagGoogleTitel(titel, auteur, sleutel);
+      var voorstel = {}, googleFout = '';
+      google.then(function (a) {
+        if (a.fout) googleFout = a.fout;
+        if (a.info) {
+          var v = a.info, links = v.imageLinks || {};
+          voorstel.beschrijving = v.description || '';
+          voorstel.uitgeverij = v.publisher || '';
+          voorstel.jaartal = (String(v.publishedDate || '').match(/\d{4}/) || [''])[0];
+          voorstel.paginas = v.pageCount ? String(v.pageCount) : '';
+          voorstel.cover_url = String(links.thumbnail || links.smallThumbnail || '').replace(/^http:/, 'https:');
+        }
+        if (voorstel.cover_url || waarde('cover_url')) return {};
+        return zoekOl({ isbn: /^\d{13}$/.test(isbn) ? isbn : '', t: titel, a: auteur });
+      }).then(function (o) {
+        if (o && o.cover) voorstel.cover_url = o.cover;
+        klaar();
+        var ingevuld = [];
+        Object.keys(voorstel).forEach(function (naam) {
+          var v = veldVan(naam);
+          if (!v || !voorstel[naam] || v.lees()) return; // wat al ingevuld is, blijft staan
+          v.invoer.value = voorstel[naam];
+          v.invoer.dispatchEvent(new Event('input'));
+          ingevuld.push(LABELS[naam] || naam);
+        });
+        melding.textContent = ingevuld.length
+          ? 'Ingevuld: ' + ingevuld.join(', ') + '. Kijk het na en klik op Bewaar.'
+          : (googleFout ? 'Google Books antwoordt niet (' + googleFout + '). ' : '') + 'Niets nieuws gevonden voor de lege velden.';
+      });
+    });
+    return el('fieldset', { class: 'blok' }, el('legend', {}, 'Opzoeken op het internet'),
+      el('p', { class: 'hulptekst' }, 'Zoekt dit boek bij Google Books en Open Library en vult enkel de lege velden in, zoals de beschrijving en de cover. Wat al ingevuld is, blijft staan.'),
+      knoppen(knop), melding);
+  }
+
   /** Het formulier voor een boek. boek: bestaand boek of {} voor een nieuw. */
-  function boekFormulier(vak, ctx, boek, nieuw) {
+  function boekFormulier(vak, ctx, boek, nieuw, sleutel) {
     var velden = [];
     var fout = el('div', { 'aria-live': 'assertive' });
     var delen = GROEPEN_BOEK.map(function (g) {
@@ -444,11 +523,12 @@
     var coverVeld = velden.filter(function (v) { return v.naam === 'cover_url'; })[0];
     var foto = nieuw ? null : fotoBlok(boek, coverVeld, ctx);
     var cover = coverVeld ? huidigeCover(coverVeld) : null;
+    var opzoekenBestaand = nieuw ? null : zoekBlok(velden, sleutel);
     var beschrijvingVeld = velden.filter(function (v) { return v.naam === 'beschrijving'; })[0];
     var achterkant = beschrijvingVeld ? achterkantBlok(beschrijvingVeld) : null;
     var volgend = nieuw ? null : buurBoek(boek.boek_id, 1);
     var bewaarVolgend = volgend ? el('button', { type: 'button', class: 'knop', onclick: function () { verstuur(false, true); } }, 'Bewaar en volgend boek ›') : null;
-    var formulier = el('form', { novalidate: true }, cover, opzoeken, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
+    var formulier = el('form', { novalidate: true }, cover, opzoeken, opzoekenBestaand, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
       fout, knoppen.apply(null, [bewaar, bewaarVolgend].concat(nieuw ? [] : bladerKnoppen(vak, ctx, boek.boek_id),
         [el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, terugNaarLijstTekst())]).filter(Boolean)));
 
@@ -460,6 +540,7 @@
         b.t = waarde('titel') || b.t;
         b.a = waarde('auteur');
         b.c = !!waarde('cover_url');
+        if (coverLinksBelofte) coverLinksBelofte.then(function (l) { if (b.c) l[b.id] = waarde('cover_url'); else delete l[b.id]; });
         if (waarde('beschrijving')) delete b.zb; else b.zb = true;
       });
       velden.forEach(function (v) { v.oud = v.lees(); });
@@ -501,7 +582,7 @@
     D.vervang(vak, el('p', {}, 'Boek laden...'));
     B.voerUit('beheerBoekOphalen', { boek_id: id }).then(function (r) {
       if (!r.ok) { B.melding($('melding'), 'fout', r.fout); toonBoeken(vak, ctx); return; }
-      boekFormulier(vak, ctx, r.boek, false);
+      boekFormulier(vak, ctx, r.boek, false, r.sleutel);
     });
   }
 
@@ -571,6 +652,17 @@
       }
       return { items: a.d.items || [] };
     }, function () { return { fout: 'Geen verbinding met Google.', storing: true }; });
+  }
+
+  /** Google Books op titel en auteur, voor een boek zonder ISBN. Enkel een uitgave met (bijna) dezelfde titel. */
+  function vraagGoogleTitel(titel, auteur, sleutel) {
+    var t = titelSleutel(titel), naam = achternaam(auteur);
+    var q = 'intitle:' + encodeURIComponent(t) + (naam ? '+inauthor:' + encodeURIComponent(naam) : '');
+    return vraagGoogleUrl(q, sleutel).then(function (a) {
+      if (a.fout) return a;
+      var goed = a.items.filter(function (it) { return gelijkenis(t, titelSleutel((it.volumeInfo || {}).title)) >= 0.85; });
+      return { info: goed.length ? goed[0].volumeInfo : null };
+    });
   }
 
   /* Open Library: cover van het werk (andere uitgave), op ISBN of op titel en auteur. */
@@ -1053,7 +1145,7 @@
         knop();
         if (waar === 'zoek' && vak2.checked && !inLijstVak.querySelector('input[data-boek="' + CSS.escape(b.id) + '"]')) tekenLijst();
       });
-      return el('li', {}, el('label', { class: 'vinkje', for: id }, vak2,
+      return el('li', {}, el('label', { class: 'vinkje', for: id }, vak2, miniCover(b),
         el('span', {}, el('strong', {}, b.t), ' ', el('span', { class: 'hulptekst' }, [b.a, b.id].filter(Boolean).join(' · ')))));
     }
 
@@ -1173,6 +1265,7 @@
     boeken: toonBoeken,
     inhoud: toonInhoud,
     covers: toonZonderCover,
+    zonderBeschrijving: toonZonderBeschrijving,
     leeslijsten: toonLeeslijsten,
     instellingen: toonInstellingen,
     /** Bij Vernieuw: nieuws, agenda en instellingen opnieuw ophalen. */

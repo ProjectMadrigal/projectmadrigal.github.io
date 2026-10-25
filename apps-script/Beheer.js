@@ -112,7 +112,8 @@ function hoogsteExemplaarInGebruik(staat, boekId) {
 function boekOphalen(staat, invoer) {
   var boek = boekVan(staat, invoer.boek_id);
   if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
-  return { ok: true, boek: beheerBoek(boek) };
+  // sleutel: zodat de browser van het bestuur dit ene boek bij Google Books kan opzoeken (knop in het formulier).
+  return { ok: true, boek: beheerBoek(boek), sleutel: String(staat.inst.google_books_api_key || '') };
 }
 
 /** Een boek aanpassen. invoer: { boek_id, velden: { ... } } */

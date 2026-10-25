@@ -50,6 +50,8 @@ var ACTIES = {
   beheerBoekBewaren: 'bestuur',
   beheerLeeslijstBoeken: 'vrijwilliger',
   bezoekersCijfers: 'bestuur',
+  beheerLogboek: 'bestuur',
+  beheerCoverLinks: 'vrijwilliger',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -234,6 +236,8 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'beheerIsbnOpzoeken') return isbnOpzoeken(invoer); // leest enkel bij Open Library en Google Books
   if (actie === 'beheerInhoud') return beheerInhoudGegevens(rol);
   if (actie === 'bezoekersCijfers') return bezoekersCijfers(invoer); // leest enkel bij GoatCounter
+  if (actie === 'beheerLogboek') return logboekEnTaken(); // leest enkel, geen slot nodig
+  if (actie === 'beheerCoverLinks') return coverLinks(leesTabel('Catalogus').rijen); // leest enkel
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
 
   var lock = LockService.getScriptLock();

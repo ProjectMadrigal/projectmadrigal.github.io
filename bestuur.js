@@ -6,6 +6,9 @@
  * Herinneringen verstuur je zelf (WhatsApp, sms of mail). Dit scherm kopieert
  * de tekst en noteert daarna dat de herinnering verstuurd is.
  *
+ * Vandaag toont wat aandacht vraagt. Logboek en taken toont de achtergrondtaken en het Logboek.
+ * Het onderdeel staat in het adres (#telaat, #boeken, ...), zodat herladen en Terug werken.
+ *
  * Hetzelfde script maakt ook het vrijwilligersscherm (vrijwilliger.html, data-scherm="vrijwilliger"):
  * minder onderdelen, geen contactgegevens van leners. Welke onderdelen: zie SECTIES.
  */
@@ -21,13 +24,14 @@
 
   var data = null;
   var VRIJWILLIGER = document.body.getAttribute('data-scherm') === 'vrijwilliger';
-  var actief = 'telaat';
+  var actief = 'vandaag';
 
   /**
    * De onderdelen: [sleutel, knoptekst, functie, groep, scherm]. De groepen staan in GROEPEN.
    * scherm: 'beide' staat ook in het vrijwilligersscherm, 'vrijwilliger' enkel daar, leeg enkel bij het bestuur.
    */
   var ALLE_SECTIES = [
+    ['vandaag', 'Vandaag', toonVandaag, 'start', 'beide'],
     ['telaat', 'Te laat', toonTeLaat, 'uitlenen', 'beide'],
     ['binnenkort', 'Vervalt binnenkort', toonBinnenkort, 'uitlenen', 'beide'],
     ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen', 'beide'],
@@ -44,13 +48,25 @@
     ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website', 'beide'],
     ['instellingen', 'Teksten en instellingen', function (vak) { W.instellingen(vak, context()); }, 'website'],
     ['cijfers', 'Cijfers', toonCijfers, 'overzicht'],
+    ['logboek', 'Logboek en taken', toonLogboek, 'overzicht'],
     ['rooster', 'Rooster', toonRoosterSectie, 'overzicht', 'beide']
   ];
   var SECTIES = ALLE_SECTIES.filter(function (s) {
     return VRIJWILLIGER ? s[4] === 'beide' || s[4] === 'vrijwilliger' : s[4] !== 'vrijwilliger';
   });
 
-  var GROEPEN = [['uitlenen', 'Uitlenen'], ['website', 'Website'], ['overzicht', 'Overzicht']];
+  var GROEPEN = [['start', 'Start'], ['uitlenen', 'Uitlenen'], ['website', 'Website'], ['overzicht', 'Overzicht']];
+
+  /* Het onderdeel staat in het adres (bv. bestuur.html#telaat): na herladen blijf je waar je was, en Terug werkt. */
+  function sectieUitAdres() {
+    var naam = decodeURIComponent(location.hash.slice(1));
+    return SECTIES.some(function (s) { return s[0] === naam; }) ? naam : '';
+  }
+  actief = sectieUitAdres() || actief;
+  window.addEventListener('popstate', function () {
+    var naam = sectieUitAdres() || 'vandaag';
+    if (data && naam !== actief) toonSectie(naam, true, true);
+  });
 
   /** Wat bestuur-beheer.js nodig heeft van dit scherm. */
   function context() {
@@ -69,17 +85,41 @@
     });
   }
 
+  /** Het getal achter een onderdeel in het menu, of null. */
+  function aantalVoor(naam) {
+    if (naam === 'telaat') return data.telaat.length;
+    if (naam === 'binnenkort') return data.binnenkort.length;
+    if (naam === 'aanvragen') return (data.aanvragen || []).length;
+    return null;
+  }
+
+  /** Op een gsm: één keuzelijst in plaats van alle knoppen (zie .sectiekeuze in styles.css). */
+  function keuzelijst() {
+    var lijst = el('select', { id: 'sectiekeuze' }, GROEPEN.map(function (g) {
+      var opties = SECTIES.filter(function (s) { return s[3] === g[0] && zichtbaarInMenu(s); }).map(function (s) {
+        var aantal = aantalVoor(s[0]);
+        return el('option', { value: s[0], selected: s[0] === actief }, s[1] + (aantal !== null ? ' (' + aantal + ')' : ''));
+      });
+      return opties.length ? el('optgroup', { label: g[1] }, opties) : null;
+    }));
+    lijst.addEventListener('change', function () { toonSectie(lijst.value, true); });
+    return el('div', { class: 'veld sectiekeuze' }, el('label', { for: 'sectiekeuze' }, 'Onderdeel'), lijst);
+  }
+
+  function zichtbaarInMenu(s) {
+    return !(s[0] === 'aanvragen' && !data.onlineReserveren && !(data.aanvragen || []).length);
+  }
+
   function tekenNav() {
-    D.vervang($('sectienav'), GROEPEN.map(function (g) {
+    D.vervang($('sectienav'), keuzelijst(), GROEPEN.map(function (g) {
       var kopId = 'navgroep-' + g[0];
       return el('div', { class: 'navgroep', role: 'group', 'aria-labelledby': kopId },
         el('span', { class: 'navgroep-kop', id: kopId }, g[1]),
         el('div', { class: 'navgroep-knoppen' }, SECTIES.filter(function (s) { return s[3] === g[0]; }).map(function (s) {
-          var aantal = s[0] === 'telaat' ? data.telaat.length : s[0] === 'binnenkort' ? data.binnenkort.length
-            : s[0] === 'aanvragen' ? (data.aanvragen || []).length : null;
+          var aantal = aantalVoor(s[0]);
           // Voorstellen van vrijwilligers die op goedkeuring wachten.
           var extra = s[0] === 'inhoud' && data.voorstellen ? ' (' + data.voorstellen + ' te keuren)' : '';
-          if (s[0] === 'aanvragen' && !data.onlineReserveren && !(data.aanvragen || []).length) return null;
+          if (!zichtbaarInMenu(s)) return null;
           return el('button', {
             type: 'button', class: 'knop' + (s[0] === actief ? '' : ' tweede'), 'aria-pressed': s[0] === actief ? 'true' : 'false',
             onclick: function () { toonSectie(s[0], true); }
@@ -88,8 +128,10 @@
     }));
   }
 
-  function toonSectie(naam, focus) {
+  function toonSectie(naam, focus, uitGeschiedenis) {
     actief = naam;
+    // Een keuze van de gebruiker komt in het adres, zodat Terug en herladen werken.
+    if (focus && !uitGeschiedenis && sectieUitAdres() !== naam) history.pushState(null, '', '#' + naam);
     tekenNav();
     // Enkel bij een wissel door de gebruiker: anders verdwijnt een net getoonde bevestiging.
     if (focus) D.vervang($('melding'));
@@ -478,6 +520,88 @@
       data.meestGeleend.length ? staafTabel('Meest geleende boeken', 'Boek', data.meestGeleend.map(function (b) { return [b.titel + (b.auteur ? ' (' + b.auteur + ')' : ''), b.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
       el('h4', {}, 'Uitleningen per filtergroep'),
       data.groepen.length ? staafTabel('Uitleningen per filtergroep', 'Filtergroep', data.groepen.map(function (g) { return [g.groep, g.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'));
+  }
+
+  /* ---------- Vandaag ---------- */
+
+  /** Wat vandaag aandacht vraagt, met een knop naar het onderdeel. Enkel wat niet nul is. */
+  function toonVandaag(vak) {
+    var klaar = (data.reservaties || []).filter(function (r) { return r.status === 'klaar om op te halen'; }).length;
+    var wacht = (data.reservaties || []).length - klaar;
+    var boeken = data.boeken || [];
+    var zonderCover = boeken.filter(function (b) { return !b.c; }).length;
+    var zonderTekst = boeken.filter(function (b) { return b.zb; }).length;
+    var punten = [
+      [data.telaat.length, data.telaat.length === 1 ? 'uitlening is te laat' : 'uitleningen zijn te laat', 'Stuur een herinnering.', 'telaat', 'telaat'],
+      [data.binnenkort.length, data.binnenkort.length === 1 ? 'uitlening vervalt binnenkort' : 'uitleningen vervallen binnenkort', '', 'binnenkort', 'binnenkort'],
+      [klaar, klaar === 1 ? 'reservatie ligt klaar om op te halen' : 'reservaties liggen klaar om op te halen', '', 'reservaties', ''],
+      [wacht, wacht === 1 ? 'reservatie wacht op een boek' : 'reservaties wachten op een boek', '', 'reservaties', ''],
+      [VRIJWILLIGER ? 0 : (data.aanvragen || []).length, 'aanvragen van de website', 'Neem contact op en handel ze af.', 'aanvragen', ''],
+      [VRIJWILLIGER ? 0 : data.voorstellen || 0, data.voorstellen === 1 ? 'voorstel van een vrijwilliger wacht op goedkeuring' : 'voorstellen van vrijwilligers wachten op goedkeuring', '', 'inhoud', ''],
+      [zonderCover, zonderCover === 1 ? 'boek heeft nog geen cover' : 'boeken hebben nog geen cover', '', VRIJWILLIGER ? 'covers' : 'boeken', '', function (vak2) { W.covers(vak2, context()); }],
+      [VRIJWILLIGER ? 0 : zonderTekst, zonderTekst === 1 ? 'boek heeft nog geen beschrijving' : 'boeken hebben nog geen beschrijving', '', 'boeken', '', function (vak2) { W.zonderBeschrijving(vak2, context()); }]
+    ].filter(function (p) { return p[0] > 0; });
+    D.vervang(vak, kop('Vandaag', 'Wat aandacht vraagt. Klik op Open om ernaartoe te gaan.'),
+      punten.length ? el('ul', { class: 'kaartlijst' }, punten.map(function (p) {
+        return el('li', { class: 'kaart' + (p[4] ? ' ' + p[4] : '') }, el('p', {}, el('strong', { class: 'vandaag-getal' }, String(p[0])), ' ', p[1]),
+          p[2] ? el('p', { class: 'hulptekst' }, p[2]) : null,
+          el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+            toonSectie(p[3], true);
+            if (p[5]) p[5]($('sectie'));
+          } }, 'Open')));
+      })) : el('p', {}, 'Niets dringends. Alles is in orde.'),
+      VRIJWILLIGER ? null : el('p', {}, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonSectie('logboek', true); } }, 'Logboek en achtergrondtaken bekijken')));
+  }
+
+  /* ---------- Logboek en taken ---------- */
+
+  var STATUS_TAAK = { loopt: 'loopt nu', gepland: 'gaat vanzelf verder', stil: 'staat stil', klaar: 'klaar' };
+
+  function uurTekst(ms) {
+    var d = new Date(ms);
+    return ('0' + d.getDate()).slice(-2) + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+
+  /** De achtergrondtaken (hoeveel boeken nog, loopt ze) en de laatste regels van het Logboek. */
+  function toonLogboek(vak) {
+    D.vervang(vak, kop('Logboek en taken'), el('p', {}, 'Laden...'));
+    B.voerUit('beheerLogboek').then(function (r) {
+      if (actief !== 'logboek') return;
+      if (!r.ok) { D.vervang(vak, kop('Logboek en taken'), el('p', { class: 'melding fout' }, r.fout || 'Het Logboek laden lukte niet.')); return; }
+      var filter = el('select', { id: 'logboek-filter' }, [el('option', { value: '' }, 'Alle acties')].concat(
+        r.logboek.map(function (x) { return x.actie; }).filter(function (a, i, alle) { return a && alle.indexOf(a) === i; }).sort()
+          .map(function (a) { return el('option', { value: a }, a); })));
+      var zoek = el('input', { type: 'search', id: 'logboek-zoek', autocomplete: 'off', placeholder: 'Woord in de regel' });
+      var lijst = el('div', { 'aria-live': 'polite' });
+      function teken() {
+        var q = zoek.value.trim().toLowerCase();
+        var regels = r.logboek.filter(function (x) {
+          return (!filter.value || x.actie === filter.value) && (!q || (x.wie + ' ' + x.actie + ' ' + x.details).toLowerCase().indexOf(q) > -1);
+        });
+        D.vervang(lijst, regels.length ? el('ul', { class: 'logboek' }, regels.map(function (x) {
+          return el('li', {}, el('span', { class: 'logboek-tijd' }, x.tijd ? uurTekst(x.tijd) : ''), ' ',
+            el('strong', {}, x.actie), ' ', el('span', { class: 'hulptekst' }, x.wie), el('div', {}, x.details));
+        })) : el('p', {}, 'Geen regels gevonden.'));
+      }
+      filter.addEventListener('change', teken);
+      zoek.addEventListener('input', teken);
+      var taken = r.taken.filter(function (t) { return t.teGaan > 0 || t.status === 'loopt' || t.status === 'gepland'; });
+      D.vervang(vak, kop('Logboek en taken', 'De taken die op de achtergrond boeken opzoeken, en de laatste ' + r.logboek.length + ' regels van het Logboek. Een taak die stilstaat, start je in de spreadsheet via het menu Madrigal.'),
+        r.daglimiet ? el('p', { class: 'melding fout' }, 'De daglimiet van Google voor vragen naar buiten is op sinds ' + uurTekst(r.daglimiet) + '. De taken gaan vanzelf verder als ze weer vrij is.') : null,
+        el('h3', {}, 'Achtergrondtaken'),
+        taken.length ? el('div', { class: 'tabel-wrap' }, el('table', {},
+          el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Taak'), el('th', { scope: 'col' }, 'Nog te doen'), el('th', { scope: 'col' }, 'Stand'))),
+          el('tbody', {}, taken.map(function (t) {
+            return el('tr', {}, el('td', {}, t.naam), el('td', {}, String(t.teGaan)),
+              el('td', {}, STATUS_TAAK[t.status] + (t.status === 'loopt' && t.sinds ? ' (sinds ' + uurTekst(t.sinds).slice(-5) + ')' : '')));
+          })))) : el('p', {}, 'Alle taken zijn klaar.'),
+        el('h3', {}, 'Logboek'),
+        el('div', { class: 'veld' }, el('label', { for: 'logboek-filter' }, 'Actie'), filter),
+        el('div', { class: 'veld' }, el('label', { for: 'logboek-zoek' }, 'Zoek'), zoek),
+        lijst,
+        el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonLogboek(vak); } }, 'Vernieuw')));
+      teken();
+    });
   }
 
   /* ---------- Start ---------- */

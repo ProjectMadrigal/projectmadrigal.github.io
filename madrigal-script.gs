@@ -54,6 +54,8 @@ var ACTIES = {
   beheerBoekBewaren: 'bestuur',
   beheerLeeslijstBoeken: 'vrijwilliger',
   bezoekersCijfers: 'bestuur',
+  beheerLogboek: 'bestuur',
+  beheerCoverLinks: 'vrijwilliger',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -473,6 +475,10 @@ var SITE_MAX_NIEUWS = 3;
 
 var SITE_MAX_AANRADERS = 12;
 
+var LOGBOEK_REGELS = 60; // zoveel regels toont het bestuursscherm
+
+var DAGLIMIET_SLEUTEL = 'daglimiet_urlfetch';
+
 var STATUS_WACHT = 'wacht';
 
 var STATUS_KLAAR = 'klaar om op te halen';
@@ -507,6 +513,20 @@ function aanvraagAfhandelen(rijen, invoer, wie, vandaag) {
   if (!a) return { ok: false, fout: 'Deze aanvraag bestaat niet meer.' };
   wijzig(a, { status: status, datum_afgehandeld: vandaag, afgehandeld_door: tekstInvoer(wie, 40) });
   return { ok: true, tekst: 'Aanvraag ' + a.aanvraag_id + ' staat op ' + status + '.' };
+}
+
+/** De achtergrondtaken: [functie, naam voor het scherm, welke boeken nog aan de beurt zijn]. */
+function achtergrondTaken() {
+  return [
+    ['zoekBeschrijvingenWikipedia', 'Beschrijvingen bij Wikipedia', heeftWikiNodig],
+    ['vulBeschrijvingenAan', 'Beschrijvingen aanvullen (Google, Open Library)', heeftBeschrijvingNodig],
+    ['vertaalBeschrijvingen', 'Beschrijvingen vertalen naar het Engels', heeftVertalingNodig],
+    ['vulAanUitGoogleBooks', 'Covers bij Google Books', heeftGoogleBooksNodig],
+    ['vulAanUitOpenLibrary', 'Gegevens bij Open Library', heeftOpenLibraryNodig],
+    ['zoekCoversAndereUitgaven', 'Covers van een andere uitgave', heeftAndereUitgaveNodig],
+    ['zoekCoversInternetArchive', 'Covers bij Internet Archive', heeftIaNodig],
+    ['zoekCoversBol', 'Covers bij Bol', heeftBolNodig]
+  ];
 }
 
 /**
@@ -1201,7 +1221,8 @@ function boekenMetStatus(staat) {
 function boekOphalen(staat, invoer) {
   var boek = boekVan(staat, invoer.boek_id);
   if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
-  return { ok: true, boek: beheerBoek(boek) };
+  // sleutel: zodat de browser van het bestuur dit ene boek bij Google Books kan opzoeken (knop in het formulier).
+  return { ok: true, boek: beheerBoek(boek), sleutel: String(staat.inst.google_books_api_key || '') };
 }
 
 /** Geeft '', 'verloren', 'gevoelig_verborgen' of 'gevoelig_zichtbaar'. Hoofdletters en kleine tikfouten mogen. */
@@ -1632,6 +1653,16 @@ function controleerGrenzen(actie, ctx) {
     if (melding) overschreden.push({ id: g.id, naam: g.naam, melding: melding });
   });
   return overschreden;
+}
+
+/** Actie beheerCoverLinks: per boek de link naar de cover, voor de kleine covers in de lijsten van het bestuursscherm. */
+function coverLinks(rijen) {
+  var links = {};
+  rijen.forEach(function (r) {
+    var url = veiligeCoverUrl(r.cover_url);
+    if (!isLeeg(r.boek_id) && url) links[String(r.boek_id)] = url;
+  });
+  return { ok: true, links: links };
 }
 
 /**
@@ -2902,6 +2933,14 @@ function laadStaat(wie, metUitzonderingen) {
   };
 }
 
+/** De laatste regels van het Logboek, nieuwste eerst (ook als oudere regels nog onderaan staan). */
+function laatsteLogregels(waarden, aantal) {
+  return waarden.slice(1).filter(function (r) { return r[0] || r[2]; }).map(function (r) {
+    var tijd = isDatumObject(r[0]) ? r[0].getTime() : (Date.parse(r[0]) || 0);
+    return { tijd: tijd, wie: String(r[1] || ''), actie: String(r[2] || ''), details: String(r[3] || '') };
+  }).sort(function (a, b) { return b.tijd - a.tijd; }).slice(0, aantal);
+}
+
 /** Maakt de cache van de publieke catalogus leeg, zodat de volgende opvraging vers is. */
 function leegCache() {
   try { CacheService.getScriptCache().removeAll([dagSleutel(CACHE_SLEUTEL) + '_n', dagSleutel(SITE_CACHE_SLEUTEL)]); } catch (e) { /* niets aan de hand */ }
@@ -3219,6 +3258,22 @@ function logboek(wie, actie, details) {
   if (blad.getLastRow() < 2) { blad.appendRow(rij); return; }
   blad.insertRowBefore(2); // neemt de opmaak van een gewone rij over, niet die van de kop
   blad.getRange(2, 1, 1, rij.length).setValues([rij]);
+}
+
+/** Actie beheerLogboek (enkel het bestuur). */
+function logboekEnTaken() {
+  var cache = CacheService.getScriptCache();
+  var taken = achtergrondTaken();
+  var bezig = {};
+  taken.forEach(function (t) {
+    var w = cache.get('taak_' + t[0]);
+    if (w) bezig[t[0]] = Number(w) || Date.now();
+  });
+  var gepland = ScriptApp.getProjectTriggers().map(function (t) { return t.getHandlerFunction(); });
+  var stand = takenStand(taken, leesTabel('Catalogus').rijen, gepland, bezig);
+  var blad = spreadsheet().getSheetByName('Logboek');
+  var regels = blad && blad.getLastRow() > 1 ? laatsteLogregels(blad.getDataRange().getValues(), LOGBOEK_REGELS) : [];
+  return { ok: true, taken: stand, logboek: regels, daglimiet: Number(cache.get(DAGLIMIET_SLEUTEL)) || 0 };
 }
 
 /** Zet de bestaande regels van het Logboek eenmalig met de nieuwste bovenaan (bij Installeer tabbladen). */
@@ -3640,6 +3695,11 @@ function normaliseerUitvoering(waarde) {
 }
 
 /* ---------- ISBN ---------- */
+
+/** Onthoudt 6 uur lang dat de daglimiet van Google voor vragen naar buiten op is. */
+function noteerDaglimiet() {
+  try { CacheService.getScriptCache().put(DAGLIMIET_SLEUTEL, String(Date.now()), 6 * 60 * 60); } catch (e) { /* niet erg */ }
+}
 
 /** Tekstherkenning via Google Drive: de foto wordt even een Google Doc, daarna gaat die naar de prullenbak. */
 function ocrViaDrive(base64, mime) {
@@ -4440,6 +4500,18 @@ function tabbladVolgorde(namen) {
   });
   namen.forEach(function (naam) { if (!gezien[naam]) uit.push({ naam: naam, kleur: null }); });
   return uit;
+}
+
+/**
+ * De stand per taak. rijen: de Catalogus. gepland: namen van functies met een geplande herstart.
+ * bezig: { functie: tijdstip in ms } van de taken die nu lopen.
+ */
+function takenStand(taken, rijen, gepland, bezig) {
+  return taken.map(function (t) {
+    var teGaan = rijen.filter(function (r) { try { return !!t[2](r); } catch (e) { return false; } }).length;
+    var status = bezig[t[0]] ? 'loopt' : gepland.indexOf(t[0]) > -1 ? 'gepland' : teGaan ? 'stil' : 'klaar';
+    return { functie: t[0], naam: t[1], teGaan: teGaan, status: status, sinds: bezig[t[0]] || 0 };
+  });
 }
 
 /** Tekstveld: opgeschoond en ingekort. */
@@ -5360,6 +5432,8 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'beheerIsbnOpzoeken') return isbnOpzoeken(invoer); // leest enkel bij Open Library en Google Books
   if (actie === 'beheerInhoud') return beheerInhoudGegevens(rol);
   if (actie === 'bezoekersCijfers') return bezoekersCijfers(invoer); // leest enkel bij GoatCounter
+  if (actie === 'beheerLogboek') return logboekEnTaken(); // leest enkel, geen slot nodig
+  if (actie === 'beheerCoverLinks') return coverLinks(leesTabel('Catalogus').rijen); // leest enkel
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
 
   var lock = LockService.getScriptLock();
@@ -6257,7 +6331,7 @@ function zoekWikipedia(boek, taal) {
     z = haalJson(wikiVraagUrl(taal, vraag));
   } catch (e) {
     // Google laat per dag maar een beperkt aantal vragen naar buiten toe. Op is op, tot morgen.
-    if (/te vaak|too many times/i.test(e.message)) return { fout: 'dagelijkse limiet van Google voor vragen naar buiten bereikt', quotum: true };
+    if (/te vaak|too many times/i.test(e.message)) { noteerDaglimiet(); return { fout: 'dagelijkse limiet van Google voor vragen naar buiten bereikt', quotum: true }; }
     return { fout: e.message };
   }
   // Elk ander antwoord dan 200 (geweigerd, te druk, storing) is geen "niet gevonden": later opnieuw proberen.
