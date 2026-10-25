@@ -1624,5 +1624,11 @@ test('bezig-melding zegt dat je niets hoeft te doen', () => {
   assert.ok(tekst.indexOf('gestart om') === -1);
 });
 
+test('Wikipedia-controle meldt dubbele kolommen en boek_ids', () => {
+  assert.strictEqual(M.wikiDubbels(['titel', 'wiki_gezocht'], [{ boek_id: 'B1' }, { boek_id: 'B2' }]), '');
+  assert.strictEqual(M.wikiDubbels(['wiki_gezocht', 'wiki_gezocht'], [{ boek_id: 'B1' }, { boek_id: 'B1' }, { boek_id: '' }]),
+    ', 2 kolommen wiki_gezocht, 1 dubbele boek_id\'s');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
