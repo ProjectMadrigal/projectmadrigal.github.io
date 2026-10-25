@@ -44,6 +44,8 @@ function startServer() {
 const STATUS = (code, label) => ({ code, label, tekst: label });
 const UITLENING = { uitlening_id: 'U0001', exemplaar: 'B0001-1', boek_id: 'B0001', titel: 'De verzonnen zee', lenersnummer: '12', voornaam: 'Sam', datum_uit: '2026-09-20', vervaldatum: '2026-10-18', status: STATUS('telaat', 'Te laat') };
 const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', c: true, g: ['Geschiedenis en maatschappij'] }];
+// Veel boeken zonder beschrijving (verzonnen), om Toon er nog 100 te testen.
+const VEEL = Array.from({ length: 150 }, (_, i) => ({ id: 'X' + String(i).padStart(3, '0'), t: 'Verzonnen titel ' + String(i).padStart(3, '0'), a: '', c: true, zb: true }));
 const INHOUD = {
   tabbladen: {
     Nieuws: [{ rij: 2, vingerafdruk: 'a', datum: '2026-10-20', titel: 'Voorstel boekenruil', publiek: 'nee', voorgesteld_door: 'Kim' }],
@@ -53,19 +55,21 @@ const INHOUD = {
   instellingen: [{ titel: 'Website: leeslijsten', instellingen: [{ sleutel: 'leeslijsten_tonen', waarde: 'nee', uitleg: '' }] }]
 };
 
-function antwoord(rol, actie) {
+function antwoord(rol, actie, vraag) {
   const basis = { vandaagTekst: 'zondag 25 oktober', telaat: [UITLENING], binnenkort: [], lopend: [UITLENING], reservaties: [], boeken: BOEKEN };
   return {
     aanmelden: { ok: true, rol },
     vrijwilligerData: { ok: true, data: basis },
     bestuurData: { ok: true, data: Object.assign({}, basis, {
+      boeken: BOEKEN.concat(VEEL),
       telaat: [Object.assign({}, UITLENING, { telefoon: '0400000000', herinnering: 'Hoi Sam' })], aanvragen: [], uitzonderingen: [], leners: [],
       boekstatus: { verloren: [], gevoelig_verborgen: [], gevoelig_zichtbaar: [] }, borgen: { ingehouden: { totaal: 0, perBetaalwijze: {} }, terugTeBetalen: [] },
       perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], meestGeleend: [], groepen: [], voorstellen: 1
     }) },
     balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'] }, leners: [] }) },
     beheerInhoud: { ok: true, data: INHOUD },
-    beheerBoekOphalen: { ok: true, boek: { boek_id: 'B0001', titel: 'De verzonnen zee', auteur: 'Verbeek, Mira', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
+    beheerBoekBewaren: { ok: true, tekst: 'Bewaard.' },
+    beheerBoekOphalen: { ok: true, boek: { boek_id: (vraag || {}).boek_id, titel: (BOEKEN.concat(VEEL).find((b) => b.id === (vraag || {}).boek_id) || {}).t, auteur: '', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
     bezoekersCijfers: { ok: true, nietIngesteld: true },
     roosterOverzicht: { ok: true, data: { avonden: [] } }
   }[actie] || { ok: false, fout: 'Niet nagebootst: ' + actie };
@@ -78,7 +82,7 @@ async function nieuweContext(browser, opties) {
   if (opties.rol) {
     await ctx.route('https://web-app.test/**', (r) => {
       const b = JSON.parse(r.request().postData() || '{}');
-      r.fulfill({ contentType: 'application/json', body: JSON.stringify(antwoord(opties.rol, b.actie)) });
+      r.fulfill({ contentType: 'application/json', body: JSON.stringify(antwoord(opties.rol, b.actie, b)) });
     });
   }
   if (opties.covers) {
@@ -195,15 +199,37 @@ async function meldAan(page, basis, pagina) {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
     await meldAan(page, basis, 'bestuur.html');
     await page.click('#sectienav button:has-text("Boeken")');
-    await page.click('button:has-text("Boeken zonder beschrijving (1)")');
-    const titels = await page.$$eval('.kaartlijst strong', (x) => x.map((e) => e.textContent));
-    verwacht(JSON.stringify(titels) === JSON.stringify(['De verzonnen zee']), 'Lijst: ' + titels.join(', '));
+    await page.click('button:has-text("Boeken zonder beschrijving (151)")');
+    let titels = await page.$$eval('.kaartlijst strong', (x) => x.map((e) => e.textContent));
+    verwacht(titels.length === 100 && titels[0] === 'Verzonnen titel 000', 'Eerste 100: ' + titels.length + ', ' + titels[0]);
+    await page.click('button:has-text("Toon er nog 51")');
+    titels = await page.$$eval('.kaartlijst strong', (x) => x.map((e) => e.textContent));
+    verwacht(titels.length === 151 && titels.indexOf('De verzonnen zee') > -1, 'Na Toon er nog: ' + titels.length);
+    await page.fill('#zonder-beschrijving-zoek', 'zee');
+    titels = await page.$$eval('.kaartlijst strong', (x) => x.map((e) => e.textContent));
+    verwacht(JSON.stringify(titels) === JSON.stringify(['De verzonnen zee']), 'Gefilterd: ' + titels.join(', '));
+    await page.fill('#zonder-beschrijving-zoek', '');
     await page.click('.kaartlijst button');
     await page.waitForSelector('img[alt="Huidige cover"]', { state: 'attached' }); await page.waitForTimeout(300);
     const zichtbaar = await page.$eval('img[alt="Huidige cover"]', (e) => !e.hidden);
     verwacht(zichtbaar, 'De huidige cover staat niet in het formulier');
     const voorbeeldVerborgen = await page.$eval('img[alt="Voorbeeld van de foto"]', (e) => getComputedStyle(e).display === 'none');
     verwacht(voorbeeldVerborgen, 'Het lege voorbeeld van de foto is zichtbaar');
+    // Bladeren: het eerste boek heeft enkel Volgend, het tweede ook Vorig.
+    verwacht(!(await page.$('button:has-text("Vorig boek")')) && !!(await page.$('button:has-text("Bewaar en volgend boek")')), 'Knoppen bij het eerste boek');
+    await page.click('button:has-text("Volgend boek ›"):not(:has-text("Bewaar"))');
+    await page.waitForSelector('button:has-text("‹ Vorig boek")');
+    // Bewaar en volgend boek: X001 krijgt een beschrijving, je komt bij X002 en X001 verdwijnt uit de lijst.
+    await page.fill('#bb-beschrijving', 'Een verzonnen beschrijving.');
+    await page.click('button:has-text("Bewaar en volgend boek")');
+    await page.waitForFunction(() => /Verzonnen titel 002/.test([...document.querySelectorAll('h2')].map((h) => h.textContent).join(' | ')));
+    await page.click('button:has-text("‹ Vorig boek")');
+    await page.waitForFunction(() => /Verzonnen titel 001/.test([...document.querySelectorAll('h2')].map((h) => h.textContent).join(' | ')));
+    // Terug naar de lijst: de zoekterm en de plaats blijven bewaard.
+    await page.click('button:has-text("Terug naar de lijst zonder beschrijving")');
+    const focus = await page.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-id'));
+    verwacht(focus === null, 'X001 heeft nu een beschrijving en staat niet meer in de lijst, focus: ' + focus);
+    verwacht(/\(150\)/.test(await page.evaluate(() => [...document.querySelectorAll('h2')].map((h) => h.textContent).join(' | '))), 'Aantal na bewaren: ' + await page.textContent('h2'));
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });
