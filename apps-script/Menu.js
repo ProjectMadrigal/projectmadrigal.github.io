@@ -143,7 +143,7 @@ function onOpen() {
     .addSubMenu(ui.createMenu('Eenmalig bij de start')
       .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
       .addItem('Vul aan uit Goodreads', 'vulAanUitGoodreads')
-      .addItem('Neem lopende uitleningen over', 'neemUitleningenOver')
+      .addItem('Neem de uitleningen over (lopend en historiek)', 'neemUitleningenOver')
       .addItem('Neem nieuws, agenda en vragen over', 'importeerOudeSite')
       .addItem('Neem een oud rooster over uit de tabbladen (een tabblad per maand)', 'neemRoosterOverUitTabbladen')
       .addSeparator()
