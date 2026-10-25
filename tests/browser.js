@@ -61,7 +61,7 @@ const INHOUD = {
 function antwoord(rol, actie, vraag) {
   const basis = { vandaagTekst: 'zondag 25 oktober', telaat: [UITLENING], binnenkort: [], lopend: [UITLENING], reservaties: [], boeken: BOEKEN };
   return {
-    aanmelden: { ok: true, rol },
+    aanmelden: { ok: true, rol: rol === 'bestuur' && (vraag || {}).alsRol === 'vrijwilliger' ? 'vrijwilliger' : rol, echteRol: rol },
     vrijwilligerData: { ok: true, data: Object.assign({}, basis, { voorgesteld: [], checklist: { openen: ['Licht aan', 'Balie openen'], sluiten: ['Licht uit'] } }) },
     bestuurData: { ok: true, data: Object.assign({}, basis, {
       boeken: BOEKEN.concat(VEEL),
@@ -533,6 +533,21 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("Keur goed")');
     await page.waitForSelector('text=De beschrijving staat bij');
     verwacht(vragen.some((v) => v.actie === 'voorstelBehandelen' && v.besluit === 'goedgekeurd' && v.tekst === 'Aangepaste tekst van het bestuur.'), 'Goedkeuring niet verstuurd');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('bestuur bekijkt het vrijwilligersscherm met de rechten van een vrijwilliger', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    const vragen = [];
+    page.on('request', (r) => { if (r.url().indexOf('web-app.test') > -1) vragen.push(JSON.parse(r.postData() || '{}')); });
+    await meldAan(page, basis, 'bestuur.html');
+    verwacht(vragen.every((v) => !v.alsRol), 'Bestuursscherm vraagt als vrijwilliger');
+    await page.click('a:has-text("Bekijk als vrijwilliger")');
+    await page.waitForSelector('#als-vrijwilliger:not([hidden])');
+    await page.waitForSelector('text=Jouw shift');
+    verwacht(vragen.some((v) => v.actie === 'vrijwilligerData' && v.alsRol === 'vrijwilliger'), 'Geen alsRol bij vrijwilligerData');
+    verwacht((await page.getAttribute('#als-vrijwilliger a', 'href')) === 'bestuur.html', 'Link terug ontbreekt');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
