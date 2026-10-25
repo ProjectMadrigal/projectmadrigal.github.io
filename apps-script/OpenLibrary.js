@@ -60,6 +60,7 @@ function verwerkOpenLibrary(boek, details) {
 /** Menu: vult de Catalogus aan uit Open Library, in porties. */
 function vulAanUitOpenLibrary() {
   var start = Date.now();
+  if (wachtOpDaglimiet('vulAanUitOpenLibrary')) return;
   if (!startAchtergrond('vulAanUitOpenLibrary')) {
     meldAlBezig('vulAanUitOpenLibrary');
     return;
@@ -74,7 +75,7 @@ function vulAanUitOpenLibrary() {
       var portie = teDoen.slice(i, i + OL_PORTIE);
       var sleutels = portie.map(function (b) { return 'ISBN:' + b.isbn; }).join(',');
       var url = 'https://openlibrary.org/api/books?format=json&jscmd=details&bibkeys=' + encodeURIComponent(sleutels);
-      var antwoord = UrlFetchApp.fetch(url, {
+      var antwoord = haalExtern(url, {
         muteHttpExceptions: true,
         headers: { 'User-Agent': BS_USER_AGENT } // zie Beschrijvingen.js
       });

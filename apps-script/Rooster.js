@@ -13,10 +13,13 @@
  *   rooster_link  het adres van de roostertool, voor de knop "Beschikbaarheid invullen"
  *
  * Het resultaat blijft 10 minuten in de cache, zodat het scherm snel opent.
+ * De laatste goede versie bewaren we ook langer (ROOSTER_LAATST_SLEUTEL). Lukt ophalen niet, bv. omdat
+ * de daglimiet van Google op is, dan toont het scherm die versie, met de tijd erbij.
  */
 
 var ROOSTER_CACHE_SLEUTEL = 'rooster_v1';
 var ROOSTER_CACHE_SECONDEN = 10 * 60;
+var ROOSTER_LAATST_SLEUTEL = 'rooster_laatst';
 
 /** "2026-10" en de maand erna. */
 function roosterMaanden(vandaag) {
@@ -58,7 +61,7 @@ function bouwRoosterOverzicht(antwoorden, vandaag) {
 
 /** Vraagt één maand op bij de roostertool. */
 function haalRoosterMaand(url, code, maand) {
-  var antwoord = UrlFetchApp.fetch(url, {
+  var antwoord = haalExtern(url, {
     method: 'post',
     contentType: 'text/plain',
     payload: JSON.stringify({ actie: 'maand', code: code, maand: maand }),
@@ -79,17 +82,46 @@ function roosterOverzicht() {
   var cache = CacheService.getScriptCache();
   var bewaard = cache.get(ROOSTER_CACHE_SLEUTEL);
   if (bewaard) return { ok: true, data: JSON.parse(bewaard) };
-
+  var props = PropertiesService.getScriptProperties();
   var vandaag = vandaagTekst();
-  var antwoorden = roosterMaanden(vandaag).map(function (m) { return haalRoosterMaand(url, code, m); });
+  // De daglimiet van Google is op: niet opnieuw proberen, meteen de laatste versie.
+  if (daglimietWachttijd(cache.get(DAGLIMIET_SLEUTEL), Date.now())) return laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, true);
+
+  var antwoorden;
+  try {
+    antwoorden = roosterMaanden(vandaag).map(function (m) { return haalRoosterMaand(url, code, m); });
+  } catch (e) {
+    return laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, isDaglimietFout(e));
+  }
   var fout = antwoorden.filter(function (a) { return !a || !a.ok; })[0];
   if (fout && fout.codeFout) return { ok: false, fout: 'De rooster_code in Instellingen klopt niet. Gebruik de toegangscode voor vrijwilligers van het rooster.' };
-  if (fout && antwoorden.every(function (a) { return !a || !a.ok; })) return { ok: false, fout: 'Het rooster kon niet laden: ' + (fout.fout || 'onbekende fout') };
+  if (fout && antwoorden.every(function (a) { return !a || !a.ok; })) {
+    var oud = laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, false);
+    return oud.ok ? oud : { ok: false, fout: 'Het rooster kon niet laden: ' + (fout.fout || 'onbekende fout') };
+  }
 
   var data = bouwRoosterOverzicht(antwoorden, vandaag);
   data.gekoppeld = true;
   data.link = link;
   data.vandaag = vandaag;
-  try { cache.put(ROOSTER_CACHE_SLEUTEL, JSON.stringify(data), ROOSTER_CACHE_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
+  var tekst = JSON.stringify(data);
+  try { cache.put(ROOSTER_CACHE_SLEUTEL, tekst, ROOSTER_CACHE_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
+  try { props.setProperty(ROOSTER_LAATST_SLEUTEL, JSON.stringify({ tijd: Date.now(), data: data })); } catch (e) { /* te groot: dan zonder reserve */ }
+  return { ok: true, data: data };
+}
+
+/**
+ * De laatst opgehaalde versie van het rooster, zonder de avonden die al voorbij zijn.
+ * bewaard: de tekst uit ROOSTER_LAATST_SLEUTEL. daglimiet: lag het aan de daglimiet van Google?
+ */
+function laatsteRooster(bewaard, vandaag, daglimiet) {
+  var oud = null;
+  try { oud = JSON.parse(bewaard || 'null'); } catch (e) { oud = null; }
+  var reden = daglimiet ? 'Google laat vandaag geen nieuwe vragen naar buiten meer toe (daglimiet).' : 'De roostertool antwoordt nu niet.';
+  if (!oud || !oud.data) return { ok: false, fout: 'Het rooster kon niet laden. ' + reden + ' Probeer het later opnieuw.' };
+  var data = oud.data;
+  data.avonden = (data.avonden || []).filter(function (a) { return String(a.datum) >= vandaag; });
+  data.vandaag = vandaag;
+  data.verouderd = { tijd: Number(oud.tijd) || 0, reden: reden };
   return { ok: true, data: data };
 }

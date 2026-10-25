@@ -206,7 +206,7 @@ function olTekst(description) {
 /** Haalt JSON op. Geeft { code, data } terug. */
 function haalJson(url) {
   // Api-User-Agent: de manier die Wikipedia aanraadt om je script te herkennen.
-  var antwoord = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT, 'Api-User-Agent': BS_USER_AGENT } });
+  var antwoord = haalExtern(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT, 'Api-User-Agent': BS_USER_AGENT } });
   var data = null;
   try { data = JSON.parse(antwoord.getContentText()); } catch (e) { data = null; }
   return { code: antwoord.getResponseCode(), data: data };
@@ -242,6 +242,7 @@ function beschrijvingUitOpenLibrary(isbn) {
 /** Menu: zoekt beschrijvingen voor boeken waar die nog ontbreekt, in porties. */
 function vulBeschrijvingenAan() {
   var start = Date.now();
+  if (wachtOpDaglimiet('vulBeschrijvingenAan')) return;
   if (!startAchtergrond('vulBeschrijvingenAan')) {
     meldAlBezig('vulBeschrijvingenAan');
     return;

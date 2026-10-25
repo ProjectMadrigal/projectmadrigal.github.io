@@ -133,6 +133,7 @@ function startAchtergrond(naam) {
   var cache = CacheService.getScriptCache();
   if (cache.get('taak_' + naam)) return false;
   cache.put('taak_' + naam, String(Date.now()), ACHTERGROND_DUUR_SECONDEN);
+  HUIDIGE_TAAK = naam;
   return true;
 }
 
