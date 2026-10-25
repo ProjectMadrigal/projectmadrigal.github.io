@@ -3669,7 +3669,8 @@ function onOpen() {
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
       .addItem('Maak nu een back-up', 'maakBackupMenu')
       .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
-      .addItem('Peperfabriek: test het ophalen', 'testPeperfabriek'))
+      .addItem('Peperfabriek: test het ophalen', 'testPeperfabriek')
+      .addItem('Wikipedia: test het opzoeken', 'testWikipedia'))
     .addSeparator()
     .addSubMenu(ui.createMenu('Eenmalig bij de start')
       .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
@@ -4550,6 +4551,21 @@ function testPeperfabriek() {
     regels.push('', 'Het programma is bewaard. De website toont het binnen enkele minuten.');
   }
   logboek('menu', 'testPeperfabriek', regels.slice(0, 7).join(' | ').slice(0, 450));
+  meld(regels.join('\n'));
+}
+
+/** Menu: zoekt één bekend boek op en toont wat Wikipedia antwoordt. Zo zie je of Wikipedia het script weigert. */
+function testWikipedia() {
+  var boek = { titel: 'Giovanni\'s Room', auteur: 'Baldwin, James' };
+  var regels = [];
+  WIKI_TALEN.forEach(function (taal) {
+    var z = haalJson('https://' + taal + '.wikipedia.org/w/api.php?action=query&list=search&srlimit=5&srprop=&format=json&srsearch=' + encodeURIComponent('Giovanni Baldwin'));
+    var titels = ((z.data && z.data.query && z.data.query.search) || []).map(function (r) { return r.title; });
+    regels.push(taal + ': zoeken gaf code ' + z.code + ', ' + titels.length + ' resultaten' + (titels.length ? ' (' + titels.slice(0, 3).join(', ') + ')' : ''));
+    var r = zoekWikipedia(boek, taal);
+    regels.push(taal + ': ' + (r.fout ? 'fout, ' + r.fout : r.tekst ? 'beschrijving gevonden: ' + r.tekst.slice(0, 80) + '...' : 'geen passende beschrijving'));
+  });
+  logboek('menu', 'testWikipedia', regels.join(' | ').slice(0, 450));
   meld(regels.join('\n'));
 }
 
@@ -5852,7 +5868,7 @@ function zetTekstopmaak(blad, kolommen) {
 function zoekBeschrijvingenWikipedia() {
   var start = Date.now();
   if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
-  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
+  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '', nietBewaard = 0;
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('wiki_gezocht') === -1 || tabel.kop.indexOf('beschrijving_bron') === -1) {
@@ -5876,18 +5892,20 @@ function zoekBeschrijvingenWikipedia() {
       }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
+      if (verwerkt % 20 === 0 && !bewaarAchtergrond(tabel)) nietBewaard++;
       Utilities.sleep(WIKI_PAUZE_MS);
     }
-    bewaarAchtergrond(tabel);
-    rest = tabel.rijen.filter(heeftWikiNodig).length;
+    if (!bewaarAchtergrond(tabel)) nietBewaard++;
+    // Controle: hoeveel boeken heeft de spreadsheet zelf nog nodig? Zo zien we of het bewaren lukte.
+    rest = leesTabel('Catalogus').rijen.filter(heeftWikiNodig).length;
   } finally {
     stopAchtergrond('zoekBeschrijvingenWikipedia');
   }
   verwijderTriggers('zoekBeschrijvingenWikipedia');
   if (rest > 0) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
   if (gevonden) { leegCache(); planVertaling(2); }
-  logboek('menu', 'zoekBeschrijvingenWikipedia', verwerkt + ' opgezocht, ' + gevonden + ' beschrijvingen gevonden, ' + rest + ' te gaan' + (fout ? ' (Wikipedia: ' + fout + ', later verder)' : ''));
+  logboek('menu', 'zoekBeschrijvingenWikipedia', verwerkt + ' opgezocht, ' + gevonden + ' beschrijvingen gevonden, ' + rest + ' te gaan volgens de spreadsheet' +
+    (fout ? ' (Wikipedia: ' + fout + ', later verder)' : '') + (nietBewaard ? ' (bewaren lukte ' + nietBewaard + ' keer niet: de spreadsheet was bezet)' : ''));
   try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Wikipedia, ' + gevonden + ' beschrijvingen gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
 }
 
@@ -6075,13 +6093,16 @@ function zoekWikipedia(boek, taal) {
   var basis = 'https://' + taal + '.wikipedia.org';
   var vraag = titelSleutel(boek.titel) + ' ' + achternaam(boek.auteur);
   var z = haalJson(basis + '/w/api.php?action=query&list=search&srlimit=5&srprop=&format=json&srsearch=' + encodeURIComponent(vraag));
-  if (z.code === 429 || z.code >= 500) return { fout: 'code ' + z.code };
+  // Elk ander antwoord dan 200 (geweigerd, te druk, storing) is geen "niet gevonden": later opnieuw proberen.
+  if (z.code !== 200 || !z.data || !z.data.query) return { fout: 'zoeken gaf code ' + z.code };
   var titels = ((z.data && z.data.query && z.data.query.search) || []).map(function (r) { return r.title; });
   var kandidaten = kiesWikiTitels(boek, titels);
   for (var i = 0; i < kandidaten.length && i < 3; i++) {
     Utilities.sleep(WIKI_PAUZE_MS);
     var s = haalJson(basis + '/api/rest_v1/page/summary/' + encodeURIComponent(kandidaten[i].replace(/ /g, '_')));
-    if (s.code === 429 || s.code >= 500) return { fout: 'code ' + s.code };
+    // 404: dit artikel bestaat niet, dan het volgende. Een ander antwoord dan 200: later opnieuw.
+    if (s.code === 404) continue;
+    if (s.code !== 200) return { fout: 'samenvatting gaf code ' + s.code };
     if (wikiSamenvattingOk(boek, s.data) && wikiLink(s.data)) {
       return { tekst: maakBeschrijvingNetjes(s.data.extract), link: wikiLink(s.data) };
     }
