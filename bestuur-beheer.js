@@ -845,6 +845,19 @@
     var index = Z.maakIndex(boeken);
     var keuze = {}; // boek-ID: true (erin) of false (eruit), enkel wat veranderde
     var zoekveld = el('input', { type: 'search', id: 'll-zoek', autocomplete: 'off', placeholder: 'Titel, auteur, ISBN of boek-ID' });
+    // Filter op onderwerp: alle onderwerpen met het aantal boeken, alfabetisch.
+    var perOnderwerp = {};
+    boeken.forEach(function (b) { (b.g || []).forEach(function (g) { perOnderwerp[g] = (perOnderwerp[g] || 0) + 1; }); });
+    var onderwerp = el('select', { id: 'll-onderwerp' }, el('option', { value: '' }, 'Alle onderwerpen'),
+      Object.keys(perOnderwerp).sort(function (a, b) { return a.localeCompare(b, 'nl'); }).map(function (g) {
+        return el('option', { value: g }, g + ' (' + perOnderwerp[g] + ')');
+      }));
+    var allesAan = el('button', { type: 'button', class: 'knop tweede', disabled: true }, 'Vink alles hieronder aan'); // hidden werkt niet bij .knop
+    allesAan.addEventListener('click', function () {
+      Array.prototype.forEach.call(gevondenVak.querySelectorAll('input[type="checkbox"]'), function (x) {
+        if (!x.checked) { x.checked = true; x.dispatchEvent(new Event('change')); }
+      });
+    });
     var gevondenVak = el('div', { 'aria-live': 'polite' });
     var inLijstVak = el('div');
     var bewaar = el('button', { type: 'button', class: 'knop', disabled: true }, 'Bewaar');
@@ -888,9 +901,21 @@
 
     function tekenZoek() {
       var q = zoekveld.value.trim();
-      if (!q) { D.vervang(gevondenVak, el('p', { class: 'hulptekst' }, 'Typ een deel van een titel, auteur of ISBN.')); return; }
-      var gevonden = Z.zoek(index, q).slice(0, 30).map(function (r) { return r.boek; });
-      D.vervang(gevondenVak, gevonden.length ? el('ul', { class: 'vinklijst' }, gevonden.map(function (b) { return vinkje(b, 'zoek'); })) : el('p', {}, 'Geen boek gevonden.'));
+      var g = onderwerp.value;
+      if (!q && !g) {
+        allesAan.disabled = true;
+        D.vervang(gevondenVak, el('p', { class: 'hulptekst' }, 'Typ een deel van een titel, auteur of ISBN, of kies een onderwerp.'));
+        return;
+      }
+      var gevonden = q ? Z.zoek(index, q).map(function (r) { return r.boek; })
+        : boeken.slice().sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
+      if (g) gevonden = gevonden.filter(function (b) { return (b.g || []).indexOf(g) > -1; });
+      var totaal = gevonden.length;
+      gevonden = gevonden.slice(0, g ? 300 : 30);
+      allesAan.disabled = !gevonden.length;
+      D.vervang(gevondenVak,
+        gevonden.length ? el('p', { class: 'hulptekst' }, totaal > gevonden.length ? 'De eerste ' + gevonden.length + ' van ' + totaal + ' boeken.' : (totaal === 1 ? '1 boek.' : totaal + ' boeken.')) : null,
+        gevonden.length ? el('ul', { class: 'vinklijst' }, gevonden.map(function (b) { return vinkje(b, 'zoek'); })) : el('p', {}, 'Geen boek gevonden.'));
     }
 
     bewaar.addEventListener('click', function () {
@@ -912,6 +937,7 @@
       });
     });
     zoekveld.addEventListener('input', tekenZoek);
+    onderwerp.addEventListener('change', tekenZoek);
 
     D.vervang(vak, ctx.kop('Leeslijst ' + naam, rij.uitleg || 'Zoek boeken en vink ze aan. Klik daarna op Bewaar.'),
       knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () {
@@ -920,6 +946,8 @@
       } }, '← Alle leeslijsten'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { leeslijstFormulier(vak, ctx, rij); } }, 'Naam en uitleg aanpassen')),
       el('div', { class: 'veld' }, el('label', { for: 'll-zoek' }, 'Zoek een boek om toe te voegen'), zoekveld),
+      el('div', { class: 'veld' }, el('label', { for: 'll-onderwerp' }, 'Onderwerp'), onderwerp),
+      knoppen(allesAan),
       gevondenVak,
       el('div', { class: 'blok' }, inLijstVak),
       el('div', { class: 'knoppen plakkend' }, bewaar), bewaarMelding);

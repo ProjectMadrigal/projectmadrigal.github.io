@@ -703,6 +703,14 @@ test('publieke catalogus: leeslijsten blijven weg zolang leeslijsten_tonen op ne
   assert.ok(!('leeslijsten' in p));
   assert.ok(JSON.stringify(p).indexOf('Pride-maand') === -1);
 });
+test('bestuursscherm: boeken met hun onderwerpen, het uitleenscherm zonder', () => {
+  const s = maakStaat();
+  s.catalogus[0].genre = 'Roman';
+  s.catalogus[0].klassieker = 'ja';
+  const metG = M.bestuurGegevens(s, [{ genre: 'Roman', filtergroepen: 'Fictie' }]).boeken.find((b) => b.id === 'B0001');
+  gelijk(Array.from(metG.g), ['Fictie', 'Klassiekers']);
+  assert.ok(!M.baliecatalogus(s).find((b) => b.id === 'B0001').g);
+});
 test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
   const s = maakStaat();
   s.catalogus[0].leeslijsten = 'Andere lijst';

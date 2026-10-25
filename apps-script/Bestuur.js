@@ -6,7 +6,7 @@
  */
 
 /** Korte lijst van alle boeken voor het uitleenscherm, ook de niet-publieke. */
-function baliecatalogus(staat) {
+function baliecatalogus(staat, vertaal) {
   return staat.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && !isLeeg(b.titel); }).map(function (b) {
     var info = {
       id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), i: schoon(b.isbn),
@@ -15,6 +15,11 @@ function baliecatalogus(staat) {
     // ll: de leeslijsten van het boek, voor het onderdeel Leeslijsten van het bestuursscherm.
     var ll = splitsLijst(b.leeslijsten);
     if (ll.length) info.ll = ll;
+    // g: de onderwerpen (filtergroepen), enkel voor het bestuursscherm (filter bij Leeslijsten).
+    if (vertaal) {
+      var g = filtergroepenVan(b, vertaal);
+      if (g.length) info.g = g;
+    }
     // st: zodat de vrijwilliger het weet. Gevoelig (verborgen of zichtbaar) mag je gewoon uitlenen.
     var status = boekStatus(b);
     if (status === 'verloren') info.st = 'verloren';
@@ -181,7 +186,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
     reservaties: alleReservaties(staat),
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
-    boeken: baliecatalogus(staat),
+    boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {
         lenersnummer: l.lenersnummer, voornaam: l.voornaam, achternaam: l.achternaam, telefoon: l.telefoon,
