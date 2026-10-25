@@ -1654,5 +1654,15 @@ test('wiki_gezocht wordt als tekst bewaard, niet als datum', () => {
   assert.ok(M.celWaarde('cover_gezocht', '2026-10-25') instanceof Date || Object.prototype.toString.call(M.celWaarde('cover_gezocht', '2026-10-25')) === '[object Date]');
 });
 
+test('bestuursscherm: boeken zonder beschrijving krijgen zb, de balie niet', () => {
+  const s = maakStaat();
+  s.catalogus[0].beschrijving = '';
+  s.catalogus[1].beschrijving = 'Een verzonnen beschrijving.';
+  const bestuur = M.baliecatalogus(s, {});
+  assert.strictEqual(bestuur.find((b) => b.id === s.catalogus[0].boek_id).zb, true);
+  assert.strictEqual(bestuur.find((b) => b.id === s.catalogus[1].boek_id).zb, undefined);
+  assert.strictEqual(M.baliecatalogus(s).find((b) => b.id === s.catalogus[0].boek_id).zb, undefined);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

@@ -629,6 +629,8 @@ function baliecatalogus(staat, vertaal) {
     if (vertaal) {
       var g = filtergroepenVan(b, vertaal);
       if (g.length) info.g = g;
+      // zb: zonder beschrijving, voor de lijst Boeken zonder beschrijving van het bestuursscherm.
+      if (isLeeg(b.beschrijving)) info.zb = true;
     }
     // st: zodat de vrijwilliger het weet. Gevoelig (verborgen of zichtbaar) mag je gewoon uitlenen.
     var status = boekStatus(b);
