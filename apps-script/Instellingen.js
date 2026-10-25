@@ -36,6 +36,7 @@ var STANDAARD_INSTELLINGEN = [
   ['briefjes_bewaren_dagen', 60, 'Na hoeveel dagen een briefje voor de volgende shift gewist wordt, ook als niemand het weghaalde. Op Vandaag staat een briefje hoogstens 14 dagen.'],
   ['meldingen_bewaren_dagen', 90, 'Na hoeveel dagen een afgehandelde melding van een vrijwilliger gewist wordt. Open meldingen blijven staan.'],
   ['tekst_checklist_openen', 'Licht en verwarming aan\nKassa en borgdoos klaarzetten\nBalie openen op de laptop\nTerugbrengbak leegmaken en boeken terugbrengen in het systeem', 'Checklist voor de vrijwilliger die de bib opent. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
+  ['tekst_checklist_uitlenen', 'Geen rode bol op het boek: een boek met een rode bol lees je enkel in de bib\nBladwijzer van Madrigal in het boek, met de terugbrengdatum\nBorg van 5 euro per boek, cash in de kassa of via de QR-code', 'Checklist aan de balie, bij elke uitlening. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
   ['tekst_checklist_sluiten', 'Alle boeken terug in de kast\nBorgen tellen en in de borgdoos\nLaptop afmelden en uitzetten\nLicht en verwarming uit, ramen dicht', 'Checklist voor de vrijwilliger die de bib sluit. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
   ['goodreads_shelf', '', 'Naam van de Goodreads-shelf met de boeken van Madrigal, precies zoals op Goodreads. Leeg: alle boeken uit de export.'],
   ['goatcounter_code', 'projectmadrigal', 'De code van het GoatCounter-account (projectmadrigal voor projectmadrigal.goatcounter.com). Dezelfde als statistiek in config.js.'],

@@ -326,8 +326,19 @@
     tekenBoek();
     tekenLener();
     tekenBorg();
-    scherm('Uitlenen', boekStap, lenerStap, borgStap, fout, el('div', { class: 'knoppen' }, bevestig));
+    scherm('Uitlenen', boekStap, lenerStap, borgStap, checklistUitlenen(), fout, el('div', { class: 'knoppen' }, bevestig));
     focusOp('uit-boek');
+  }
+
+  /** De checklist bij elke uitlening (instelling tekst_checklist_uitlenen). Afvinken is een geheugensteun, geen verplichting. */
+  function checklistUitlenen() {
+    var punten = (data.instellingen && data.instellingen.checklist_uitlenen) || [];
+    if (!punten.length) return null;
+    return el('fieldset', { class: 'stap checklist' }, el('legend', {}, 'Niet vergeten'),
+      punten.map(function (p, i) {
+        var id = 'uit-check-' + i;
+        return el('label', { class: 'vinkje', for: id }, el('input', { type: 'checkbox', id: id }), p);
+      }));
   }
 
   function focusOp(id) {

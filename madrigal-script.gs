@@ -376,6 +376,7 @@ var STANDAARD_INSTELLINGEN = [
   ['briefjes_bewaren_dagen', 60, 'Na hoeveel dagen een briefje voor de volgende shift gewist wordt, ook als niemand het weghaalde. Op Vandaag staat een briefje hoogstens 14 dagen.'],
   ['meldingen_bewaren_dagen', 90, 'Na hoeveel dagen een afgehandelde melding van een vrijwilliger gewist wordt. Open meldingen blijven staan.'],
   ['tekst_checklist_openen', 'Licht en verwarming aan\nKassa en borgdoos klaarzetten\nBalie openen op de laptop\nTerugbrengbak leegmaken en boeken terugbrengen in het systeem', 'Checklist voor de vrijwilliger die de bib opent. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
+  ['tekst_checklist_uitlenen', 'Geen rode bol op het boek: een boek met een rode bol lees je enkel in de bib\nBladwijzer van Madrigal in het boek, met de terugbrengdatum\nBorg van 5 euro per boek, cash in de kassa of via de QR-code', 'Checklist aan de balie, bij elke uitlening. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
   ['tekst_checklist_sluiten', 'Alle boeken terug in de kast\nBorgen tellen en in de borgdoos\nLaptop afmelden en uitzetten\nLicht en verwarming uit, ramen dicht', 'Checklist voor de vrijwilliger die de bib sluit. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
   ['goodreads_shelf', '', 'Naam van de Goodreads-shelf met de boeken van Madrigal, precies zoals op Goodreads. Leeg: alle boeken uit de export.'],
   ['goatcounter_code', 'projectmadrigal', 'De code van het GoatCounter-account (projectmadrigal voor projectmadrigal.goatcounter.com). Dezelfde als statistiek in config.js.'],
@@ -525,7 +526,7 @@ var INSTELLING_GROEPEN = [
   ['Uitlenen: openingsdagen en -uren', ['openingsdagen', 'terugbrengdatum_op_openingsdag', 'gesloten_data', 'openingsuren', 'openingsuren_en']],
   ['Uitlenen: herinneringen', ['tekst_herinnering', 'tekst_herinnering_binnenkort']],
   ['Uitlenen: online reserveren', ['online_reserveren']],
-  ['Vrijwilligers: shift', ['tekst_checklist_openen', 'tekst_checklist_sluiten']],
+  ['Vrijwilligers: shift', ['tekst_checklist_openen', 'tekst_checklist_sluiten', 'tekst_checklist_uitlenen']],
   ['Vrijwilligers: rooster', ['rooster_link']],
   ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
   ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],
@@ -619,7 +620,7 @@ var VOORSTEL_NIEUW = 'nieuw';
 
 var MELDING_NIEUW = 'nieuw';
 
-var MELDING_SOORTEN = ['boek kapot', 'iets kwijt', 'vraag van een lener', 'andere'];
+var MELDING_SOORTEN = ['boek kapot', 'iets kwijt', 'vraag van een lener', 'wil iets kopen', 'andere'];
 
 var VOORSTEL_MIN_TEKENS = 40;
 
@@ -863,7 +864,8 @@ function balieGegevens(staat) {
       borg_per_boek: staat.inst.borg_per_boek,
       borg_betaalwijzen: staat.inst.borg_betaalwijzen,
       gift_mogelijk: staat.inst.gift_mogelijk,
-      max_boeken_per_lener: staat.inst.max_boeken_per_lener
+      max_boeken_per_lener: staat.inst.max_boeken_per_lener,
+      checklist_uitlenen: checklistPunten(staat.inst.tekst_checklist_uitlenen)
     },
     privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat),
@@ -3754,21 +3756,27 @@ function leesOudeUitleningen(waarden) {
     achternaam: oudeKolom(kop, 'achternaam'), telefoon: oudeKolom(kop, 'telefoon'), email: oudeKolom(kop, 'e mail') > -1 ? oudeKolom(kop, 'e mail') : oudeKolom(kop, 'email'),
     datum_uit: oudeKolom(kop, 'datum ontlening'), datum_terug_afgesproken: oudeKolom(kop, 'datum terug'),
     borg: oudeKolom(kop, 'borg'), gift: oudeKolom(kop, 'gift'), herinnering: oudeKolom(kop, 'reminder'),
-    terug_op: oudeKolom(kop, 'boek terug op')
+    terug_op: oudeKolom(kop, 'boek terug op'),
+    // Kolom A (zonder naam, vóór de kolom Boek): "ok" als het boek terug is.
+    status: kop[0] === '' && oudeKolom(kop, 'boek') > 0 ? 0 : -1
   };
   var rijen = [];
   for (var i = kopIndex + 1; i < waarden.length; i++) {
     var rij = waarden[i];
     var lees = function (naam) { return k[naam] > -1 ? rij[k[naam]] : ''; };
     if (isLeeg(lees('boek'))) continue;
+    var status = normaliseerTekst(lees('status'));
+    if (/^vb/.test(status)) continue; // de voorbeeldrij bovenaan
+    var herinnering = lees('herinnering');
     rijen.push({
       rijnummer: i + 1,
       boek: schoon(lees('boek')), auteur: schoon(lees('auteur')),
       voornaam: schoon(lees('voornaam')), achternaam: schoon(lees('achternaam')),
       telefoon: schoon(lees('telefoon')), email: schoon(lees('email')).toLowerCase(),
       datum_uit: parseerDatum(lees('datum_uit')), datum_terug_afgesproken: parseerDatum(lees('datum_terug_afgesproken')),
-      borg: lees('borg'), gift: lees('gift'), herinnering: lees('herinnering'),
-      terug_op: lees('terug_op')
+      borg: lees('borg'), gift: lees('gift'),
+      herinnering: parseerDatum(herinnering) || (normaliseerTekst(herinnering) === 'ok' ? parseerDatum(lees('datum_terug_afgesproken')) : ''),
+      terug_op: isLeeg(lees('terug_op')) && status === 'ok' ? 'ok' : lees('terug_op')
     });
   }
   return rijen;

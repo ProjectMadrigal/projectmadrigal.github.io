@@ -78,7 +78,7 @@ function antwoord(rol, actie, vraag) {
       beschrijvingVoorstellen: [{ voorstel_id: 'V0001', datum: '2026-10-24', boek_id: 'B0001', titel: 'De verzonnen zee', tekst: 'Een verzonnen roman over een zee die niet bestaat.', voorgesteld_door: 'Kim' }],
       privacy: 'Verzonnen privacyverklaring.'
     }) },
-    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'] }, leners: [{ n: '12', v: 'Sam' }] }) },
+    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }] }) },
     bestuurCijfers: { ok: true, cijfers: { meestGeleend: [], groepen: [],
       extraCijfers: { nieuweLeners: [{ maand: 'oktober 2026', aantal: 2 }], nooitUitgeleend: 1, nooitVoorbeelden: [{ boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Aerts, Noor' }], gemiddeldeDagen: 17, afgesloten: 2, actieveLeners: 2 } } },
     nieuweLener: { ok: true, lenersnummer: '14', voornaam: 'Alex', tekst: 'Alex is ingeschreven met lenersnummer 14.' },
@@ -535,6 +535,7 @@ async function meldAan(page, basis, pagina) {
     await page.goto('about:blank');
     await page.goto(basis + '/balie.html#uitlenen=12');
     await page.waitForSelector('text=Bevestig de uitlening');
+    verwacht(/Niet vergeten/.test(await page.textContent('#werkvlak')) && /Geen rode bol op het boek/.test(await page.textContent('#werkvlak')), 'Checklist bij uitlenen ontbreekt');
     verwacht(/Sam/.test(await page.textContent('#werkvlak')), 'Lener Sam staat klaar');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
@@ -582,6 +583,8 @@ async function meldAan(page, basis, pagina) {
     verwacht(await page.isChecked('#check-openen-0'), 'Vinkje onthouden');
     // Iets melden.
     await page.click('#sectienav button:has-text("Iets melden")');
+    await page.check('input[value="wil iets kopen"]');
+    verwacht(/telefoonnummer of e-mailadres, als die daarmee akkoord gaat/.test(await page.textContent('#melden-privacy')), 'Uitleg bij kopen ontbreekt');
     await page.check('input[value="iets kwijt"]');
     await page.fill('#melden-bericht', 'De stempel is weg.');
     await page.click('button:has-text("Verstuur naar het bestuur")');

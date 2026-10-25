@@ -2,7 +2,11 @@
  * Overzetten.js
  * Eenmalig: neemt de lopende uitleningen over uit het oude digitale uitleenblad.
  *
- *   - Enkel rijen zonder datum in "boek terug op..." komen mee.
+ *   - Enkel boeken die nog niet terug zijn, komen mee. Terug is: een datum in "boek terug op...",
+ *     of "ok" in de kolom zonder naam vooraan (kolom A van het oude blad). "nok" of leeg: nog niet terug.
+ *     De voorbeeldrij (vb.) slaan we over.
+ *   - In "reminder mail" staat soms enkel "ok": dan was er een herinnering, maar we weten niet wanneer.
+ *     We nemen dan de afgesproken terugbrengdatum als datum van de laatste herinnering.
  *   - Het boek wordt gezocht op titel en auteur, met een tolerante vergelijking.
  *     Twijfel? Dan komt het in "Na te kijken" en registreer je die uitlening
  *     zelf via het uitleenscherm.
@@ -32,21 +36,27 @@ function leesOudeUitleningen(waarden) {
     achternaam: oudeKolom(kop, 'achternaam'), telefoon: oudeKolom(kop, 'telefoon'), email: oudeKolom(kop, 'e mail') > -1 ? oudeKolom(kop, 'e mail') : oudeKolom(kop, 'email'),
     datum_uit: oudeKolom(kop, 'datum ontlening'), datum_terug_afgesproken: oudeKolom(kop, 'datum terug'),
     borg: oudeKolom(kop, 'borg'), gift: oudeKolom(kop, 'gift'), herinnering: oudeKolom(kop, 'reminder'),
-    terug_op: oudeKolom(kop, 'boek terug op')
+    terug_op: oudeKolom(kop, 'boek terug op'),
+    // Kolom A (zonder naam, vóór de kolom Boek): "ok" als het boek terug is.
+    status: kop[0] === '' && oudeKolom(kop, 'boek') > 0 ? 0 : -1
   };
   var rijen = [];
   for (var i = kopIndex + 1; i < waarden.length; i++) {
     var rij = waarden[i];
     var lees = function (naam) { return k[naam] > -1 ? rij[k[naam]] : ''; };
     if (isLeeg(lees('boek'))) continue;
+    var status = normaliseerTekst(lees('status'));
+    if (/^vb/.test(status)) continue; // de voorbeeldrij bovenaan
+    var herinnering = lees('herinnering');
     rijen.push({
       rijnummer: i + 1,
       boek: schoon(lees('boek')), auteur: schoon(lees('auteur')),
       voornaam: schoon(lees('voornaam')), achternaam: schoon(lees('achternaam')),
       telefoon: schoon(lees('telefoon')), email: schoon(lees('email')).toLowerCase(),
       datum_uit: parseerDatum(lees('datum_uit')), datum_terug_afgesproken: parseerDatum(lees('datum_terug_afgesproken')),
-      borg: lees('borg'), gift: lees('gift'), herinnering: lees('herinnering'),
-      terug_op: lees('terug_op')
+      borg: lees('borg'), gift: lees('gift'),
+      herinnering: parseerDatum(herinnering) || (normaliseerTekst(herinnering) === 'ok' ? parseerDatum(lees('datum_terug_afgesproken')) : ''),
+      terug_op: isLeeg(lees('terug_op')) && status === 'ok' ? 'ok' : lees('terug_op')
     });
   }
   return rijen;

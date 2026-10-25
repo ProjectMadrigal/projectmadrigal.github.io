@@ -82,7 +82,8 @@ function balieGegevens(staat) {
       borg_per_boek: staat.inst.borg_per_boek,
       borg_betaalwijzen: staat.inst.borg_betaalwijzen,
       gift_mogelijk: staat.inst.gift_mogelijk,
-      max_boeken_per_lener: staat.inst.max_boeken_per_lener
+      max_boeken_per_lener: staat.inst.max_boeken_per_lener,
+      checklist_uitlenen: checklistPunten(staat.inst.tekst_checklist_uitlenen)
     },
     privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat),
