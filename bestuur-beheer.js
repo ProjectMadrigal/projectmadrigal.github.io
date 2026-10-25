@@ -126,9 +126,58 @@
     D.vervang(vak, ctx.kop('Boeken', 'Zoek een boek om het aan te passen, of voeg een nieuw boek toe. Alles komt in het tabblad Catalogus van de spreadsheet.'),
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwBoek(vak, ctx); } }, '+ Nieuw boek toevoegen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers en beschrijvingen'),
-        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')')),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonIaControle(vak, ctx); } }, 'Controleer covers van Internet Archive')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
     teken();
+  }
+
+  /** Kijkt alle covers van Internet Archive na en toont die met enkel het logo, om ze te wissen. */
+  function toonIaControle(vak, ctx) {
+    var voortgang = el('progress', { max: '1', value: '0', style: 'width:100%' });
+    var status = el('p', { 'aria-live': 'polite' }, 'Lijst ophalen...');
+    var resultaat = el('div');
+    D.vervang(vak, ctx.kop('Covers van Internet Archive nakijken', 'Heeft een boek bij Internet Archive geen afbeelding, dan toont die het eigen logo. Deze pagina zoekt die logo\'s. Je ziet ze eerst, daarna kan je ze wissen.'),
+      voortgang, status, resultaat, knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+    B.voerUit('beheerIaCovers').then(function (r) {
+      if (!r.ok) { status.textContent = r.fout || 'De lijst laden lukte niet.'; return; }
+      var boeken = r.boeken, slecht = [], gedaan = 0;
+      if (!boeken.length) { status.textContent = 'Er zijn geen covers van Internet Archive.'; return; }
+      voortgang.max = boeken.length;
+      var volgende = 0;
+      function werker() {
+        if (volgende >= boeken.length) return Promise.resolve();
+        var b = boeken[volgende++];
+        return isStaandBeeld(b.cover).then(function (staand) {
+          if (staand !== true) { b.reden = staand === null ? 'laadt niet' : 'logo of geen boekcover'; slecht.push(b); }
+          gedaan++; voortgang.value = gedaan;
+          status.textContent = gedaan + ' van ' + boeken.length + ' nagekeken, ' + slecht.length + ' zonder echte cover.';
+          return werker();
+        });
+      }
+      // Vier tegelijk: sneller, maar zonder Internet Archive te overladen.
+      Promise.all([werker(), werker(), werker(), werker()]).then(function () {
+        if (!slecht.length) { status.textContent = 'Alle ' + boeken.length + ' covers van Internet Archive zijn echte covers.'; return; }
+        var wis = el('button', { type: 'button', class: 'knop' }, 'Wis deze ' + slecht.length + ' covers');
+        wis.addEventListener('click', function () {
+          var klaar = bezig(wis, 'Bezig met wissen...');
+          B.voerUit('beheerIaCoversWissen', { ids: slecht.map(function (b) { return b.id; }) }).then(function (a) {
+            klaar();
+            if (!a.ok) { status.textContent = a.fout; return; }
+            wis.hidden = true;
+            status.textContent = a.tekst + ' Die boeken staan nu in de lijst Boeken zonder cover, en Google zoekt ze opnieuw op.';
+            slecht.forEach(function (s) { (ctx.data.boeken || []).forEach(function (x) { if (x.id === s.id) x.c = false; }); });
+          });
+        });
+        D.vervang(resultaat,
+          el('p', {}, slecht.length + ' covers tonen geen boek. Kijk ze even na:'),
+          el('ul', { class: 'aanraders', style: 'margin-bottom:1rem' }, slecht.map(function (b) {
+            return el('li', { class: 'aanrader' }, el('img', { src: b.cover, alt: '', loading: 'lazy', style: 'width:100%;max-width:8rem;border:1px solid var(--kleur-rand)' }),
+              el('span', { class: 'aanrader-titel' }, b.t), el('span', { class: 'aanrader-auteur' }, [b.a, b.id, b.reden].filter(Boolean).join(' · ')));
+          })),
+          knoppen(wis));
+      });
+    });
   }
 
   /** Alle boeken zonder cover, alfabetisch: handig om met je gsm langs de kasten te gaan en foto's te nemen. */
@@ -324,7 +373,7 @@
    * browser lukt het wel. Deze browser zoekt dus de covers (eerst Google, dan Open Library),
    * en stuurt per 20 boeken door naar de web-app, die ze in de Catalogus zet.
    */
-  var COVERS_VERSIE = '8'; // staat in de voortgang: zo zie je of je browser de nieuwste versie gebruikt
+  var COVERS_VERSIE = '9'; // staat in de voortgang: zo zie je of je browser de nieuwste versie gebruikt
   var COVERS_PER_PORTIE = 20;
   var COVERS_PAUZE_MS = 350;
 
@@ -441,6 +490,21 @@
     });
   }
 
+  /**
+   * Laadt een afbeelding en kijkt of ze staand is, zoals een boekcover. Het logo van Internet
+   * Archive (als een boek daar geen afbeelding heeft) is vierkant. Geeft true, false of null (niet te laden).
+   */
+  function isStaandBeeld(url) {
+    return new Promise(function (klaar) {
+      var beeld = new Image(), klaar1 = false;
+      var einde = function (w) { if (!klaar1) { klaar1 = true; klaar(w); } };
+      beeld.onload = function () { einde(beeld.naturalWidth > 0 && beeld.naturalHeight >= beeld.naturalWidth * 1.15); };
+      beeld.onerror = function () { einde(null); };
+      setTimeout(function () { einde(null); }, 15000);
+      beeld.src = url;
+    });
+  }
+
   /* Internet Archive: ingescande boeken, op ISBN (13 en 10 cijfers). */
 
   /** Zoekt een boek bij Internet Archive. Geeft { cover }, {} (niets gevonden) of { fout }. */
@@ -453,7 +517,11 @@
         var docs = (d.response && d.response.docs) || [];
         for (var i = 0; i < docs.length; i++) {
           var id = String(docs[i].identifier || '');
-          if (/^[A-Za-z0-9._-]+$/.test(id)) return { cover: 'https://archive.org/services/img/' + id };
+          if (/^[A-Za-z0-9._-]+$/.test(id)) {
+            var url = 'https://archive.org/services/img/' + id;
+            // Geen echte afbeelding (logo van Internet Archive)? Dan geen cover.
+            return isStaandBeeld(url).then(function (staand) { return staand ? { cover: url } : {}; });
+          }
         }
         return {};
       });

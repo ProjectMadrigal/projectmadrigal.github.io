@@ -151,6 +151,49 @@ function iaCoverUitAntwoord(data) {
   return '';
 }
 
+/**
+ * Breedte en hoogte van een JPG, PNG of GIF, uit de eerste bytes. Geeft null als dat niet lukt.
+ * bytes: lijst getallen (zoals Blob.getBytes(), mag negatief zijn).
+ */
+function afbeeldingAfmetingen(bytes) {
+  var b = function (i) { return bytes[i] & 255; };
+  if (!bytes || bytes.length < 24) return null;
+  if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4E && b(3) === 0x47) {           // PNG
+    return { breedte: (b(16) << 24 | b(17) << 16 | b(18) << 8 | b(19)) >>> 0, hoogte: (b(20) << 24 | b(21) << 16 | b(22) << 8 | b(23)) >>> 0 };
+  }
+  if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) {                             // GIF
+    return { breedte: b(6) | b(7) << 8, hoogte: b(8) | b(9) << 8 };
+  }
+  if (b(0) === 0xFF && b(1) === 0xD8) {                                              // JPG: zoek het SOF-blok
+    var i = 2;
+    while (i + 9 < bytes.length) {
+      if (b(i) !== 0xFF) { i++; continue; }
+      var soort = b(i + 1);
+      if (soort >= 0xC0 && soort <= 0xCF && soort !== 0xC4 && soort !== 0xC8 && soort !== 0xCC) {
+        return { hoogte: b(i + 5) << 8 | b(i + 6), breedte: b(i + 7) << 8 | b(i + 8) };
+      }
+      i += 2 + (b(i + 2) << 8 | b(i + 3));
+    }
+  }
+  return null;
+}
+
+/** Een boekcover is staand. Een logo of pictogram is vierkant of liggend. */
+function isStaandeCover(afm) {
+  return !!afm && afm.breedte > 0 && afm.hoogte >= afm.breedte * 1.15;
+}
+
+/** Haalt een afbeelding op en kijkt of het een staande cover is (en niet het logo van Internet Archive). */
+function iaCoverIsEcht(url) {
+  try {
+    var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
+    if (r.getResponseCode() !== 200) return false;
+    return isStaandeCover(afbeeldingAfmetingen(r.getBlob().getBytes()));
+  } catch (e) {
+    return false;
+  }
+}
+
 /** Menu: zoekt covers bij Internet Archive, in porties. */
 function zoekCoversInternetArchive() {
   var start = Date.now();
@@ -168,6 +211,8 @@ function zoekCoversInternetArchive() {
       var r = haalJson(iaZoekUrl(boek.isbn));
       if (r.code === 429 || r.code >= 500 || !r.data) { wachten = true; fout = 'code ' + r.code; break; }
       var url = iaCoverUitAntwoord(r.data);
+      // Heeft het boek bij Internet Archive geen afbeelding, dan toont die het eigen logo: dat nemen we niet.
+      if (url && !iaCoverIsEcht(url)) url = '';
       var velden = { ia_gezocht: vandaag };
       if (url) { velden.cover_url = url; velden.cover_bron = IA_BRON; gevonden++; }
       wijzig(boek, velden);

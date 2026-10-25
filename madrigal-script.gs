@@ -54,7 +54,9 @@ var ACTIES = {
   beheerCoversLijst: 'bestuur',
   beheerCoversBewaren: 'bestuur',
   beheerCoverUpload: 'bestuur',
-  beheerTekstUitFoto: 'bestuur'
+  beheerTekstUitFoto: 'bestuur',
+  beheerIaCovers: 'bestuur',
+  beheerIaCoversWissen: 'bestuur'
 };
 
 /* ---------- Staat lezen en bewaren ---------- */
@@ -457,6 +459,33 @@ function actieveReservaties(staat, boekId) {
 }
 
 /* ---------- Nummers ---------- */
+
+/**
+ * Breedte en hoogte van een JPG, PNG of GIF, uit de eerste bytes. Geeft null als dat niet lukt.
+ * bytes: lijst getallen (zoals Blob.getBytes(), mag negatief zijn).
+ */
+function afbeeldingAfmetingen(bytes) {
+  var b = function (i) { return bytes[i] & 255; };
+  if (!bytes || bytes.length < 24) return null;
+  if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4E && b(3) === 0x47) {           // PNG
+    return { breedte: (b(16) << 24 | b(17) << 16 | b(18) << 8 | b(19)) >>> 0, hoogte: (b(20) << 24 | b(21) << 16 | b(22) << 8 | b(23)) >>> 0 };
+  }
+  if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) {                             // GIF
+    return { breedte: b(6) | b(7) << 8, hoogte: b(8) | b(9) << 8 };
+  }
+  if (b(0) === 0xFF && b(1) === 0xD8) {                                              // JPG: zoek het SOF-blok
+    var i = 2;
+    while (i + 9 < bytes.length) {
+      if (b(i) !== 0xFF) { i++; continue; }
+      var soort = b(i + 1);
+      if (soort >= 0xC0 && soort <= 0xCF && soort !== 0xC4 && soort !== 0xC8 && soort !== 0xCC) {
+        return { hoogte: b(i + 5) << 8 | b(i + 6), breedte: b(i + 7) << 8 | b(i + 8) };
+      }
+      i += 2 + (b(i + 2) << 8 | b(i + 3));
+    }
+  }
+  return null;
+}
 
 /** Alle lopende reservaties, met hun plaats in de wachtrij. */
 function alleReservaties(staat) {
@@ -1893,6 +1922,45 @@ function htmlNaarTekst(html) {
     .trim();
 }
 
+/** Haalt een afbeelding op en kijkt of het een staande cover is (en niet het logo van Internet Archive). */
+function iaCoverIsEcht(url) {
+  try {
+    var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
+    if (r.getResponseCode() !== 200) return false;
+    return isStaandeCover(afbeeldingAfmetingen(r.getBlob().getBytes()));
+  } catch (e) {
+    return false;
+  }
+}
+
+/** De boeken met een cover van Internet Archive, om in de browser na te kijken. */
+function iaCoversLijst(staat) {
+  return {
+    ok: true,
+    boeken: staat.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && schoon(b.cover_bron) === IA_BRON && !isLeeg(b.cover_url); })
+      .map(function (b) { return { id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), cover: String(b.cover_url) }; })
+  };
+}
+
+/**
+ * Wist covers van Internet Archive die enkel het logo tonen. invoer: { ids: [...] }
+ * Enkel covers met bron Internet Archive. Het boek komt daarna weer aan de beurt bij Google.
+ */
+function iaCoversWissen(staat, invoer) {
+  var n = 0;
+  (invoer.ids || []).slice(0, 2000).forEach(function (id) {
+    var boek = boekVan(staat, String(id));
+    if (!boek || schoon(boek.cover_bron) !== IA_BRON) return;
+    wijzig(boek, { cover_url: '', cover_bron: '', gb_gecontroleerd: '' });
+    n++;
+  });
+  if (n) {
+    staat.catalogusGewijzigd = true;
+    staat.log.push(['logo van Internet Archive gewist', n + ' covers']);
+  }
+  return { ok: true, gewist: n, tekst: n + ' covers met het logo van Internet Archive gewist.' };
+}
+
 /** Kiest uit het antwoord van Internet Archive de eerste bruikbare link, of ''. */
 function iaCoverUitAntwoord(data) {
   var docs = (data && data.response && data.response.docs) || [];
@@ -2247,6 +2315,11 @@ function isOpeningsdag(datum, inst) {
 
 function isPubliek(rij) {
   return jaNee(rij.publiek) !== 'nee';
+}
+
+/** Een boekcover is staand. Een logo of pictogram is vierkant of liggend. */
+function isStaandeCover(afm) {
+  return !!afm && afm.breedte > 0 && afm.hoogte >= afm.breedte * 1.15;
 }
 
 /** Mag het boek uitgeleend worden? Niet bij uitleenbaar = nee of verloren. */
@@ -3056,6 +3129,8 @@ function ocrViaDrive(base64, mime) {
     DriveApp.getFileById(bestand.id).setTrashed(true);
   }
 }
+
+/* ---------- Covers van Internet Archive nakijken ---------- */
 
 /** Het adres van een cover bij Open Library, uit het nummer van die cover. */
 function olCoverUrl(coverId) {
@@ -4390,6 +4465,8 @@ function voerActieUit(actie, invoer, rol) {
       case 'beheerBoekOphalen': antwoord = boekOphalen(staat, invoer); break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
+      case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;
+      case 'beheerIaCoversWissen': antwoord = iaCoversWissen(staat, invoer); break;
       case 'beheerCoverUpload': antwoord = coverUploaden(staat, invoer, bewaarFotoInDrive); break;
       case 'beheerBoekBewaren': antwoord = boekAanpassen(staat, invoer); break;
       case 'beheerBoekToevoegen':
@@ -5117,6 +5194,8 @@ function zoekCoversInternetArchive() {
       var r = haalJson(iaZoekUrl(boek.isbn));
       if (r.code === 429 || r.code >= 500 || !r.data) { wachten = true; fout = 'code ' + r.code; break; }
       var url = iaCoverUitAntwoord(r.data);
+      // Heeft het boek bij Internet Archive geen afbeelding, dan toont die het eigen logo: dat nemen we niet.
+      if (url && !iaCoverIsEcht(url)) url = '';
       var velden = { ia_gezocht: vandaag };
       if (url) { velden.cover_url = url; velden.cover_bron = IA_BRON; gevonden++; }
       wijzig(boek, velden);
