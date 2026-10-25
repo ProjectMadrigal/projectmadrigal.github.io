@@ -50,7 +50,7 @@ jobs:
           npm install -g @google/clasp@2.4.2 >/dev/null
           printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
           # De web-app die de website gebruikt: het ID staat in de apiUrl van config.js.
-          DEPLOYMENT_ID=$(sed -n "s#.*script.google.com/macros/s/\([^/]*\)/exec.*#\1#p" config.js | head -1)
+          DEPLOYMENT_ID=$(grep -o "script.google.com/macros/s/[A-Za-z0-9_-]\{20,\}/exec" config.js | head -1 | sed "s#.*/s/\(.*\)/exec#\1#")
           if [ -z "$DEPLOYMENT_ID" ]; then echo "::error::Geen apiUrl gevonden in config.js."; exit 1; fi
           mkdir -p gas && cd gas
           printf '{"scriptId":"%s","rootDir":"."}' "$SCRIPT_ID" > .clasp.json
