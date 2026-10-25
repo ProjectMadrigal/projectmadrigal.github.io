@@ -711,6 +711,44 @@ test('bestuursscherm: boeken met hun onderwerpen, het uitleenscherm zonder', () 
   gelijk(Array.from(metG.g), ['Fictie', 'Klassiekers']);
   assert.ok(!M.baliecatalogus(s).find((b) => b.id === 'B0001').g);
 });
+test('geplande leeslijst: verschijnt en verdwijnt op haar data, ook met de schakelaar uit', () => {
+  const rijen = [
+    { naam: 'Pride-maand', zichtbaar_vanaf: '2027-06-01', zichtbaar_tot: '2027-06-30' },
+    { naam: 'Zonder data' },
+    { naam: 'Verborgen gepland', zichtbaar_vanaf: '2027-06-01', publiek: 'nee' }
+  ];
+  const maak = (dag) => {
+    const s = maakStaat(dag);
+    s.catalogus[0].leeslijsten = 'Pride-maand, Zonder data, Verborgen gepland';
+    s.catalogus[1].leeslijsten = 'Niet in het tabblad';
+    return M.bouwPubliekeCatalogus(s, [], rijen);
+  };
+  assert.ok(!('leeslijsten' in maak('2027-05-31')));
+  const juni = maak('2027-06-01');
+  gelijk(juni.leeslijsten.map((l) => l.n), ['Pride-maand']);
+  gelijk(Array.from(juni.boeken.find((b) => b.id === 'B0001').ll), ['Pride-maand']);
+  assert.ok(!juni.boeken.find((b) => b.id === 'B0002').ll);
+  assert.ok(maak('2027-06-30').leeslijsten.length === 1);
+  assert.ok(!('leeslijsten' in maak('2027-07-01')));
+  // Met de schakelaar aan: ook de lijsten zonder data, maar niet een voorbije geplande lijst.
+  const s = maakStaat('2027-07-01'); s.inst.leeslijsten_tonen = true;
+  s.catalogus[0].leeslijsten = 'Pride-maand, Zonder data';
+  gelijk(M.bouwPubliekeCatalogus(s, [], rijen).leeslijsten.map((l) => l.n), ['Zonder data']);
+  // Startpagina: menu-item enkel als er iets zichtbaar is.
+  gelijk([M.bouwSiteInhoud(maakStaat('2027-06-10'), { leeslijsten: rijen }).leeslijsten, M.bouwSiteInhoud(maakStaat('2027-07-10'), { leeslijsten: rijen }).leeslijsten], [true, false]);
+  // Einddatum voor de startdatum: geweigerd.
+  assert.strictEqual(M.inhoudAanpassen([], { tabblad: 'Leeslijsten', velden: { naam: 'X', zichtbaar_vanaf: '10/06/2027', zichtbaar_tot: '01/06/2027' } }).ok, false);
+});
+test('gepland nieuws: pas zichtbaar vanaf online_vanaf', () => {
+  const nieuws = [
+    { datum: '2027-05-20', titel: 'Gepland', publiek: 'ja', online_vanaf: '2027-06-01' },
+    { datum: '2027-05-10', titel: 'Nu al', publiek: 'ja', online_vanaf: '' }
+  ];
+  gelijk(M.bouwSiteInhoud(maakStaat('2027-05-31'), { nieuws: nieuws }).nieuws.map((n) => n.titel.nl), ['Nu al']);
+  gelijk(M.bouwSiteInhoud(maakStaat('2027-06-01'), { nieuws: nieuws }).nieuws.map((n) => n.titel.nl), ['Gepland', 'Nu al']);
+  const r = M.inhoudAanpassen([], { tabblad: 'Nieuws', velden: { titel: 'T', datum: '20/05/2027', online_vanaf: '01/06/2027' } });
+  assert.strictEqual(r.ok, true);
+});
 test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
   const s = maakStaat();
   s.catalogus[0].leeslijsten = 'Andere lijst';

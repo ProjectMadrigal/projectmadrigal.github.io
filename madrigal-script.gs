@@ -76,10 +76,10 @@ var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'start
 
 /** Tabbladen met inhoud van de website, en de kolommen die je via de website kan aanpassen. */
 var BEHEER_INHOUD = {
-  'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek'],
+  'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'online_vanaf'],
   'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek'],
   'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek'],
-  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek']
+  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek', 'zichtbaar_vanaf', 'zichtbaar_tot']
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
@@ -354,18 +354,21 @@ var KOLOMMEN = {
   // Online reserveren (Aanvragen.js). Bevat contactgegevens: nooit publiek.
   'Aanvragen': ['aanvraag_id', 'datum', 'boek_id', 'titel', 'voornaam', 'contact', 'opmerking', 'status', 'datum_afgehandeld', 'afgehandeld_door'],
   // Inhoud van de website. Kolommen op _en zijn de Engelse versie (mag leeg: dan toont de site het Nederlands).
-  'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'bron_id'],
+  // online_vanaf: een bericht met een datum in de toekomst verschijnt pas op die dag.
+  'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'online_vanaf', 'bron_id'],
   'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek', 'bron_id'],
   'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek', 'bron_id'],
   // Leeslijsten (thema's). Welke boeken erin staan, zet je in de kolom leeslijsten van de Catalogus.
-  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek']
+  // zichtbaar_vanaf en zichtbaar_tot: een geplande lijst verschijnt en verdwijnt vanzelf.
+  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek', 'zichtbaar_vanaf', 'zichtbaar_tot']
 };
 
 /** Kolommen met een datum. Die schrijven we als echte datum in de spreadsheet. */
 var DATUMKOLOMMEN = [
   'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
-  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht'
+  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
+  'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
 ];
 
 var INSTELLING_GROEPEN = [
@@ -736,7 +739,7 @@ function beheerVeld(veld, ruw) {
     if (n === null || n < 0 || n !== Math.round(n)) return { fout: 'Vul bij ' + veld + ' een geheel getal in.' };
     return { waarde: n };
   }
-  if (veld === 'datum') {
+  if (veld === 'datum' || veld === 'online_vanaf' || veld === 'zichtbaar_vanaf' || veld === 'zichtbaar_tot') {
     if (!w) return { waarde: '' };
     var d = parseerDatum(w);
     if (!d) return { fout: 'Deze datum klopt niet. Schrijf ze als 20/11/2026.' };
@@ -1175,9 +1178,10 @@ function borgTerugbetaald(staat, invoer) {
 /** Bouwt het object dat het publieke eindpunt teruggeeft. */
 function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
   var vertaal = vertaalTabel(onderwerpRijen);
-  // Leeslijsten pas tonen als de instelling leeslijsten_tonen op ja staat. Tot dan staan ze klaar.
-  var toonLijsten = (staat.inst || {}).leeslijsten_tonen === true;
-  var lijsten = leeslijstInfo(lijstRijen);
+  // Leeslijsten: zie leeslijstZichtbaar. Een geplande lijst volgt haar data, de rest de instelling leeslijsten_tonen.
+  var schakelaar = (staat.inst || {}).leeslijsten_tonen === true;
+  var lijsten = leeslijstInfo(lijstRijen, staat.vandaag, schakelaar);
+  var toonLijsten = schakelaar || lijsten.geplandZichtbaar;
   // Namen in de instelling aanraders_verbergen verschijnen nergens op de website.
   var verborgen = splitsLijst((staat.inst || {}).aanraders_verbergen).map(normaliseerTekst);
   var boeken = [];
@@ -1212,7 +1216,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
       return verborgen.indexOf(normaliseerTekst(naam)) === -1;
     });
     if (aanraders.length) boek.r = aanraders;
-    var ll = toonLijsten ? leeslijstenVan(rij, lijsten) : [];
+    var ll = toonLijsten ? leeslijstenVan(rij, lijsten, schakelaar) : [];
     if (ll.length) boek.ll = ll;
     boeken.push(boek);
   });
@@ -1229,6 +1233,13 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
   if (toonLijsten) uit.leeslijsten = gebruikteLeeslijsten(lijsten, boeken);
   return uit;
 }
+
+/*
+ * Leeslijsten: een thema, zoals "Pride-maand" of "Eerste keer over gender lezen".
+ *   - Tabblad Leeslijsten: naam, Engelse naam, uitleg, volgorde. publiek "nee" verbergt een lijst.
+ *   - Catalogus, kolom leeslijsten: de namen van de lijsten waarin het boek staat, gescheiden door komma's.
+ * Een naam die niet in het tabblad staat, verschijnt toch (als de instelling aan staat), zonder uitleg.
+ */
 
 /**
  * Zet de antwoorden van de roostertool (actie "maand") om naar één lijst avonden
@@ -1269,7 +1280,11 @@ function bouwRoosterOverzicht(antwoorden, vandaag) {
 function bouwSiteInhoud(staat, tabellen) {
   var inst = staat.inst;
 
-  var nieuws = (tabellen.nieuws || []).filter(function (r) { return isPubliek(r) && (r.titel || r.tekst); })
+  // online_vanaf: gepland bericht, pas zichtbaar vanaf die dag.
+  var nieuws = (tabellen.nieuws || []).filter(function (r) {
+    var vanaf = parseerDatum(r.online_vanaf);
+    return isPubliek(r) && (r.titel || r.tekst) && (!vanaf || vanaf <= staat.vandaag);
+  })
     .sort(function (a, b) { return String(b.datum || '').localeCompare(String(a.datum || '')); })
     .slice(0, SITE_MAX_NIEUWS)
     .map(function (r) {
@@ -1362,7 +1377,10 @@ function bouwSiteInhoud(staat, tabellen) {
     aanraders: aanraders,
     nieuw: nieuwBinnen,
     // Het menu-item Leeslijsten: enkel als de instelling leeslijsten_tonen op ja staat.
-    leeslijsten: inst.leeslijsten_tonen === true,
+    leeslijsten: inst.leeslijsten_tonen === true || (tabellen.leeslijsten || []).some(function (r) {
+      var z = leeslijstZichtbaar(r, staat.vandaag, false);
+      return z.gepland && z.zichtbaar;
+    }),
     // Pagina Doe mee. Een leeg blok toont de website niet.
     doeMee: {
       vrijwilliger: { nl: String(inst.tekst_vrijwilliger || ''), en: String(inst.tekst_vrijwilliger_en || '') || String(inst.tekst_vrijwilliger || '') },
@@ -1527,6 +1545,14 @@ function dagenTekst(n) {
 /** Aantal dagen van datum a tot datum b (positief als b later is). */
 function dagenTussen(a, b) {
   return Math.round((naarUtc(b) - naarUtc(a)) / 86400000);
+}
+
+/**
+ * Een cachesleutel per dag. Zo verschijnt gepland nieuws en een geplande leeslijst
+ * vanzelf op de juiste dag, zonder dat iemand iets moet wissen.
+ */
+function dagSleutel(sleutel) {
+  return sleutel + '_' + vandaagTekst().replace(/-/g, '');
 }
 
 /** Een getal dat per boek en per periode anders is: zo wisselt de keuze van de aanraders. */
@@ -2131,6 +2157,9 @@ function inhoudAanpassen(rijen, invoer) {
     if (/[,;]/.test(nieuweWaarde)) return { ok: false, fout: 'Een naam van een leeslijst mag geen komma of puntkomma bevatten.' };
     var dubbel = rijen.some(function (r) { return r !== rij && !r._verwijderen && normaliseerTekst(r.naam) === normaliseerTekst(nieuweWaarde); });
     if (dubbel) return { ok: false, fout: 'Er bestaat al een leeslijst met die naam.' };
+    var van = v.hasOwnProperty('zichtbaar_vanaf') ? v.zichtbaar_vanaf : (rij ? parseerDatum(rij.zichtbaar_vanaf) : '');
+    var tot = v.hasOwnProperty('zichtbaar_tot') ? v.zichtbaar_tot : (rij ? parseerDatum(rij.zichtbaar_tot) : '');
+    if (van && tot && tot < van) return { ok: false, fout: 'De einddatum ligt voor de startdatum.' };
   }
   if (tabblad === 'Agenda' && isLeeg(v.hasOwnProperty('datum') ? v.datum : (rij ? rij.datum : ''))) {
     return { ok: false, fout: 'Een event heeft een datum nodig.' };
@@ -2575,7 +2604,7 @@ function laadStaat(wie, metUitzonderingen) {
 
 /** Maakt de cache van de publieke catalogus leeg, zodat de volgende opvraging vers is. */
 function leegCache() {
-  try { CacheService.getScriptCache().removeAll([CACHE_SLEUTEL + '_n', SITE_CACHE_SLEUTEL]); } catch (e) { /* niets aan de hand */ }
+  try { CacheService.getScriptCache().removeAll([dagSleutel(CACHE_SLEUTEL) + '_n', dagSleutel(SITE_CACHE_SLEUTEL)]); } catch (e) { /* niets aan de hand */ }
 }
 
 /** Leest de borg uit tekst als "5 cash", "€5 QR" of "QR". */
@@ -2714,33 +2743,29 @@ function leeslijstBoeken(staat, invoer) {
 }
 
 /** De publieke leeslijsten van een boek, met de naam zoals in het tabblad. */
-function leeslijstenVan(rij, info) {
+function leeslijstenVan(rij, info, schakelaar) {
   var namen = [];
   splitsLijst(rij.leeslijsten).forEach(function (naam) {
     var l = info.perSleutel[normaliseerTekst(naam)];
-    if (l && l.verborgen) return;
+    if (l ? l.verborgen : !schakelaar) return;
     var echt = l ? l.n : schoon(naam);
     if (echt && namen.indexOf(echt) === -1) namen.push(echt);
   });
   return namen;
 }
 
-/*
- * Leeslijsten: een thema, zoals "Pride-maand" of "Eerste keer over gender lezen".
- *   - Tabblad Leeslijsten: naam, Engelse naam, uitleg, volgorde. publiek "nee" verbergt een lijst.
- *   - Catalogus, kolom leeslijsten: de namen van de lijsten waarin het boek staat, gescheiden door komma's.
- * Een naam die niet in het tabblad staat, verschijnt toch, zonder uitleg.
- */
-function leeslijstInfo(rijen) {
-  var info = { perSleutel: {}, volgorde: [] };
+function leeslijstInfo(rijen, vandaag, schakelaar) {
+  var info = { perSleutel: {}, volgorde: [], geplandZichtbaar: false };
   (rijen || []).forEach(function (r, i) {
     var naam = schoon(r.naam);
     if (!naam) return;
     var sleutel = normaliseerTekst(naam);
     if (info.perSleutel[sleutel]) return;
+    var z = leeslijstZichtbaar(r, vandaag, schakelaar);
+    if (z.gepland && z.zichtbaar) info.geplandZichtbaar = true;
     info.perSleutel[sleutel] = {
       n: naam, ne: schoon(r.naam_en), u: schoonMetRegels(r.uitleg), ue: schoonMetRegels(r.uitleg_en),
-      verborgen: jaNee(r.publiek) === 'nee', volgorde: parseerGetal(r.volgorde) || 0, rij: i
+      verborgen: !z.zichtbaar, volgorde: parseerGetal(r.volgorde) || 0, rij: i
     };
   });
   return info;
@@ -2749,6 +2774,20 @@ function leeslijstInfo(rijen) {
 /** Zet de namen in de kolom leeslijsten terug als tekst. */
 function leeslijstTekst(namen) {
   return namen.join(', ');
+}
+
+/**
+ * Staat een lijst vandaag op de website?
+ *   - publiek "nee": nooit;
+ *   - met zichtbaar_vanaf of zichtbaar_tot (gepland): enkel in die periode, ook als leeslijsten_tonen op nee staat;
+ *   - zonder data: als leeslijsten_tonen op ja staat.
+ * Geeft { zichtbaar, gepland }.
+ */
+function leeslijstZichtbaar(r, vandaag, schakelaar) {
+  if (jaNee(r.publiek) === 'nee') return { zichtbaar: false, gepland: false };
+  var van = parseerDatum(r.zichtbaar_vanaf), tot = parseerDatum(r.zichtbaar_tot);
+  if (!van && !tot) return { zichtbaar: schakelaar, gepland: false };
+  return { zichtbaar: (!van || van <= vandaag) && (!tot || vandaag <= tot), gepland: true };
 }
 
 /** Zet de waarden van het oude blad om naar objecten met vaste namen. */
@@ -3552,10 +3591,11 @@ function publiekeAanvraag(invoer) {
 /** De publieke catalogus als JSON-tekst, uit de cache als die er is. */
 function publiekeCatalogusJson() {
   var cache = CacheService.getScriptCache();
-  var aantal = Number(cache.get(CACHE_SLEUTEL + '_n') || 0);
+  var sleutel = dagSleutel(CACHE_SLEUTEL);
+  var aantal = Number(cache.get(sleutel + '_n') || 0);
   if (aantal > 0) {
     var sleutels = [];
-    for (var i = 0; i < aantal; i++) sleutels.push(CACHE_SLEUTEL + '_' + i);
+    for (var i = 0; i < aantal; i++) sleutels.push(sleutel + '_' + i);
     var stukken = cache.getAll(sleutels);
     if (Object.keys(stukken).length === aantal) {
       return sleutels.map(function (s) { return stukken[s]; }).join('');
@@ -3567,8 +3607,8 @@ function publiekeCatalogusJson() {
   var tekst = JSON.stringify(bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen, lijsten));
   var waarden = {};
   var n = Math.ceil(tekst.length / CACHE_STUK);
-  for (var j = 0; j < n; j++) waarden[CACHE_SLEUTEL + '_' + j] = tekst.slice(j * CACHE_STUK, (j + 1) * CACHE_STUK);
-  waarden[CACHE_SLEUTEL + '_n'] = String(n);
+  for (var j = 0; j < n; j++) waarden[sleutel + '_' + j] = tekst.slice(j * CACHE_STUK, (j + 1) * CACHE_STUK);
+  waarden[sleutel + '_n'] = String(n);
   try { cache.putAll(waarden, CACHE_DUUR_SECONDEN); } catch (err) { /* te groot voor de cache: dan zonder */ }
   return tekst;
 }
@@ -3798,14 +3838,14 @@ function schrijfVolledig(tabel) {
 /** De inhoud van de startpagina als JSON-tekst, uit de cache als die er is. */
 function siteInhoudJson() {
   var cache = CacheService.getScriptCache();
-  var bewaard = cache.get(SITE_CACHE_SLEUTEL);
+  var bewaard = cache.get(dagSleutel(SITE_CACHE_SLEUTEL));
   if (bewaard) return bewaard;
   var staat = laadStaat('publiek', false);
   var lees = function (naam) {
     return spreadsheet().getSheetByName(naam) ? leesTabel(naam).rijen : [];
   };
-  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen') }));
-  try { cache.put(SITE_CACHE_SLEUTEL, tekst, CACHE_DUUR_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
+  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten') }));
+  try { cache.put(dagSleutel(SITE_CACHE_SLEUTEL), tekst, CACHE_DUUR_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
   return tekst;
 }
 

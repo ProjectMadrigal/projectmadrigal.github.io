@@ -182,6 +182,8 @@ Een leeslijst bundelt boeken rond een thema, bijvoorbeeld "Pride-maand" of "Eers
 
 Hernoem je een lijst of verwijder je ze, dan past het script ook de boeken in de Catalogus aan.
 
+**Een lijst plannen.** Vul **Zichtbaar vanaf** en eventueel **Zichtbaar tot en met** in, bijvoorbeeld 1 juni tot 30 juni voor Pride-maand. Op de startdatum verschijnt de lijst vanzelf, met het menu-item, ook als de knop bovenaan op verborgen staat. De dag na de einddatum verdwijnt ze weer. Het overzicht in het bestuursscherm toont per lijst of ze zichtbaar, gepland, voorbij of klaar is. Lijsten zonder data volgen de knop.
+
 **In de spreadsheet kan het ook.** Typ de naam van de lijst in de kolom `leeslijsten` van de Catalogus (meerdere lijsten: scheid ze met een komma). Naam, uitleg, Engelse versie en `volgorde` (1 staat bovenaan) staan in het tabblad **Leeslijsten**. Zet `nee` in de kolom `publiek` om één lijst te verbergen.
 
 Elke lijst krijgt een eigen link om te delen, en een filter **Leeslijst** in de catalogus.
@@ -194,11 +196,12 @@ Elke rij in deze tabbladen is één bericht, event of vraag.
 
 | Tabblad | Kolommen |
 | --- | --- |
-| **Nieuws** | `datum`, `titel`, `titel_en`, `tekst`, `tekst_en`, `afbeelding`, `link`, `publiek` |
+| **Nieuws** | `datum`, `titel`, `titel_en`, `tekst`, `tekst_en`, `afbeelding`, `link`, `publiek`, `online_vanaf` |
 | **Agenda** | `datum`, `uur`, `titel`, `titel_en`, `tekst`, `tekst_en`, `locatie`, `afbeelding`, `link`, `publiek` |
 | **Veelgestelde vragen** | `volgorde`, `vraag`, `vraag_en`, `antwoord`, `antwoord_en`, `publiek` |
 
 - De startpagina toont de 3 nieuwste berichten, de 3 volgende events en het vorige event.
+- **Een bericht plannen:** vul `online_vanaf` in (in het bestuursscherm: "Online vanaf"). Het bericht verschijnt dan pas op die dag, vanzelf. Leeg betekent meteen online.
 - Een nieuwe regel binnen een cel maak je met **Ctrl+Enter** of **Alt+Enter**. De website neemt die regels over.
 - De kolommen op `_en` zijn de Engelse versie. Laat je ze leeg, dan toont de Engelse website de Nederlandse tekst.
 - `afbeelding` en `link` zijn volledige adressen die met `https://` beginnen.

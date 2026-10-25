@@ -27,6 +27,7 @@
     cover_url: 'Link naar de cover', herkomst: 'Herkomst',
     datum: 'Datum', uur: 'Uur', titel_en: 'Titel (Engels)', tekst: 'Tekst', tekst_en: 'Tekst (Engels)',
     locatie: 'Locatie', afbeelding: 'Link naar een afbeelding', link: 'Link voor meer info',
+    online_vanaf: 'Online vanaf', zichtbaar_vanaf: 'Zichtbaar vanaf', zichtbaar_tot: 'Zichtbaar tot en met',
     naam: 'Naam', naam_en: 'Naam (Engels)', uitleg: 'Uitleg', uitleg_en: 'Uitleg (Engels)',
     volgorde: 'Volgorde', vraag: 'Vraag', vraag_en: 'Vraag (Engels)', antwoord: 'Antwoord', antwoord_en: 'Antwoord (Engels)'
   };
@@ -43,6 +44,9 @@
     publiek: 'Nee: blijft bewaard, maar verschijnt niet op de website',
     tekst_en: 'Leeg laten: dan toont de site het Nederlands',
     volgorde: 'Kleinste getal eerst',
+    online_vanaf: 'Leeg: meteen online. Een datum in de toekomst: het bericht verschijnt pas op die dag.',
+    zichtbaar_vanaf: 'Leeg laten voor een lijst zonder planning. Met een datum verschijnt de lijst die dag vanzelf, ook het menu-item.',
+    zichtbaar_tot: 'Leeg: blijft staan. Met een datum verdwijnt de lijst de dag erna vanzelf.',
     naam: 'Bv. Pride-maand. Geen komma\'s.',
     naam_en: 'Leeg laten: dan toont de Engelse site de Nederlandse naam',
     uitleg_en: 'Leeg laten: dan toont de Engelse site de Nederlandse uitleg'
@@ -76,7 +80,7 @@
       invoer = el('textarea', { id: id, rows: '5' });
       invoer.value = w;
     } else {
-      var type = naam === 'datum' ? 'date' : GETAL.indexOf(naam) > -1 ? 'number' : /url|afbeelding|link/.test(naam) ? 'url' : 'text';
+      var type = /^(datum|online_vanaf|zichtbaar_vanaf|zichtbaar_tot)$/.test(naam) ? 'date' : GETAL.indexOf(naam) > -1 ? 'number' : /url|afbeelding|link/.test(naam) ? 'url' : 'text';
       invoer = el('input', { type: type, id: id, value: w, autocomplete: 'off' });
       if (type === 'number') { invoer.setAttribute('min', '0'); invoer.setAttribute('inputmode', 'numeric'); }
     }
@@ -656,7 +660,7 @@
   var inhoud = null; // gegevens uit beheerInhoud, tot iemand op Vernieuw klikt
 
   var INHOUD = [
-    ['Nieuws', 'Nieuws', ['datum', 'titel', 'tekst', 'titel_en', 'tekst_en', 'afbeelding', 'link', 'publiek'], 'Nieuw bericht'],
+    ['Nieuws', 'Nieuws', ['datum', 'titel', 'tekst', 'titel_en', 'tekst_en', 'afbeelding', 'link', 'publiek', 'online_vanaf'], 'Nieuw bericht'],
     ['Agenda', 'Agenda', ['datum', 'uur', 'titel', 'tekst', 'locatie', 'titel_en', 'tekst_en', 'afbeelding', 'link', 'publiek'], 'Nieuw event'],
     ['Veelgestelde vragen', 'Veelgestelde vragen', ['volgorde', 'vraag', 'antwoord', 'vraag_en', 'antwoord_en', 'publiek'], 'Nieuwe vraag']
   ];
@@ -692,7 +696,8 @@
           var sub = soort[0] === 'Veelgestelde vragen' ? (r.volgorde ? 'Volgorde ' + r.volgorde : '') : [D.korteDatum(r.datum), r.uur, r.locatie].filter(Boolean).join(' · ');
           return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { inhoudFormulier(vak, ctx, soort, r); } },
             el('strong', {}, hoofd), sub ? el('span', {}, sub) : null,
-            r.publiek === 'nee' ? el('span', { class: 'labels' }, D.statusLabel('niet_uitleenbaar', 'Verborgen')) : null));
+            r.publiek === 'nee' ? el('span', { class: 'labels' }, D.statusLabel('niet_uitleenbaar', 'Verborgen'))
+              : (r.online_vanaf && r.online_vanaf > vandaag() ? el('span', { class: 'labels' }, D.statusLabel('gereserveerd', 'Gepland vanaf ' + D.korteDatum(r.online_vanaf))) : null)));
         })) : el('p', {}, 'Hier staat nog niets.'));
     });
   }
@@ -733,7 +738,27 @@
 
   /* ---------- Leeslijsten ---------- */
 
-  var LIJST_VELDEN = ['naam', 'naam_en', 'uitleg', 'uitleg_en', 'volgorde', 'publiek'];
+  var LIJST_VELDEN = ['naam', 'naam_en', 'uitleg', 'uitleg_en', 'zichtbaar_vanaf', 'zichtbaar_tot', 'volgorde', 'publiek'];
+
+  /** Vandaag als JJJJ-MM-DD, in de tijd van de computer. */
+  function vandaag() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  /**
+   * Hoe een lijst er vandaag voor staat (zelfde regels als leeslijstZichtbaar in Publiek.js).
+   * Geeft [code voor het label, tekst].
+   */
+  function lijstStatus(r, schakelaar) {
+    if (r.publiek === 'nee') return ['niet_uitleenbaar', 'Verborgen'];
+    var van = r.zichtbaar_vanaf, tot = r.zichtbaar_tot, nu = vandaag();
+    if (!van && !tot) return schakelaar ? ['beschikbaar', 'Zichtbaar'] : ['niet_uitleenbaar', 'Klaar, wacht op de knop hierboven'];
+    var periode = (van ? 'van ' + D.korteDatum(van) : '') + (van && tot ? ' ' : '') + (tot ? 'tot en met ' + D.korteDatum(tot) : '');
+    if (van && van > nu) return ['gereserveerd', 'Gepland, ' + periode];
+    if (tot && tot < nu) return ['niet_uitleenbaar', 'Voorbij, ' + periode];
+    return ['beschikbaar', 'Zichtbaar, ' + periode];
+  }
 
   function zelfde(a, b) { return Z.normaliseer(a) === Z.normaliseer(b); }
 
@@ -778,13 +803,14 @@
         el('div', { class: 'blok' },
           el('p', {}, el('strong', {}, aan ? 'Op de website: zichtbaar.' : 'Op de website: verborgen.'), ' ',
             aan ? 'Bezoekers zien de leeslijsten via het menu en op de pagina Boeken.' : 'De lijsten staan klaar. Enkel jij ziet ze hier. Zet ze op de website wanneer je klaar bent.'),
+          el('p', { class: 'hulptekst' }, 'Een lijst met "Zichtbaar vanaf" of "Zichtbaar tot" volgt haar eigen data, ook als deze knop op verborgen staat. Zo zet je Pride-maand klaar voor 1 juni.'),
           knoppen(schakel), schakelMelding),
         knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { leeslijstFormulier(vak, ctx, null); } }, '+ Nieuwe leeslijst')),
         rijen.length ? el('ul', { class: 'kaartlijst' }, rijen.map(function (r) {
           var n = boeken.filter(function (b) { return inLijst(b, r.naam); }).length;
           return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { leeslijstOpenen(vak, ctx, r); } },
             el('strong', {}, r.naam || '(zonder naam)'), el('span', {}, n === 1 ? '1 boek' : n + ' boeken'),
-            r.publiek === 'nee' ? el('span', { class: 'labels' }, D.statusLabel('niet_uitleenbaar', 'Verborgen')) : null));
+            el('span', { class: 'labels' }, D.statusLabel.apply(null, lijstStatus(r, aan)))));
         })) : el('p', {}, 'Er is nog geen leeslijst.'));
     });
   }

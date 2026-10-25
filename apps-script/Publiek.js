@@ -21,9 +21,10 @@
 /** Bouwt het object dat het publieke eindpunt teruggeeft. */
 function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
   var vertaal = vertaalTabel(onderwerpRijen);
-  // Leeslijsten pas tonen als de instelling leeslijsten_tonen op ja staat. Tot dan staan ze klaar.
-  var toonLijsten = (staat.inst || {}).leeslijsten_tonen === true;
-  var lijsten = leeslijstInfo(lijstRijen);
+  // Leeslijsten: zie leeslijstZichtbaar. Een geplande lijst volgt haar data, de rest de instelling leeslijsten_tonen.
+  var schakelaar = (staat.inst || {}).leeslijsten_tonen === true;
+  var lijsten = leeslijstInfo(lijstRijen, staat.vandaag, schakelaar);
+  var toonLijsten = schakelaar || lijsten.geplandZichtbaar;
   // Namen in de instelling aanraders_verbergen verschijnen nergens op de website.
   var verborgen = splitsLijst((staat.inst || {}).aanraders_verbergen).map(normaliseerTekst);
   var boeken = [];
@@ -58,7 +59,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
       return verborgen.indexOf(normaliseerTekst(naam)) === -1;
     });
     if (aanraders.length) boek.r = aanraders;
-    var ll = toonLijsten ? leeslijstenVan(rij, lijsten) : [];
+    var ll = toonLijsten ? leeslijstenVan(rij, lijsten, schakelaar) : [];
     if (ll.length) boek.ll = ll;
     boeken.push(boek);
   });
@@ -80,29 +81,46 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
  * Leeslijsten: een thema, zoals "Pride-maand" of "Eerste keer over gender lezen".
  *   - Tabblad Leeslijsten: naam, Engelse naam, uitleg, volgorde. publiek "nee" verbergt een lijst.
  *   - Catalogus, kolom leeslijsten: de namen van de lijsten waarin het boek staat, gescheiden door komma's.
- * Een naam die niet in het tabblad staat, verschijnt toch, zonder uitleg.
+ * Een naam die niet in het tabblad staat, verschijnt toch (als de instelling aan staat), zonder uitleg.
  */
-function leeslijstInfo(rijen) {
-  var info = { perSleutel: {}, volgorde: [] };
+
+/**
+ * Staat een lijst vandaag op de website?
+ *   - publiek "nee": nooit;
+ *   - met zichtbaar_vanaf of zichtbaar_tot (gepland): enkel in die periode, ook als leeslijsten_tonen op nee staat;
+ *   - zonder data: als leeslijsten_tonen op ja staat.
+ * Geeft { zichtbaar, gepland }.
+ */
+function leeslijstZichtbaar(r, vandaag, schakelaar) {
+  if (jaNee(r.publiek) === 'nee') return { zichtbaar: false, gepland: false };
+  var van = parseerDatum(r.zichtbaar_vanaf), tot = parseerDatum(r.zichtbaar_tot);
+  if (!van && !tot) return { zichtbaar: schakelaar, gepland: false };
+  return { zichtbaar: (!van || van <= vandaag) && (!tot || vandaag <= tot), gepland: true };
+}
+
+function leeslijstInfo(rijen, vandaag, schakelaar) {
+  var info = { perSleutel: {}, volgorde: [], geplandZichtbaar: false };
   (rijen || []).forEach(function (r, i) {
     var naam = schoon(r.naam);
     if (!naam) return;
     var sleutel = normaliseerTekst(naam);
     if (info.perSleutel[sleutel]) return;
+    var z = leeslijstZichtbaar(r, vandaag, schakelaar);
+    if (z.gepland && z.zichtbaar) info.geplandZichtbaar = true;
     info.perSleutel[sleutel] = {
       n: naam, ne: schoon(r.naam_en), u: schoonMetRegels(r.uitleg), ue: schoonMetRegels(r.uitleg_en),
-      verborgen: jaNee(r.publiek) === 'nee', volgorde: parseerGetal(r.volgorde) || 0, rij: i
+      verborgen: !z.zichtbaar, volgorde: parseerGetal(r.volgorde) || 0, rij: i
     };
   });
   return info;
 }
 
 /** De publieke leeslijsten van een boek, met de naam zoals in het tabblad. */
-function leeslijstenVan(rij, info) {
+function leeslijstenVan(rij, info, schakelaar) {
   var namen = [];
   splitsLijst(rij.leeslijsten).forEach(function (naam) {
     var l = info.perSleutel[normaliseerTekst(naam)];
-    if (l && l.verborgen) return;
+    if (l ? l.verborgen : !schakelaar) return;
     var echt = l ? l.n : schoon(naam);
     if (echt && namen.indexOf(echt) === -1) namen.push(echt);
   });

@@ -111,10 +111,11 @@ function doGet(e) {
 /** De publieke catalogus als JSON-tekst, uit de cache als die er is. */
 function publiekeCatalogusJson() {
   var cache = CacheService.getScriptCache();
-  var aantal = Number(cache.get(CACHE_SLEUTEL + '_n') || 0);
+  var sleutel = dagSleutel(CACHE_SLEUTEL);
+  var aantal = Number(cache.get(sleutel + '_n') || 0);
   if (aantal > 0) {
     var sleutels = [];
-    for (var i = 0; i < aantal; i++) sleutels.push(CACHE_SLEUTEL + '_' + i);
+    for (var i = 0; i < aantal; i++) sleutels.push(sleutel + '_' + i);
     var stukken = cache.getAll(sleutels);
     if (Object.keys(stukken).length === aantal) {
       return sleutels.map(function (s) { return stukken[s]; }).join('');
@@ -126,8 +127,8 @@ function publiekeCatalogusJson() {
   var tekst = JSON.stringify(bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen, lijsten));
   var waarden = {};
   var n = Math.ceil(tekst.length / CACHE_STUK);
-  for (var j = 0; j < n; j++) waarden[CACHE_SLEUTEL + '_' + j] = tekst.slice(j * CACHE_STUK, (j + 1) * CACHE_STUK);
-  waarden[CACHE_SLEUTEL + '_n'] = String(n);
+  for (var j = 0; j < n; j++) waarden[sleutel + '_' + j] = tekst.slice(j * CACHE_STUK, (j + 1) * CACHE_STUK);
+  waarden[sleutel + '_n'] = String(n);
   try { cache.putAll(waarden, CACHE_DUUR_SECONDEN); } catch (err) { /* te groot voor de cache: dan zonder */ }
   return tekst;
 }
@@ -146,7 +147,15 @@ function verwerkVervallenReservatiesStil(staat) {
 
 /** Maakt de cache van de publieke catalogus leeg, zodat de volgende opvraging vers is. */
 function leegCache() {
-  try { CacheService.getScriptCache().removeAll([CACHE_SLEUTEL + '_n', SITE_CACHE_SLEUTEL]); } catch (e) { /* niets aan de hand */ }
+  try { CacheService.getScriptCache().removeAll([dagSleutel(CACHE_SLEUTEL) + '_n', dagSleutel(SITE_CACHE_SLEUTEL)]); } catch (e) { /* niets aan de hand */ }
+}
+
+/**
+ * Een cachesleutel per dag. Zo verschijnt gepland nieuws en een geplande leeslijst
+ * vanzelf op de juiste dag, zonder dat iemand iets moet wissen.
+ */
+function dagSleutel(sleutel) {
+  return sleutel + '_' + vandaagTekst().replace(/-/g, '');
 }
 
 /** Een JSON-antwoord. */
