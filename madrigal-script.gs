@@ -487,7 +487,8 @@ var KOLOMMEN = {
   'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek', 'zichtbaar_vanaf', 'zichtbaar_tot']
 };
 
-/** Kolommen met een datum. Die schrijven we als echte datum in de spreadsheet. */
+/** Kolommen met een getal. Staat er per ongeluk datumopmaak op, dan leest leesTabel toch het getal. */
+var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal'];
 
 // wiki_gezocht staat er bewust niet bij: die datum bewaren we als tekst (zie herstelKolom in Wikipedia.js).
 var DATUMKOLOMMEN = [
@@ -2044,6 +2045,13 @@ function dagVolgorde(id, dag) {
   return h >>> 0;
 }
 
+/** Het getal achter een datum in de spreadsheet: het aantal dagen sinds 30 december 1899. */
+function datumNaarGetal(d) {
+  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+}
+
+/** Kolommen met een datum. Die schrijven we als echte datum in de spreadsheet. */
+
 /**
  * Datum als leesbare tekst: "vrijdag 20 november".
  * Valt de datum in een ander jaar dan vandaag, dan komt het jaar erbij.
@@ -2594,7 +2602,7 @@ function haalLetterboxdLijst() {
     if (tabel.kop.indexOf('letterboxd') === -1) { meld('De kolommen voor films ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
     var ids = maakIdGenerator(tabel.rijen);
     aantal = voegFilmsToe(tabel.rijen, films, vandaagTekst(), ids.nieuw);
-    if (aantal) { bewaarTabel(tabel); ids.bewaar(); }
+    if (aantal) { bewaarTabel(tabel); ids.bewaar(); zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['duur']); }
   } finally {
     lock.releaseLock();
   }
@@ -3046,6 +3054,7 @@ function installeer() {
 
   // Tekstopmaak voor kolommen die tekst moeten blijven (ISBN, telefoon, lenersnummer).
   zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id', 'wiki_gezocht']);
+  zetGetalopmaak(ss.getSheetByName('Catalogus'), ['duur']);
   zetTekstopmaak(ss.getSheetByName('Leners'), ['telefoon']);
 
   // Niet-publieke kolommen van de Catalogus grijs markeren.
@@ -3701,7 +3710,9 @@ function leesTabel(naam) {
     for (var k = 0; k < kop.length; k++) {
       if (!kop[k]) continue;
       var w = waarden[r][k];
-      if (isDatumObject(w)) w = parseerDatum(w);
+      // Een getal in een kolom met datumopmaak (96 minuten wordt 5/4/1900): terug naar het getal.
+      if (isDatumObject(w) && GETALKOLOMMEN.indexOf(kop[k]) > -1) w = datumNaarGetal(w);
+      else if (isDatumObject(w)) w = parseerDatum(w);
       // Een datum die iemand als tekst typte (20/11/2026), ook omzetten.
       else if (typeof w === 'string' && w && DATUMKOLOMMEN.indexOf(kop[k]) > -1) w = parseerDatum(w) || w;
       if (!isLeeg(w)) leeg = false;
@@ -4206,7 +4217,7 @@ function neemFilmsOverUitTabblad() {
     if (tabel.kop.indexOf('imdb') === -1) { meld('De kolommen voor films ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
     var ids = maakIdGenerator(tabel.rijen);
     aantal = voegFilmsToe(tabel.rijen, films, vandaagTekst(), ids.nieuw);
-    if (aantal) { bewaarTabel(tabel); ids.bewaar(); }
+    if (aantal) { bewaarTabel(tabel); ids.bewaar(); zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['duur']); }
   } finally {
     lock.releaseLock();
   }
@@ -7074,6 +7085,25 @@ function zelfdeNaam(a, b) {
 function zelfdeTekst(a, b) {
   var kaal = function (t) { return normaliseerTekst(t).replace(/[^a-z0-9]/g, ''); };
   return kaal(a) === kaal(b);
+}
+
+/**
+ * Zet de opmaak van kolommen op een gewoon getal. Een nieuwe kolom erft soms de datumopmaak van de
+ * kolom ernaast: dan wordt 96 minuten 5/4/1900. Een datum die er al staat, wordt terug het getal.
+ */
+function zetGetalopmaak(blad, kolommen) {
+  if (!blad || blad.getLastRow() < 2) return;
+  var kop = blad.getRange(1, 1, 1, blad.getLastColumn()).getValues()[0].map(schoon);
+  kolommen.forEach(function (k) {
+    var i = kop.indexOf(k);
+    if (i === -1) return;
+    var bereik = blad.getRange(2, i + 1, blad.getLastRow() - 1, 1);
+    var waarden = bereik.getValues();
+    var anders = false;
+    waarden.forEach(function (r) { if (isDatumObject(r[0])) { r[0] = datumNaarGetal(r[0]); anders = true; } });
+    bereik.setNumberFormat('0');
+    if (anders) bereik.setValues(waarden);
+  });
 }
 
 /** Past één instelling aan in het tabblad. */

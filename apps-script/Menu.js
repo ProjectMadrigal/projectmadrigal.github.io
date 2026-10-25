@@ -55,6 +55,7 @@ function installeer() {
 
   // Tekstopmaak voor kolommen die tekst moeten blijven (ISBN, telefoon, lenersnummer).
   zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id', 'wiki_gezocht']);
+  zetGetalopmaak(ss.getSheetByName('Catalogus'), ['duur']);
   zetTekstopmaak(ss.getSheetByName('Leners'), ['telefoon']);
 
   // Niet-publieke kolommen van de Catalogus grijs markeren.
@@ -180,6 +181,25 @@ function zetTekstopmaak(blad, kolommen) {
   kolommen.forEach(function (k) {
     var i = kop.indexOf(k);
     if (i > -1 && blad.getMaxRows() > 1) blad.getRange(2, i + 1, blad.getMaxRows() - 1, 1).setNumberFormat('@');
+  });
+}
+
+/**
+ * Zet de opmaak van kolommen op een gewoon getal. Een nieuwe kolom erft soms de datumopmaak van de
+ * kolom ernaast: dan wordt 96 minuten 5/4/1900. Een datum die er al staat, wordt terug het getal.
+ */
+function zetGetalopmaak(blad, kolommen) {
+  if (!blad || blad.getLastRow() < 2) return;
+  var kop = blad.getRange(1, 1, 1, blad.getLastColumn()).getValues()[0].map(schoon);
+  kolommen.forEach(function (k) {
+    var i = kop.indexOf(k);
+    if (i === -1) return;
+    var bereik = blad.getRange(2, i + 1, blad.getLastRow() - 1, 1);
+    var waarden = bereik.getValues();
+    var anders = false;
+    waarden.forEach(function (r) { if (isDatumObject(r[0])) { r[0] = datumNaarGetal(r[0]); anders = true; } });
+    bereik.setNumberFormat('0');
+    if (anders) bereik.setValues(waarden);
   });
 }
 
