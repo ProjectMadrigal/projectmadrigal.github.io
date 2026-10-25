@@ -85,7 +85,7 @@ function roosterOverzicht() {
   var props = PropertiesService.getScriptProperties();
   var vandaag = vandaagTekst();
   // De daglimiet van Google is op: niet opnieuw proberen, meteen de laatste versie.
-  if (daglimietWachttijd(cache.get(DAGLIMIET_SLEUTEL), Date.now())) return laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, true);
+  if (daglimietWachttijd(daglimietSinds(), Date.now())) return laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, true);
 
   var antwoorden;
   try {

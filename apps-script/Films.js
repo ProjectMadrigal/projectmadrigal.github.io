@@ -348,7 +348,7 @@ function haalLetterboxdLijst() {
   var url = schoon(leesInstellingen().letterboxd_lijst);
   if (!isLetterboxdLijst(url)) { meld('Vul bij Instellingen letterboxd_lijst het adres van de lijst in, bv. https://letterboxd.com/naam/list/lijst/'); return; }
   var wacht = 0;
-  try { wacht = daglimietWachttijd(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL), Date.now()); } catch (e) { wacht = 0; }
+  try { wacht = daglimietWachttijd(daglimietSinds(), Date.now()); } catch (e) { wacht = 0; }
   if (wacht) { meld(daglimietFilmTekst(wacht)); return; }
   var films = [], fout = '';
   for (var n = 1; n <= LETTERBOXD_MAX_PAGINAS; n++) {

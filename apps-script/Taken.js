@@ -43,9 +43,24 @@ function laatsteLogregels(waarden, aantal) {
   }).sort(function (a, b) { return b.tijd - a.tijd; }).slice(0, aantal);
 }
 
-/** Onthoudt 6 uur lang dat de daglimiet van Google voor vragen naar buiten op is. */
+/**
+ * Onthoudt wanneer de daglimiet van Google voor vragen naar buiten op was. In de eigenschappen van
+ * het script (die vervallen niet, zoals de cache na 6 uur), zodat de voorrang van de films ook na
+ * die 6 uur nog werkt.
+ */
 function noteerDaglimiet() {
+  try { PropertiesService.getScriptProperties().setProperty(DAGLIMIET_SLEUTEL, String(Date.now())); } catch (e) { /* niet erg */ }
   try { CacheService.getScriptCache().put(DAGLIMIET_SLEUTEL, String(Date.now()), 6 * 60 * 60); } catch (e) { /* niet erg */ }
+}
+
+/** Sinds wanneer (ms) de daglimiet op is, of 0. Een oudere melding in de cache telt ook. */
+function daglimietSinds() {
+  var props = PropertiesService.getScriptProperties();
+  var sinds = Number(props.getProperty(DAGLIMIET_SLEUTEL)) || 0;
+  var uitCache = 0;
+  try { uitCache = Number(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL)) || 0; } catch (e) { uitCache = 0; }
+  if (uitCache > sinds) { props.setProperty(DAGLIMIET_SLEUTEL, String(uitCache)); sinds = uitCache; }
+  return sinds;
 }
 
 /*
@@ -57,6 +72,21 @@ function noteerDaglimiet() {
  *   - toont het rooster de laatst opgehaalde versie.
  */
 var DAGLIMIET_WACHT_MS = 6 * 60 * 60 * 1000;
+// Na de daglimiet krijgen de films voorrang: de andere taken herstarten een half uur later.
+// Zo raakt de limiet niet opnieuw op voor de films aan de beurt zijn (die vragen maar weinig).
+var VOORRANG_TAKEN = ['vulFilmsAan'];
+var VOORRANG_MS = 30 * 60 * 1000;
+
+/** Na hoeveel ms een taak herstart als de daglimiet nog zo lang (wacht) duurt. */
+function herstartNaDaglimiet(naam, wacht) {
+  return wacht + (VOORRANG_TAKEN.indexOf(naam) > -1 ? 0 : VOORRANG_MS);
+}
+
+/** Hoe lang deze taak nog moet wachten (ms) na een daglimiet die om "sinds" genoteerd werd. 0: meteen. */
+function wachtVoorTaak(naam, sinds, nu) {
+  sinds = Number(sinds) || 0;
+  return sinds ? Math.max(0, herstartNaDaglimiet(naam, sinds + DAGLIMIET_WACHT_MS) - nu) : 0;
+}
 var HUIDIGE_TAAK = ''; // de achtergrondtaak die nu loopt (zie startAchtergrond)
 
 /** Is deze fout de daglimiet van Google? */
@@ -77,7 +107,7 @@ function haalExtern(url, opties) {
   } catch (e) {
     if (isDaglimietFout(e)) {
       noteerDaglimiet();
-      if (HUIDIGE_TAAK) planTaak(HUIDIGE_TAAK, DAGLIMIET_WACHT_MS);
+      if (HUIDIGE_TAAK) planTaak(HUIDIGE_TAAK, herstartNaDaglimiet(HUIDIGE_TAAK, DAGLIMIET_WACHT_MS));
     }
     throw e;
   }
@@ -96,8 +126,8 @@ function planTaak(naam, ms) {
  */
 function wachtOpDaglimiet(naam) {
   var sinds = 0;
-  try { sinds = Number(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL)) || 0; } catch (e) { return false; }
-  var wacht = daglimietWachttijd(sinds, Date.now());
+  try { sinds = daglimietSinds(); } catch (e) { return false; }
+  var wacht = wachtVoorTaak(naam, sinds, Date.now());
   if (!wacht) return false;
   planTaak(naam, wacht);
   try { spreadsheet().toast('De daglimiet van Google voor vragen naar buiten is op. Deze taak gaat vanzelf verder over ' + Math.ceil(wacht / 3600000) + ' uur.', 'Madrigal', 15); } catch (e) { /* geen spreadsheet open */ }
@@ -117,7 +147,8 @@ function logboekEnTaken() {
   var stand = takenStand(taken, leesTabel('Catalogus').rijen, gepland, bezig);
   var blad = spreadsheet().getSheetByName('Logboek');
   var regels = blad && blad.getLastRow() > 1 ? laatsteLogregels(blad.getDataRange().getValues(), LOGBOEK_REGELS) : [];
-  return { ok: true, taken: stand, logboek: regels, daglimiet: Number(cache.get(DAGLIMIET_SLEUTEL)) || 0 };
+  var sinds = daglimietSinds();
+  return { ok: true, taken: stand, logboek: regels, daglimiet: daglimietWachttijd(sinds, Date.now()) ? sinds : 0 };
 }
 
 /** Actie beheerCoverLinks: per boek de link naar de cover, voor de kleine covers in de lijsten van het bestuursscherm. */

@@ -144,7 +144,7 @@ function zoekBeschrijvingenWikipedia() {
     stopAchtergrond('zoekBeschrijvingenWikipedia');
   }
   verwijderTriggers('zoekBeschrijvingenWikipedia');
-  if (rest > 0 && !vast) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((quotum ? 6 * 60 : wachten ? 15 : 1) * 60 * 1000).create();
+  if (rest > 0 && !vast) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after(quotum ? herstartNaDaglimiet('zoekBeschrijvingenWikipedia', DAGLIMIET_WACHT_MS) : (wachten ? 15 : 1) * 60 * 1000).create();
   if (gevonden) { leegCache(); planVertaling(2); }
   logboek('menu', 'zoekBeschrijvingenWikipedia', verwerkt + ' opgezocht, ' + gevonden + ' beschrijvingen gevonden, ' + rest + ' te gaan volgens de spreadsheet' +
     (fout ? ' (Wikipedia: ' + fout + ', later verder)' : '') + (nietBewaard ? ' (bewaren lukte ' + nietBewaard + ' keer niet: de spreadsheet was bezet)' : '') +
