@@ -404,10 +404,12 @@ var KOLOMMEN = {
 };
 
 /** Kolommen met een datum. Die schrijven we als echte datum in de spreadsheet. */
+
+// wiki_gezocht staat er bewust niet bij: die datum bewaren we als tekst (zie herstelKolom in Wikipedia.js).
 var DATUMKOLOMMEN = [
   'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
-  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
+  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
   'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
 ];
 
@@ -2277,8 +2279,9 @@ function herstelAfgebrokenBeschrijvingen() {
 
 /**
  * Een technische kolom hoort geen keuzelijst en geen samengevoegde cellen te hebben. Een regel
- * die er per ongeluk op terechtkwam, halen we weg. In een samengevoegde cel blijft enkel de
- * eerste cel bewaard: wat het script in de andere schrijft, verdwijnt. Die maken we los.
+ * die er per ongeluk op terechtkwam, halen we weg, samengevoegde cellen maken we los.
+ * De kolom krijgt de opmaak tekst: in deze kolom bleef een datum (als datum geschreven) nooit
+ * staan, gewone tekst wel. Daarom bewaren we de dag als tekst, bv. 2026-10-25.
  */
 function herstelKolom(tabel, naam) {
   var kolom = tabel.kop.indexOf(naam) + 1;
@@ -2286,6 +2289,7 @@ function herstelKolom(tabel, naam) {
   var bereik = tabel.blad.getRange(2, kolom, tabel.blad.getMaxRows() - 1, 1);
   bereik.clearDataValidations();
   bereik.getMergedRanges().forEach(function (m) { m.breakApart(); });
+  bereik.setNumberFormat('@');
 }
 
 /** Het hoogste exemplaarnummer dat nu uitgeleend of apart gelegd is. */
@@ -2527,7 +2531,7 @@ function installeer() {
   });
 
   // Tekstopmaak voor kolommen die tekst moeten blijven (ISBN, telefoon, lenersnummer).
-  zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id']);
+  zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id', 'wiki_gezocht']);
   zetTekstopmaak(ss.getSheetByName('Leners'), ['telefoon']);
 
   // Niet-publieke kolommen van de Catalogus grijs markeren.

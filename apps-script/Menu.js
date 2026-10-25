@@ -54,7 +54,7 @@ function installeer() {
   });
 
   // Tekstopmaak voor kolommen die tekst moeten blijven (ISBN, telefoon, lenersnummer).
-  zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id']);
+  zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id', 'wiki_gezocht']);
   zetTekstopmaak(ss.getSheetByName('Leners'), ['telefoon']);
 
   // Niet-publieke kolommen van de Catalogus grijs markeren.

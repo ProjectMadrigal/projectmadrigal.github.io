@@ -152,8 +152,9 @@ function zoekBeschrijvingenWikipedia() {
 
 /**
  * Een technische kolom hoort geen keuzelijst en geen samengevoegde cellen te hebben. Een regel
- * die er per ongeluk op terechtkwam, halen we weg. In een samengevoegde cel blijft enkel de
- * eerste cel bewaard: wat het script in de andere schrijft, verdwijnt. Die maken we los.
+ * die er per ongeluk op terechtkwam, halen we weg, samengevoegde cellen maken we los.
+ * De kolom krijgt de opmaak tekst: in deze kolom bleef een datum (als datum geschreven) nooit
+ * staan, gewone tekst wel. Daarom bewaren we de dag als tekst, bv. 2026-10-25.
  */
 function herstelKolom(tabel, naam) {
   var kolom = tabel.kop.indexOf(naam) + 1;
@@ -161,6 +162,7 @@ function herstelKolom(tabel, naam) {
   var bereik = tabel.blad.getRange(2, kolom, tabel.blad.getMaxRows() - 1, 1);
   bereik.clearDataValidations();
   bereik.getMergedRanges().forEach(function (m) { m.breakApart(); });
+  bereik.setNumberFormat('@');
 }
 
 /** Wat staat er echt in de cel wiki_gezocht van dit boek? Een datum als 2026-10-25, anders de tekst. */

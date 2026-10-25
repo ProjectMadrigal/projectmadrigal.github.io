@@ -1649,5 +1649,10 @@ test('Wikipedia: zoeken en eerste alinea in één antwoord', () => {
   assert.ok(M.wikiVraagUrl('nl', 'giovanni room baldwin').indexOf('https://nl.wikipedia.org/w/api.php?') === 0);
 });
 
+test('wiki_gezocht wordt als tekst bewaard, niet als datum', () => {
+  assert.strictEqual(M.celWaarde('wiki_gezocht', '2026-10-25'), '2026-10-25');
+  assert.ok(M.celWaarde('cover_gezocht', '2026-10-25') instanceof Date || Object.prototype.toString.call(M.celWaarde('cover_gezocht', '2026-10-25')) === '[object Date]');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
