@@ -47,6 +47,8 @@ var ACTIES = {
   voorstelBehandelen: 'bestuur',
   meldingMaken: 'vrijwilliger',
   meldingAfhandelen: 'bestuur',
+  briefjeMaken: 'vrijwilliger',
+  briefjeWeg: 'vrijwilliger',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
   // Beheer van de website (Beheer.js). Wat op 'vrijwilliger' staat, kan ook vanuit het vrijwilligersscherm.
@@ -263,6 +265,7 @@ function voerActieUit(actie, invoer, rol) {
     var wie = tekstInvoer(invoer.wie, 40) || 'onbekend';
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
     if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
+    if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {
       var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie, rol) : beheerInstellingBewaren(invoer, wie);
       if (gewijzigd.ok) leegCache();
@@ -281,11 +284,18 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.beschrijvingVoorstellen = openVoorstellen(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
         antwoord.data.meldingen = openMeldingen(tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : []);
         antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
+        antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(leesTabel('Onderwerpen').rijen));
         break;
       case 'vrijwilligerData':
-        antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) };
-        antwoord.data.voorgesteld = voorgesteldeBoeken(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
+        var onderwerpRijen = leesTabel('Onderwerpen').rijen;
+        var voorstelRijen = tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : [];
+        antwoord = { ok: true, data: vrijwilligerGegevens(staat, onderwerpRijen) };
+        antwoord.data.voorgesteld = voorgesteldeBoeken(voorstelRijen);
         antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
+        antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(onderwerpRijen));
+        antwoord.data.mijn = mijnBijdragen(voorstelRijen, tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : [], staat.wie, staat.vandaag);
         break;
       case 'voorstelBeschrijving':
       case 'voorstelBehandelen': antwoord = voorstelActie(staat, actie, invoer); break;

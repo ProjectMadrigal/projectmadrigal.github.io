@@ -36,10 +36,13 @@
     ['meldingen', 'Meldingen', function (vak) { V.meldingen(vak, context()); }, 'start'],
     ['shift', 'Checklist voor de shift', function (vak) { V.checklist(vak, context()); }, 'start', 'vrijwilliger'],
     ['melden', 'Iets melden', function (vak) { V.melden(vak, context()); }, 'start', 'vrijwilliger'],
+    ['mijn', 'Mijn voorstellen en meldingen', function (vak) { V.mijn(vak, context()); }, 'start', 'vrijwilliger'],
     ['telaat', 'Te laat', toonTeLaat, 'uitlenen', 'beide'],
     ['binnenkort', 'Vervalt binnenkort', toonBinnenkort, 'uitlenen', 'beide'],
     ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen', 'beide'],
     ['reservaties', 'Reservaties', toonReservaties, 'uitlenen', 'beide'],
+    ['terugzetten', 'Terug te zetten', function (vak) { V.terugzetten(vak, context()); }, 'uitlenen', 'beide'],
+    ['opzoeken', 'Boek opzoeken', function (vak) { V.opzoeken(vak, context()); }, 'uitlenen', 'vrijwilliger'],
     ['aanvragen', 'Aanvragen van de website', toonAanvragen, 'uitlenen'],
     ['leners', 'Leners', toonLeners, 'uitlenen'],
     ['borgen', 'Borgen en giften', toonBorgen, 'uitlenen'],
@@ -120,6 +123,7 @@
     if (naam === 'binnenkort') return data.binnenkort.length;
     if (naam === 'aanvragen') return (data.aanvragen || []).length;
     if (naam === 'meldingen') return (data.meldingen || []).length;
+    if (naam === 'terugzetten') return (data.vandaagTerug || []).length;
     if (naam === 'voorstellen') return (data.beschrijvingVoorstellen || []).length;
     return null;
   }
@@ -763,6 +767,7 @@
     D.vervang(vak, kop('Vandaag', 'Wat aandacht vraagt. Klik op Open om ernaartoe te gaan.'),
       VRIJWILLIGER ? V.welkomBlok(context()) : null,
       VRIJWILLIGER ? V.shiftBlok(context()) : null,
+      V.briefjes(context()),
       punten.length ? el('ul', { class: 'kaartlijst' }, punten.map(function (p) {
         return el('li', { class: 'kaart' + (p[4] ? ' ' + p[4] : '') }, el('p', {}, el('strong', { class: 'vandaag-getal' }, String(p[0])), ' ', p[1]),
           p[2] ? el('p', { class: 'hulptekst' }, p[2]) : null,
@@ -847,6 +852,9 @@
     cijfers: 'Uitleningen per maand, de meest geleende boeken, bezoekers van de website, en cijfers over leners en de collectie.',
     logboek: 'De achtergrondtaken die boeken opzoeken (Wikipedia, Google, covers) en de laatste regels van het Logboek. Staat een taak stil, start ze dan in de spreadsheet via het menu Madrigal.',
     rooster: 'Wie wanneer de bib openhoudt. Je beschikbaarheid geef je door in de roostertool.',
+    mijn: 'Je voorgestelde beschrijvingen en je meldingen van de laatste 60 dagen, met wat het bestuur ermee deed. Het scherm zoekt op de voornaam waarmee je aanmeldt.',
+    terugzetten: 'De boeken die vandaag terugkwamen, per onderwerp, zodat je weet in welke kast ze horen. Vink aan wat terug staat.',
+    opzoeken: 'Zoek een boek op titel, auteur, ISBN of boek-ID, of scan het ISBN. Je ziet hoeveel exemplaren er zijn, wanneer uitgeleende exemplaren terug moeten en hoeveel mensen wachten. Namen van leners zie je hier niet.',
     meldingen: 'Wat vrijwilligers via Iets melden doorgaven: een kapot boek, iets kwijt, een vraag van een lener. Volg op en klik op Afgehandeld.',
     shift: 'De punten om af te werken bij het openen en sluiten van de bib. Wat je afvinkt, onthoudt dit toestel tot het einde van de dag. Het bestuur past de punten aan bij Teksten en instellingen.',
     melden: 'Geef iets door aan het bestuur: een kapot boek, iets dat kwijt is, of een vraag van een lener die je niet kon beantwoorden.',

@@ -174,3 +174,106 @@ function meldingActie(actie, invoer, wie) {
   }
   return r;
 }
+
+/* ---------- Briefjes voor de volgende shift ---------- */
+
+var BRIEFJE_ZICHTBAAR_DAGEN = 14; // daarna verdwijnt een briefje vanzelf van Vandaag
+var BRIEFJE_BEWAREN_DAGEN = 60;   // daarna wist de privacy-opruiming het
+
+/** Een vrijwilliger laat een briefje achter voor de volgende shift. invoer: { tekst } */
+function maakBriefje(rijen, invoer, wie, vandaag, nieuwId) {
+  var tekst = schoonMetRegels(invoer.tekst).slice(0, 300);
+  if (tekst.length < 3) return { ok: false, fout: 'Schrijf kort wat de volgende shift moet weten.' };
+  voegToe(rijen, { briefje_id: nieuwId(), datum: vandaag, wie: tekstInvoer(wie, 40) || 'onbekend', tekst: tekst, status: 'open' });
+  return { ok: true, tekst: 'Je briefje staat bij Vandaag voor de volgende shift.' };
+}
+
+/** De briefjes die nog op Vandaag staan, nieuwste eerst. */
+function openBriefjes(rijen, vandaag) {
+  return (rijen || []).filter(function (b) {
+    var d = parseerDatum(b.datum);
+    return b.status === 'open' && d && dagenTussen(d, vandaag) <= BRIEFJE_ZICHTBAAR_DAGEN;
+  }).map(function (b) {
+    return { briefje_id: String(b.briefje_id), datum: parseerDatum(b.datum), wie: schoon(b.wie), tekst: schoonMetRegels(b.tekst) };
+  }).sort(function (a, b) { return b.datum.localeCompare(a.datum) || b.briefje_id.localeCompare(a.briefje_id); });
+}
+
+/** Iemand haalt een briefje weg (gelezen, opgelost). invoer: { briefje_id } */
+function briefjeWeg(rijen, invoer, wie, vandaag) {
+  var b = (rijen || []).filter(function (r) { return String(r.briefje_id) === String(invoer.briefje_id); })[0];
+  if (!b) return { ok: false, fout: 'Dit briefje bestaat niet meer.' };
+  wijzig(b, { status: 'weg', weg_door: tekstInvoer(wie, 40), datum_weg: vandaag });
+  return { ok: true, tekst: 'Het briefje is weg.' };
+}
+
+/** Privacy: briefjes ouder dan BRIEFJE_BEWAREN_DAGEN gaan weg, ook de open. */
+function ruimBriefjesOpRijen(rijen, vandaag) {
+  var n = 0;
+  (rijen || []).forEach(function (b) {
+    var d = parseerDatum(b.datum);
+    if (d && dagenTussen(d, vandaag) > BRIEFJE_BEWAREN_DAGEN) { markeerVerwijderen(b); n++; }
+  });
+  return n;
+}
+
+function ruimBriefjesOp() {
+  if (!spreadsheet().getSheetByName('Briefjes')) return 0;
+  var tabel = leesTabel('Briefjes');
+  var n = ruimBriefjesOpRijen(tabel.rijen, vandaagTekst());
+  if (n) bewaarTabel(tabel);
+  return n;
+}
+
+/** Acties briefjeMaken en briefjeWeg (binnen het slot). */
+function briefjeActie(actie, invoer, wie) {
+  var tabel = tabelOfLeeg('Briefjes');
+  if (!tabel) return { ok: false, fout: 'Het tabblad Briefjes ontbreekt nog. Vraag het bestuur om Madrigal > Installeer tabbladen uit te voeren.' };
+  var r = actie === 'briefjeMaken'
+    ? maakBriefje(tabel.rijen, invoer, wie, vandaagTekst(), nieuwIdVoor(tabel.rijen, 'briefje_id', 'briefje', 'N'))
+    : briefjeWeg(tabel.rijen, invoer, wie, vandaagTekst());
+  if (r.ok) {
+    bewaarTabel(tabel);
+    logboek(wie, actie === 'briefjeMaken' ? 'briefje' : 'briefje weg', actie === 'briefjeMaken' ? '' : String(invoer.briefje_id));
+  }
+  return r;
+}
+
+/* ---------- Mijn voorstellen en meldingen ---------- */
+
+var MIJN_DAGEN = 60; // zo ver kijkt "Mijn voorstellen en meldingen" terug
+
+/** Is deze naam van wie aangemeld is? Op de voornaam, zonder hoofdletters of accenten. */
+function zelfdeNaam(a, b) {
+  var x = normaliseerTekst(a).split(' ')[0], y = normaliseerTekst(b).split(' ')[0];
+  return !!x && x === y;
+}
+
+/**
+ * Wat deze vrijwilliger de laatste MIJN_DAGEN voorstelde en meldde, met de stand.
+ * Enkel titel, soort en onderwerp: niet de tekst van de melding zelf.
+ */
+function mijnBijdragen(voorstelRijen, meldingRijen, wie, vandaag) {
+  var recent = function (d) { d = parseerDatum(d); return !!d && dagenTussen(d, vandaag) <= MIJN_DAGEN; };
+  var nieuwsteEerst = function (a, b) { return b.datum.localeCompare(a.datum); };
+  return {
+    voorstellen: (voorstelRijen || []).filter(function (v) { return zelfdeNaam(v.voorgesteld_door, wie) && recent(v.datum); }).map(function (v) {
+      return { datum: parseerDatum(v.datum), titel: schoon(v.titel), status: schoon(v.status), datum_behandeld: parseerDatum(v.datum_behandeld) || '' };
+    }).sort(nieuwsteEerst),
+    meldingen: (meldingRijen || []).filter(function (m) { return zelfdeNaam(m.wie, wie) && recent(m.datum); }).map(function (m) {
+      return { datum: parseerDatum(m.datum), soort: schoon(m.soort), onderwerp: schoon(m.onderwerp), status: schoon(m.status), datum_afgehandeld: parseerDatum(m.datum_afgehandeld) || '' };
+    }).sort(nieuwsteEerst)
+  };
+}
+
+/* ---------- Terug te zetten ---------- */
+
+/** De boeken die vandaag terugkwamen, met hun onderwerp: zo weet je in welke kast ze horen. Zonder gegevens van leners. */
+function vandaagTerug(staat, vertaal) {
+  return staat.uitleningen.filter(function (u) { return parseerDatum(u.datum_terug) === staat.vandaag; }).map(function (u) {
+    var boek = boekVan(staat, u.boek_id);
+    var groepen = boek && vertaal ? filtergroepenVan(boek, vertaal) : [];
+    return { uitlening_id: String(u.uitlening_id), exemplaar: String(u.exemplaar || ''), boek_id: String(u.boek_id),
+      titel: boek ? schoon(boek.titel) : String(u.boek_id), auteur: boek ? schoon(boek.auteur) : '',
+      onderwerp: groepen[0] || (boek ? schoon(boek.genre) : '') || 'Zonder onderwerp', staat_terug: schoon(u.staat_terug) };
+  }).sort(function (a, b) { return a.onderwerp.localeCompare(b.onderwerp) || a.auteur.localeCompare(b.auteur); });
+}

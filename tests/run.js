@@ -1799,5 +1799,41 @@ test('bestuur bekijkt het vrijwilligersscherm met de rechten van een vrijwillige
   assert.strictEqual(M.magActie(M.rolVoorScherm('bestuur', 'vrijwilliger'), 'bestuurData'), false);
 });
 
+test('vrijwilligers: briefjes voor de volgende shift', () => {
+  const rijen = [];
+  let n = 0;
+  const id = () => 'N000' + (++n);
+  assert.strictEqual(M.maakBriefje(rijen, { tekst: '' }, 'Kim', '2026-10-20', id).ok, false);
+  assert.strictEqual(M.maakBriefje(rijen, { tekst: 'De printer is stuk.' }, 'Kim', '2026-10-08', id).ok, true);
+  assert.strictEqual(M.maakBriefje(rijen, { tekst: 'Boek ligt apart achter de balie.' }, 'Ilo', '2026-10-20', id).ok, true);
+  // Na 14 dagen niet meer op Vandaag.
+  gelijk(M.openBriefjes(rijen, '2026-10-23').map((b) => b.briefje_id), ['N0002']);
+  gelijk(M.openBriefjes(rijen, '2026-10-20').map((b) => b.briefje_id), ['N0002', 'N0001'], 'Nieuwste eerst');
+  assert.strictEqual(M.briefjeWeg(rijen, { briefje_id: 'N0002' }, 'Sam', '2026-10-23').ok, true);
+  gelijk(M.openBriefjes(rijen, '2026-10-23'), []);
+  assert.strictEqual(M.ruimBriefjesOpRijen(rijen, '2026-12-10'), 1);
+});
+
+test('vrijwilligers: mijn voorstellen en meldingen, en terug te zetten', () => {
+  const voorstellen = [
+    { voorstel_id: 'V0001', datum: '2026-10-20', titel: 'De verzonnen zee', voorgesteld_door: 'Kim', status: 'goedgekeurd', datum_behandeld: '2026-10-21' },
+    { voorstel_id: 'V0002', datum: '2026-10-20', titel: 'Stille lichten', voorgesteld_door: 'Ilo', status: 'nieuw' },
+    { voorstel_id: 'V0003', datum: '2026-01-01', titel: 'Oud', voorgesteld_door: 'Kim', status: 'afgekeurd' }
+  ];
+  const meldingen = [{ melding_id: 'M0001', datum: '2026-10-22', wie: 'kim', soort: 'boek kapot', onderwerp: 'B0001', bericht: 'Geheim', status: 'nieuw' }];
+  const m = M.mijnBijdragen(voorstellen, meldingen, 'Kim V.', '2026-10-23');
+  gelijk(m.voorstellen.map((v) => v.titel + ':' + v.status), ['De verzonnen zee:goedgekeurd']);
+  gelijk(m.meldingen.map((x) => x.soort + ':' + x.status), ['boek kapot:nieuw']);
+  assert.ok(JSON.stringify(m).indexOf('Geheim') === -1, 'De tekst van een melding hoort er niet bij');
+  // Terug te zetten: enkel wat vandaag terugkwam, zonder lener.
+  const s = maakStaat('2026-10-23');
+  uitleen(s, 'B0001-1', '1');
+  uitleen(s, 'B0003-1', '2');
+  M.terugbrengen(s, { uitlening_id: s.uitleningen[0].uitlening_id, staat_boek: 'in orde' });
+  const terug = M.vandaagTerug(s, M.vertaalTabel([{ genre: 'Roman', filtergroepen: 'Fictie' }]));
+  gelijk(terug.map((t) => t.exemplaar + ':' + t.onderwerp), ['B0001-1:Fictie']);
+  assert.ok(JSON.stringify(terug).indexOf('Sam') === -1 && !('lenersnummer' in terug[0]), 'Geen lener');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
