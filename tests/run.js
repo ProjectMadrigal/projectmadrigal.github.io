@@ -954,6 +954,29 @@ test('lopende uitleningen overnemen: één lener per persoon, twijfel apart', ()
   assert.strictEqual(r2.leners, 0);
 });
 
+test('oud uitleenblad: kolom A "ok" is terug, voorbeeldrij overgeslagen, herinnering "ok"', () => {
+  const s = maakStaat();
+  s.leners = [];
+  const waarden = [
+    ['', '', '', 'Uitleenblad', '', '', '', '', '', '', '', '', '', ''],
+    ['', 'Boek', '', 'Auteur', 'Voornaam', 'Achternaam', 'Telefoon', 'E-mail', 'datum ontlening', 'datum terug', 'Borg (cash/QR) ', 'Gift', 'reminder mail ', 'boek terug op...'],
+    ['vb. ', 'De verzonnen zee', '', 'Mira Verbeek', 'Voorbeeld', 'Persoon', '0470/00.00.01', '', '11/10/2023', '08/11/2023', 'QR', '', '', ''],
+    ['ok', 'Stille lichten', '', 'Noor Aerts', 'Robin', 'Testpersoon', '0470/00.00.07', '', '02/09/2026', '30/09/2026', 'QR', '', 'ok', ''],
+    ['nok', 'De verzonnen zee', '', 'Mira Verbeek', 'Lou', '', '', 'lou@voorbeeld.test', '02/09/2026', '30/09/2026', 'cash', '', 'ok', ''],
+    ['', 'Twee kasten vol', '', 'Rein Dewit', 'Sasha', '', '0470/00.00.09', '', '02/10/2026', '30/10/2026', 'cash', '', '', '']
+  ];
+  const rijen = M.leesOudeUitleningen(waarden);
+  gelijk(rijen.map((r) => r.boek), ['Stille lichten', 'De verzonnen zee', 'Twee kasten vol'], 'Voorbeeldrij overgeslagen');
+  const r = M.verwerkOudeUitleningen(s, rijen);
+  assert.strictEqual(r.uitleningen, 2, 'Enkel "nok" en leeg komen over');
+  gelijk(s.uitleningen.map((u) => u.boek_id), ['B0001', 'B0002']);
+  // "ok" bij de herinnering: de afgesproken terugbrengdatum als datum.
+  assert.strictEqual(s.uitleningen[0].laatste_herinnering, '2026-09-30');
+  assert.strictEqual(s.uitleningen[1].laatste_herinnering, '');
+  assert.ok(M.MELDING_SOORTEN.indexOf('wil iets kopen') > -1);
+  assert.ok(M.checklistPunten(instellingen({}).tekst_checklist_uitlenen).length === 3);
+});
+
 console.log('\nWebsite');
 
 test('startpagina: enkel publieke rijen, nieuwste nieuws, komend en vorig event, vragen op volgorde', () => {

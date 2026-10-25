@@ -23,7 +23,7 @@ var INSTELLING_GROEPEN = [
   ['Uitlenen: openingsdagen en -uren', ['openingsdagen', 'terugbrengdatum_op_openingsdag', 'gesloten_data', 'openingsuren', 'openingsuren_en']],
   ['Uitlenen: herinneringen', ['tekst_herinnering', 'tekst_herinnering_binnenkort']],
   ['Uitlenen: online reserveren', ['online_reserveren']],
-  ['Vrijwilligers: shift', ['tekst_checklist_openen', 'tekst_checklist_sluiten']],
+  ['Vrijwilligers: shift', ['tekst_checklist_openen', 'tekst_checklist_sluiten', 'tekst_checklist_uitlenen']],
   ['Vrijwilligers: rooster', ['rooster_link']],
   ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
   ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],

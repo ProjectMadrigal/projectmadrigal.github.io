@@ -12,7 +12,7 @@
 
 var VOORSTEL_NIEUW = 'nieuw';
 var MELDING_NIEUW = 'nieuw';
-var MELDING_SOORTEN = ['boek kapot', 'iets kwijt', 'vraag van een lener', 'andere'];
+var MELDING_SOORTEN = ['boek kapot', 'iets kwijt', 'vraag van een lener', 'wil iets kopen', 'andere'];
 var VOORSTEL_MIN_TEKENS = 40;
 
 /* ---------- Beschrijvingen voorstellen ---------- */

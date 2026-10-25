@@ -133,6 +133,7 @@
   var STAPPEN = [
     ['Welkom', 'Fijn dat je meehelpt! In dit scherm vind je alles wat je als vrijwilliger nodig hebt. Deze korte rondleiding toont de onderdelen. Je kan ze altijd opnieuw openen onderaan Vandaag.'],
     ['Vandaag', 'Vandaag toont wat aandacht vraagt: boeken die te laat zijn, reservaties die klaarliggen, wanneer jij op het rooster staat en briefjes van de vorige shift. Laat zelf een briefje achter als de volgende shift iets moet weten.'],
+    ['Aan de balie', 'Bij elke uitlening toont het uitleenscherm een korte checklist. Een boek met een rode bol leen je niet uit: dat lees je enkel in de bib. Steek een bladwijzer van Madrigal in het boek, met de terugbrengdatum. Vraag de borg per boek, cash in de kassa of via de QR-code. Wil iemand iets kopen? Gebruik Iets melden, dan neemt het bestuur contact op.'],
     ['Uitlenen', 'Uitlenen en terugbrengen doe je in het uitleenscherm (knop bovenaan). Hier zie je de lopende uitleningen, de reservaties en wat te laat is. Met Boek opzoeken beantwoord je vragen van leners. Terug te zetten toont welke boeken vandaag terugkwamen en in welke kast ze horen.'],
     ['Je shift', 'De checklist toont wat je doet bij het openen en het sluiten van de bib. In het rooster zie je wie wanneer staat. Je beschikbaarheid vul je in via de roostertool.'],
     ['Boeken aanvullen', 'Bij Boeken zonder cover neem je een foto van de voorkant. Bij Boeken zonder beschrijving stel je een tekst voor. Het bestuur keurt die goed voor ze op de website komt. Met Kastcontrole scan je een kast en zie je wat ontbreekt.'],
@@ -300,7 +301,8 @@
 
   /* ---------- Iets melden ---------- */
 
-  var SOORTEN = [['boek kapot', 'Een boek is kapot'], ['iets kwijt', 'Iets is kwijt'], ['vraag van een lener', 'Een vraag van een lener'], ['andere', 'Iets anders']];
+  var SOORTEN = [['boek kapot', 'Een boek is kapot'], ['iets kwijt', 'Iets is kwijt'], ['vraag van een lener', 'Een vraag van een lener'],
+    ['wil iets kopen', 'Iemand wil iets kopen'], ['andere', 'Iets anders']];
 
   function toonMelden(vak, ctx) {
     var fout = el('div', { 'aria-live': 'assertive' });
@@ -312,9 +314,16 @@
       })),
       el('div', { class: 'veld' }, el('label', { for: 'melden-onderwerp' }, 'Over wat gaat het? ', el('span', { class: 'hulptekst' }, '(mag leeg)')), onderwerp),
       el('div', { class: 'veld' }, el('label', { for: 'melden-bericht' }, 'Wat is er aan de hand?'), bericht,
-        el('p', { class: 'hulptekst' }, 'Schrijf geen telefoonnummers of mailadressen van leners. Een lenersnummer volstaat.')),
+        el('p', { class: 'hulptekst', id: 'melden-privacy' }, 'Schrijf geen telefoonnummers of mailadressen van leners. Een lenersnummer volstaat.')),
       fout,
       el('button', { type: 'submit', class: 'knop' }, 'Verstuur naar het bestuur'));
+    // Wil iemand iets kopen, dan heeft het bestuur een manier nodig om die persoon te contacteren.
+    formulier.addEventListener('change', function () {
+      var koop = formulier.querySelector('input[name="melden-soort"]:checked').value === 'wil iets kopen';
+      $('melden-privacy').textContent = koop
+        ? 'Schrijf wat de persoon wil kopen, de voornaam en een telefoonnummer of e-mailadres, als die daarmee akkoord gaat. Het bestuur neemt contact op. De melding wordt gewist na de bewaartermijn.'
+        : 'Schrijf geen telefoonnummers of mailadressen van leners. Een lenersnummer volstaat.';
+    });
     formulier.addEventListener('submit', function (e) {
       e.preventDefault();
       var knop = formulier.querySelector('button[type="submit"]');
