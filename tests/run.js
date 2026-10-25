@@ -997,11 +997,23 @@ test('oud uitleenblad: historiek met lener binnen de bewaartermijn, zonder lener
   gelijk([oud.boek_id, oud.lenersnummer, oud.datum_uit, oud.datum_terug], ['B0001', '', '2024-01-10', '2024-02-07'], 'Ouder dan 12 maanden: zonder lener');
   gelijk([recent.boek_id, recent.datum_terug, recent.borg_terugbetaald, recent.gift], ['B0003', '2026-07-03', '2026-07-03', 2], 'Zonder datum terug: de afgesproken datum');
   assert.ok(recent.lenersnummer && s.leners.length === 1 && s.leners[0].voornaam === 'Lou', 'Recent: met lener');
-  assert.strictEqual(M.verwerkOudeUitleningen(s, M.leesOudeUitleningen(waarden)).historiek, 0, 'Opnieuw: niets dubbel');
-  // In de cijfers: het boek telt mee, het voorbije jaar 1 actieve lener.
+  // Niet gevonden: in Na te kijken, met de vraag om het boek-ID.
+  gelijk([r.naTeKijken.length, r.naTeKijken[0].veld, r.naTeKijken[0].sleutel_extra], [1, 'historiek', 'oud blad rij 4']);
+  // Het bestuur kiest het boek in Na te kijken: daarna telt het mee.
+  const gekozen = M.gekozenOudeBoeken([
+    { bron: 'Overzetten', veld: 'historiek', boek_id: 'b0002', waarde_bron: 'Een boek dat niet bestaat / Niemand [oud blad rij 4]', afgehandeld: 'nee' },
+    { bron: 'Overzetten', veld: 'historiek', boek_id: 'B0001, B0002', waarde_bron: 'Twijfel [oud blad rij 9]', afgehandeld: 'nee' }
+  ]);
+  gelijk(gekozen, { 'oud blad rij 4': 'B0002' }, 'Enkel een enkel boek-ID telt');
+  const r2 = M.verwerkOudeUitleningen(s, M.leesOudeUitleningen(waarden), gekozen);
+  gelijk([r2.historiek, r2.nietGevonden], [1, 0], 'Opnieuw: enkel het gekozen boek erbij, niets dubbel');
+  assert.strictEqual(s.uitleningen[2].boek_id, 'B0002');
+  // Soepel voor de historiek: een iets andere titel met de juiste auteur.
+  assert.strictEqual(M.zoekBoekOpTitel(s.catalogus, 'De verzonnen zee (roman)', 'Mira Verbeek', true).zeker.boek_id, 'B0001');
+  // In de cijfers: de boeken tellen mee, het voorbije jaar 2 actieve leners.
   const c = M.bestuurCijfers(s, []);
-  assert.strictEqual(c.extraCijfers.afgesloten, 2);
-  assert.strictEqual(c.extraCijfers.actieveLeners, 1);
+  assert.strictEqual(c.extraCijfers.afgesloten, 3);
+  assert.strictEqual(c.extraCijfers.actieveLeners, 2);
 });
 
 console.log('\nWebsite');

@@ -80,8 +80,10 @@ function leesBorg(waarde, inst) {
 /**
  * Zoekt een boek in de Catalogus op titel en auteur.
  * Geeft { zeker: boek } of { twijfel: [boeken] } of {} terug.
+ * soepel (voor de historiek, enkel voor de cijfers): de beste kandidaat met de juiste auteur telt als zeker,
+ * ook bij een titel die wat verschilt of als het boek twee keer in de Catalogus staat.
  */
-function zoekBoekOpTitel(catalogus, titel, auteur) {
+function zoekBoekOpTitel(catalogus, titel, auteur, soepel) {
   var sleutel = titelSleutel(titel);
   var naam = achternaam(auteur);
   if (!sleutel) return {};
@@ -97,9 +99,28 @@ function zoekBoekOpTitel(catalogus, titel, auteur) {
   });
   var zeker = kandidaten.filter(function (k) { return k.score >= 0.95 && k.auteurOk; });
   if (zeker.length === 1) return { zeker: zeker[0].boek };
+  if (soepel && naam) {
+    var goed = kandidaten.filter(function (k) { return k.auteurOk; }).sort(function (a, b) { return b.score - a.score; });
+    if (goed.length) return { zeker: goed[0].boek };
+  }
   if (!kandidaten.length) return {};
   kandidaten.sort(function (a, b) { return b.score - a.score; });
   return { twijfel: kandidaten.slice(0, 3).map(function (k) { return k.boek; }) };
+}
+
+/**
+ * Boeken die het bestuur zelf koos in Na te kijken: een enkel boek-ID in de kolom boek_id bij een
+ * regel van de historiek. Geeft { 'oud blad rij 12': 'B0034' }.
+ */
+function gekozenOudeBoeken(naTeKijkenRijen) {
+  var uit = {};
+  (naTeKijkenRijen || []).forEach(function (r) {
+    if (r.bron !== 'Overzetten' || r.veld !== 'historiek' || jaNee(r.afgehandeld) === 'ja') return;
+    var m = String(r.waarde_bron || '').match(/\[(oud blad rij \d+)\]/);
+    var id = schoon(r.boek_id).toUpperCase();
+    if (m && /^[BZF]\d{4,}$/.test(id)) uit[m[1]] = id;
+  });
+  return uit;
 }
 
 /** De lener van een oude rij: een bestaande (zelfde e-mail of telefoon), of een nieuwe. */
@@ -127,9 +148,23 @@ function oudeLener(staat, o, teller) {
  * Een teruggebrachte uitlening uit het oude blad, voor de cijfers. Met de lener als ze binnen de
  * bewaartermijn terugkwam, anders zonder (zoals de privacy-opruiming het ook zou doen).
  */
-function verwerkOudeTerug(staat, o, bron, teller) {
-  var boek = zoekBoekOpTitel(staat.catalogus, o.boek, o.auteur).zeker;
-  if (!boek || !o.datum_uit) { teller.nietGevonden++; return; }
+function verwerkOudeTerug(staat, o, bron, teller, naTeKijken, gekozen) {
+  if (!o.datum_uit) { teller.nietGevonden++; return; }
+  // Koos het bestuur het boek zelf in Na te kijken (kolom boek_id)? Dan dat boek.
+  var gevonden = gekozen && gekozen[bron] ? { zeker: boekVan(staat, gekozen[bron]) } : zoekBoekOpTitel(staat.catalogus, o.boek, o.auteur, true);
+  var boek = gevonden.zeker;
+  if (!boek) {
+    teller.nietGevonden++;
+    naTeKijken.push({
+      boek_id: gevonden.twijfel ? gevonden.twijfel.map(function (b) { return b.boek_id; }).join(', ') : '',
+      titel: o.boek, veld: 'historiek',
+      waarde_catalogus: gevonden.twijfel ? gevonden.twijfel.map(function (b) { return b.titel + ' / ' + b.auteur; }).join(' | ') : '(geen boek gevonden)',
+      waarde_bron: o.boek + ' / ' + o.auteur,
+      opmerking: 'Teruggebracht, uitgeleend op ' + korteDatum(o.datum_uit) + '. Telt nog niet mee in de cijfers. Staat het boek in de Catalogus? Zet het juiste boek-ID in de kolom boek_id (één ID) en kies het menu-item opnieuw. Staat het er niet in? Zet afgehandeld op ja.',
+      sleutel_extra: bron
+    });
+    return;
+  }
   var terug = parseerDatum(o.terug_op) || o.datum_terug_afgesproken || o.datum_uit;
   if (terug < o.datum_uit) terug = o.datum_uit;
   var grens = telMaandenOp(staat.vandaag, -staat.inst.bewaartermijn_afgesloten_uitleningen_maanden);
@@ -151,7 +186,7 @@ function verwerkOudeTerug(staat, o, bron, teller) {
  * Verwerkt de oude rijen in de staat (zonder de spreadsheet aan te raken).
  * Geeft { uitleningen, historiek, nietGevonden, leners, naTeKijken } terug.
  */
-function verwerkOudeUitleningen(staat, oudeRijen) {
+function verwerkOudeUitleningen(staat, oudeRijen, gekozen) {
   var teller = { uitleningen: 0, historiek: 0, nietGevonden: 0, leners: 0 };
   var naTeKijken = [];
   var bekend = {};
@@ -160,7 +195,7 @@ function verwerkOudeUitleningen(staat, oudeRijen) {
   oudeRijen.forEach(function (o) {
     var bron = 'oud blad rij ' + o.rijnummer;
     if (bekend[bron]) return;
-    if (!isLeeg(o.terug_op)) { verwerkOudeTerug(staat, o, bron, teller); bekend[bron] = true; return; }
+    if (!isLeeg(o.terug_op)) { verwerkOudeTerug(staat, o, bron, teller, naTeKijken, gekozen); bekend[bron] = true; return; }
 
     // 1. De lener: bestaat die al (zelfde e-mail of telefoon)?
     var lener = oudeLener(staat, o, teller);
@@ -237,8 +272,15 @@ function neemUitleningenOver() {
   lock.waitLock(30000);
   try {
     var staat = laadStaat('overzetten', false);
-    var resultaat = verwerkOudeUitleningen(staat, rijen);
     var naTeKijken = leesTabel('Na te kijken');
+    var gekozen = gekozenOudeBoeken(naTeKijken.rijen);
+    var resultaat = verwerkOudeUitleningen(staat, rijen, gekozen);
+    // Wat via een gekozen boek-ID overkwam, is afgehandeld.
+    naTeKijken.rijen.forEach(function (r) {
+      var m = String(r.waarde_bron || '').match(/\[(oud blad rij \d+)\]/);
+      if (r.bron === 'Overzetten' && r.veld === 'historiek' && m && gekozen[m[1]] && jaNee(r.afgehandeld) !== 'ja' &&
+        staat.uitleningen.some(function (u) { return u.bron === m[1]; })) wijzig(r, { afgehandeld: 'ja' });
+    });
     var nieuw = voegNaTeKijkenToe(naTeKijken.rijen, resultaat.naTeKijken.map(function (x) {
       x.waarde_bron = x.waarde_bron + ' [' + x.sleutel_extra + ']';
       return x;
@@ -248,7 +290,7 @@ function neemUitleningenOver() {
     leegCache();
     logboek('menu', 'neemUitleningenOver', resultaat.uitleningen + ' lopend, ' + resultaat.historiek + ' historiek, ' + resultaat.nietGevonden + ' boeken niet gevonden, ' + resultaat.leners + ' leners, ' + nieuw + ' na te kijken');
     meld(resultaat.uitleningen + ' lopende uitleningen en ' + resultaat.historiek + ' teruggebrachte uitleningen overgenomen, ' + resultaat.leners + ' nieuwe leners aangemaakt. ' +
-      (resultaat.nietGevonden ? resultaat.nietGevonden + ' teruggebrachte boeken vond het script niet zeker in de Catalogus: die tellen niet mee in de cijfers. ' : '') +
+      (resultaat.nietGevonden ? resultaat.nietGevonden + ' teruggebrachte boeken vond het script niet in de Catalogus. Ze staan in "Na te kijken" (veld historiek): zet daar het juiste boek-ID en kies dit menu-item opnieuw. ' : '') +
       nieuw + ' twijfelgevallen staan in "Na te kijken". Vraag nieuwe leners bij hun volgende bezoek om toestemming voor de privacyverklaring (kolom toestemming_privacy staat op "onbekend").');
   } finally {
     lock.releaseLock();
