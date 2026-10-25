@@ -69,9 +69,16 @@ function antwoord(rol, actie, vraag) {
       lopend: [UITLENING, UITLENING2], aanvragen: [], uitzonderingen: [],
       leners: [{ lenersnummer: '12', voornaam: 'Sam', achternaam: 'Verzonnen', telefoon: '0400000000', email: '', actief: true, toestemming_privacy: 'ja', lopend: 1, datum_inschrijving: '2026-01-01' }],
       boekstatus: { verloren: [], gevoelig_verborgen: [], gevoelig_zichtbaar: [] }, borgen: { ingehouden: { totaal: 0, perBetaalwijze: {} }, terugTeBetalen: [] },
-      perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], meestGeleend: [], groepen: [], voorstellen: 1
+      perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], meestGeleend: [], groepen: [], voorstellen: 1,
+      privacy: 'Verzonnen privacyverklaring.',
+      extraCijfers: { nieuweLeners: [{ maand: 'oktober 2026', aantal: 2 }], nooitUitgeleend: 1, nooitVoorbeelden: [{ boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Aerts, Noor' }], gemiddeldeDagen: 17, afgesloten: 2, actieveLeners: 2 }
     }) },
-    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'] }, leners: [] }) },
+    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'] }, leners: [{ n: '12', v: 'Sam' }] }) },
+    nieuweLener: { ok: true, lenersnummer: '14', voornaam: 'Alex', tekst: 'Alex is ingeschreven met lenersnummer 14.' },
+    terugbrengen: { ok: true, tekst: '"De verzonnen zee" is terug.' },
+    verlengen: { ok: true, tekst: '"De verzonnen zee" is verlengd.' },
+    beheerBoekenBulk: { ok: true, gelukt: 1, fouten: [], tekst: '1 boek aangepast.' },
+    beheerBoekToevoegen: { ok: true, tekst: 'Toegevoegd als B0005.', boek: { boek_id: 'B0005' } },
     beheerInhoud: { ok: true, data: INHOUD },
     beheerBoekBewaren: { ok: true, tekst: 'Bewaard.' },
     herinneringVerstuurd: { ok: true },
@@ -354,6 +361,77 @@ async function meldAan(page, basis, pagina) {
     await page.evaluate(() => localStorage.setItem('madrigal_laatst_actief', String(Date.now() - 2 * 60 * 60 * 1000)));
     await page.reload();
     await page.waitForSelector('#app:not([hidden])');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('bestuursscherm: lener inschrijven, terugbrengen, verlengen, bulk, schenking, CSV, cijfers, weergave, uitleg', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    await meldAan(page, basis, 'bestuur.html');
+    // Uitleg per onderdeel
+    verwacht(await page.isVisible('#hulp summary:has-text("Hoe werkt dit?")'), 'Uitleg bij Vandaag');
+    // Donkere modus en grotere letters
+    await page.click('#thema-knop');
+    const thema1 = await page.getAttribute('html', 'data-theme');
+    await page.click('#thema-knop');
+    verwacht(thema1 !== await page.getAttribute('html', 'data-theme'), 'Thema wisselt');
+    await page.click('#letter-knop');
+    verwacht(await page.evaluate(() => document.documentElement.classList.contains('groot-lettertype')), 'Grotere letters');
+    await page.click('#letter-knop');
+    // Nieuwe lener
+    await page.click('#sectienav button:has-text("Leners")');
+    await page.click('button:has-text("+ Nieuwe lener")');
+    await page.fill('#nl-voornaam', 'Alex');
+    await page.fill('#nl-email', 'alex@voorbeeld.test');
+    await page.check('#nl-toestemming');
+    await page.click('button:has-text("Schrijf in")');
+    await page.waitForSelector('a:has-text("Meteen een boek uitlenen")');
+    verwacht(/balie\.html#uitlenen=14$/.test(await page.getAttribute('a:has-text("Meteen een boek uitlenen")', 'href')), 'Link naar uitlenen');
+    // Terugbrengen en verlengen
+    await page.click('button:has-text("Klaar")');
+    await page.click('#sectienav button:has-text("Alle uitleningen")');
+    await page.click('.kaart >> nth=0 >> button:has-text("Teruggebracht")');
+    await page.click('button:has-text("Bevestig: boek is terug")');
+    await page.waitForSelector('#melding :text("is terug")');
+    await page.click('#sectienav button:has-text("Alle uitleningen")');
+    await page.click('.kaart >> nth=0 >> button:has-text("Verleng")');
+    await page.waitForSelector('#melding :text("verlengd")');
+    // CSV van de catalogus
+    await page.click('#sectienav button:has-text("Boeken")');
+    const [download] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Download de catalogus (CSV)")')]);
+    const inhoud = fs.readFileSync(await download.path(), 'utf8');
+    verwacht(download.suggestedFilename() === 'catalogus.csv' && /boek_id;titel;auteur/.test(inhoud) && /De verzonnen zee/.test(inhoud), 'CSV: ' + inhoud.slice(0, 80));
+    // Meerdere boeken tegelijk
+    await page.click('button:has-text("Meerdere boeken tegelijk aanpassen")');
+    await page.fill('#bulk-zoek', 'zee');
+    await page.check('.vinklijst input[type="checkbox"] >> nth=0');
+    await page.fill('#bulk-waarde', 'Poëzie');
+    page.once('dialog', (d) => d.accept());
+    await page.click('button:has-text("Pas aan")');
+    await page.waitForSelector('#melding :text("1 boek aangepast")');
+    // Schenking boek na boek
+    await page.click('#sectienav button:has-text("Boeken")');
+    await page.click('button:has-text("Schenking invoeren")');
+    await page.fill('#reeks-herkomst', 'Schenking van een verzonnen naam');
+    await page.click('button:has-text("Start")');
+    verwacht(await page.inputValue('#bb-herkomst') === 'Schenking van een verzonnen naam', 'Herkomst ingevuld');
+    await page.fill('#bb-titel', 'Een verzonnen schenking');
+    await page.click('button:has-text("Voeg toe en volgend boek")');
+    await page.waitForSelector(':text("1 boek toegevoegd")');
+    verwacht(await page.inputValue('#bb-titel') === '', 'Leeg formulier voor het volgende boek');
+    await page.click('button:has-text("Stop de reeks")');
+    // Cijfers
+    await page.click('#sectienav button:has-text("Cijfers")');
+    verwacht(/Nooit uitgeleend[\s\S]*Stille lichten/.test(await page.textContent('#sectie')), 'Extra cijfers');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('uitleenscherm: vanuit het bestuursscherm meteen uitlenen aan een lener', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    await meldAan(page, basis, 'balie.html');
+    await page.goto('about:blank');
+    await page.goto(basis + '/balie.html#uitlenen=12');
+    await page.waitForSelector('text=Bevestig de uitlening');
+    verwacht(/Sam/.test(await page.textContent('#werkvlak')), 'Lener Sam staat klaar');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });

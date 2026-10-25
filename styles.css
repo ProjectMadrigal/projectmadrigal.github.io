@@ -623,3 +623,16 @@ fieldset.blok > legend { font-weight: 700; padding: 0 .3rem; }
 .scan-video { width: 100%; max-height: 55vh; background: #000; border-radius: .4rem; display: block; }
 .boek-overzicht summary { cursor: pointer; font-weight: 700; }
 .boek-overzicht h3 { margin: 1rem 0 .3rem; font-size: 1rem; }
+
+/* Bestuursscherm: grotere letters, uitleg per onderdeel, afdrukken van een lijst. */
+html.groot-lettertype { font-size: 118.75%; }
+.hulp { margin: 0 0 var(--ruimte); padding: .6rem .9rem; border: 1px solid var(--kleur-rand); border-radius: .4rem; background: var(--kleur-vlak); }
+.hulp summary { cursor: pointer; font-weight: 700; }
+.hulp p { margin: .5rem 0 0; }
+.afdruk { display: none; }
+@media print {
+  body.druk-lijst > *:not(#afdruk) { display: none !important; }
+  body.druk-lijst #afdruk { display: block; color: #000; background: #fff; }
+  #afdruk table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  #afdruk th, #afdruk td { border-bottom: 1px solid #999; padding: 3pt 4pt; text-align: left; }
+}
