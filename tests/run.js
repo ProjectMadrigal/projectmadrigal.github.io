@@ -1991,5 +1991,12 @@ test('films: export van IMDb of Letterboxd uit een tabblad', () => {
   assert.ok(/IMDb of Letterboxd/.test(M.daglimietFilmTekst(2 * 3600000)) && /2 uur/.test(M.daglimietFilmTekst(2 * 3600000)));
 });
 
+test('films: duur in een kolom met datumopmaak blijft het aantal minuten', () => {
+  // 96 in een cel met datumopmaak geeft in Apps Script een datum: 5 april 1900.
+  assert.strictEqual(M.datumNaarGetal(new Date(1900, 3, 5)), 96);
+  assert.strictEqual(M.datumNaarGetal(new Date(1900, 0, 1)), 2);
+  assert.ok(M.GETALKOLOMMEN.indexOf('duur') > -1);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

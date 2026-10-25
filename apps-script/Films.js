@@ -208,7 +208,7 @@ function neemFilmsOverUitTabblad() {
     if (tabel.kop.indexOf('imdb') === -1) { meld('De kolommen voor films ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
     var ids = maakIdGenerator(tabel.rijen);
     aantal = voegFilmsToe(tabel.rijen, films, vandaagTekst(), ids.nieuw);
-    if (aantal) { bewaarTabel(tabel); ids.bewaar(); }
+    if (aantal) { bewaarTabel(tabel); ids.bewaar(); zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['duur']); }
   } finally {
     lock.releaseLock();
   }
@@ -384,7 +384,7 @@ function haalLetterboxdLijst() {
     if (tabel.kop.indexOf('letterboxd') === -1) { meld('De kolommen voor films ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
     var ids = maakIdGenerator(tabel.rijen);
     aantal = voegFilmsToe(tabel.rijen, films, vandaagTekst(), ids.nieuw);
-    if (aantal) { bewaarTabel(tabel); ids.bewaar(); }
+    if (aantal) { bewaarTabel(tabel); ids.bewaar(); zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['duur']); }
   } finally {
     lock.releaseLock();
   }

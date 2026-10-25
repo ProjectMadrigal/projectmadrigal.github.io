@@ -62,6 +62,14 @@ var KOLOMMEN = {
   'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek', 'zichtbaar_vanaf', 'zichtbaar_tot']
 };
 
+/** Kolommen met een getal. Staat er per ongeluk datumopmaak op, dan leest leesTabel toch het getal. */
+var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal'];
+
+/** Het getal achter een datum in de spreadsheet: het aantal dagen sinds 30 december 1899. */
+function datumNaarGetal(d) {
+  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+}
+
 /** Kolommen met een datum. Die schrijven we als echte datum in de spreadsheet. */
 // wiki_gezocht staat er bewust niet bij: die datum bewaren we als tekst (zie herstelKolom in Wikipedia.js).
 var DATUMKOLOMMEN = [
@@ -103,7 +111,9 @@ function leesTabel(naam) {
     for (var k = 0; k < kop.length; k++) {
       if (!kop[k]) continue;
       var w = waarden[r][k];
-      if (isDatumObject(w)) w = parseerDatum(w);
+      // Een getal in een kolom met datumopmaak (96 minuten wordt 5/4/1900): terug naar het getal.
+      if (isDatumObject(w) && GETALKOLOMMEN.indexOf(kop[k]) > -1) w = datumNaarGetal(w);
+      else if (isDatumObject(w)) w = parseerDatum(w);
       // Een datum die iemand als tekst typte (20/11/2026), ook omzetten.
       else if (typeof w === 'string' && w && DATUMKOLOMMEN.indexOf(kop[k]) > -1) w = parseerDatum(w) || w;
       if (!isLeeg(w)) leeg = false;
