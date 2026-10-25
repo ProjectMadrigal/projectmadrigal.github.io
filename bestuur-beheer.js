@@ -111,6 +111,10 @@
   ];
 
   var vanLijst = ''; // kwam je van de lijst zonder cover ('cover') of zonder beschrijving ('beschrijving')? Dan gaat "Terug" daarheen.
+  var lijstBoeken = []; // de boeken van die lijst, in dezelfde volgorde en met de zoekterm: voor Vorig en Volgend boek
+  var LIJST_STAP = 100; // zoveel boeken toont een lijst per keer
+  // Per lijst: de zoekterm, hoeveel boeken je ziet en welk boek je laatst opende. Zo kom je terug waar je was.
+  var lijstStand = { cover: { q: '', aantal: LIJST_STAP, laatste: '' }, beschrijving: { q: '', aantal: LIJST_STAP, laatste: '' } };
 
   /** Terug: in het vrijwilligersscherm naar de lijst zonder cover, anders naar Boeken. */
   function naarBoeken(vak, ctx) {
@@ -124,8 +128,31 @@
   function coverToevoegen(vak, ctx, b) {
     D.vervang(vak, ctx.kop(b.t, [b.a, b.id].filter(Boolean).join(' · ')),
       fotoBlok({ boek_id: b.id }, null, ctx),
-      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Terug naar de lijst zonder cover')));
+      knoppen.apply(null, bladerKnoppen(vak, ctx, b.id).concat(
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Terug naar de lijst zonder cover'))));
     vak.querySelector('h2').focus();
+  }
+
+  /** Het boek voor (-1) of na (+1) dit boek in de lijst waar je vandaan komt, of null. */
+  function buurBoek(id, richting) {
+    if (!vanLijst) return null;
+    var i = lijstBoeken.map(function (b) { return b.id; }).indexOf(String(id));
+    return i === -1 ? null : lijstBoeken[i + richting] || null;
+  }
+
+  /** Opent een boek uit een lijst: vrijwilligers voegen een cover toe, het bestuur krijgt het hele formulier. */
+  function openUitLijst(vak, ctx, b) {
+    if (lijstStand[vanLijst]) lijstStand[vanLijst].laatste = b.id;
+    if (ctx.scherm === 'vrijwilliger') coverToevoegen(vak, ctx, b); else bewerkBoek(vak, ctx, b.id);
+  }
+
+  /** Vorig boek en Volgend boek, zonder te bewaren. Enkel als je uit een lijst komt. */
+  function bladerKnoppen(vak, ctx, id) {
+    var vorig = buurBoek(id, -1), volgend = buurBoek(id, 1);
+    return [
+      vorig ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { openUitLijst(vak, ctx, vorig); } }, '‹ Vorig boek') : null,
+      volgend ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { openUitLijst(vak, ctx, volgend); } }, 'Volgend boek ›') : null
+    ].filter(Boolean);
   }
 
   function terugNaarLijst(vak, ctx) {
@@ -214,54 +241,61 @@
   }
 
   /** Alle boeken zonder cover, alfabetisch: handig om met je gsm langs de kasten te gaan en foto's te nemen. */
-  function toonZonderCover(vak, ctx) {
-    vanLijst = 'cover';
-    var lijst = (ctx.data.boeken || []).filter(function (b) { return !b.c; })
-      .sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
-    var filter = el('input', { type: 'search', id: 'zonder-cover-zoek', autocomplete: 'off', placeholder: 'Titel, auteur of boek-ID' });
-    var vakLijst = el('div', { 'aria-live': 'polite' });
-    function teken() {
-      var q = Z.normaliseer(filter.value);
-      var zichtbaar = lijst.filter(function (b) { return !q || Z.normaliseer([b.t, b.a, b.id].join(' ')).indexOf(q) > -1; }).slice(0, 100);
-      D.vervang(vakLijst, zichtbaar.length ? el('ul', { class: 'kaartlijst' }, zichtbaar.map(function (b) {
-        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () {
-          if (ctx.scherm === 'vrijwilliger') coverToevoegen(vak, ctx, b); else bewerkBoek(vak, ctx, b.id);
-        } }, el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · '))));
-      })) : el('p', {}, lijst.length ? 'Geen boek gevonden.' : 'Alle boeken hebben een cover.'));
-    }
-    filter.addEventListener('input', teken);
-    var vrijwilliger = ctx.scherm === 'vrijwilliger';
-    var onder = vrijwilliger
-      ? knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek covers automatisch op het internet'))
-      : knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken'));
-    D.vervang(vak, ctx.kop('Boeken zonder cover (' + lijst.length + ')', 'Kies een boek en neem een foto van de cover met je gsm. Tip: leg het boek op een effen achtergrond, met goed licht en zonder schaduw.'),
-      vrijwilliger ? onder : null,
-      el('div', { class: 'veld' }, el('label', { for: 'zonder-cover-zoek' }, 'Zoek in deze lijst'), filter), vakLijst,
-      vrijwilliger ? null : onder);
-    teken();
-  }
+  function toonZonderCover(vak, ctx) { toonLijst(vak, ctx, 'cover'); }
 
   /** Alle boeken zonder beschrijving, alfabetisch. Kies een boek om de beschrijving in te vullen of de achterkant te laten lezen. */
-  function toonZonderBeschrijving(vak, ctx) {
-    vanLijst = 'beschrijving';
-    var lijst = (ctx.data.boeken || []).filter(function (b) { return b.zb; })
+  function toonZonderBeschrijving(vak, ctx) { toonLijst(vak, ctx, 'beschrijving'); }
+
+  /**
+   * De lijst zonder cover of zonder beschrijving. Toont telkens 100 boeken meer met de knop onderaan.
+   * Kom je terug uit een boek, dan staan de zoekterm en het aantal zoals je ze liet, en sta je bij dat boek.
+   */
+  function toonLijst(vak, ctx, soort) {
+    vanLijst = soort;
+    var cover = soort === 'cover';
+    var stand = lijstStand[soort];
+    var alle = (ctx.data.boeken || []).filter(function (b) { return cover ? !b.c : b.zb; })
       .sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
-    var filter = el('input', { type: 'search', id: 'zonder-beschrijving-zoek', autocomplete: 'off', placeholder: 'Titel, auteur of boek-ID' });
+    var filterId = cover ? 'zonder-cover-zoek' : 'zonder-beschrijving-zoek';
+    var filter = el('input', { type: 'search', id: filterId, autocomplete: 'off', placeholder: 'Titel, auteur of boek-ID' });
+    filter.value = stand.q;
     var vakLijst = el('div', { 'aria-live': 'polite' });
     function teken() {
-      var q = Z.normaliseer(filter.value);
-      var zichtbaar = lijst.filter(function (b) { return !q || Z.normaliseer([b.t, b.a, b.id].join(' ')).indexOf(q) > -1; }).slice(0, 100);
+      var q = Z.normaliseer(stand.q);
+      lijstBoeken = alle.filter(function (b) { return !q || Z.normaliseer([b.t, b.a, b.id].join(' ')).indexOf(q) > -1; });
+      var zichtbaar = lijstBoeken.slice(0, stand.aantal);
+      var rest = lijstBoeken.length - zichtbaar.length;
       D.vervang(vakLijst, zichtbaar.length ? el('ul', { class: 'kaartlijst' }, zichtbaar.map(function (b) {
-        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { bewerkBoek(vak, ctx, b.id); } },
+        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', 'data-id': b.id, onclick: function () { openUitLijst(vak, ctx, b); } },
           el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · '))));
-      })) : el('p', {}, lijst.length ? 'Geen boek gevonden.' : 'Alle boeken hebben een beschrijving.'));
+      })) : el('p', {}, alle.length ? 'Geen boek gevonden.' : cover ? 'Alle boeken hebben een cover.' : 'Alle boeken hebben een beschrijving.'),
+      rest > 0 ? el('p', {}, zichtbaar.length + ' van ' + lijstBoeken.length + ' boeken getoond.') : null,
+      rest > 0 ? knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+        var eerste = stand.aantal;
+        stand.aantal += LIJST_STAP;
+        teken();
+        // De focus naar het eerste nieuwe boek, zodat je verder kan zonder te zoeken.
+        var knop = vakLijst.querySelectorAll('.kaartlijst button')[eerste];
+        if (knop) knop.focus();
+      } }, 'Toon er nog ' + Math.min(LIJST_STAP, rest))) : null);
     }
-    filter.addEventListener('input', teken);
-    D.vervang(vak, ctx.kop('Boeken zonder beschrijving (' + lijst.length + ')', 'Kies een boek. Typ de beschrijving in het veld Beschrijving, of neem een foto van de achterkant: de site leest de tekst voor je. Wil je eerst Google laten zoeken? Gebruik dan de knop hieronder.'),
-      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek beschrijvingen automatisch op het internet')),
-      el('div', { class: 'veld' }, el('label', { for: 'zonder-beschrijving-zoek' }, 'Zoek in deze lijst'), filter), vakLijst,
-      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+    filter.addEventListener('input', function () { stand.q = filter.value; stand.aantal = LIJST_STAP; teken(); });
+    var vrijwilliger = ctx.scherm === 'vrijwilliger';
+    var zoekKnop = knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } },
+      cover ? 'Zoek covers automatisch op het internet' : 'Zoek beschrijvingen automatisch op het internet'));
+    var terug = vrijwilliger ? null : knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken'));
+    var uitleg = cover
+      ? 'Kies een boek en neem een foto van de cover met je gsm. Tip: leg het boek op een effen achtergrond, met goed licht en zonder schaduw. Met Volgend boek ga je meteen verder.'
+      : 'Kies een boek. Typ de beschrijving in het veld Beschrijving, of neem een foto van de achterkant: de site leest de tekst voor je. Met Bewaar en volgend boek ga je meteen verder. Wil je eerst Google laten zoeken? Gebruik dan de knop hieronder.';
+    D.vervang(vak, ctx.kop((cover ? 'Boeken zonder cover (' : 'Boeken zonder beschrijving (') + alle.length + ')', uitleg),
+      cover && !vrijwilliger ? null : zoekKnop,
+      el('div', { class: 'veld' }, el('label', { for: filterId }, 'Zoek in deze lijst'), filter), vakLijst, terug);
     teken();
+    // Terug uit een boek: meteen bij dat boek (of het boek erna, als het intussen uit de lijst is).
+    if (stand.laatste) {
+      var knop = vakLijst.querySelector('[data-id="' + stand.laatste + '"]');
+      if (knop) { knop.focus(); knop.scrollIntoView({ block: 'center' }); }
+    }
   }
 
   /** Verkleint een foto in de browser (standaard tot hoogstens 600 pixels) en geeft een JPG terug (base64). */
@@ -412,13 +446,33 @@
     var cover = coverVeld ? huidigeCover(coverVeld) : null;
     var beschrijvingVeld = velden.filter(function (v) { return v.naam === 'beschrijving'; })[0];
     var achterkant = beschrijvingVeld ? achterkantBlok(beschrijvingVeld) : null;
+    var volgend = nieuw ? null : buurBoek(boek.boek_id, 1);
+    var bewaarVolgend = volgend ? el('button', { type: 'button', class: 'knop', onclick: function () { verstuur(false, true); } }, 'Bewaar en volgend boek ›') : null;
     var formulier = el('form', { novalidate: true }, cover, opzoeken, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
-      fout, knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, terugNaarLijstTekst())));
+      fout, knoppen.apply(null, [bewaar, bewaarVolgend].concat(nieuw ? [] : bladerKnoppen(vak, ctx, boek.boek_id),
+        [el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, terugNaarLijstTekst())]).filter(Boolean)));
 
-    function verstuur(toch) {
+    /** Na het bewaren: de korte lijst van het bestuursscherm bijwerken, zonder alles opnieuw te laden. */
+    function werkLijstBij() {
+      var waarde = function (naam) { var v = velden.filter(function (x) { return x.naam === naam; })[0]; return v ? v.lees() : ''; };
+      (ctx.data.boeken || []).forEach(function (b) {
+        if (b.id !== String(boek.boek_id)) return;
+        b.t = waarde('titel') || b.t;
+        b.a = waarde('auteur');
+        b.c = !!waarde('cover_url');
+        if (waarde('beschrijving')) delete b.zb; else b.zb = true;
+      });
+      velden.forEach(function (v) { v.oud = v.lees(); });
+    }
+
+    function verstuur(toch, daarnaVolgend) {
       var invoer = nieuw ? { velden: gewijzigd(velden, true), herkomst: herkomst.lees(), toch: toch === true } : { boek_id: boek.boek_id, velden: gewijzigd(velden, false) };
-      if (!nieuw && !Object.keys(invoer.velden).length) { B.melding(fout, 'ok', 'Er is niets veranderd.'); return; }
-      var klaar = bezig(bewaar, 'Bezig met bewaren...');
+      if (!nieuw && !Object.keys(invoer.velden).length) {
+        if (daarnaVolgend) { openUitLijst(vak, ctx, volgend); return; }
+        B.melding(fout, 'ok', 'Er is niets veranderd.');
+        return;
+      }
+      var klaar = bezig(daarnaVolgend ? bewaarVolgend : bewaar, 'Bezig met bewaren...');
       B.voerUit(nieuw ? 'beheerBoekToevoegen' : 'beheerBoekBewaren', invoer).then(function (r) {
         klaar();
         if (!r.ok) {
@@ -429,7 +483,11 @@
           return;
         }
         B.melding($('melding'), 'ok', r.tekst);
-        ctx.laad();
+        if (nieuw) { ctx.laad(); return; }
+        // Een bestaand boek: je blijft hier (of gaat naar het volgende boek), en de lijsten kloppen meteen.
+        werkLijstBij();
+        if (daarnaVolgend) { openUitLijst(vak, ctx, volgend); return; }
+        B.melding(fout, 'ok', r.tekst);
       });
     }
     formulier.addEventListener('submit', function (e) { e.preventDefault(); verstuur(false); });
