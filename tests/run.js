@@ -970,12 +970,38 @@ test('oud uitleenblad: kolom A "ok" is terug, voorbeeldrij overgeslagen, herinne
   gelijk(rijen.map((r) => r.boek), ['Stille lichten', 'De verzonnen zee', 'Twee kasten vol'], 'Voorbeeldrij overgeslagen');
   const r = M.verwerkOudeUitleningen(s, rijen);
   assert.strictEqual(r.uitleningen, 2, 'Enkel "nok" en leeg komen over');
-  gelijk(s.uitleningen.map((u) => u.boek_id), ['B0001', 'B0002']);
+  const lopend = s.uitleningen.filter((u) => !u.datum_terug);
+  gelijk(lopend.map((u) => u.boek_id), ['B0001', 'B0002']);
   // "ok" bij de herinnering: de afgesproken terugbrengdatum als datum.
-  assert.strictEqual(s.uitleningen[0].laatste_herinnering, '2026-09-30');
-  assert.strictEqual(s.uitleningen[1].laatste_herinnering, '');
+  assert.strictEqual(lopend[0].laatste_herinnering, '2026-09-30');
+  assert.strictEqual(lopend[1].laatste_herinnering, '');
+  // De rij met "ok" in kolom A komt mee als historiek (teruggebracht).
+  assert.strictEqual(r.historiek, 1);
+  assert.strictEqual(s.uitleningen.find((u) => u.boek_id === 'B0003').datum_terug, '2026-09-30');
   assert.ok(M.MELDING_SOORTEN.indexOf('wil iets kopen') > -1);
   assert.ok(M.checklistPunten(instellingen({}).tekst_checklist_uitlenen).length === 3);
+});
+
+test('oud uitleenblad: historiek met lener binnen de bewaartermijn, zonder lener daarvoor', () => {
+  const s = maakStaat('2026-10-25');
+  s.leners = [];
+  const waarden = [
+    ['', 'Boek', '', 'Auteur', 'Voornaam', 'Achternaam', 'Telefoon', 'E-mail', 'datum ontlening', 'datum terug', 'Borg (cash/QR)', 'Gift', 'reminder mail', 'boek terug op...'],
+    ['ok', 'De verzonnen zee', '', 'Mira Verbeek', 'Robin', '', '', 'robin@voorbeeld.test', '10/01/2024', '07/02/2024', 'QR', '', '', '07/02/2024'],
+    ['ok', 'Stille lichten', '', 'Noor Aerts', 'Lou', '', '', 'lou@voorbeeld.test', '05/06/2026', '03/07/2026', 'cash', '2', '', ''],
+    ['ok', 'Een boek dat niet bestaat', '', 'Niemand', 'Sasha', '', '', 'sasha@voorbeeld.test', '05/06/2026', '03/07/2026', '', '', '', '']
+  ];
+  const r = M.verwerkOudeUitleningen(s, M.leesOudeUitleningen(waarden));
+  gelijk([r.uitleningen, r.historiek, r.nietGevonden, r.leners], [0, 2, 1, 1]);
+  const [oud, recent] = s.uitleningen;
+  gelijk([oud.boek_id, oud.lenersnummer, oud.datum_uit, oud.datum_terug], ['B0001', '', '2024-01-10', '2024-02-07'], 'Ouder dan 12 maanden: zonder lener');
+  gelijk([recent.boek_id, recent.datum_terug, recent.borg_terugbetaald, recent.gift], ['B0003', '2026-07-03', '2026-07-03', 2], 'Zonder datum terug: de afgesproken datum');
+  assert.ok(recent.lenersnummer && s.leners.length === 1 && s.leners[0].voornaam === 'Lou', 'Recent: met lener');
+  assert.strictEqual(M.verwerkOudeUitleningen(s, M.leesOudeUitleningen(waarden)).historiek, 0, 'Opnieuw: niets dubbel');
+  // In de cijfers: het boek telt mee, het voorbije jaar 1 actieve lener.
+  const c = M.bestuurCijfers(s, []);
+  assert.strictEqual(c.extraCijfers.afgesloten, 2);
+  assert.strictEqual(c.extraCijfers.actieveLeners, 1);
 });
 
 console.log('\nWebsite');

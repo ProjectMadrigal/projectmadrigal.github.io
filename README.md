@@ -41,7 +41,7 @@ Daarnaast is er een **handleiding van één pagina** voor de balie, om af te dru
 1. [De spreadsheet en het script installeren](#c1-de-spreadsheet-en-het-script-installeren)
 2. [De catalogus opbouwen](#c2-de-catalogus-opbouwen)
 3. [De vertaaltabel Onderwerpen nakijken](#c3-de-vertaaltabel-onderwerpen-nakijken)
-4. [Lopende uitleningen overnemen uit het oude uitleenblad](#c4-lopende-uitleningen-overnemen-uit-het-oude-uitleenblad)
+4. [Uitleningen overnemen uit het oude uitleenblad](#c4-uitleningen-overnemen-uit-het-oude-uitleenblad)
 5. [Het script publiceren als web-app](#c5-het-script-publiceren-als-web-app)
 6. [De website online zetten met GitHub Pages](#c6-de-website-online-zetten-met-github-pages)
 7. [Nieuws, agenda en vragen overnemen van de oude website](#c7-nieuws-agenda-en-vragen-overnemen-van-de-oude-website)
@@ -542,13 +542,13 @@ Het tabblad **Onderwerpen** vertaalt elk genre uit de stocklijst naar een of mee
 - Een nieuwe filtergroep maken? Typ een nieuwe naam in de kolom `filtergroepen`. Ze verschijnt vanzelf op de website.
 - Komen er nieuwe genres bij? Kies **Madrigal > Boeken > Werk de vertaaltabel Onderwerpen bij**.
 
-## C4. Lopende uitleningen overnemen uit het oude uitleenblad
+## C4. Uitleningen overnemen uit het oude uitleenblad
 
-Neem **enkel de lopende uitleningen** over. De historiek blijft in het oude blad.
+Het script neemt de lopende uitleningen over, en ook de historiek (voor de cijfers). Teruggebrachte uitleningen van de laatste 12 maanden komen mee met de lener, oudere zonder lener: enkel het boek en de datums, zoals de privacy-opruiming het ook zou bewaren.
 
 1. Kies een vaste datum waarop het papieren en het oude digitale uitleenblad stoppen. Spreek die af met het bestuur en de vrijwilligers.
 2. Zorg dat het oude blad bijgewerkt is: elk teruggebracht boek heeft een datum in "boek terug op...".
-3. Kies **Madrigal > Eenmalig bij de start > Neem lopende uitleningen over**, plak de link naar het oude uitleenblad en klik op **OK**.
+3. Kies **Madrigal > Eenmalig bij de start > Neem de uitleningen over (lopend en historiek)**, plak de link naar het oude uitleenblad en klik op **OK**.
 4. Het script neemt enkel rijen zonder terugbrengdatum over, zoekt het boek op titel en auteur, maakt per persoon één lener aan, en neemt de borg, de betaalwijze, de terugbrengdatum en de laatste herinnering mee.
 5. Kijk **Na te kijken** na (bron "Overzetten") en registreer die uitleningen zelf via het uitleenscherm.
 6. Overgenomen leners hebben `toestemming_privacy = onbekend`. Vraag hun toestemming bij het volgende bezoek en zet dan **ja** in het tabblad Leners.

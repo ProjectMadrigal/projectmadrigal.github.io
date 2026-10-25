@@ -4372,8 +4372,8 @@ function neemRoosterOverUitTabbladen() {
 /** Menu: vraagt de link naar het oude blad en neemt de lopende uitleningen over. */
 function neemUitleningenOver() {
   var ui = SpreadsheetApp.getUi();
-  var vraag = ui.prompt('Lopende uitleningen overnemen',
-    'Plak de link naar het oude digitale uitleenblad (de Google-spreadsheet). Enkel boeken die nog niet terug zijn, komen mee.',
+  var vraag = ui.prompt('Uitleningen overnemen',
+    'Plak de link naar het oude digitale uitleenblad (de Google-spreadsheet). De lopende uitleningen en de historiek komen mee. Opnieuw uitvoeren maakt niets dubbel.',
     ui.ButtonSet.OK_CANCEL);
   if (vraag.getSelectedButton() !== ui.Button.OK) return;
   var link = schoon(vraag.getResponseText());
@@ -4408,8 +4408,9 @@ function neemUitleningenOver() {
     bewaarStaat(staat);
     bewaarTabel(naTeKijken);
     leegCache();
-    logboek('menu', 'neemUitleningenOver', resultaat.uitleningen + ' uitleningen, ' + resultaat.leners + ' leners, ' + nieuw + ' na te kijken');
-    meld(resultaat.uitleningen + ' lopende uitleningen overgenomen, ' + resultaat.leners + ' nieuwe leners aangemaakt. ' +
+    logboek('menu', 'neemUitleningenOver', resultaat.uitleningen + ' lopend, ' + resultaat.historiek + ' historiek, ' + resultaat.nietGevonden + ' boeken niet gevonden, ' + resultaat.leners + ' leners, ' + nieuw + ' na te kijken');
+    meld(resultaat.uitleningen + ' lopende uitleningen en ' + resultaat.historiek + ' teruggebrachte uitleningen overgenomen, ' + resultaat.leners + ' nieuwe leners aangemaakt. ' +
+      (resultaat.nietGevonden ? resultaat.nietGevonden + ' teruggebrachte boeken vond het script niet zeker in de Catalogus: die tellen niet mee in de cijfers. ' : '') +
       nieuw + ' twijfelgevallen staan in "Na te kijken". Vraag nieuwe leners bij hun volgende bezoek om toestemming voor de privacyverklaring (kolom toestemming_privacy staat op "onbekend").');
   } finally {
     lock.releaseLock();
@@ -4634,7 +4635,7 @@ function onOpen() {
     .addSubMenu(ui.createMenu('Eenmalig bij de start')
       .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
       .addItem('Vul aan uit Goodreads', 'vulAanUitGoodreads')
-      .addItem('Neem lopende uitleningen over', 'neemUitleningenOver')
+      .addItem('Neem de uitleningen over (lopend en historiek)', 'neemUitleningenOver')
       .addItem('Neem nieuws, agenda en vragen over', 'importeerOudeSite')
       .addItem('Neem een oud rooster over uit de tabbladen (een tabblad per maand)', 'neemRoosterOverUitTabbladen')
       .addSeparator()
@@ -4793,6 +4794,27 @@ function oudeDatum(iso, tz) {
 function oudeKolom(kop, begin) {
   for (var i = 0; i < kop.length; i++) if (kop[i].indexOf(begin) === 0) return i;
   return -1;
+}
+
+/** De lener van een oude rij: een bestaande (zelfde e-mail of telefoon), of een nieuwe. */
+function oudeLener(staat, o, teller) {
+  var lener = staat.leners.filter(function (l) {
+    return (o.email && String(l.email).toLowerCase() === o.email) ||
+      (o.telefoon && l.telefoon && telefoonSleutel(l.telefoon) === telefoonSleutel(o.telefoon));
+  })[0];
+  if (!lener) {
+    lener = voegToe(staat.leners, {
+      lenersnummer: String(nieuwNummer(staat, 'lener', staat.leners.map(function (l) { return l.lenersnummer; }))),
+      voornaam: o.voornaam || '?', achternaam: o.achternaam, telefoon: o.telefoon, email: o.email,
+      datum_inschrijving: o.datum_uit || staat.vandaag,
+      toestemming_privacy: 'onbekend', actief: 'ja'
+    });
+    teller.leners++;
+  } else if (o.datum_uit && (!lener.datum_inschrijving || o.datum_uit < parseerDatum(lener.datum_inschrijving))) {
+    // Een vroegere uitlening: dan is de lener eigenlijk al van toen.
+    wijzig(lener, { datum_inschrijving: o.datum_uit });
+  }
+  return lener;
 }
 
 /** Uur uit een ISO-tijdstip, in de tijdzone van Brussel ("19:30"). Leeg als het middernacht is. */
@@ -6297,34 +6319,46 @@ function verwerkOpenLibrary(boek, details) {
 }
 
 /**
+ * Een teruggebrachte uitlening uit het oude blad, voor de cijfers. Met de lener als ze binnen de
+ * bewaartermijn terugkwam, anders zonder (zoals de privacy-opruiming het ook zou doen).
+ */
+function verwerkOudeTerug(staat, o, bron, teller) {
+  var boek = zoekBoekOpTitel(staat.catalogus, o.boek, o.auteur).zeker;
+  if (!boek || !o.datum_uit) { teller.nietGevonden++; return; }
+  var terug = parseerDatum(o.terug_op) || o.datum_terug_afgesproken || o.datum_uit;
+  if (terug < o.datum_uit) terug = o.datum_uit;
+  var grens = telMaandenOp(staat.vandaag, -staat.inst.bewaartermijn_afgesloten_uitleningen_maanden);
+  var lener = terug >= grens && (o.email || o.telefoon || o.voornaam) ? oudeLener(staat, o, teller) : null;
+  var borg = leesBorg(o.borg, staat.inst);
+  var verval = o.datum_terug_afgesproken || berekenVervaldatum(o.datum_uit, staat.inst);
+  voegToe(staat.uitleningen, {
+    uitlening_id: 'U' + metNullen(nieuwNummer(staat, 'uitlening', staat.uitleningen.map(function (x) { return x.uitlening_id; })), 5),
+    exemplaar: boek.boek_id + '-1', boek_id: boek.boek_id, lenersnummer: lener ? lener.lenersnummer : '',
+    datum_uit: o.datum_uit, oorspronkelijke_vervaldatum: verval, vervaldatum: verval, datum_terug: terug,
+    aantal_verlengingen: 0, datum_verlenging: '', borg: borg.bedrag, betaalwijze_borg: borg.betaalwijze,
+    borg_terugbetaald: borg.bedrag > 0 ? terug : '', gift: parseerGetal(o.gift) || '',
+    laatste_herinnering: parseerDatum(o.herinnering) || '', vrijwilliger: 'overgezet', bron: bron
+  });
+  teller.historiek++;
+}
+
+/**
  * Verwerkt de oude rijen in de staat (zonder de spreadsheet aan te raken).
- * Geeft { uitleningen, leners, naTeKijken } terug.
+ * Geeft { uitleningen, historiek, nietGevonden, leners, naTeKijken } terug.
  */
 function verwerkOudeUitleningen(staat, oudeRijen) {
-  var teller = { uitleningen: 0, leners: 0 };
+  var teller = { uitleningen: 0, historiek: 0, nietGevonden: 0, leners: 0 };
   var naTeKijken = [];
   var bekend = {};
   staat.uitleningen.forEach(function (u) { if (u.bron) bekend[u.bron] = true; });
 
   oudeRijen.forEach(function (o) {
-    if (!isLeeg(o.terug_op)) return; // al teruggebracht: blijft in het oude blad
     var bron = 'oud blad rij ' + o.rijnummer;
     if (bekend[bron]) return;
+    if (!isLeeg(o.terug_op)) { verwerkOudeTerug(staat, o, bron, teller); bekend[bron] = true; return; }
 
     // 1. De lener: bestaat die al (zelfde e-mail of telefoon)?
-    var lener = staat.leners.filter(function (l) {
-      return (o.email && String(l.email).toLowerCase() === o.email) ||
-        (o.telefoon && l.telefoon && telefoonSleutel(l.telefoon) === telefoonSleutel(o.telefoon));
-    })[0];
-    if (!lener) {
-      lener = voegToe(staat.leners, {
-        lenersnummer: String(nieuwNummer(staat, 'lener', staat.leners.map(function (l) { return l.lenersnummer; }))),
-        voornaam: o.voornaam || '?', achternaam: o.achternaam, telefoon: o.telefoon, email: o.email,
-        datum_inschrijving: o.datum_uit || staat.vandaag,
-        toestemming_privacy: 'onbekend', actief: 'ja'
-      });
-      teller.leners++;
-    }
+    var lener = oudeLener(staat, o, teller);
 
     // 2. Het boek.
     var gevonden = zoekBoekOpTitel(staat.catalogus, o.boek, o.auteur);
@@ -6365,7 +6399,7 @@ function verwerkOudeUitleningen(staat, oudeRijen) {
     bekend[bron] = true;
     teller.uitleningen++;
   });
-  return { uitleningen: teller.uitleningen, leners: teller.leners, naTeKijken: naTeKijken };
+  return { uitleningen: teller.uitleningen, historiek: teller.historiek, nietGevonden: teller.nietGevonden, leners: teller.leners, naTeKijken: naTeKijken };
 }
 
 /**
