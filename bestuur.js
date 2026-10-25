@@ -33,6 +33,7 @@
     ['boeken', 'Boeken', function (vak) { W.boeken(vak, context()); }, 'website'],
     ['boekstatus', 'Verloren en gevoelig', toonBoekstatus, 'website'],
     ['inhoud', 'Nieuws en agenda', function (vak) { W.inhoud(vak, context()); }, 'website'],
+    ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website'],
     ['instellingen', 'Teksten en instellingen', function (vak) { W.instellingen(vak, context()); }, 'website'],
     ['cijfers', 'Cijfers', toonCijfers, 'overzicht'],
     ['rooster', 'Rooster', toonRoosterSectie, 'overzicht']

@@ -129,6 +129,8 @@ function bouwSiteInhoud(staat, tabellen) {
     faq: faq,
     aanraders: aanraders,
     nieuw: nieuwBinnen,
+    // Het menu-item Leeslijsten: enkel als de instelling leeslijsten_tonen op ja staat.
+    leeslijsten: inst.leeslijsten_tonen === true,
     // Pagina Doe mee. Een leeg blok toont de website niet.
     doeMee: {
       vrijwilliger: { nl: String(inst.tekst_vrijwilliger || ''), en: String(inst.tekst_vrijwilliger_en || '') || String(inst.tekst_vrijwilliger || '') },

@@ -30,6 +30,7 @@
 
   function teken() {
     if (!data) return;
+    if (window.MadrigalLayout && data.hasOwnProperty('leeslijsten')) window.MadrigalLayout.leeslijstenTonen(data.leeslijsten === true);
     var doeMee = data.doeMee || {};
     var mail = (data.contact || {}).mail_algemeen || '';
     var iets = false;

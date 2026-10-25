@@ -19,7 +19,7 @@
   var TEKSTEN = {
     nl: {
       overslaan: 'Ga naar de inhoud',
-      menuHome: 'Home', menuBoeken: 'Boeken', menuOver: 'Over ons', menuDoeMee: 'Doe mee', menu: 'Menu',
+      menuHome: 'Home', menuBoeken: 'Boeken', menuOver: 'Over ons', menuDoeMee: 'Doe mee', menuLeeslijsten: 'Leeslijsten', menu: 'Menu',
       doeMeeTitel: 'Doe mee', doeMeeIntro: 'Project Madrigal draait volledig op vrijwilligers en op boeken die mensen ons toevertrouwen. Zo kan jij helpen.',
       dmVrijwilliger: 'Word vrijwilliger', dmSchenken: 'Schenk boeken', dmSteunen: 'Steun ons',
       dmLeeg: 'Wil je meehelpen, boeken schenken of ons steunen? Stuur ons een mailtje, we horen graag van je.', dmMail: 'Mail ons',
@@ -87,7 +87,7 @@
     },
     en: {
       overslaan: 'Skip to content',
-      menuHome: 'Home', menuBoeken: 'Books', menuOver: 'About us', menuDoeMee: 'Get involved', menu: 'Menu',
+      menuHome: 'Home', menuBoeken: 'Books', menuOver: 'About us', menuDoeMee: 'Get involved', menuLeeslijsten: 'Reading lists', menu: 'Menu',
       doeMeeTitel: 'Get involved', doeMeeIntro: 'Project Madrigal runs entirely on volunteers and on books people entrust to us. This is how you can help.',
       dmVrijwilliger: 'Become a volunteer', dmSchenken: 'Donate books', dmSteunen: 'Support us',
       dmLeeg: 'Want to help out, donate books or support us? Send us an email, we would love to hear from you.', dmMail: 'Email us',

@@ -24,14 +24,15 @@ var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'start
 var BEHEER_INHOUD = {
   'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek'],
   'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek'],
-  'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek']
+  'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek'],
+  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek']
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
 var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret'];
 
 /** Lange teksten: meer tekens toegelaten en regeleinden blijven staan. */
-var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en'];
+var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
 
 /** Maakt één ingevuld veld netjes. Geeft { waarde } of { fout }. */
 function beheerVeld(veld, ruw) {
@@ -271,9 +272,14 @@ function inhoudAanpassen(rijen, invoer) {
   var r = beheerVelden(invoer.velden, kolommen);
   if (r.fout) return { ok: false, fout: r.fout };
   var v = r.velden;
-  var hoofd = tabblad === 'Veelgestelde vragen' ? 'vraag' : 'titel';
+  var hoofd = { 'Veelgestelde vragen': 'vraag', 'Leeslijsten': 'naam' }[tabblad] || 'titel';
   var nieuweWaarde = v.hasOwnProperty(hoofd) ? v[hoofd] : (rij ? rij[hoofd] : '');
   if (isLeeg(nieuweWaarde)) return { ok: false, fout: 'Vul een ' + hoofd + ' in.' };
+  if (tabblad === 'Leeslijsten') {
+    if (/[,;]/.test(nieuweWaarde)) return { ok: false, fout: 'Een naam van een leeslijst mag geen komma of puntkomma bevatten.' };
+    var dubbel = rijen.some(function (r) { return r !== rij && !r._verwijderen && normaliseerTekst(r.naam) === normaliseerTekst(nieuweWaarde); });
+    if (dubbel) return { ok: false, fout: 'Er bestaat al een leeslijst met die naam.' };
+  }
   if (tabblad === 'Agenda' && isLeeg(v.hasOwnProperty('datum') ? v.datum : (rij ? rij.datum : ''))) {
     return { ok: false, fout: 'Een event heeft een datum nodig.' };
   }
@@ -336,16 +342,82 @@ function beheerInhoudGegevens() {
   return { ok: true, data: uit };
 }
 
-/** Bewaart een wijziging in Nieuws, Agenda of Veelgestelde vragen. */
+/** Bewaart een wijziging in Nieuws, Agenda, Veelgestelde vragen of Leeslijsten. */
 function beheerInhoudBewaren(invoer, wie) {
   if (!BEHEER_INHOUD[invoer.tabblad]) return { ok: false, fout: 'Onbekend tabblad.' };
   var tabel = leesTabel(invoer.tabblad);
+  var oud = invoer.rij ? tabel.rijen.filter(function (r) { return r._rij === Number(invoer.rij); })[0] : null;
+  var oudeNaam = oud ? schoon(oud.naam) : '';
   var antwoord = inhoudAanpassen(tabel.rijen, invoer);
   if (antwoord.ok) {
     bewaarTabel(tabel);
     logboek(wie, 'website aangepast', invoer.tabblad);
+    // Een leeslijst hernoemd of verwijderd: ook de boeken in de Catalogus aanpassen.
+    if (invoer.tabblad === 'Leeslijsten' && oudeNaam) {
+      var nieuweNaam = invoer.verwijderen ? '' : schoon(oud.naam);
+      if (nieuweNaam !== oudeNaam) {
+        var cat = leesTabel('Catalogus');
+        var n = hernoemLeeslijst(cat.rijen, oudeNaam, nieuweNaam);
+        if (n) bewaarTabel(cat);
+      }
+    }
   }
   return antwoord;
+}
+
+/* ---------- Leeslijsten: boeken kiezen ---------- */
+
+/** Zet de namen in de kolom leeslijsten terug als tekst. */
+function leeslijstTekst(namen) {
+  return namen.join(', ');
+}
+
+/**
+ * Hernoemt een leeslijst in alle boeken, of haalt ze weg (nieuw leeg). Geeft het aantal aangepaste boeken.
+ */
+function hernoemLeeslijst(catalogus, oud, nieuw) {
+  var sleutel = normaliseerTekst(oud);
+  var n = 0;
+  catalogus.forEach(function (b) {
+    var namen = splitsLijst(b.leeslijsten);
+    var i = namen.map(normaliseerTekst).indexOf(sleutel);
+    if (i === -1) return;
+    if (nieuw) namen[i] = nieuw; else namen.splice(i, 1);
+    namen = namen.filter(function (x, j) { return namen.map(normaliseerTekst).indexOf(normaliseerTekst(x)) === j; });
+    wijzig(b, { leeslijsten: leeslijstTekst(namen) });
+    n++;
+  });
+  return n;
+}
+
+/**
+ * Zet boeken in een leeslijst of haalt ze eruit.
+ * invoer: { naam, toevoegen: [boek_id], weghalen: [boek_id] }
+ */
+function leeslijstBoeken(staat, invoer) {
+  var naam = tekstInvoer(invoer.naam, 80);
+  if (!naam || /[,;]/.test(naam)) return { ok: false, fout: 'Kies eerst een leeslijst.' };
+  var sleutel = normaliseerTekst(naam);
+  var erbij = 0, eruit = 0;
+  function pas(ids, toevoegen) {
+    (Array.isArray(ids) ? ids : []).slice(0, 500).forEach(function (id) {
+      var boek = boekVan(staat, String(id));
+      if (!boek) return;
+      var namen = splitsLijst(boek.leeslijsten);
+      var i = namen.map(normaliseerTekst).indexOf(sleutel);
+      if (toevoegen && i === -1) { namen.push(naam); erbij++; }
+      else if (!toevoegen && i > -1) { namen.splice(i, 1); eruit++; }
+      else return;
+      wijzig(boek, { leeslijsten: leeslijstTekst(namen) });
+    });
+  }
+  pas(invoer.toevoegen, true);
+  pas(invoer.weghalen, false);
+  if (erbij || eruit) {
+    staat.catalogusGewijzigd = true;
+    staat.log.push(['leeslijst ' + naam, erbij + ' boeken erbij, ' + eruit + ' eruit']);
+  }
+  return { ok: true, tekst: 'Leeslijst ' + naam + ': ' + erbij + ' boeken toegevoegd, ' + eruit + ' weggehaald.' };
 }
 
 /** Bewaart een instelling. */

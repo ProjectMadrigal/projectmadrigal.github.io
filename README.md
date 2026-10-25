@@ -170,11 +170,19 @@ In het tabblad Instellingen, onder `── AANRADERS ──`:
 
 ### Leeslijsten
 
-Een leeslijst bundelt boeken rond een thema, bijvoorbeeld "Pride-maand" of "Eerste keer over gender lezen". Bezoekers vinden ze via **Bekijk onze leeslijsten** bovenaan de pagina Boeken. Die link verschijnt pas zodra er minstens één lijst is.
+Een leeslijst bundelt boeken rond een thema, bijvoorbeeld "Pride-maand" of "Eerste keer over gender lezen". Bezoekers vinden ze via het menu-item **Leeslijsten** en via **Bekijk onze leeslijsten** bovenaan de pagina Boeken.
 
-1. **Welke boeken.** Typ de naam van de lijst in de kolom `leeslijsten` van de Catalogus. Staat een boek in meerdere lijsten, scheid de namen dan met een komma. Dat kan ook in het bestuursscherm, bij een boek.
-2. **Uitleg en Engelse naam (mag leeg).** Zet de lijst in het tabblad **Leeslijsten**: `naam` (precies zoals in de Catalogus, hoofdletters maken niet uit), `naam_en`, `uitleg`, `uitleg_en` en `volgorde` (1 staat bovenaan).
-3. **Tijdelijk verbergen.** Zet `nee` in de kolom `publiek` van het tabblad Leeslijsten. De namen blijven in de Catalogus staan.
+**Alles op de website zetten of verbergen.** De instelling `leeslijsten_tonen` (standaard `nee`). Zolang die op nee staat, zie je de lijsten enkel in het bestuursscherm: geen menu-item, geen labels, geen filter. Je kan ze dus rustig klaarzetten. Omschakelen kan met de knop bovenaan het onderdeel Leeslijsten in het bestuursscherm.
+
+**Het makkelijkst: in het bestuursscherm, onderdeel Leeslijsten.**
+
+1. Klik op **+ Nieuwe leeslijst**, vul een naam in (zonder komma's) en eventueel een uitleg en een Engelse versie.
+2. Open de lijst. Zoek een boek op titel, auteur of ISBN en vink het aan. Een vinkje weghalen haalt het boek uit de lijst.
+3. Klik op **Bewaar**. Alle wijzigingen gaan in één keer naar de spreadsheet.
+
+Hernoem je een lijst of verwijder je ze, dan past het script ook de boeken in de Catalogus aan.
+
+**In de spreadsheet kan het ook.** Typ de naam van de lijst in de kolom `leeslijsten` van de Catalogus (meerdere lijsten: scheid ze met een komma). Naam, uitleg, Engelse versie en `volgorde` (1 staat bovenaan) staan in het tabblad **Leeslijsten**. Zet `nee` in de kolom `publiek` om één lijst te verbergen.
 
 Elke lijst krijgt een eigen link om te delen, en een filter **Leeslijst** in de catalogus.
 
