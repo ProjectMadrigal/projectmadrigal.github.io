@@ -297,6 +297,8 @@ var STANDAARD_INSTELLINGEN = [
   ['code_bestuur', '', 'Code voor het bestuursscherm. Geef ze enkel aan het bestuur.'],
   ['code_vrijwilliger', '', 'Code voor het vrijwilligersscherm: uitleningen nakijken, covers toevoegen, nieuws en agenda voorstellen, leeslijsten opmaken. Werkt ook aan de balie. Geef ze aan vaste vrijwilligers.'],
   ['leeslijsten_tonen', 'nee', 'ja: de leeslijsten staan op de website, met een eigen plek in het menu. nee: ze staan klaar, maar enkel het bestuursscherm toont ze.'],
+  ['dagelijkse_mail', '', 'Optioneel. Mailadres(sen) van het bestuur, gescheiden door komma\'s. Dan komt er elke ochtend een mail als er iets wacht: voorstellen van vrijwilligers, aanvragen van de website, boeken te laat. Leeg: geen mail.'],
+  ['dagelijkse_mail_uur', 8, 'Rond welk uur de dagelijkse mail vertrekt (0 tot 23). Na een wijziging: Madrigal > Installeer tabbladen.'],
   ['online_reserveren', 'nee', 'ja: de website toont bij elk uitleenbaar boek de knop "Reserveer dit boek". De aanvragen verschijnen in het bestuursscherm en in het tabblad Aanvragen.'],
   ['aanvragen_bewaren_dagen', 60, 'Na hoeveel dagen een aanvraag (met voornaam en contactgegevens) gewist wordt.'],
   ['backup_map', 'Project Madrigal back-ups', 'Naam van de map op Google Drive waar elke week een kopie van deze spreadsheet komt.'],
@@ -421,6 +423,7 @@ var INSTELLING_GROEPEN = [
   ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
   ['Rooster', ['rooster_url', 'rooster_code', 'rooster_link']],
   ['Bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
+  ['Dagelijkse mail aan het bestuur', ['dagelijkse_mail', 'dagelijkse_mail_uur']],
   ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden']],
   ['Back-up', ['backup_map', 'backup_bewaren']],
   ['Online reserveren', ['online_reserveren', 'aanvragen_bewaren_dagen']]
@@ -1649,6 +1652,64 @@ function coverUploaden(staat, invoer, bewaar) {
   return { ok: true, tekst: 'De foto is de cover van "' + schoon(boek.titel) + '".', cover_url: url };
 }
 
+/** Verzamelt wat wacht, uit de spreadsheet. */
+function dagelijkseMailGegevens() {
+  var staat = laadStaat('dagelijkse mail', false);
+  var voorstellen = [];
+  VOORSTEL_TABBLADEN.forEach(function (naam) {
+    if (!spreadsheet().getSheetByName(naam)) return;
+    leesTabel(naam).rijen.forEach(function (r) {
+      if (!isLeeg(r.voorgesteld_door) && jaNee(r.publiek) === 'nee') voorstellen.push({ tabblad: naam, titel: schoon(r.titel) || '(zonder titel)', wie: schoon(r.voorgesteld_door) });
+    });
+  });
+  var aanvragen = spreadsheet().getSheetByName('Aanvragen') ? openAanvragen(leesTabel('Aanvragen').rijen) : [];
+  var telaat = lopendeUitleningen(staat).map(function (u) { return uitleningInfo(staat, u, false); })
+    .filter(function (i) { return i.status && i.status.code === 'telaat'; })
+    .sort(function (a, b) { return String(a.vervaldatum).localeCompare(String(b.vervaldatum)); });
+  return {
+    vandaagTekst: datumTekst(staat.vandaag),
+    link: 'https://projectmadrigal.github.io/bestuur.html',
+    voorstellen: voorstellen,
+    aanvragen: aanvragen.map(function (a) { return { titel: a.titel, datum: a.datum }; }),
+    telaat: telaat
+  };
+}
+
+/**
+ * Maakt de mail, zonder iets te versturen. Geeft { onderwerp, tekst } of null als er niets wacht.
+ * g: { vandaagTekst, link, voorstellen: [{ tabblad, titel, wie }], aanvragen: [{ titel, datum }],
+ *      telaat: [{ titel, lenersnummer, voornaam, vervaldatum }] }
+ */
+function dagelijkseMailInhoud(g) {
+  var delen = [];
+  var aantal = 0;
+  if ((g.voorstellen || []).length) {
+    aantal += g.voorstellen.length;
+    delen.push('Voorstellen van vrijwilligers om na te lezen (' + g.voorstellen.length + '):\n' + g.voorstellen.map(function (v) {
+      return '- ' + v.tabblad + ': ' + v.titel + (v.wie ? ' (van ' + v.wie + ')' : '');
+    }).join('\n'));
+  }
+  if ((g.aanvragen || []).length) {
+    aantal += g.aanvragen.length;
+    delen.push('Aanvragen van de website (' + g.aanvragen.length + '):\n' + g.aanvragen.map(function (a) {
+      return '- ' + a.titel + (a.datum ? ', sinds ' + korteDatum(a.datum) : '');
+    }).join('\n'));
+  }
+  if ((g.telaat || []).length) {
+    aantal += g.telaat.length;
+    delen.push('Te laat (' + g.telaat.length + '):\n' + g.telaat.map(function (u) {
+      return '- ' + u.titel + ', lener ' + u.lenersnummer + (u.voornaam ? ' (' + u.voornaam + ')' : '') + ', moest terug op ' + korteDatum(u.vervaldatum);
+    }).join('\n'));
+  }
+  if (!aantal) return null;
+  return {
+    onderwerp: 'Project Madrigal: ' + aantal + (aantal === 1 ? ' ding wacht' : ' dingen wachten') + ' op het bestuur',
+    tekst: 'Goeiemorgen,\n\nDit wacht vandaag (' + g.vandaagTekst + ') op het bestuur.\n\n' + delen.join('\n\n') +
+      '\n\nAlles afhandelen doe je in het bestuursscherm: ' + g.link +
+      '\n\nDeze mail komt enkel als er iets wacht. Uitzetten: maak de instelling dagelijkse_mail leeg.'
+  };
+}
+
 /** "1 dag" of "5 dagen". */
 function dagenTekst(n) {
   return n + (n === 1 ? ' dag' : ' dagen');
@@ -2432,7 +2493,11 @@ function installeer() {
   verwijderTriggers('bijWijziging');
   verwijderTriggers('maakBackup');
   verwijderTriggers('verwerkNieuweBoekenAutomatisch');
+  verwijderTriggers('stuurDagelijkseMail');
   ScriptApp.newTrigger('verwerkNieuweBoekenAutomatisch').timeBased().everyHours(1).create();
+  // De dagelijkse mail: doet niets zolang de instelling dagelijkse_mail leeg is (zie DagelijkseMail.js).
+  var uur = Math.min(23, Math.max(0, Math.round(leesInstellingen().dagelijkse_mail_uur)));
+  ScriptApp.newTrigger('stuurDagelijkseMail').timeBased().everyDays(1).atHour(isNaN(uur) ? 8 : uur).create();
   ScriptApp.newTrigger('ruimOp').timeBased().everyDays(1).atHour(3).create();
   ScriptApp.newTrigger('maakBackup').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(4).create();
   ScriptApp.newTrigger('bijWijziging').forSpreadsheet(ss).onEdit().create();
@@ -3551,7 +3616,8 @@ function onOpen() {
     .addSubMenu(ui.createMenu('Onderhoud')
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
       .addItem('Maak nu een back-up', 'maakBackupMenu')
-      .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp'))
+      .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
+      .addItem('Dagelijkse mail: stuur nu een testmail', 'stuurTestmail'))
     .addSeparator()
     .addSubMenu(ui.createMenu('Eenmalig bij de start')
       .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
@@ -4052,6 +4118,27 @@ function stelFiltergroepenVoor(genre) {
 
 function stopAchtergrond(naam) {
   try { CacheService.getScriptCache().remove('taak_' + naam); } catch (e) { /* vervalt vanzelf */ }
+}
+
+/** Planning: elke ochtend. Doet niets zolang dagelijkse_mail leeg is. */
+function stuurDagelijkseMail() {
+  var aan = splitsLijst(leesInstellingen().dagelijkse_mail).filter(geldigEmail);
+  if (!aan.length) return;
+  var mail = dagelijkseMailInhoud(dagelijkseMailGegevens());
+  if (!mail) return;
+  MailApp.sendEmail({ to: aan.join(','), subject: mail.onderwerp, body: mail.tekst, name: 'Project Madrigal' });
+  logboek('planning', 'dagelijkse mail', 'verstuurd naar ' + aan.length + ' adres(sen)');
+}
+
+/** Menu: stuurt meteen een mail, ook als er niets wacht. Vraagt de eerste keer toestemming. */
+function stuurTestmail() {
+  var aan = splitsLijst(leesInstellingen().dagelijkse_mail).filter(geldigEmail);
+  if (!aan.length) { meld('Vul eerst in Instellingen bij dagelijkse_mail een mailadres in.'); return; }
+  var mail = dagelijkseMailInhoud(dagelijkseMailGegevens()) || {
+    onderwerp: 'Project Madrigal: testmail', tekst: 'Dit is een testmail. Er wacht vandaag niets op het bestuur.'
+  };
+  MailApp.sendEmail({ to: aan.join(','), subject: '[test] ' + mail.onderwerp, body: mail.tekst, name: 'Project Madrigal' });
+  meld('Testmail verstuurd naar ' + aan.join(', ') + '.');
 }
 
 /**
