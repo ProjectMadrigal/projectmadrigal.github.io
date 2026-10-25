@@ -129,6 +129,7 @@ function onOpen() {
       .addItem('Zoek afgebroken beschrijvingen opnieuw', 'herstelAfgebrokenBeschrijvingen'))
     .addSubMenu(ui.createMenu('Films')
       .addItem('Haal de Letterboxd-lijst op', 'haalLetterboxdLijst')
+      .addItem('Neem de films over uit dit tabblad (CSV van IMDb of Letterboxd)', 'neemFilmsOverUitTabblad')
       .addItem('Vul de films aan (Wikidata en Wikipedia)', 'vulFilmsAan'))
     .addSubMenu(ui.createMenu('Onderhoud')
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')

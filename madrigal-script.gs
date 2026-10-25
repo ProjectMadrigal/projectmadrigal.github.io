@@ -217,6 +217,25 @@ var FILM_MAX_GENRES = 4;
 
 var LETTERBOXD_MAX_PAGINAS = 30;
 
+/** Genres van IMDb in het Nederlands. Een onbekend genre blijft in het Engels. */
+var FILM_GENRES_NL = {
+  action: 'Actie', adventure: 'Avontuur', animation: 'Animatie', biography: 'Biografie', comedy: 'Komedie', crime: 'Misdaad',
+  documentary: 'Documentaire', drama: 'Drama', family: 'Familie', fantasy: 'Fantasy', history: 'Geschiedenis', horror: 'Horror',
+  music: 'Muziek', musical: 'Musical', mystery: 'Mysterie', romance: 'Romantiek', 'sci fi': 'Sciencefiction', 'science fiction': 'Sciencefiction',
+  short: 'Kortfilm', sport: 'Sport', thriller: 'Thriller', war: 'Oorlog', western: 'Western', 'film noir': 'Film noir'
+};
+
+/** De kolommen die we herkennen, met de namen bij IMDb en Letterboxd. */
+var FILM_KOLOMMEN = {
+  titel: ['title', 'name', 'titel'],
+  jaar: ['year', 'jaar', 'jaartal'],
+  regie: ['directors', 'director', 'regie'],
+  genres: ['genres', 'genre'],
+  duur: ['runtime mins', 'runtime', 'duur'],
+  imdb: ['const', 'imdb', 'imdb id'],
+  soort: ['title type']
+};
+
 /** Het deel van de vraag dat voor elke film dezelfde gegevens ophaalt. ?film moet al gekend zijn. */
 var FILM_SPARQL_VELDEN =
   '  OPTIONAL { ?film wdt:P577 ?datum . }\n' +
@@ -425,7 +444,7 @@ var KOLOMMEN = {
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
-    'letterboxd', 'wikidata', 'film_gezocht',
+    'letterboxd', 'imdb', 'wikidata', 'film_gezocht',
     // Interne notitie van het bestuur (bv. schade, plaats in de kast). Nooit publiek.
     'notitie'
   ],
@@ -1979,6 +1998,12 @@ function dagenTussen(a, b) {
   return Math.round((naarUtc(b) - naarUtc(a)) / 86400000);
 }
 
+/** De uitleg als de daglimiet van Google op is. wacht: nog zoveel ms. */
+function daglimietFilmTekst(wacht) {
+  return 'De daglimiet van Google voor vragen naar andere websites is op. Probeer het over ' + Math.max(1, Math.ceil(wacht / 3600000)) + ' uur opnieuw. ' +
+    'Zonder wachten: exporteer de lijst als CSV (bij IMDb of Letterboxd), importeer ze in een nieuw tabblad, open dat tabblad en kies Madrigal > Films > Neem de films over uit dit tabblad.';
+}
+
 /** Hoeveel ms nog wachten na een daglimiet die om "sinds" (ms) genoteerd werd. 0: niet meer wachten. */
 function daglimietWachttijd(sinds, nu) {
   sinds = Number(sinds) || 0;
@@ -2141,6 +2166,11 @@ function extraCijfers(staat) {
 
 /* ---------- Meerdere boeken tegelijk aanpassen (bestuursscherm) ---------- */
 
+function filmGenreNl(g) {
+  var k = normaliseerTekst(g);
+  return FILM_GENRES_NL[k] || schoon(g);
+}
+
 /** De filtergroepen van een film: de genres en de extra onderwerpen. */
 function filmGroepen(rij) {
   var uit = [];
@@ -2156,6 +2186,34 @@ function filmGroepen(rij) {
 /** Een lijst uit een cel: "Drama, Romantiek" wordt ["Drama", "Romantiek"]. */
 function filmLijst(waarde) {
   return splitsLijst(waarde).map(schoon).filter(Boolean);
+}
+
+/**
+ * Leest de films uit de waarden van een tabblad (eerste rij: de kolomnamen).
+ * Geeft [{ titel, jaar, regie, genre, duur, imdb, slug }] of null als het geen lijst met films is.
+ * Afleveringen van een reeks laten we weg.
+ */
+function filmsUitTabel(waarden) {
+  if (!waarden || waarden.length < 2) return null;
+  var kop = waarden[0].map(normaliseerTekst);
+  var kolom = {};
+  Object.keys(FILM_KOLOMMEN).forEach(function (k) {
+    kolom[k] = -1;
+    FILM_KOLOMMEN[k].forEach(function (naam) { if (kolom[k] === -1) kolom[k] = kop.indexOf(naam); });
+  });
+  if (kolom.titel === -1) return null;
+  var w = function (rij, k) { return kolom[k] > -1 ? rij[kolom[k]] : ''; };
+  return waarden.slice(1).map(function (rij) {
+    var titel = schoon(w(rij, 'titel'));
+    if (!titel || /episode/i.test(String(w(rij, 'soort')))) return null;
+    var imdb = (String(w(rij, 'imdb')).match(/tt\d{6,10}/) || [])[0] || '';
+    return {
+      titel: titel, jaar: parseerGetal(w(rij, 'jaar')) || '', imdb: imdb, slug: '',
+      regie: filmLijst(w(rij, 'regie')).slice(0, 3).join(', '),
+      genre: filmLijst(w(rij, 'genres')).map(filmGenreNl).slice(0, FILM_MAX_GENRES).join(', '),
+      duur: parseerGetal(w(rij, 'duur')) || ''
+    };
+  }).filter(Boolean);
 }
 
 /** Zet het antwoord van Wikidata om. Geeft [{ qid, lb, jaar, duur, regie, land, genre, taal, nl, en }]. */
@@ -2188,6 +2246,11 @@ function filmVelden(rij, f) {
   if (f.duur && leeg('duur')) v.duur = f.duur;
   if (f.taal && leeg('taal')) v.taal = normaliseerTaal(f.taal) || f.taal;
   return v;
+}
+
+/** De vraag voor films met een nummer van IMDb (eigenschap P345). Het nummer komt in ?lb, de sleutel van het antwoord. */
+function filmVraagImdb(nummers) {
+  return FILM_SPARQL_KOP + '  VALUES ?lb { ' + nummers.map(sparqlTekst).join(' ') + ' }\n  ?film wdt:P345 ?lb .\n' + FILM_SPARQL_VELDEN + '} GROUP BY ?film ?lb';
 }
 
 /** De vraag voor films met een Letterboxd-adres (eigenschap P6127 van Wikidata). */
@@ -2482,6 +2545,9 @@ function haalJson(url) {
 function haalLetterboxdLijst() {
   var url = schoon(leesInstellingen().letterboxd_lijst);
   if (!isLetterboxdLijst(url)) { meld('Vul bij Instellingen letterboxd_lijst het adres van de lijst in, bv. https://letterboxd.com/naam/list/lijst/'); return; }
+  var wacht = 0;
+  try { wacht = daglimietWachttijd(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL), Date.now()); } catch (e) { wacht = 0; }
+  if (wacht) { meld(daglimietFilmTekst(wacht)); return; }
   var films = [], fout = '';
   for (var n = 1; n <= LETTERBOXD_MAX_PAGINAS; n++) {
     var r;
@@ -2496,6 +2562,11 @@ function haalLetterboxdLijst() {
     if (!nieuw.length) break;
     films = films.concat(nieuw);
     Utilities.sleep(800);
+  }
+  if (!films.length && isDaglimietFout(fout)) {
+    logboek('menu', 'haalLetterboxdLijst', 'niets gevonden: daglimiet van Google');
+    meld(daglimietFilmTekst(DAGLIMIET_WACHT_MS));
+    return;
   }
   if (!films.length) {
     logboek('menu', 'haalLetterboxdLijst', 'niets gevonden' + (fout ? ': ' + fout : ''));
@@ -4109,6 +4180,32 @@ function nDeWeekdag(jaar, maand, dag, n) {
   return d.slice(0, 7) === eerste.slice(0, 7) ? d : '';
 }
 
+/** Menu: neemt de films over uit het tabblad dat open staat (een import van IMDb of Letterboxd). */
+function neemFilmsOverUitTabblad() {
+  var blad = SpreadsheetApp.getActiveSheet();
+  if (!blad || blad.getName() === 'Catalogus') { meld('Open eerst het tabblad met de geïmporteerde lijst, en kies dan dit menu-item opnieuw.'); return; }
+  var films = filmsUitTabel(blad.getDataRange().getValues());
+  if (!films) { meld('In dit tabblad staat geen lijst met films. De eerste rij moet de kolomnamen hebben, met minstens Title of Name.'); return; }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var aantal = 0;
+  try {
+    var tabel = leesTabel('Catalogus');
+    if (tabel.kop.indexOf('imdb') === -1) { meld('De kolommen voor films ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
+    var ids = maakIdGenerator(tabel.rijen);
+    aantal = voegFilmsToe(tabel.rijen, films, vandaagTekst(), ids.nieuw);
+    if (aantal) { bewaarTabel(tabel); ids.bewaar(); }
+  } finally {
+    lock.releaseLock();
+  }
+  logboek('menu', 'neemFilmsOverUitTabblad', blad.getName() + ': ' + films.length + ' films, ' + aantal + ' nieuw in de Catalogus');
+  if (aantal) { leegCache(); planTaak('vulFilmsAan', 60 * 1000); }
+  meld(films.length + ' films in dit tabblad, ' + aantal + ' nieuw in de Catalogus.' +
+    (aantal ? ' Land en omschrijving zoekt het script daarna op bij Wikidata en Wikipedia (zodra de daglimiet van Google het toelaat). Dit tabblad mag je daarna verwijderen.' : ''));
+}
+
+/* ---------- Wikidata en Wikipedia ---------- */
+
 /** Menu: vraagt de link naar het oude blad en neemt de lopende uitleningen over. */
 function neemUitleningenOver() {
   var ui = SpreadsheetApp.getUi();
@@ -4356,6 +4453,7 @@ function onOpen() {
       .addItem('Zoek afgebroken beschrijvingen opnieuw', 'herstelAfgebrokenBeschrijvingen'))
     .addSubMenu(ui.createMenu('Films')
       .addItem('Haal de Letterboxd-lijst op', 'haalLetterboxdLijst')
+      .addItem('Neem de films over uit dit tabblad (CSV van IMDb of Letterboxd)', 'neemFilmsOverUitTabblad')
       .addItem('Vul de films aan (Wikidata en Wikipedia)', 'vulFilmsAan'))
     .addSubMenu(ui.createMenu('Onderhoud')
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
@@ -6099,26 +6197,29 @@ function voegFilmsToe(rijen, films, vandaag, nieuwId) {
   rijen.forEach(function (r) {
     if (!isFilm(r)) return;
     if (!isLeeg(r.letterboxd)) sleutels['lb:' + schoon(r.letterboxd)] = true;
+    if (!isLeeg(r.imdb)) sleutels['im:' + schoon(r.imdb)] = true;
     sleutels[sleutel(r.titel, parseerGetal(r.jaartal))] = true;
   });
   var n = 0;
   films.forEach(function (f) {
     if (!f.slug && !f.titel) return;
-    if ((f.slug && sleutels['lb:' + f.slug]) || sleutels[sleutel(f.titel, f.jaar)]) return;
+    if ((f.slug && sleutels['lb:' + f.slug]) || (f.imdb && sleutels['im:' + f.imdb]) || sleutels[sleutel(f.titel, f.jaar)]) return;
     var rij = {
       boek_id: nieuwId('film'), soort: 'film', titel: schoon(f.titel), jaartal: f.jaar || '',
-      letterboxd: f.slug || '', aantal: 1, uitleenbaar: 'ja', publiek: 'ja', uitvoering: 'dvd', toegevoegd_op: vandaag
+      letterboxd: f.slug || '', imdb: f.imdb || '', auteur: f.regie || '', genre: f.genre || '', duur: f.duur || '',
+      aantal: 1, uitleenbaar: 'ja', publiek: 'ja', uitvoering: 'dvd', toegevoegd_op: vandaag
     };
     rij.bron_sleutel = bronSleutel(rij);
     voegToe(rijen, rij);
-    sleutels['lb:' + f.slug] = true;
+    if (f.slug) sleutels['lb:' + f.slug] = true;
+    if (f.imdb) sleutels['im:' + f.imdb] = true;
     sleutels[sleutel(f.titel, f.jaar)] = true;
     n++;
   });
   return n;
 }
 
-/* ---------- Wikidata en Wikipedia ---------- */
+/* ---------- Een export van IMDb of Letterboxd (CSV in een tabblad) ---------- */
 
 /**
  * Voegt twijfelgevallen toe aan het tabblad "Na te kijken", zonder dubbels.
@@ -6644,16 +6745,20 @@ function vulFilmsAan() {
     var teDoen = tabel.rijen.filter(heeftFilmGegevensNodig);
     while (teDoen.length && Date.now() - start < FILM_MAX_LOOPTIJD_MS && !fout) {
       var portie = teDoen.splice(0, FILM_PORTIE);
-      var metSlug = portie.filter(function (r) { return !isLeeg(r.letterboxd); });
-      var perSlug = {};
-      if (metSlug.length) {
-        var a = wikidataVraag(filmVraagLetterboxd(metSlug.map(function (r) { return schoon(r.letterboxd); })));
-        if (a.fout) { fout = a.fout; break; }
-        a.films.forEach(function (f) { perSlug[f.lb] = f; });
-      }
+      // Eerst op het nummer van IMDb of het adres bij Letterboxd: dat is exact. De rest op de titel.
+      var metImdb = portie.filter(function (r) { return !isLeeg(r.imdb); });
+      var metSlug = portie.filter(function (r) { return isLeeg(r.imdb) && !isLeeg(r.letterboxd); });
+      var perSleutel = {};
+      [[metImdb, 'imdb', filmVraagImdb], [metSlug, 'letterboxd', filmVraagLetterboxd]].forEach(function (x) {
+        if (!x[0].length || fout) return;
+        var a = wikidataVraag(x[2](x[0].map(function (r) { return schoon(r[x[1]]); })));
+        if (a.fout) { fout = a.fout; return; }
+        a.films.forEach(function (f) { perSleutel[f.lb] = f; });
+      });
+      if (fout) break;
       for (var i = 0; i < portie.length; i++) {
         var rij = portie[i];
-        var f = perSlug[schoon(rij.letterboxd)] || null;
+        var f = perSleutel[schoon(rij.imdb)] || perSleutel[schoon(rij.letterboxd)] || null;
         if (!f) {
           Utilities.sleep(FILM_PAUZE_MS);
           var b = wikidataVraag(filmVraagTitel(rij.titel, parseerGetal(rij.jaartal)));
