@@ -198,6 +198,11 @@ function rolVoorCode(code, inst) {
   return '';
 }
 
+/** Een hogere rol mag een scherm bekijken met de rechten van een lagere rol (enkel vrijwilliger), nooit omgekeerd. */
+function rolVoorScherm(rol, alsRol) {
+  return alsRol === 'vrijwilliger' && ROL_RANG[rol] > ROL_RANG.vrijwilliger ? 'vrijwilliger' : rol;
+}
+
 /** POST: acties voor de balie en het bestuur. */
 function doPost(e) {
   var invoer;
@@ -225,6 +230,10 @@ function doPost(e) {
     Utilities.sleep(1500);
     return json({ ok: false, fout: 'De code klopt niet.', code: 'ongeldige_code' });
   }
+  // Het bestuur bekijkt het vrijwilligersscherm: dan gelden de rechten van een vrijwilliger.
+  var echteRol = rol;
+  rol = rolVoorScherm(rol, invoer.alsRol);
+  if (actie === 'aanmelden') return json({ ok: true, rol: rol, echteRol: echteRol });
   if (!magActie(rol, actie)) {
     return json({ ok: false, fout: ACTIES[actie] === 'bestuur' ? 'Dit kan enkel met de code van het bestuur.' : 'Dit kan niet met deze code.' });
   }

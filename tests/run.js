@@ -1791,5 +1791,13 @@ test('vrijwilligers: checklist uit de instellingen', () => {
   assert.ok(c.openen.length > 1 && c.sluiten.length > 1, 'Standaard checklist');
 });
 
+test('bestuur bekijkt het vrijwilligersscherm met de rechten van een vrijwilliger', () => {
+  assert.strictEqual(M.rolVoorScherm('bestuur', 'vrijwilliger'), 'vrijwilliger');
+  assert.strictEqual(M.rolVoorScherm('bestuur', ''), 'bestuur');
+  assert.strictEqual(M.rolVoorScherm('balie', 'vrijwilliger'), 'balie', 'Nooit meer rechten');
+  assert.strictEqual(M.rolVoorScherm('vrijwilliger', 'bestuur'), 'vrijwilliger', 'Nooit meer rechten');
+  assert.strictEqual(M.magActie(M.rolVoorScherm('bestuur', 'vrijwilliger'), 'bestuurData'), false);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

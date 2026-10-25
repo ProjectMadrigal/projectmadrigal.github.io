@@ -895,7 +895,12 @@
     codeSleutel: VRIJWILLIGER ? 'madrigal_code_vrijwilliger' : 'madrigal_code_bestuur',
     reserveSleutel: VRIJWILLIGER ? 'madrigal_code_bestuur' : null,
     vereisteRol: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur',
+    // Met de bestuurscode in het vrijwilligersscherm zie je precies wat een vrijwilliger ziet.
+    alsRol: VRIJWILLIGER ? 'vrijwilliger' : '',
     afmeldenNaInactiviteit: true,
-    bijAangemeld: function () { laad(); }
+    bijAangemeld: function () {
+      if (VRIJWILLIGER && B.sessie.echteRol === 'bestuur') $('als-vrijwilliger').hidden = false;
+      laad();
+    }
   });
 })();

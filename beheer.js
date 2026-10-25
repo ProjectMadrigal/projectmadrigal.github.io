@@ -22,7 +22,8 @@
     } catch (e) { /* geen opslag: dan vraagt het scherm de code elke keer */ }
   }
 
-  var sessie = { code: '', wie: '', rol: '', codeSleutel: '' };
+  // alsRol: het bestuur bekijkt het vrijwilligersscherm met de rechten van een vrijwilliger. echteRol: de rol van de code.
+  var sessie = { code: '', wie: '', rol: '', echteRol: '', alsRol: '', codeSleutel: '' };
   /** Zelfde rangorde als ROL_RANG in apps-script/Api.js. */
   var RANG = { balie: 1, vrijwilliger: 2, bestuur: 3 };
 
@@ -78,6 +79,7 @@
 
   function aanmelden(opties) {
     sessie.codeSleutel = opties.codeSleutel;
+    sessie.alsRol = opties.alsRol || '';
     var codeSleutels = [opties.codeSleutel].concat(opties.reserveSleutel || []);
     if (opties.afmeldenNaInactiviteit) {
       koppelMijnToestel();
@@ -95,9 +97,9 @@
 
     function probeer(code, wie, stil) {
       melding.hidden = true;
-      return root.MadrigalApi.verstuur('aanmelden', { code: code, wie: wie }).then(function (r) {
+      return root.MadrigalApi.verstuur('aanmelden', { code: code, wie: wie, alsRol: sessie.alsRol }).then(function (r) {
         if (r.ok && (RANG[r.rol] || 0) >= (RANG[opties.vereisteRol] || 1)) {
-          sessie.code = code; sessie.wie = wie; sessie.rol = r.rol;
+          sessie.code = code; sessie.wie = wie; sessie.rol = r.rol; sessie.echteRol = r.echteRol || r.rol;
           schrijf(opties.codeSleutel, code);
           schrijf(SLEUTEL_WIE, wie);
           document.getElementById('aanmelden').hidden = true;
@@ -204,7 +206,7 @@
    * bijVraag: (optioneel) wordt opgeroepen net voor de vraag om een reden verschijnt.
    */
   function voerUit(actie, gegevens, bijVraag, poging) {
-    var body = Object.assign({ code: sessie.code, wie: sessie.wie }, gegevens || {});
+    var body = Object.assign({ code: sessie.code, wie: sessie.wie }, sessie.alsRol ? { alsRol: sessie.alsRol } : {}, gegevens || {});
     return root.MadrigalApi.verstuur(actie, body).then(function (r) {
       // "Het is even druk": het script deed nog niets. Twee keer vanzelf opnieuw proberen.
       if (r && !r.ok && /even druk/.test(r.fout || '') && (poging || 0) < 2) {
