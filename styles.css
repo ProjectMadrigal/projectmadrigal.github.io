@@ -170,6 +170,10 @@ details > summary::marker { color: var(--kleur-accent); }
 
 label { font-weight: 600; display: block; margin-bottom: .3rem; }
 .hulptekst { font-weight: normal; color: var(--kleur-tekst-zacht); font-size: .95rem; }
+.met-regels { white-space: pre-line; }
+input.kort { max-width: 5rem; }
+.checklist .vinkje { min-height: 2.75rem; }
+.welkom .knoppen { margin-top: .5rem; }
 
 input[type="search"], input[type="text"], input[type="tel"], input[type="email"], input[type="number"], input[type="password"], input[type="date"], input[type="url"], select, textarea {
   width: 100%;

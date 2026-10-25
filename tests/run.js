@@ -1232,7 +1232,7 @@ test('instellingen: per groep, codes nooit zichtbaar of aanpasbaar', () => {
   assert.strictEqual(rijen[3].waarde, 'vrijdag 18-22');
 });
 test('beheeracties: bestuur, behalve de lijst voor het vrijwilligersscherm', () => {
-  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload', 'beheerCoverLinks'];
+  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload', 'beheerCoverLinks', 'beheerTekstUitFoto'];
   Object.keys(M.ACTIES).filter((a) => /^beheer/.test(a)).forEach((a) => assert.strictEqual(M.ACTIES[a], vrijwilliger.indexOf(a) > -1 ? 'vrijwilliger' : 'bestuur', a));
 });
 test('rollen: drie codes, elke rol mag wat de rol ervoor mag', () => {
@@ -1523,7 +1523,7 @@ test('achterkant: tekst netjes, gesplitste woorden terug aan elkaar, alinea\'s b
   assert.strictEqual(M.tekstUitFoto({ data: 'QUJD', mime: 'image/jpeg' }, () => 'kort').ok, false);
   const r = M.tekstUitFoto({ data: 'data:image/jpeg;base64,QUJD', mime: 'image/jpeg' }, () => ruw);
   gelijk([r.ok, r.tekst.slice(0, 18)], [true, 'Een roman over de ']);
-  assert.strictEqual(M.ACTIES.beheerTekstUitFoto, 'bestuur');
+  assert.strictEqual(M.ACTIES.beheerTekstUitFoto, 'vrijwilliger');
 });
 
 test('Internet Archive: logo herkennen aan de vorm, wissen enkel bij die bron', () => {
@@ -1740,6 +1740,55 @@ test('notities en de staat van een boek bij terugbrengen', () => {
   assert.ok(JSON.stringify(M.bouwPubliekeCatalogus(s, [])).indexOf('bovenste plank') === -1, 'Boeknotitie niet publiek');
   const c = M.bestuurCijfers(s, []);
   assert.ok(Array.isArray(c.meestGeleend) && c.extraCijfers.afgesloten === 3);
+});
+
+test('vrijwilligers: beschrijving voorstellen, goedkeuren en afkeuren', () => {
+  const s = maakStaat('2026-10-23');
+  const rijen = [];
+  let n = 0;
+  const id = () => 'V000' + (++n);
+  assert.strictEqual(M.maakBeschrijvingVoorstel(s, rijen, { boek_id: 'B0001', tekst: 'Te kort' }, id).ok, false);
+  assert.strictEqual(M.maakBeschrijvingVoorstel(s, rijen, { boek_id: 'B9999', tekst: 'x'.repeat(50) }, id).ok, false);
+  const tekst = 'Een roman over een zee die niet bestaat, verteld door drie vrienden.';
+  assert.strictEqual(M.maakBeschrijvingVoorstel(s, rijen, { boek_id: 'B0001', tekst: tekst }, id).ok, true);
+  // Een tweede voorstel voor hetzelfde boek vervangt het eerste.
+  assert.strictEqual(M.maakBeschrijvingVoorstel(s, rijen, { boek_id: 'B0001', tekst: tekst + ' Met een open einde.' }, id).ok, true);
+  assert.strictEqual(rijen.length, 1);
+  M.maakBeschrijvingVoorstel(s, rijen, { boek_id: 'B0002', tekst: 'Essays over boeken, kasten en de mensen die ze vullen.' }, id);
+  gelijk(M.voorgesteldeBoeken(rijen), ['B0001', 'B0002']);
+  assert.ok(!s.catalogus[0].beschrijving, 'Nog niet in de Catalogus voor goedkeuring');
+  assert.strictEqual(M.voorstelBehandelen(s, rijen, { voorstel_id: 'V0001', besluit: 'raar' }).ok, false);
+  assert.strictEqual(M.voorstelBehandelen(s, rijen, { voorstel_id: 'V0001', besluit: 'goedgekeurd', tekst: 'Aangepaste tekst door het bestuur, lang genoeg.' }).ok, true);
+  assert.strictEqual(s.catalogus[0].beschrijving, 'Aangepaste tekst door het bestuur, lang genoeg.');
+  assert.strictEqual(rijen[0].status, 'goedgekeurd');
+  assert.strictEqual(M.voorstelBehandelen(s, rijen, { voorstel_id: 'V0001', besluit: 'afgekeurd' }).ok, false, 'Al behandeld');
+  assert.strictEqual(M.voorstelBehandelen(s, rijen, { voorstel_id: 'V0002', besluit: 'afgekeurd' }).ok, true);
+  assert.ok(!s.catalogus[1].beschrijving);
+  gelijk(M.openVoorstellen(rijen), []);
+  // Een boek met een beschrijving krijgt geen voorstel meer.
+  assert.strictEqual(M.maakBeschrijvingVoorstel(s, rijen, { boek_id: 'B0001', tekst: tekst }, id).ok, false);
+});
+
+test('vrijwilligers: iets melden, afhandelen en opruimen', () => {
+  const rijen = [];
+  let n = 0;
+  const id = () => 'M000' + (++n);
+  assert.strictEqual(M.maakMelding(rijen, { soort: 'verzonnen', bericht: 'Iets' }, 'Kim', '2026-10-01', id).ok, false);
+  assert.strictEqual(M.maakMelding(rijen, { soort: 'boek kapot', bericht: '' }, 'Kim', '2026-10-01', id).ok, false);
+  assert.strictEqual(M.maakMelding(rijen, { soort: 'boek kapot', onderwerp: 'B0001', bericht: 'Rug is gescheurd' }, 'Kim', '2026-06-01', id).ok, true);
+  assert.strictEqual(M.maakMelding(rijen, { soort: 'andere', bericht: 'De lamp is stuk' }, 'Kim', '2026-06-01', id).ok, true);
+  gelijk(M.openMeldingen(rijen).map((m) => m.melding_id), ['M0001', 'M0002']);
+  assert.strictEqual(M.meldingAfhandelen(rijen, { melding_id: 'M0001' }, 'Bestuur', '2026-06-02').ok, true);
+  gelijk(M.openMeldingen(rijen).map((m) => m.melding_id), ['M0002']);
+  // Enkel afgehandelde meldingen gaan weg, open meldingen blijven.
+  assert.strictEqual(M.ruimMeldingenOpRijen(rijen, '2026-10-23', 90), 1);
+  gelijk([rijen[0]._verwijderen, rijen[1]._verwijderen], [true, undefined]);
+});
+
+test('vrijwilligers: checklist uit de instellingen', () => {
+  gelijk(M.checklistPunten('- Licht aan\n\n2. Kassa klaar\n• Deur open'), ['Licht aan', 'Kassa klaar', 'Deur open']);
+  const c = M.shiftChecklist(instellingen({}));
+  assert.ok(c.openen.length > 1 && c.sluiten.length > 1, 'Standaard checklist');
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');

@@ -46,6 +46,11 @@ var ACTIES = {
   herinneringVerstuurd: 'bestuur',
   lenerAanpassen: 'bestuur',
   aanvraagAfhandelen: 'bestuur',
+  // Van vrijwilligers naar het bestuur (Vrijwilligers.js).
+  voorstelBeschrijving: 'vrijwilliger',
+  voorstelBehandelen: 'bestuur',
+  meldingMaken: 'vrijwilliger',
+  meldingAfhandelen: 'bestuur',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
   // Beheer van de website (Beheer.js). Wat op 'vrijwilliger' staat, kan ook vanuit het vrijwilligersscherm.
@@ -67,7 +72,7 @@ var ACTIES = {
   beheerCoversLijst: 'vrijwilliger',
   beheerCoversBewaren: 'vrijwilliger',
   beheerCoverUpload: 'vrijwilliger',
-  beheerTekstUitFoto: 'bestuur',
+  beheerTekstUitFoto: 'vrijwilliger',
   beheerIaCovers: 'bestuur',
   beheerIaCoversWissen: 'bestuur'
 };
@@ -313,6 +318,9 @@ var STANDAARD_INSTELLINGEN = [
   ['backup_map', 'Project Madrigal back-ups', 'Naam van de map op Google Drive waar elke week een kopie van deze spreadsheet komt.'],
   ['backup_bewaren', 8, 'Hoeveel back-ups je bewaart. De oudste gaan vanzelf naar de prullenbak. Een back-up bevat ook de gegevens van leners.'],
   ['bewaartermijn_afgesloten_uitleningen_maanden', 12, 'Na hoeveel maanden de koppeling tussen een teruggebrachte uitlening en de lener gewist wordt.'],
+  ['meldingen_bewaren_dagen', 90, 'Na hoeveel dagen een afgehandelde melding van een vrijwilliger gewist wordt. Open meldingen blijven staan.'],
+  ['tekst_checklist_openen', 'Licht en verwarming aan\nKassa en borgdoos klaarzetten\nBalie openen op de laptop\nTerugbrengbak leegmaken en boeken terugbrengen in het systeem', 'Checklist voor de vrijwilliger die de bib opent. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
+  ['tekst_checklist_sluiten', 'Alle boeken terug in de kast\nBorgen tellen en in de borgdoos\nLaptop afmelden en uitzetten\nLicht en verwarming uit, ramen dicht', 'Checklist voor de vrijwilliger die de bib sluit. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
   ['goodreads_shelf', '', 'Naam van de Goodreads-shelf met de boeken van Madrigal, precies zoals op Goodreads. Leeg: alle boeken uit de export.'],
   ['goatcounter_code', 'projectmadrigal', 'De code van het GoatCounter-account (projectmadrigal voor projectmadrigal.goatcounter.com). Dezelfde als statistiek in config.js.'],
   ['goatcounter_api_sleutel', '', 'Optioneel. Een API-sleutel van GoatCounter (je naam rechtsboven > Preferences > tabblad API, enkel "Read statistics"). Dan toont het bestuursscherm de bezoekers onder Cijfers. Deel deze sleutel met niemand.'],
@@ -402,6 +410,9 @@ var KOLOMMEN = {
   'Logboek': ['tijdstip', 'wie', 'actie', 'details'],
   // Online reserveren (Aanvragen.js). Bevat contactgegevens: nooit publiek.
   'Aanvragen': ['aanvraag_id', 'datum', 'boek_id', 'titel', 'voornaam', 'contact', 'opmerking', 'status', 'datum_afgehandeld', 'afgehandeld_door'],
+  // Van vrijwilligers (Vrijwilligers.js): voorgestelde beschrijvingen en meldingen voor het bestuur.
+  'Voorstellen': ['voorstel_id', 'datum', 'boek_id', 'titel', 'tekst', 'voorgesteld_door', 'status', 'behandeld_door', 'datum_behandeld'],
+  'Meldingen': ['melding_id', 'datum', 'wie', 'soort', 'onderwerp', 'bericht', 'status', 'afgehandeld_door', 'datum_afgehandeld'],
   // Inhoud van de website. Kolommen op _en zijn de Engelse versie (mag leeg: dan toont de site het Nederlands).
   // online_vanaf: een bericht met een datum in de toekomst verschijnt pas op die dag.
   // voorgesteld_door: voornaam van de vrijwilliger die dit voorstelde. Leeg zodra het bestuur het online zet.
@@ -419,7 +430,7 @@ var KOLOMMEN = {
 var DATUMKOLOMMEN = [
   'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
-  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
+  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'datum_behandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
   'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
 ];
 
@@ -451,15 +462,16 @@ var INSTELLING_GROEPEN = [
   ['Aanraders', ['aanraders_uit_stocklijst', 'aanraders_verbergen', 'nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal']],
   ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
   ['Rooster', ['rooster_url', 'rooster_code', 'rooster_link']],
+  ['Shift van vrijwilligers', ['tekst_checklist_openen', 'tekst_checklist_sluiten']],
   ['Bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
-  ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden']],
+  ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden', 'meldingen_bewaren_dagen']],
   ['Back-up', ['backup_map', 'backup_bewaren']],
   ['Online reserveren', ['online_reserveren', 'aanvragen_bewaren_dagen']]
 ];
 
 var TABBLAD_GROEPEN = [
-  ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Na te kijken']],                     // collectie
+  ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen']],      // uitlenen
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken']],                     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#1b1b1c', ['Instellingen', 'Logboek']],                                      // beheer
   ['#bdbdbd', ['Stock', 'Zines', 'Goodreads-export']]                            // bronnen, zelden nodig
@@ -506,6 +518,16 @@ var STATUS_GEANNULEERD = 'geannuleerd';
  * invoer: { uitlening_id, borg_terugbetaald: true/false }
  */
 var STATEN_TERUG = ['in orde', 'licht beschadigd', 'beschadigd'];
+
+var VOORSTEL_NIEUW = 'nieuw';
+
+var MELDING_NIEUW = 'nieuw';
+
+var MELDING_SOORTEN = ['boek kapot', 'iets kwijt', 'vraag van een lener', 'andere'];
+
+var VOORSTEL_MIN_TEKENS = 40;
+
+/* ---------- Beschrijvingen voorstellen ---------- */
 
 var WIKI_TALEN = ['nl', 'en'];
 
@@ -1702,6 +1724,12 @@ function celWaarde(kolom, waarde) {
     return new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]), 12);
   }
   return veiligeCel(waarde);
+}
+
+/** Een tekst met een punt per regel wordt een lijst. Lege regels en opsommingstekens vallen weg. */
+function checklistPunten(tekst) {
+  return String(tekst || '').split('\n').map(function (r) { return schoon(r.replace(/^\s*[-*•\d.)]+\s*/, '')); })
+    .filter(Boolean).slice(0, 30);
 }
 
 /**
@@ -3505,6 +3533,30 @@ function maakBeschrijvingNetjes(tekst) {
   return kortAfOpZin(t, BS_MAX_LENGTE);
 }
 
+/**
+ * Een vrijwilliger stelt een beschrijving voor.
+ * invoer: { boek_id, tekst }. rijen: het tabblad Voorstellen. nieuwId: geeft een nieuw nummer.
+ */
+function maakBeschrijvingVoorstel(staat, rijen, invoer, nieuwId) {
+  var boek = boekVan(staat, invoer.boek_id);
+  if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  if (!isLeeg(boek.beschrijving)) return { ok: false, fout: 'Dit boek heeft intussen al een beschrijving.' };
+  var tekst = schoonMetRegels(invoer.tekst).slice(0, 3000);
+  if (tekst.length < VOORSTEL_MIN_TEKENS) return { ok: false, fout: 'Schrijf minstens een paar zinnen (' + VOORSTEL_MIN_TEKENS + ' tekens).' };
+  var open = rijen.filter(function (v) { return v.status === VOORSTEL_NIEUW && String(v.boek_id) === String(boek.boek_id); })[0];
+  if (open) {
+    // Nog niet bekeken: het nieuwe voorstel vervangt het vorige.
+    wijzig(open, { datum: staat.vandaag, tekst: tekst, voorgesteld_door: staat.wie });
+  } else {
+    voegToe(rijen, {
+      voorstel_id: nieuwId(), datum: staat.vandaag, boek_id: String(boek.boek_id), titel: schoon(boek.titel),
+      tekst: tekst, voorgesteld_door: staat.wie, status: VOORSTEL_NIEUW
+    });
+  }
+  staat.log.push(['beschrijving voorgesteld', String(boek.boek_id)]);
+  return { ok: true, tekst: 'Dank je! Het bestuur bekijkt je beschrijving van "' + schoon(boek.titel) + '".' };
+}
+
 /** Menu: bouwt de Catalogus op uit Stock en Zines. */
 function maakCatalogus() {
   var lock = LockService.getScriptLock();
@@ -3560,6 +3612,19 @@ function maakIdGenerator(catalogusRijen) {
       props.setProperty('teller_boek_Z', String(tellers.Z));
     }
   };
+}
+
+/** invoer: { soort, onderwerp, bericht }. rijen: het tabblad Meldingen. */
+function maakMelding(rijen, invoer, wie, vandaag, nieuwId) {
+  var soort = String(invoer.soort || '');
+  if (MELDING_SOORTEN.indexOf(soort) === -1) return { ok: false, fout: 'Kies wat je wil melden.' };
+  var bericht = schoonMetRegels(invoer.bericht).slice(0, 1000);
+  if (bericht.length < 5) return { ok: false, fout: 'Schrijf kort wat er aan de hand is.' };
+  voegToe(rijen, {
+    melding_id: nieuwId(), datum: vandaag, wie: tekstInvoer(wie, 40) || 'onbekend', soort: soort,
+    onderwerp: tekstInvoer(invoer.onderwerp, 120), bericht: bericht, status: MELDING_NIEUW
+  });
+  return { ok: true, tekst: 'Je melding is doorgegeven aan het bestuur. Dank je!' };
 }
 
 /** Maakt herkende tekst netjes: woorden die over twee regels gesplitst werden, terug aan elkaar; alinea's blijven. */
@@ -3624,6 +3689,28 @@ function meldAlBezig(naam) {
   var waarde = null;
   try { waarde = CacheService.getScriptCache().get('taak_' + naam); } catch (e) { /* geen cache */ }
   meld(bezigTekst(waarde, Session.getScriptTimeZone()));
+}
+
+/** Acties meldingMaken en meldingAfhandelen (binnen het slot). */
+function meldingActie(actie, invoer, wie) {
+  var tabel = tabelOfLeeg('Meldingen');
+  if (!tabel) return { ok: false, fout: 'Het tabblad Meldingen ontbreekt nog. Vraag het bestuur om Madrigal > Installeer tabbladen uit te voeren.' };
+  var r = actie === 'meldingMaken'
+    ? maakMelding(tabel.rijen, invoer, wie, vandaagTekst(), nieuwIdVoor(tabel.rijen, 'melding_id', 'melding', 'M'))
+    : meldingAfhandelen(tabel.rijen, invoer, wie, vandaagTekst());
+  if (r.ok) {
+    bewaarTabel(tabel);
+    logboek(wie, actie === 'meldingMaken' ? 'melding' : 'melding afgehandeld', actie === 'meldingMaken' ? String(invoer.soort) : String(invoer.melding_id));
+  }
+  return r;
+}
+
+/** Het bestuur zet een melding op afgehandeld. invoer: { melding_id } */
+function meldingAfhandelen(rijen, invoer, wie, vandaag) {
+  var m = (rijen || []).filter(function (r) { return String(r.melding_id) === String(invoer.melding_id); })[0];
+  if (!m) return { ok: false, fout: 'Deze melding bestaat niet meer.' };
+  wijzig(m, { status: 'afgehandeld', afgehandeld_door: tekstInvoer(wie, 40), datum_afgehandeld: vandaag });
+  return { ok: true, tekst: 'Melding ' + m.melding_id + ' is afgehandeld.' };
 }
 
 /** Vult een nummer aan met nullen: 7 wordt "0007". */
@@ -3741,6 +3828,12 @@ function nieuweLener(staat, invoer) {
   });
   staat.log.push(['nieuwe lener', 'lener ' + nummer]);
   return { ok: true, lenersnummer: nummer, voornaam: voornaam, tekst: 'Lenersnummer ' + nummer };
+}
+
+function nieuwIdVoor(rijen, kolom, sleutel, letter) {
+  return function () {
+    return letter + metNullen(volgendNummer(sleutel, rijen.map(function (r) { return r[kolom]; })), 4);
+  };
 }
 
 /**
@@ -3915,6 +4008,22 @@ function openAanvragen(rijen) {
       voornaam: schoon(a.voornaam), contact: schoon(a.contact), opmerking: schoon(a.opmerking)
     };
   }).sort(function (a, b) { return String(a.datum).localeCompare(String(b.datum)); });
+}
+
+/** De open meldingen voor het bestuursscherm, oudste eerst. */
+function openMeldingen(rijen) {
+  return (rijen || []).filter(function (m) { return m.status === MELDING_NIEUW; }).map(function (m) {
+    return { melding_id: String(m.melding_id), datum: parseerDatum(m.datum) || String(m.datum || ''), wie: schoon(m.wie),
+      soort: schoon(m.soort), onderwerp: schoon(m.onderwerp), bericht: schoonMetRegels(m.bericht) };
+  }).sort(function (a, b) { return a.datum.localeCompare(b.datum); });
+}
+
+/** De open voorstellen voor het bestuursscherm, oudste eerst. */
+function openVoorstellen(rijen) {
+  return (rijen || []).filter(function (v) { return v.status === VOORSTEL_NIEUW; }).map(function (v) {
+    return { voorstel_id: String(v.voorstel_id), datum: parseerDatum(v.datum) || String(v.datum || ''), boek_id: String(v.boek_id),
+      titel: schoon(v.titel), tekst: schoonMetRegels(v.tekst), voorgesteld_door: schoon(v.voorgesteld_door) };
+  }).sort(function (a, b) { return a.datum.localeCompare(b.datum); });
 }
 
 /** Opmaak van de kopregel: vet, vastgezet. */
@@ -4467,6 +4576,28 @@ function ruimAanvragenOpRijen(rijen, vandaag, dagen) {
   return n;
 }
 
+/** Nachtelijke opruiming van de meldingen (zie Privacy.js). */
+function ruimMeldingenOp(inst) {
+  if (!spreadsheet().getSheetByName('Meldingen')) return 0;
+  var tabel = leesTabel('Meldingen');
+  var n = ruimMeldingenOpRijen(tabel.rijen, vandaagTekst(), inst.meldingen_bewaren_dagen);
+  if (n) bewaarTabel(tabel);
+  return n;
+}
+
+/* ---------- Checklist voor de shift ---------- */
+
+/** Privacy: afgehandelde meldingen ouder dan het aantal dagen gaan weg. Open meldingen blijven. */
+function ruimMeldingenOpRijen(rijen, vandaag, dagen) {
+  var n = 0;
+  (rijen || []).forEach(function (m) {
+    if (m.status === MELDING_NIEUW) return;
+    var d = parseerDatum(m.datum_afgehandeld) || parseerDatum(m.datum);
+    if (d && dagenTussen(d, vandaag) > dagen) { markeerVerwijderen(m); n++; }
+  });
+  return n;
+}
+
 /** Menu en nachtelijke planning: voert de opruiming uit op de spreadsheet. */
 function ruimOp() {
   var lock = LockService.getScriptLock();
@@ -4478,7 +4609,8 @@ function ruimOp() {
     var teller = ruimOpStaat(staat);
     bewaarStaat(staat);
     var aanvragen = ruimAanvragenOp(staat.inst);
-    logboek('systeem', 'privacy-opruiming', teller.koppelingen + ' koppelingen gewist, ' + teller.leners + ' leners gewist, ' + aanvragen + ' aanvragen gewist');
+    var meldingen = ruimMeldingenOp(staat.inst);
+    logboek('systeem', 'privacy-opruiming', teller.koppelingen + ' koppelingen gewist, ' + teller.leners + ' leners gewist, ' + aanvragen + ' aanvragen gewist, ' + meldingen + ' meldingen gewist');
   } finally {
     lock.releaseLock();
   }
@@ -4563,6 +4695,12 @@ function schrijfVolledig(tabel) {
   tabel.rijen.forEach(function (r, i) { r._rij = i + 2; r._nieuw = false; r._gewijzigd = false; });
 }
 
+function shiftChecklist(inst) {
+  return { openen: checklistPunten(inst.tekst_checklist_openen), sluiten: checklistPunten(inst.tekst_checklist_sluiten) };
+}
+
+/* ---------- Tabbladen lezen en bewaren (enkel in Apps Script) ---------- */
+
 /** De inhoud van de startpagina als JSON-tekst, uit de cache als die er is. */
 function siteInhoudJson() {
   var cache = CacheService.getScriptCache();
@@ -4621,6 +4759,11 @@ function tabbladVolgorde(namen) {
   });
   namen.forEach(function (naam) { if (!gezien[naam]) uit.push({ naam: naam, kleur: null }); });
   return uit;
+}
+
+/** Leest een tabblad, of geeft een lege tabel als het nog niet bestaat. */
+function tabelOfLeeg(naam) {
+  return spreadsheet().getSheetByName(naam) ? leesTabel(naam) : null;
 }
 
 /**
@@ -5570,6 +5713,7 @@ function voerActieUit(actie, invoer, rol) {
   try {
     var wie = tekstInvoer(invoer.wie, 40) || 'onbekend';
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
+    if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {
       var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie, rol) : beheerInstellingBewaren(invoer, wie);
       if (gewijzigd.ok) leegCache();
@@ -5585,8 +5729,17 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.aanvragen = openAanvragen(spreadsheet().getSheetByName('Aanvragen') ? leesTabel('Aanvragen').rijen : []);
         antwoord.data.onlineReserveren = staat.inst.online_reserveren === true;
         antwoord.data.voorstellen = telVoorstellen();
+        antwoord.data.beschrijvingVoorstellen = openVoorstellen(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
+        antwoord.data.meldingen = openMeldingen(tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : []);
+        antwoord.data.checklist = shiftChecklist(staat.inst);
         break;
-      case 'vrijwilligerData': antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) }; break;
+      case 'vrijwilligerData':
+        antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) };
+        antwoord.data.voorgesteld = voorgesteldeBoeken(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
+        antwoord.data.checklist = shiftChecklist(staat.inst);
+        break;
+      case 'voorstelBeschrijving':
+      case 'voorstelBehandelen': antwoord = voorstelActie(staat, actie, invoer); break;
       case 'uitlenen': antwoord = uitlenen(staat, invoer); break;
       case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true, staat_boek: invoer.staat_boek, opmerking: invoer.opmerking }); break;
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
@@ -5672,6 +5825,44 @@ function volgendNummer(sleutel, bestaande) {
   props.setProperty('teller_' + sleutel, String(laatste));
   return laatste;
 }
+
+/** De boeken waarvoor al een voorstel klaarligt: die toont het vrijwilligersscherm apart. */
+function voorgesteldeBoeken(rijen) {
+  return openVoorstellen(rijen).map(function (v) { return v.boek_id; });
+}
+
+/** Acties voorstelBeschrijving en voorstelBehandelen (binnen het slot, met een staat). */
+function voorstelActie(staat, actie, invoer) {
+  var tabel = tabelOfLeeg('Voorstellen');
+  if (!tabel) return { ok: false, fout: 'Het tabblad Voorstellen ontbreekt nog. Vraag het bestuur om Madrigal > Installeer tabbladen uit te voeren.' };
+  var r = actie === 'voorstelBeschrijving'
+    ? maakBeschrijvingVoorstel(staat, tabel.rijen, invoer, nieuwIdVoor(tabel.rijen, 'voorstel_id', 'voorstel', 'V'))
+    : voorstelBehandelen(staat, tabel.rijen, invoer);
+  if (r.ok) bewaarTabel(tabel);
+  return r;
+}
+
+/**
+ * Het bestuur keurt een voorstel goed (de tekst mag aangepast zijn) of af.
+ * invoer: { voorstel_id, besluit: 'goedgekeurd' | 'afgekeurd', tekst }
+ */
+function voorstelBehandelen(staat, rijen, invoer) {
+  var besluit = String(invoer.besluit || '');
+  if (besluit !== 'goedgekeurd' && besluit !== 'afgekeurd') return { ok: false, fout: 'Onbekend besluit.' };
+  var v = rijen.filter(function (r) { return String(r.voorstel_id) === String(invoer.voorstel_id); })[0];
+  if (!v) return { ok: false, fout: 'Dit voorstel bestaat niet meer.' };
+  if (v.status !== VOORSTEL_NIEUW) return { ok: false, fout: 'Dit voorstel is al ' + v.status + '.' };
+  if (besluit === 'goedgekeurd') {
+    var tekst = isLeeg(invoer.tekst) ? schoonMetRegels(v.tekst) : schoonMetRegels(invoer.tekst);
+    var r = boekAanpassen(staat, { boek_id: v.boek_id, velden: { beschrijving: tekst } });
+    if (!r.ok) return r;
+  }
+  wijzig(v, { status: besluit, behandeld_door: staat.wie, datum_behandeld: staat.vandaag });
+  staat.log.push(['voorstel ' + besluit, String(v.voorstel_id) + ', boek ' + v.boek_id]);
+  return { ok: true, tekst: besluit === 'goedgekeurd' ? 'De beschrijving staat bij "' + schoon(v.titel) + '".' : 'Voorstel afgekeurd.' };
+}
+
+/* ---------- Iets melden ---------- */
 
 /**
  * Gegevens voor het vrijwilligersscherm: lopende uitleningen en reservaties zonder contactgegevens

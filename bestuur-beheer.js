@@ -131,7 +131,8 @@
   function boekKnop(b, opKlik, extra) {
     return el('button', Object.assign({ type: 'button', class: 'knop keuzeknop met-mini', onclick: opKlik }, extra || {}), miniCover(b),
       el('span', { class: 'mini-tekst' }, el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · ')),
-        b.st ? el('span', { class: 'labels' }, b.st === 'verloren' ? D.statusLabel('verloren', 'Verloren') : el('span', { class: 'label label-gevoelig' }, 'Gevoelige inhoud')) : null));
+        b.st ? el('span', { class: 'labels' }, b.st === 'verloren' ? D.statusLabel('verloren', 'Verloren') : el('span', { class: 'label label-gevoelig' }, 'Gevoelige inhoud')) : null,
+        b.voorgesteld ? el('span', { class: 'labels' }, D.statusLabel('binnenkort', 'Beschrijving voorgesteld')) : null));
   }
 
   /* ---------- Boeken ---------- */
@@ -176,7 +177,45 @@
   /** Opent een boek uit een lijst: vrijwilligers voegen een cover toe, het bestuur krijgt het hele formulier. */
   function openUitLijst(vak, ctx, b) {
     if (lijstStand[vanLijst]) lijstStand[vanLijst].laatste = b.id;
-    if (ctx.scherm === 'vrijwilliger') coverToevoegen(vak, ctx, b); else bewerkBoek(vak, ctx, b.id);
+    if (ctx.scherm !== 'vrijwilliger') bewerkBoek(vak, ctx, b.id);
+    else if (vanLijst === 'beschrijving') beschrijvingVoorstellen(vak, ctx, b);
+    else coverToevoegen(vak, ctx, b);
+  }
+
+  /**
+   * Vrijwilligersscherm: een beschrijving voorstellen. Typ ze zelf of laat de achterkant lezen.
+   * Het bestuur keurt ze goed in het bestuursscherm (Voorgestelde beschrijvingen). Pas dan staat ze op de website.
+   */
+  function beschrijvingVoorstellen(vak, ctx, b) {
+    var tekst = el('textarea', { id: 'vb-tekst', rows: '8', maxlength: '3000' });
+    var fout = el('div', { 'aria-live': 'assertive' });
+    var al = (ctx.data.voorgesteld || []).indexOf(b.id) > -1;
+    function stelVoor(daarna) {
+      return function (e) {
+        e.target.disabled = true;
+        B.voerUit('voorstelBeschrijving', { boek_id: b.id, tekst: tekst.value }).then(function (r) {
+          e.target.disabled = false;
+          if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+          ctx.data.voorgesteld = (ctx.data.voorgesteld || []).concat(b.id);
+          B.melding($('melding'), 'ok', r.tekst);
+          var volgend = buurBoek(b.id, 1);
+          if (daarna && volgend) openUitLijst(vak, ctx, volgend); else toonZonderBeschrijving(vak, ctx);
+        });
+      };
+    }
+    var zoekterm = [b.t, (b.a || '').split(',')[0], 'boek'].filter(Boolean).join(' ');
+    D.vervang(vak, ctx.kop(b.t, [b.a, b.id].filter(Boolean).join(' · ')),
+      al ? el('p', { class: 'melding info' }, 'Voor dit boek ligt al een voorstel klaar. Een nieuw voorstel vervangt het vorige.') : null,
+      el('p', {}, 'Schrijf in een paar zinnen waarover het boek gaat, in het Nederlands en in je eigen woorden. Het bestuur leest je voorstel na voor het op de website komt.'),
+      el('p', {}, el('a', { href: 'https://www.google.com/search?q=' + encodeURIComponent(zoekterm), target: '_blank', rel: 'noopener' }, 'Zoek dit boek op Google'), ' (opent in een nieuw tabblad)'),
+      el('div', { class: 'veld' }, el('label', { for: 'vb-tekst' }, 'Beschrijving'), tekst),
+      achterkantBlok({ invoer: tekst }, 'Klik daarna op Stel voor.'),
+      fout,
+      knoppen(el('button', { type: 'button', class: 'knop', onclick: stelVoor(true) }, 'Stel voor en volgend boek'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: stelVoor(false) }, 'Stel voor')),
+      knoppen.apply(null, bladerKnoppen(vak, ctx, b.id).concat(
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderBeschrijving(vak, ctx); } }, 'Terug naar de lijst zonder beschrijving'))));
+    vak.querySelector('h2').focus();
   }
 
   /** Vorig boek en Volgend boek, zonder te bewaren. Enkel als je uit een lijst komt. */
@@ -296,7 +335,9 @@
     vanLijst = soort;
     var cover = soort === 'cover';
     var stand = lijstStand[soort];
+    var voorgesteld = ctx.data.voorgesteld || [];
     var alle = (ctx.data.boeken || []).filter(function (b) { return cover ? !b.c : b.zb; })
+      .map(function (b) { return !cover && voorgesteld.indexOf(b.id) > -1 ? Object.assign({}, b, { voorgesteld: true }) : b; })
       .sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
     var filterId = cover ? 'zonder-cover-zoek' : 'zonder-beschrijving-zoek';
     var filter = el('input', { type: 'search', id: filterId, autocomplete: 'off', placeholder: 'Titel, auteur of boek-ID' });
@@ -325,11 +366,13 @@
     var zoekKnop = knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } },
       cover ? 'Zoek covers automatisch op het internet' : 'Zoek beschrijvingen automatisch op het internet'));
     var terug = vrijwilliger ? null : knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken'));
-    var uitleg = cover
+    var uitleg = !cover && vrijwilliger
+      ? 'Kies een boek en stel een beschrijving voor. Typ ze zelf, of neem een foto van de achterkant: de site leest de tekst voor je. Het bestuur keurt je voorstel goed voor het op de website komt.'
+      : cover
       ? 'Kies een boek en neem een foto van de cover met je gsm. Tip: leg het boek op een effen achtergrond, met goed licht en zonder schaduw. Met Volgend boek ga je meteen verder.'
       : 'Kies een boek. Typ de beschrijving in het veld Beschrijving, of neem een foto van de achterkant: de site leest de tekst voor je. Met Bewaar en volgend boek ga je meteen verder. Wil je eerst Google laten zoeken? Gebruik dan de knop hieronder.';
     D.vervang(vak, ctx.kop((cover ? 'Boeken zonder cover (' : 'Boeken zonder beschrijving (') + alle.length + ')', uitleg),
-      cover && !vrijwilliger ? null : zoekKnop,
+      (cover && !vrijwilliger) || (!cover && vrijwilliger) ? null : zoekKnop,
       el('div', { class: 'veld' }, el('label', { for: filterId }, 'Zoek in deze lijst'), filter), vakLijst,
       knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { downloadCsv(cover ? 'zonder-cover.csv' : 'zonder-beschrijving.csv', lijstBoeken); } }, 'Download deze lijst (CSV)'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { drukLijstAf(cover ? 'Boeken zonder cover' : 'Boeken zonder beschrijving', lijstBoeken); } }, 'Druk deze lijst af')),
@@ -366,7 +409,7 @@
 
   /** Het blok om een foto van de cover te nemen en te bewaren (enkel voor een bestaand boek). */
   /** Het blok om de tekst van de achterkant te laten lezen. Die komt in het veld beschrijving. */
-  function achterkantBlok(beschrijvingVeld) {
+  function achterkantBlok(beschrijvingVeld, slot) {
     var invoer = el('input', { type: 'file', id: 'bb-achterkant', accept: 'image/*', capture: 'environment' });
     var melding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
     invoer.addEventListener('change', function () {
@@ -387,7 +430,7 @@
         }
         beschrijvingVeld.invoer.value = r.tekst;
         beschrijvingVeld.invoer.focus();
-        melding.textContent = 'De tekst staat in het veld Beschrijving (Nederlands). Lees ze na, verbeter wat de herkenning fout las, en klik onderaan op Bewaar.';
+        melding.textContent = 'De tekst staat in het veld Beschrijving (Nederlands). Lees ze na en verbeter wat de herkenning fout las. ' + (slot || 'Klik daarna onderaan op Bewaar.');
       }, function (e) { melding.textContent = e.message; });
     });
     return el('fieldset', { class: 'blok' }, el('legend', {}, 'Tekst van de achterkant'),
@@ -563,15 +606,21 @@
     }
   }
 
-  /** Opent de camera en geeft een Promise met het gescande ISBN, of null als je stopt. */
-  function scanIsbn() {
+  /**
+   * Opent de camera en geeft een Promise met het gescande ISBN, of null als je stopt.
+   * opties.doorlopend: de camera blijft open (kastcontrole). Elk nieuw ISBN gaat naar opties.bijIsbn,
+   * dat de tekst teruggeeft die onder het beeld komt. Stop geeft dan null.
+   */
+  function scanIsbn(opties) {
+    opties = opties || {};
+    var vorige = '', vorigeTijd = 0;
     return new Promise(function (klaar) {
       var video = el('video', { playsinline: true, muted: true, class: 'scan-video' });
       var status = el('p', { 'aria-live': 'polite' }, 'Camera starten...');
-      var stopKnop = el('button', { type: 'button', class: 'knop tweede' }, 'Stop');
+      var stopKnop = el('button', { type: 'button', class: 'knop tweede' }, opties.doorlopend ? 'Klaar met scannen' : 'Stop');
       var dialoog = el('dialog', { class: 'scan-dialoog', 'aria-labelledby': 'scan-titel' },
-        el('h2', { id: 'scan-titel' }, 'ISBN scannen'),
-        el('p', {}, 'Richt de camera op de streepjescode op de achterkant van het boek. Hou het boek stil, met genoeg licht.'),
+        el('h2', { id: 'scan-titel' }, opties.titel || 'ISBN scannen'),
+        el('p', {}, opties.uitleg || 'Richt de camera op de streepjescode op de achterkant van het boek. Hou het boek stil, met genoeg licht.'),
         video, status, knoppen(stopKnop));
       var stroom = null, klaarOk = false, doek = document.createElement('canvas');
       function einde(isbn) {
@@ -613,8 +662,15 @@
         (function kijk() {
           if (klaarOk) return;
           lees().then(function (isbn) {
+            if (isbn && opties.doorlopend) {
+              // Hetzelfde boek nog even voor de camera: niet opnieuw tellen.
+              if (isbn !== vorige || Date.now() - vorigeTijd > 4000) status.textContent = opties.bijIsbn(isbn);
+              vorige = isbn; vorigeTijd = Date.now();
+              setTimeout(kijk, 300);
+              return;
+            }
             if (isbn) { einde(isbn); return; }
-            status.textContent = 'Zoeken naar een streepjescode...';
+            if (!opties.doorlopend) status.textContent = 'Zoeken naar een streepjescode...';
             setTimeout(kijk, 300);
           }, function (e) { status.textContent = e.message || 'Scannen lukt niet. Typ het ISBN in.'; });
         })();
@@ -1533,6 +1589,10 @@
     /** Voor de tests: een ISBN lezen uit een canvas met ZXing. */
     leesIsbn: function (canvas) { return laadZxing().then(function (ZX) { return leesIsbnZxing(ZX, canvas); }); },
     leeslijsten: toonLeeslijsten,
+    /** Voor vrijwilligers.js: de camera, de knoppen met kleine cover en isIsbn. */
+    scanIsbn: scanIsbn,
+    boekKnop: boekKnop,
+    isIsbn: isIsbn,
     instellingen: toonInstellingen,
     /** Bij Vernieuw: nieuws, agenda en instellingen opnieuw ophalen. */
     vergeet: function () { inhoud = null; }

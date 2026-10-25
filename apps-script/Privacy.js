@@ -73,7 +73,8 @@ function ruimOp() {
     var teller = ruimOpStaat(staat);
     bewaarStaat(staat);
     var aanvragen = ruimAanvragenOp(staat.inst);
-    logboek('systeem', 'privacy-opruiming', teller.koppelingen + ' koppelingen gewist, ' + teller.leners + ' leners gewist, ' + aanvragen + ' aanvragen gewist');
+    var meldingen = ruimMeldingenOp(staat.inst);
+    logboek('systeem', 'privacy-opruiming', teller.koppelingen + ' koppelingen gewist, ' + teller.leners + ' leners gewist, ' + aanvragen + ' aanvragen gewist, ' + meldingen + ' meldingen gewist');
   } finally {
     lock.releaseLock();
   }

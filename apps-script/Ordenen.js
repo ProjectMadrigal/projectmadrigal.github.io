@@ -30,15 +30,16 @@ var INSTELLING_GROEPEN = [
   ['Aanraders', ['aanraders_uit_stocklijst', 'aanraders_verbergen', 'nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal']],
   ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
   ['Rooster', ['rooster_url', 'rooster_code', 'rooster_link']],
+  ['Shift van vrijwilligers', ['tekst_checklist_openen', 'tekst_checklist_sluiten']],
   ['Bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
-  ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden']],
+  ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden', 'meldingen_bewaren_dagen']],
   ['Back-up', ['backup_map', 'backup_bewaren']],
   ['Online reserveren', ['online_reserveren', 'aanvragen_bewaren_dagen']]
 ];
 
 var TABBLAD_GROEPEN = [
-  ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Na te kijken']],                     // collectie
+  ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen']],      // uitlenen
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken']],                     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#1b1b1c', ['Instellingen', 'Logboek']],                                      // beheer
   ['#bdbdbd', ['Stock', 'Zines', 'Goodreads-export']]                            // bronnen, zelden nodig

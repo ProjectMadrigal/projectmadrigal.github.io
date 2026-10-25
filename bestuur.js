@@ -20,6 +20,7 @@
   var B = window.MadrigalBeheer;
   var Z = window.MadrigalZoeken;
   var W = window.MadrigalBestuurBeheer;
+  var V = window.MadrigalVrijwilligers;
   var $ = function (id) { return document.getElementById(id); };
 
   var data = null;
@@ -32,6 +33,9 @@
    */
   var ALLE_SECTIES = [
     ['vandaag', 'Vandaag', toonVandaag, 'start', 'beide'],
+    ['meldingen', 'Meldingen', function (vak) { V.meldingen(vak, context()); }, 'start'],
+    ['shift', 'Checklist voor de shift', function (vak) { V.checklist(vak, context()); }, 'start', 'vrijwilliger'],
+    ['melden', 'Iets melden', function (vak) { V.melden(vak, context()); }, 'start', 'vrijwilliger'],
     ['telaat', 'Te laat', toonTeLaat, 'uitlenen', 'beide'],
     ['binnenkort', 'Vervalt binnenkort', toonBinnenkort, 'uitlenen', 'beide'],
     ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen', 'beide'],
@@ -43,6 +47,9 @@
     // De website aanpassen: zie bestuur-beheer.js.
     ['boeken', 'Boeken', function (vak) { W.boeken(vak, context()); }, 'website'],
     ['covers', 'Boeken zonder cover', function (vak) { W.covers(vak, context()); }, 'website', 'vrijwilliger'],
+    ['beschrijvingen', 'Boeken zonder beschrijving', function (vak) { W.zonderBeschrijving(vak, context()); }, 'website', 'vrijwilliger'],
+    ['voorstellen', 'Voorgestelde beschrijvingen', function (vak) { V.voorstellen(vak, context()); }, 'website'],
+    ['kast', 'Kastcontrole', function (vak) { V.kast(vak, context()); }, 'website', 'beide'],
     ['boekstatus', 'Verloren en gevoelig', toonBoekstatus, 'website'],
     ['inhoud', 'Nieuws en agenda', function (vak) { W.inhoud(vak, context()); }, 'website', 'beide'],
     ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website', 'beide'],
@@ -70,7 +77,7 @@
 
   /** Wat bestuur-beheer.js nodig heeft van dit scherm. */
   function context() {
-    return { data: data, kop: kop, laad: laad, scherm: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur' };
+    return { data: data, kop: kop, laad: laad, scherm: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur', toonSectie: function (naam) { toonSectie(naam, true); } };
   }
 
   /* ---------- Gegevens en navigatie ---------- */
@@ -112,6 +119,8 @@
     if (naam === 'telaat') return data.telaat.length;
     if (naam === 'binnenkort') return data.binnenkort.length;
     if (naam === 'aanvragen') return (data.aanvragen || []).length;
+    if (naam === 'meldingen') return (data.meldingen || []).length;
+    if (naam === 'voorstellen') return (data.beschrijvingVoorstellen || []).length;
     return null;
   }
 
@@ -745,11 +754,15 @@
       [klaar, klaar === 1 ? 'reservatie ligt klaar om op te halen' : 'reservaties liggen klaar om op te halen', '', 'reservaties', ''],
       [wacht, wacht === 1 ? 'reservatie wacht op een boek' : 'reservaties wachten op een boek', '', 'reservaties', ''],
       [VRIJWILLIGER ? 0 : (data.aanvragen || []).length, 'aanvragen van de website', 'Neem contact op en handel ze af.', 'aanvragen', ''],
+      [VRIJWILLIGER ? 0 : (data.meldingen || []).length, (data.meldingen || []).length === 1 ? 'melding van een vrijwilliger' : 'meldingen van vrijwilligers', 'Volg op en zet ze op afgehandeld.', 'meldingen', 'binnenkort'],
+      [VRIJWILLIGER ? 0 : (data.beschrijvingVoorstellen || []).length, (data.beschrijvingVoorstellen || []).length === 1 ? 'voorgestelde beschrijving wacht op goedkeuring' : 'voorgestelde beschrijvingen wachten op goedkeuring', '', 'voorstellen', ''],
       [VRIJWILLIGER ? 0 : data.voorstellen || 0, data.voorstellen === 1 ? 'voorstel van een vrijwilliger wacht op goedkeuring' : 'voorstellen van vrijwilligers wachten op goedkeuring', '', 'inhoud', ''],
       [zonderCover, zonderCover === 1 ? 'boek heeft nog geen cover' : 'boeken hebben nog geen cover', '', VRIJWILLIGER ? 'covers' : 'boeken', '', function (vak2) { W.covers(vak2, context()); }],
-      [VRIJWILLIGER ? 0 : zonderTekst, zonderTekst === 1 ? 'boek heeft nog geen beschrijving' : 'boeken hebben nog geen beschrijving', '', 'boeken', '', function (vak2) { W.zonderBeschrijving(vak2, context()); }]
+      [zonderTekst, zonderTekst === 1 ? 'boek heeft nog geen beschrijving' : 'boeken hebben nog geen beschrijving', VRIJWILLIGER ? 'Stel er een voor.' : '', VRIJWILLIGER ? 'beschrijvingen' : 'boeken', '', VRIJWILLIGER ? null : function (vak2) { W.zonderBeschrijving(vak2, context()); }]
     ].filter(function (p) { return p[0] > 0; });
     D.vervang(vak, kop('Vandaag', 'Wat aandacht vraagt. Klik op Open om ernaartoe te gaan.'),
+      VRIJWILLIGER ? V.welkomBlok(context()) : null,
+      VRIJWILLIGER ? V.shiftBlok(context()) : null,
       punten.length ? el('ul', { class: 'kaartlijst' }, punten.map(function (p) {
         return el('li', { class: 'kaart' + (p[4] ? ' ' + p[4] : '') }, el('p', {}, el('strong', { class: 'vandaag-getal' }, String(p[0])), ' ', p[1]),
           p[2] ? el('p', { class: 'hulptekst' }, p[2]) : null,
@@ -758,7 +771,7 @@
             if (p[5]) p[5]($('sectie'));
           } }, 'Open')));
       })) : el('p', {}, 'Niets dringends. Alles is in orde.'),
-      VRIJWILLIGER ? null : el('p', {}, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonSectie('logboek', true); } }, 'Logboek en achtergrondtaken bekijken')));
+      VRIJWILLIGER ? V.rondleidingKnop(context()) : el('p', {}, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonSectie('logboek', true); } }, 'Logboek en achtergrondtaken bekijken')));
   }
 
   /* ---------- Logboek en taken ---------- */
@@ -833,7 +846,13 @@
     instellingen: 'De teksten en instellingen van de website en het uitleensysteem. Codes en sleutels pas je enkel in de spreadsheet aan.',
     cijfers: 'Uitleningen per maand, de meest geleende boeken, bezoekers van de website, en cijfers over leners en de collectie.',
     logboek: 'De achtergrondtaken die boeken opzoeken (Wikipedia, Google, covers) en de laatste regels van het Logboek. Staat een taak stil, start ze dan in de spreadsheet via het menu Madrigal.',
-    rooster: 'Wie wanneer de bib openhoudt. Je beschikbaarheid geef je door in de roostertool.'
+    rooster: 'Wie wanneer de bib openhoudt. Je beschikbaarheid geef je door in de roostertool.',
+    meldingen: 'Wat vrijwilligers via Iets melden doorgaven: een kapot boek, iets kwijt, een vraag van een lener. Volg op en klik op Afgehandeld.',
+    shift: 'De punten om af te werken bij het openen en sluiten van de bib. Wat je afvinkt, onthoudt dit toestel tot het einde van de dag. Het bestuur past de punten aan bij Teksten en instellingen.',
+    melden: 'Geef iets door aan het bestuur: een kapot boek, iets dat kwijt is, of een vraag van een lener die je niet kon beantwoorden.',
+    beschrijvingen: 'Boeken zonder beschrijving. Kies een boek en stel een tekst voor, of neem een foto van de achterkant. Het bestuur keurt je voorstel goed voor het op de website komt.',
+    voorstellen: 'Beschrijvingen die vrijwilligers voorstelden. Lees na, verbeter waar nodig en klik op Keur goed. Dan staat de tekst in de Catalogus en op de website.',
+    kast: 'Kies een kast (onderwerp en eventueel letters van de auteurs) en scan de boeken die er staan. Het scherm toont wat ontbreekt, wat uitgeleend is en wat niet in de kast hoort. Boeken zonder ISBN vink je met de hand aan.'
   };
 
   function toonHulp(naam) {
