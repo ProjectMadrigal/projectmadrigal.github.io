@@ -30,8 +30,59 @@
    * Toont het aanmeldformulier, of meldt meteen aan met de bewaarde code.
    * opties: { codeSleutel, reserveSleutel (optioneel, ook een lijst), vereisteRol ('balie', 'vrijwilliger' of 'bestuur'), bijAangemeld(rol) }
    */
+  /*
+   * Automatisch afmelden na een uur zonder gebruik (bestuurs- en vrijwilligersscherm), tenzij je
+   * "Dit is mijn toestel" aanvinkt. Zo blijft er op een gedeelde computer geen code achter.
+   */
+  var SLEUTEL_MIJN = 'madrigal_mijn_toestel';
+  var SLEUTEL_ACTIEF = 'madrigal_laatst_actief';
+  var INACTIEF_MS = 60 * 60 * 1000;
+
+  function teLangInactief() {
+    var laatst = Number(lees(SLEUTEL_ACTIEF) || 0);
+    return lees(SLEUTEL_MIJN) !== 'ja' && laatst > 0 && Date.now() - laatst > INACTIEF_MS;
+  }
+
+  function volgActiviteit(codeSleutels) {
+    var vorige = 0;
+    function actief() {
+      if (Date.now() - vorige < 30000) return; // niet bij elke klik schrijven
+      vorige = Date.now();
+      schrijf(SLEUTEL_ACTIEF, String(vorige));
+    }
+    actief();
+    ['click', 'keydown', 'touchstart', 'scroll'].forEach(function (n) { document.addEventListener(n, actief, { passive: true }); });
+    setInterval(function () {
+      if (!teLangInactief()) return;
+      codeSleutels.forEach(function (s) { schrijf(s, ''); });
+      schrijf(SLEUTEL_ACTIEF, '');
+      try { sessionStorage.setItem('madrigal_afgemeld', 'ja'); } catch (e) { /* geen opslag */ }
+      location.reload();
+    }, 60000);
+  }
+
+  /** Het vinkje "Dit is mijn toestel" (op het aanmeldscherm en bovenaan het scherm). */
+  function koppelMijnToestel() {
+    Array.prototype.forEach.call(document.querySelectorAll('.mijn-toestel'), function (vak) {
+      vak.checked = lees(SLEUTEL_MIJN) === 'ja';
+      vak.addEventListener('change', function () {
+        schrijf(SLEUTEL_MIJN, vak.checked ? 'ja' : '');
+        Array.prototype.forEach.call(document.querySelectorAll('.mijn-toestel'), function (ander) { ander.checked = vak.checked; });
+      });
+    });
+  }
+
   function aanmelden(opties) {
     sessie.codeSleutel = opties.codeSleutel;
+    var codeSleutels = [opties.codeSleutel].concat(opties.reserveSleutel || []);
+    if (opties.afmeldenNaInactiviteit) {
+      koppelMijnToestel();
+      if (teLangInactief()) {
+        codeSleutels.forEach(function (s) { schrijf(s, ''); });
+        schrijf(SLEUTEL_ACTIEF, '');
+        try { sessionStorage.setItem('madrigal_afgemeld', 'ja'); } catch (e) { /* geen opslag */ }
+      }
+    }
     var formulier = document.getElementById('aanmeldformulier');
     var melding = document.getElementById('aanmeld-melding');
     var codeVeld = document.getElementById('code');
@@ -47,6 +98,7 @@
           schrijf(SLEUTEL_WIE, wie);
           document.getElementById('aanmelden').hidden = true;
           document.getElementById('app').hidden = false;
+          if (opties.afmeldenNaInactiviteit) volgActiviteit(codeSleutels);
           opties.bijAangemeld(r.rol);
           return;
         }
@@ -79,6 +131,12 @@
     [].concat(opties.reserveSleutel || []).forEach(function (s) { if (!bewaard) bewaard = lees(s); });
     if (bewaard && lees(SLEUTEL_WIE)) probeer(bewaard, lees(SLEUTEL_WIE), true);
     else document.getElementById('aanmelden').hidden = false;
+    var afgemeld = false;
+    try { afgemeld = sessionStorage.getItem('madrigal_afgemeld') === 'ja'; sessionStorage.removeItem('madrigal_afgemeld'); } catch (e) { /* geen opslag */ }
+    if (afgemeld) {
+      melding.textContent = 'Je werd afgemeld omdat dit scherm een uur niet gebruikt werd. Werk je op je eigen toestel? Vink dan "Dit is mijn toestel" aan.';
+      melding.hidden = false;
+    }
   }
 
   /** Afmelden: vergeet de code op dit toestel. */

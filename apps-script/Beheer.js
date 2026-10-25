@@ -145,7 +145,8 @@ function boekAanpassen(staat, invoer) {
   if (v.hasOwnProperty('beschrijving') && !v.beschrijving) v.beschrijving_bron = '';
   wijzig(boek, v);
   staat.catalogusGewijzigd = true;
-  staat.log.push(['boek aangepast', boek.boek_id]);
+  // Welke velden: zo zie je in het Logboek en bij het boek wat er veranderde.
+  staat.log.push(['boek aangepast', boek.boek_id + ': ' + Object.keys(v).filter(function (k) { return BEHEER_BOEKVELDEN.indexOf(k) > -1; }).join(', ')]);
   return { ok: true, tekst: '"' + schoon(boek.titel) + '" is bewaard.', boek: beheerBoek(boek) };
 }
 

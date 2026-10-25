@@ -173,7 +173,7 @@
     return c;
   }
 
-  function herinneringKaart(u) {
+  function herinneringKaart(u, naVerstuurd) {
     var kopieerKnop = el('button', { type: 'button', class: 'knop' }, 'Kopieer herinnering');
     kopieerKnop.addEventListener('click', function () { kopieer(u.herinnering, kopieerKnop); });
     var verstuurdKnop = el('button', { type: 'button', class: 'knop tweede' }, 'Herinnering verstuurd');
@@ -182,7 +182,7 @@
       B.voerUit('herinneringVerstuurd', { uitlening_id: u.uitlening_id }).then(function (r) {
         if (!r.ok) { verstuurdKnop.disabled = false; B.melding($('melding'), 'fout', r.fout); return; }
         B.melding($('melding'), 'ok', 'Herinnering voor "' + u.titel + '" genoteerd.');
-        laad();
+        if (typeof naVerstuurd === 'function') naVerstuurd(); else laad();
       });
     });
     var contact = [];
@@ -221,9 +221,37 @@
   }
 
   function toonTeLaat(vak) {
+    var naElkaar = !VRIJWILLIGER && data.telaat.length > 1
+      ? el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop', onclick: function () { herinneringenNaElkaar(vak, data.telaat, 0); } }, 'Verstuur de herinneringen een voor een'))
+      : null;
     D.vervang(vak, kop('Te laat', VRIJWILLIGER ? 'Het bestuur stuurt de herinneringen. Komt de lener langs, dan breng je het boek terug in het uitleenscherm.'
       : 'Kopieer de herinnering, verstuur ze zelf via WhatsApp, sms of mail, en noteer daarna dat ze verstuurd is.'),
-      data.telaat.length ? el('ul', { class: 'kaartlijst' }, data.telaat.map(VRIJWILLIGER ? uitleningKaart : herinneringKaart)) : el('p', {}, 'Geen boeken te laat. Fijn!'));
+      naElkaar,
+      data.telaat.length ? el('ul', { class: 'kaartlijst' }, data.telaat.map(function (u) { return VRIJWILLIGER ? uitleningKaart(u) : herinneringKaart(u); })) : el('p', {}, 'Geen boeken te laat. Fijn!'));
+  }
+
+  /**
+   * De herinneringen een voor een: één lener per keer, met WhatsApp of mail bovenaan.
+   * Na Herinnering verstuurd ga je meteen naar de volgende.
+   */
+  function herinneringenNaElkaar(vak, lijst, i) {
+    if (i >= lijst.length) {
+      B.melding($('melding'), 'ok', 'Alle herinneringen overlopen.');
+      laad();
+      return;
+    }
+    var u = lijst[i];
+    var snel = [];
+    if (u.telefoon) snel.push(el('a', { class: 'knop', href: 'https://wa.me/' + whatsappNummer(u.telefoon) + '?text=' + encodeURIComponent(u.herinnering), target: '_blank', rel: 'noopener' }, 'Open in WhatsApp'));
+    if (u.email) snel.push(el('a', { class: 'knop tweede', href: 'mailto:' + u.email + '?subject=' + encodeURIComponent('Herinnering Project Madrigal') + '&body=' + encodeURIComponent(u.herinnering) }, 'Open in je mail'));
+    D.vervang(vak, kop('Herinnering ' + (i + 1) + ' van ' + lijst.length, 'Verstuur het bericht en klik daarna op Herinnering verstuurd. Dan komt de volgende.'),
+      snel.length ? el('div', { class: 'knoppen' }, snel) : null,
+      el('ul', { class: 'kaartlijst' }, herinneringKaart(u, function () { herinneringenNaElkaar(vak, lijst, i + 1); })),
+      el('div', { class: 'knoppen' },
+        i > 0 ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { herinneringenNaElkaar(vak, lijst, i - 1); } }, '‹ Vorige') : null,
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { herinneringenNaElkaar(vak, lijst, i + 1); } }, i + 1 < lijst.length ? 'Sla over ›' : 'Klaar'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonTeLaat(vak); } }, 'Terug naar Te laat')));
+    vak.querySelector('h2').focus();
   }
 
   function toonBinnenkort(vak) {
@@ -234,8 +262,26 @@
   /* ---------- Lopende uitleningen ---------- */
 
   function toonLopend(vak) {
+    var zoek = el('input', { type: 'search', id: 'lopend-zoek', autocomplete: 'off', placeholder: 'Titel, exemplaar, lenersnummer of voornaam' });
+    var soort = el('select', { id: 'lopend-soort' },
+      el('option', { value: '' }, 'Alle'), el('option', { value: 'telaat' }, 'Te laat'),
+      el('option', { value: 'binnenkort' }, 'Vervalt binnenkort'), el('option', { value: 'optijd' }, 'Op tijd'));
+    var lijst = el('div', { 'aria-live': 'polite' });
+    function teken() {
+      var q = Z.normaliseer(zoek.value);
+      var gevonden = data.lopend.filter(function (u) {
+        return (!soort.value || u.status.code === soort.value) &&
+          (!q || Z.normaliseer([u.titel, u.exemplaar, u.lenersnummer, u.voornaam].join(' ')).indexOf(q) > -1);
+      });
+      D.vervang(lijst, el('p', {}, gevonden.length + ' van ' + data.lopend.length + ' uitleningen.'),
+        gevonden.length ? el('ul', { class: 'kaartlijst' }, gevonden.map(uitleningKaart)) : null);
+    }
+    zoek.addEventListener('input', teken);
+    soort.addEventListener('change', teken);
     D.vervang(vak, kop('Alle lopende uitleningen', data.lopend.length + (data.lopend.length === 1 ? ' boek' : ' boeken') + ' uitgeleend, gesorteerd op vervaldatum.'),
-      el('ul', { class: 'kaartlijst' }, data.lopend.map(uitleningKaart)));
+      el('div', { class: 'veld' }, el('label', { for: 'lopend-zoek' }, 'Zoek'), zoek),
+      el('div', { class: 'veld' }, el('label', { for: 'lopend-soort' }, 'Toon'), soort), lijst);
+    teken();
   }
 
   /* ---------- Borgen en giften ---------- */
@@ -420,8 +466,35 @@
           laad();
         });
       });
-      D.vervang(vak, kop('Lener ' + l.lenersnummer), formulier);
+      D.vervang(vak, kop('Lener ' + l.lenersnummer + ' · ' + [l.voornaam, l.achternaam].filter(Boolean).join(' ')), lenerOverzicht(l), formulier);
       vak.querySelector('h2').focus();
+    }
+
+    /** Wat deze lener nu leent, wat er gereserveerd staat, en (op vraag) wat die vroeger leende. */
+    function lenerOverzicht(l) {
+      var nr = String(l.lenersnummer);
+      var nu = data.lopend.filter(function (u) { return String(u.lenersnummer) === nr; });
+      var res = data.reservaties.filter(function (r) { return String(r.lenersnummer) === nr; });
+      var vroeger = el('div', { 'aria-live': 'polite' });
+      var knop = el('button', { type: 'button', class: 'knop tweede' }, 'Toon wat deze lener vroeger leende');
+      knop.addEventListener('click', function () {
+        knop.disabled = true;
+        D.vervang(vroeger, el('p', {}, 'Laden...'));
+        B.voerUit('beheerLenerHistoriek', { lenersnummer: nr }).then(function (r) {
+          knop.hidden = true;
+          if (!r.ok) { D.vervang(vroeger, el('p', { class: 'melding fout' }, r.fout)); return; }
+          D.vervang(vroeger, r.uitleningen.length ? el('ul', {}, r.uitleningen.map(function (u) {
+            return el('li', {}, u.titel + ' (' + u.exemplaar + '): ' + D.korteDatum(u.datum_uit) + ' tot ' + D.korteDatum(u.datum_terug));
+          })) : el('p', {}, 'Geen eerdere uitleningen (of de privacy-opruiming wiste ze).'),
+          r.totaal > r.uitleningen.length ? el('p', { class: 'hulptekst' }, 'De laatste ' + r.uitleningen.length + ' van ' + r.totaal + '.') : null);
+        });
+      });
+      return el('div', { class: 'blok' },
+        el('h3', {}, 'Nu in huis'),
+        nu.length ? el('ul', { class: 'kaartlijst' }, nu.map(uitleningKaart)) : el('p', {}, 'Geen boeken in huis.'),
+        el('h3', {}, 'Reservaties'),
+        res.length ? el('ul', {}, res.map(function (r) { return el('li', {}, r.titel + ': ' + r.tekst); })) : el('p', {}, 'Geen reservaties.'),
+        el('h3', {}, 'Vroeger'), vroeger, el('div', { class: 'knoppen' }, knop));
     }
   }
 
@@ -613,6 +686,7 @@
     codeSleutel: VRIJWILLIGER ? 'madrigal_code_vrijwilliger' : 'madrigal_code_bestuur',
     reserveSleutel: VRIJWILLIGER ? 'madrigal_code_bestuur' : null,
     vereisteRol: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur',
+    afmeldenNaInactiviteit: true,
     bijAangemeld: function () { laad(); }
   });
 })();

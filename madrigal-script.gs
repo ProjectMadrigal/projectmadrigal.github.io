@@ -56,6 +56,7 @@ var ACTIES = {
   bezoekersCijfers: 'bestuur',
   beheerLogboek: 'bestuur',
   beheerCoverLinks: 'vrijwilliger',
+  beheerLenerHistoriek: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -1199,7 +1200,8 @@ function boekAanpassen(staat, invoer) {
   if (v.hasOwnProperty('beschrijving') && !v.beschrijving) v.beschrijving_bron = '';
   wijzig(boek, v);
   staat.catalogusGewijzigd = true;
-  staat.log.push(['boek aangepast', boek.boek_id]);
+  // Welke velden: zo zie je in het Logboek en bij het boek wat er veranderde.
+  staat.log.push(['boek aangepast', boek.boek_id + ': ' + Object.keys(v).filter(function (k) { return BEHEER_BOEKVELDEN.indexOf(k) > -1; }).join(', ')]);
   return { ok: true, tekst: '"' + schoon(boek.titel) + '" is bewaard.', boek: beheerBoek(boek) };
 }
 
@@ -1215,6 +1217,13 @@ function boekenMetStatus(staat) {
     lijsten[k].sort(function (a, b) { return a.titel.localeCompare(b.titel); });
   });
   return lijsten;
+}
+
+/** Hoe vaak werd dit boek uitgeleend, en wanneer laatst? */
+function boekHistoriek(staat, boekId) {
+  var eigen = staat.uitleningen.filter(function (u) { return String(u.boek_id) === String(boekId); });
+  var laatst = eigen.map(function (u) { return parseerDatum(u.datum_uit); }).filter(Boolean).sort().pop() || '';
+  return { keer: eigen.length, laatst: laatst };
 }
 
 /** Een boek ophalen om aan te passen. */
@@ -1274,6 +1283,15 @@ function boekVan(staat, boekId) {
     if (String(staat.catalogus[i].boek_id).toUpperCase() === id) return staat.catalogus[i];
   }
   return null;
+}
+
+/** De laatste wijzigingen aan een boek volgens het Logboek (waarden: het tabblad Logboek). */
+function boekWijzigingen(waarden, boekId) {
+  var id = String(boekId);
+  return laatsteLogregels(waarden, waarden.length).filter(function (r) {
+    return ['boek aangepast', 'boek toegevoegd', 'cover-foto'].indexOf(r.actie) > -1 &&
+      (r.details === id || r.details.indexOf(id + ':') === 0 || r.details.indexOf(id + ' ') === 0);
+  }).slice(0, 5);
 }
 
 /**
@@ -1664,6 +1682,8 @@ function coverLinks(rijen) {
   });
   return { ok: true, links: links };
 }
+
+/* ---------- Geschiedenis per boek en per lener (bestuursscherm) ---------- */
 
 /**
  * Bewaart wat de browser bij Google Books en Open Library vond.
@@ -3213,6 +3233,18 @@ function lenerAanpassen(staat, invoer) {
 }
 
 /* ---------- Informatie voor de schermen ---------- */
+
+/** De afgesloten uitleningen van een lener, nieuwste eerst (wat de privacy-opruiming nog niet wiste). */
+function lenerHistoriek(staat, nummer) {
+  var lijst = staat.uitleningen.filter(function (u) {
+    return String(u.lenersnummer) === String(nummer) && !isLeeg(u.datum_terug);
+  }).map(function (u) {
+    var boek = boekVan(staat, u.boek_id);
+    return { titel: boek ? schoon(boek.titel) : String(u.boek_id), exemplaar: String(u.exemplaar || ''),
+      datum_uit: parseerDatum(u.datum_uit), datum_terug: parseerDatum(u.datum_terug) };
+  }).sort(function (a, b) { return b.datum_uit.localeCompare(a.datum_uit); });
+  return { ok: true, uitleningen: lijst.slice(0, 50), totaal: lijst.length };
+}
 
 /** "12 (Sam)": wat een vrijwilliger van een lener mag zien. */
 function lenerNaam(staat, lenersnummer) {
@@ -5466,7 +5498,15 @@ function voerActieUit(actie, invoer, rol) {
       case 'nieuweLener': antwoord = nieuweLener(staat, { voornaam: invoer.voornaam, achternaam: invoer.achternaam, telefoon: invoer.telefoon, email: invoer.email, toestemming: invoer.toestemming === true }); break;
       case 'borgTerugbetaald': antwoord = borgTerugbetaald(staat, invoer); break;
       case 'herinneringVerstuurd': antwoord = herinneringVerstuurd(staat, invoer); break;
-      case 'beheerBoekOphalen': antwoord = boekOphalen(staat, invoer); break;
+      case 'beheerBoekOphalen':
+        antwoord = boekOphalen(staat, invoer);
+        if (antwoord.ok) {
+          antwoord.historiek = boekHistoriek(staat, invoer.boek_id);
+          var logBlad = spreadsheet().getSheetByName('Logboek');
+          antwoord.wijzigingen = logBlad && logBlad.getLastRow() > 1 ? boekWijzigingen(logBlad.getDataRange().getValues(), invoer.boek_id) : [];
+        }
+        break;
+      case 'beheerLenerHistoriek': antwoord = lenerHistoriek(staat, invoer.lenersnummer); break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;

@@ -14,6 +14,8 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+// ZXing (lokaal geïnstalleerd met npm) vervangt in de test het CDN.
+const ZXING = require.resolve('@zxing/library/umd/index.min.js');
 const { chromium } = require('playwright');
 
 const MAP = path.join(__dirname, '..');
@@ -46,6 +48,7 @@ const UITLENING = { uitlening_id: 'U0001', exemplaar: 'B0001-1', boek_id: 'B0001
 const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', c: true, g: ['Geschiedenis en maatschappij'] }];
 // Veel boeken zonder beschrijving (verzonnen), om Toon er nog 100 te testen.
 const VEEL = Array.from({ length: 150 }, (_, i) => ({ id: 'X' + String(i).padStart(3, '0'), t: 'Verzonnen titel ' + String(i).padStart(3, '0'), a: '', c: true, zb: true }));
+const UITLENING2 = Object.assign({}, UITLENING, { uitlening_id: 'U0002', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', lenersnummer: '13', voornaam: 'Jo' });
 const INHOUD = {
   tabbladen: {
     Nieuws: [{ rij: 2, vingerafdruk: 'a', datum: '2026-10-20', titel: 'Voorstel boekenruil', publiek: 'nee', voorgesteld_door: 'Kim' }],
@@ -62,18 +65,22 @@ function antwoord(rol, actie, vraag) {
     vrijwilligerData: { ok: true, data: basis },
     bestuurData: { ok: true, data: Object.assign({}, basis, {
       boeken: BOEKEN.concat(VEEL),
-      telaat: [Object.assign({}, UITLENING, { telefoon: '0400000000', herinnering: 'Hoi Sam' })], aanvragen: [], uitzonderingen: [], leners: [],
+      telaat: [Object.assign({}, UITLENING, { telefoon: '0400000000', herinnering: 'Hoi Sam' }), Object.assign({}, UITLENING2, { email: 'jo@voorbeeld.test', herinnering: 'Hoi Jo' })],
+      lopend: [UITLENING, UITLENING2], aanvragen: [], uitzonderingen: [],
+      leners: [{ lenersnummer: '12', voornaam: 'Sam', achternaam: 'Verzonnen', telefoon: '0400000000', email: '', actief: true, toestemming_privacy: 'ja', lopend: 1, datum_inschrijving: '2026-01-01' }],
       boekstatus: { verloren: [], gevoelig_verborgen: [], gevoelig_zichtbaar: [] }, borgen: { ingehouden: { totaal: 0, perBetaalwijze: {} }, terugTeBetalen: [] },
       perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], meestGeleend: [], groepen: [], voorstellen: 1
     }) },
     balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'] }, leners: [] }) },
     beheerInhoud: { ok: true, data: INHOUD },
     beheerBoekBewaren: { ok: true, tekst: 'Bewaard.' },
+    herinneringVerstuurd: { ok: true },
+    beheerLenerHistoriek: { ok: true, totaal: 1, uitleningen: [{ titel: 'Stille lichten', exemplaar: 'B0003-1', datum_uit: '2026-02-01', datum_terug: '2026-03-01' }] },
     beheerCoverLinks: { ok: true, links: { B0002: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' } },
     beheerLogboek: { ok: true, daglimiet: 0,
       taken: [{ functie: 'zoekBeschrijvingenWikipedia', naam: 'Beschrijvingen bij Wikipedia', teGaan: 12, status: 'gepland', sinds: 0 }],
       logboek: [{ tijd: Date.UTC(2026, 9, 25, 10, 0), wie: 'menu', actie: 'zoekBeschrijvingenWikipedia', details: '20 opgezocht' }, { tijd: Date.UTC(2026, 9, 25, 9, 0), wie: 'Kim', actie: 'uitlenen', details: 'B0001-1' }] },
-    beheerBoekOphalen: { ok: true, boek: { boek_id: (vraag || {}).boek_id, titel: (BOEKEN.concat(VEEL).find((b) => b.id === (vraag || {}).boek_id) || {}).t, auteur: '', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
+    beheerBoekOphalen: { ok: true, historiek: { keer: 3, laatst: '2026-09-20' }, wijzigingen: [{ tijd: Date.UTC(2026, 9, 24, 9), wie: 'Kim', actie: 'boek aangepast', details: 'B0001: beschrijving' }], boek: { boek_id: (vraag || {}).boek_id, titel: (BOEKEN.concat(VEEL).find((b) => b.id === (vraag || {}).boek_id) || {}).t, auteur: '', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
     bezoekersCijfers: { ok: true, nietIngesteld: true },
     roosterOverzicht: { ok: true, data: { avonden: [] } }
   }[actie] || { ok: false, fout: 'Niet nagebootst: ' + actie };
@@ -247,7 +254,7 @@ async function meldAan(page, basis, pagina) {
     await meldAan(page, basis, 'bestuur.html');
     // Vandaag
     const vandaag = await page.textContent('#sectie');
-    verwacht(/1\s*uitlening is te laat/.test(vandaag) && /te keuren|wacht op goedkeuring/.test(vandaag), 'Vandaag: ' + vandaag.slice(0, 200));
+    verwacht(/2\s*uitleningen zijn te laat/.test(vandaag) && /te keuren|wacht op goedkeuring/.test(vandaag), 'Vandaag: ' + vandaag.slice(0, 200));
     // Logboek en taken
     await page.click('#sectie button:has-text("Logboek en achtergrondtaken bekijken")');
     await page.waitForSelector('#logboek-filter');
@@ -277,6 +284,76 @@ async function meldAan(page, basis, pagina) {
     verwacht(await page.isVisible('#sectiekeuze') && !(await page.isVisible('#sectienav .navgroep')), 'Keuzelijst op de gsm');
     await page.selectOption('#sectiekeuze', 'telaat');
     await page.waitForFunction(() => /Te laat/.test(document.querySelector('#sectie h2').textContent));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('bestuursscherm: lener, boek, uitleningen zoeken, herinneringen na elkaar, ISBN lezen', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    // ZXing van het CDN vervangen door het lokale pakket (de test heeft geen internet nodig).
+    await ctx.route('https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js', (r) => r.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(ZXING) }));
+    await meldAan(page, basis, 'bestuur.html');
+    // Lener: nu in huis en vroeger
+    await page.click('#sectienav button:has-text("Leners")');
+    await page.click('.kaartlijst button');
+    verwacht(/Nu in huis[\s\S]*De verzonnen zee/.test(await page.textContent('#sectie')), 'Lener: nu in huis');
+    await page.click('button:has-text("Toon wat deze lener vroeger leende")');
+    await page.waitForSelector('text=Stille lichten');
+    // Alle uitleningen: zoeken
+    await page.click('#sectienav button:has-text("Alle uitleningen")');
+    await page.fill('#lopend-zoek', 'kasten');
+    verwacht(/1 van 2 uitleningen/.test(await page.textContent('#sectie')), 'Zoeken in uitleningen');
+    // Herinneringen een voor een
+    await page.click('#sectienav button:has-text("Te laat")');
+    await page.click('button:has-text("Verstuur de herinneringen een voor een")');
+    verwacht(await page.isVisible('a:has-text("Open in WhatsApp")'), 'WhatsApp-knop');
+    await page.click('button:has-text("Herinnering verstuurd")');
+    await page.waitForFunction(() => /Herinnering 2 van 2/.test(document.querySelector('#sectie h2').textContent));
+    verwacht(await page.isVisible('a:has-text("Open in je mail")'), 'Mail-knop bij de tweede');
+    // Boek: overzicht met uitleningen en laatst aangepast
+    await page.click('#sectienav button:has-text("Boeken")');
+    await page.fill('#beheer-boek-zoek', 'zee');
+    await page.click('.kaartlijst button');
+    await page.waitForSelector('.boek-overzicht');
+    await page.click('.boek-overzicht summary');
+    const overzicht = await page.textContent('.boek-overzicht');
+    verwacht(/nu uitgeleend/.test(overzicht) && /3 keer uitgeleend/.test(overzicht) && /Kim: boek aangepast \(beschrijving\)/.test(overzicht), 'Boekoverzicht: ' + overzicht);
+    // ISBN lezen uit een getekende streepjescode (EAN-13)
+    const gelezen = await page.evaluate(() => {
+      const L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+      const G = L.map((c) => c.split('').map((b) => (b === '1' ? '0' : '1')).reverse().join(''));
+      const R = L.map((c) => c.split('').map((b) => (b === '1' ? '0' : '1')).join(''));
+      const PAR = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL'];
+      const code = '9780306406157';
+      let bits = '101';
+      for (let i = 1; i <= 6; i++) bits += (PAR[+code[0]][i - 1] === 'L' ? L : G)[+code[i]];
+      bits += '01010';
+      for (let i = 7; i <= 12; i++) bits += R[+code[i]];
+      bits += '101';
+      const doek = document.createElement('canvas');
+      const m = 4, rand = 40;
+      doek.width = bits.length * m + 2 * rand; doek.height = 160;
+      const c = doek.getContext('2d');
+      c.fillStyle = '#fff'; c.fillRect(0, 0, doek.width, doek.height);
+      c.fillStyle = '#000';
+      for (let i = 0; i < bits.length; i++) if (bits[i] === '1') c.fillRect(rand + i * m, 20, m, 120);
+      return window.MadrigalBestuurBeheer.leesIsbn(doek);
+    });
+    verwacht(gelezen === '9780306406157', 'Gelezen: ' + gelezen);
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('bestuursscherm: na een uur zonder gebruik afgemeld, behalve op je eigen toestel', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    await meldAan(page, basis, 'bestuur.html');
+    await page.evaluate(() => localStorage.setItem('madrigal_laatst_actief', String(Date.now() - 2 * 60 * 60 * 1000)));
+    await page.reload();
+    await page.waitForSelector('#aanmelden:not([hidden])');
+    verwacht(/een uur niet gebruikt/.test(await page.textContent('#aanmeld-melding')), 'Melding na afmelden');
+    await meldAan(page, basis, 'bestuur.html');
+    await page.check('#mijn-toestel-app');
+    await page.evaluate(() => localStorage.setItem('madrigal_laatst_actief', String(Date.now() - 2 * 60 * 60 * 1000)));
+    await page.reload();
+    await page.waitForSelector('#app:not([hidden])');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });

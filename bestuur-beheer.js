@@ -214,6 +214,14 @@
     zoekveld.addEventListener('input', teken);
     D.vervang(vak, ctx.kop('Boeken', 'Zoek een boek om het aan te passen, of voeg een nieuw boek toe. Alles komt in het tabblad Catalogus van de spreadsheet.'),
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwBoek(vak, ctx); } }, '+ Nieuw boek toevoegen'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+          // Een ISBN dat al in de catalogus staat: dat boek openen. Anders een nieuw boek met dat ISBN.
+          scanIsbn().then(function (isbn) {
+            if (!isbn) return;
+            var bekend = (ctx.data.boeken || []).filter(function (b) { return String(b.i) === isbn; })[0];
+            if (bekend) bewerkBoek(vak, ctx, bekend.id); else boekFormulier(vak, ctx, {}, true, { isbn: isbn });
+          });
+        } }, 'Scan een ISBN'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers en beschrijvingen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderBeschrijving(vak, ctx); } }, 'Boeken zonder beschrijving (' + zonderTekst + ')'),
@@ -482,8 +490,136 @@
       knoppen(knop), melding);
   }
 
+  /**
+   * Uitleningen en wijzigingen van een boek, dichtgeklapt bovenaan het formulier:
+   * wie het nu leent, de wachtrij, hoe vaak het uitgeleend werd en wie het laatst aanpaste.
+   */
+  function boekOverzicht(ctx, boek, extra) {
+    var id = String(boek.boek_id);
+    var nu = (ctx.data.lopend || []).filter(function (u) { return String(u.boek_id) === id; });
+    var wachtrij = (ctx.data.reservaties || []).filter(function (r) { return String(r.boek_id) === id; });
+    var h = extra.historiek || { keer: 0, laatst: '' };
+    var wijz = extra.wijzigingen || [];
+    var kort = nu.length ? 'nu uitgeleend' : 'in huis';
+    return el('details', { class: 'blok boek-overzicht' }, el('summary', {}, 'Uitleningen en wijzigingen (' + kort + (wachtrij.length ? ', ' + wachtrij.length + ' in de wachtrij' : '') + ')'),
+      el('h3', {}, 'Nu'),
+      nu.length ? el('ul', {}, nu.map(function (u) {
+        return el('li', {}, u.exemplaar + ' bij lener ' + u.lenersnummer + (u.voornaam ? ' (' + u.voornaam + ')' : '') + ', terug tegen ' + D.korteDatum(u.vervaldatum));
+      })) : el('p', {}, 'Niet uitgeleend.'),
+      wachtrij.length ? el('ol', {}, wachtrij.map(function (r) { return el('li', {}, 'Lener ' + r.lenersnummer + (r.voornaam ? ' (' + r.voornaam + ')' : '') + ': ' + r.tekst); })) : null,
+      el('h3', {}, 'Eerder'),
+      el('p', {}, h.keer ? (h.keer === 1 ? '1 keer uitgeleend' : h.keer + ' keer uitgeleend') + ', laatst op ' + D.korteDatum(h.laatst) + '.' : 'Nog nooit uitgeleend (of de privacy-opruiming wiste de oude uitleningen).'),
+      el('h3', {}, 'Laatst aangepast'),
+      wijz.length ? el('ul', {}, wijz.map(function (w) {
+        var d = new Date(w.tijd);
+        var tijd = D.korteDatum(d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2));
+        var velden = w.details.indexOf(':') > -1 ? ' (' + w.details.split(':').slice(1).join(':').trim() + ')' : '';
+        return el('li', {}, tijd + ', ' + w.wie + ': ' + w.actie + velden);
+      })) : el('p', {}, 'Geen wijzigingen via dit scherm in het Logboek. Wat iemand rechtstreeks in de spreadsheet aanpast, staat er niet in.'));
+  }
+
+  /* ---------- ISBN scannen met de camera ---------- */
+
+  // Chrome op Android leest streepjescodes zelf (BarcodeDetector). Andere browsers, zoals Safari op de
+  // iPhone, gebruiken ZXing: een open source lezer die we pas laden als het nodig is.
+  var ZXING_URL = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+  var zxingBelofte = null;
+
+  function laadZxing() {
+    if (window.ZXing) return Promise.resolve(window.ZXing);
+    if (!zxingBelofte) {
+      zxingBelofte = new Promise(function (klaar, mislukt) {
+        var s = document.createElement('script');
+        s.src = ZXING_URL;
+        s.onload = function () { if (window.ZXing) klaar(window.ZXing); else mislukt(new Error('ZXing laadt niet.')); };
+        s.onerror = function () { zxingBelofte = null; mislukt(new Error('De scanner kon niet laden.')); };
+        document.head.appendChild(s);
+      });
+    }
+    return zxingBelofte;
+  }
+
+  function isIsbn(c) { return /^97[89]\d{10}$/.test(String(c || '')); }
+
+  /** Leest een ISBN uit een canvas met ZXing. Geeft het ISBN of ''. */
+  function leesIsbnZxing(ZX, canvas) {
+    try {
+      var hints = new Map();
+      hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [ZX.BarcodeFormat.EAN_13]);
+      hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+      var lezer = new ZX.MultiFormatReader();
+      lezer.setHints(hints);
+      var tekst = lezer.decode(new ZX.BinaryBitmap(new ZX.HybridBinarizer(new ZX.HTMLCanvasElementLuminanceSource(canvas)))).getText();
+      return isIsbn(tekst) ? tekst : '';
+    } catch (e) {
+      return ''; // geen streepjescode in dit beeld
+    }
+  }
+
+  /** Opent de camera en geeft een Promise met het gescande ISBN, of null als je stopt. */
+  function scanIsbn() {
+    return new Promise(function (klaar) {
+      var video = el('video', { playsinline: true, muted: true, class: 'scan-video' });
+      var status = el('p', { 'aria-live': 'polite' }, 'Camera starten...');
+      var stopKnop = el('button', { type: 'button', class: 'knop tweede' }, 'Stop');
+      var dialoog = el('dialog', { class: 'scan-dialoog', 'aria-labelledby': 'scan-titel' },
+        el('h2', { id: 'scan-titel' }, 'ISBN scannen'),
+        el('p', {}, 'Richt de camera op de streepjescode op de achterkant van het boek. Hou het boek stil, met genoeg licht.'),
+        video, status, knoppen(stopKnop));
+      var stroom = null, klaarOk = false, doek = document.createElement('canvas');
+      function einde(isbn) {
+        if (klaarOk) return;
+        klaarOk = true;
+        if (stroom) stroom.getTracks().forEach(function (t) { t.stop(); });
+        if (dialoog.open) dialoog.close();
+        dialoog.remove();
+        klaar(isbn || null);
+      }
+      stopKnop.addEventListener('click', function () { einde(null); });
+      dialoog.addEventListener('cancel', function (e) { e.preventDefault(); einde(null); });
+      document.body.appendChild(dialoog);
+      dialoog.showModal();
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        status.textContent = 'Deze browser kan de camera niet gebruiken. Typ het ISBN in.';
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function (s) {
+        stroom = s;
+        video.srcObject = s;
+        return video.play();
+      }).then(function () {
+        if (klaarOk) return;
+        var lees;
+        if ('BarcodeDetector' in window) {
+          var detector = new window.BarcodeDetector({ formats: ['ean_13'] });
+          lees = function () { return detector.detect(video).then(function (codes) { return codes.map(function (c) { return c.rawValue; }).filter(isIsbn)[0] || ''; }); };
+        } else {
+          status.textContent = 'Scanner laden...';
+          lees = function () {
+            return laadZxing().then(function (ZX) {
+              doek.width = video.videoWidth; doek.height = video.videoHeight;
+              doek.getContext('2d').drawImage(video, 0, 0);
+              return leesIsbnZxing(ZX, doek);
+            });
+          };
+        }
+        (function kijk() {
+          if (klaarOk) return;
+          lees().then(function (isbn) {
+            if (isbn) { einde(isbn); return; }
+            status.textContent = 'Zoeken naar een streepjescode...';
+            setTimeout(kijk, 300);
+          }, function (e) { status.textContent = e.message || 'Scannen lukt niet. Typ het ISBN in.'; });
+        })();
+      }, function () {
+        status.textContent = 'De camera opent niet. Geef deze site toestemming voor de camera, of typ het ISBN in.';
+      });
+    });
+  }
+
   /** Het formulier voor een boek. boek: bestaand boek of {} voor een nieuw. */
-  function boekFormulier(vak, ctx, boek, nieuw, sleutel) {
+  function boekFormulier(vak, ctx, boek, nieuw, extra) {
+    extra = extra || {};
     var velden = [];
     var fout = el('div', { 'aria-live': 'assertive' });
     var delen = GROEPEN_BOEK.map(function (g) {
@@ -495,9 +631,12 @@
     });
     var herkomst = nieuw ? veld('bb', 'herkomst', '') : null;
     var opzoekMelding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
+    var zoekKnop = el('button', { type: 'button', class: 'knop tweede', onclick: zoekOp }, 'Zoek gegevens op');
     var opzoeken = nieuw ? el('div', { class: 'blok' },
       el('p', {}, 'Heeft het boek een ISBN? Vul het hieronder in bij ISBN en klik op ', el('strong', {}, 'Zoek gegevens op'), '. Dan vult de site titel, auteur, cover en beschrijving voor je in. Kijk alles nog even na.'),
-      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: zoekOp }, 'Zoek gegevens op')), opzoekMelding) : null;
+      knoppen(zoekKnop, el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+        scanIsbn().then(function (isbn) { if (isbn) { $('bb-isbn').value = isbn; zoekKnop.click(); } });
+      } }, 'Scan het ISBN met de camera')), opzoekMelding) : null;
 
     function zoekOp(e) {
       var isbn = $('bb-isbn').value;
@@ -523,12 +662,13 @@
     var coverVeld = velden.filter(function (v) { return v.naam === 'cover_url'; })[0];
     var foto = nieuw ? null : fotoBlok(boek, coverVeld, ctx);
     var cover = coverVeld ? huidigeCover(coverVeld) : null;
-    var opzoekenBestaand = nieuw ? null : zoekBlok(velden, sleutel);
+    var opzoekenBestaand = nieuw ? null : zoekBlok(velden, extra.sleutel);
+    var overzicht = nieuw ? null : boekOverzicht(ctx, boek, extra);
     var beschrijvingVeld = velden.filter(function (v) { return v.naam === 'beschrijving'; })[0];
     var achterkant = beschrijvingVeld ? achterkantBlok(beschrijvingVeld) : null;
     var volgend = nieuw ? null : buurBoek(boek.boek_id, 1);
     var bewaarVolgend = volgend ? el('button', { type: 'button', class: 'knop', onclick: function () { verstuur(false, true); } }, 'Bewaar en volgend boek ›') : null;
-    var formulier = el('form', { novalidate: true }, cover, opzoeken, opzoekenBestaand, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
+    var formulier = el('form', { novalidate: true }, cover, overzicht, opzoeken, opzoekenBestaand, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
       fout, knoppen.apply(null, [bewaar, bewaarVolgend].concat(nieuw ? [] : bladerKnoppen(vak, ctx, boek.boek_id),
         [el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, terugNaarLijstTekst())]).filter(Boolean)));
 
@@ -573,6 +713,7 @@
     }
     formulier.addEventListener('submit', function (e) { e.preventDefault(); verstuur(false); });
 
+    if (nieuw && extra.isbn) setTimeout(function () { $('bb-isbn').value = extra.isbn; zoekKnop.click(); }, 0);
     var titel = nieuw ? 'Nieuw boek' : (boek.titel || boek.boek_id);
     D.vervang(vak, ctx.kop(titel, nieuw ? 'Velden met een waarde uit een lijst mag je zo laten.' : boek.boek_id + (boek.toegevoegd_op ? ' · toegevoegd op ' + D.korteDatum(boek.toegevoegd_op) : '')), formulier);
     vak.querySelector('h2').focus();
@@ -582,7 +723,7 @@
     D.vervang(vak, el('p', {}, 'Boek laden...'));
     B.voerUit('beheerBoekOphalen', { boek_id: id }).then(function (r) {
       if (!r.ok) { B.melding($('melding'), 'fout', r.fout); toonBoeken(vak, ctx); return; }
-      boekFormulier(vak, ctx, r.boek, false, r.sleutel);
+      boekFormulier(vak, ctx, r.boek, false, r);
     });
   }
 
@@ -1266,6 +1407,8 @@
     inhoud: toonInhoud,
     covers: toonZonderCover,
     zonderBeschrijving: toonZonderBeschrijving,
+    /** Voor de tests: een ISBN lezen uit een canvas met ZXing. */
+    leesIsbn: function (canvas) { return laadZxing().then(function (ZX) { return leesIsbnZxing(ZX, canvas); }); },
     leeslijsten: toonLeeslijsten,
     instellingen: toonInstellingen,
     /** Bij Vernieuw: nieuws, agenda en instellingen opnieuw ophalen. */

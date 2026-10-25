@@ -25,6 +25,6 @@ jobs:
           node-version: 20
       - name: Playwright en axe installeren
         run: |
-          npm install --no-save --no-package-lock playwright@1.63.0 axe-core@4.14.0
+          npm install --no-save --no-package-lock playwright@1.63.0 axe-core@4.14.0 @zxing/library@0.21.3
           npx playwright install --with-deps chromium
       - run: node tests/browser.js
