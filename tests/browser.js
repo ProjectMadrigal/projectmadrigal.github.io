@@ -245,6 +245,12 @@ async function meldAan(page, basis, pagina) {
     const detail = await page.textContent('.detail');
     verwacht(/Regie: Ilo Claes/.test(detail) && /Nederland, België/.test(detail) && /104 min/.test(detail) && /1987/.test(detail), 'Detail: ' + detail.slice(0, 300));
     verwacht(/Kijk ook/.test(await page.textContent('#detail-scherm')), 'Kijk ook ontbreekt');
+    await page.evaluate(() => { location.hash = '#/film/F0003'; });
+    await page.waitForSelector('.detail .originele-titel');
+    verwacht(/Originele titel: Voix dans la nuit/.test(await page.textContent('.detail')), 'Originele titel ontbreekt');
+    await page.evaluate(() => { location.hash = '#/?q=voix'; });
+    await page.waitForSelector('#resultaten > li');
+    verwacht((await page.$$('#resultaten > li')).length === 1, 'Zoeken op de originele titel');
     verwacht(!!(await page.$('#hoofdmenu [data-menu="films"]:not([hidden])')), 'Menu-item Films ontbreekt');
     // Op de pagina Boeken staan geen films.
     await page.goto(basis + '/boeken.html#/?q=glitter op de dijk');

@@ -350,6 +350,11 @@
     return [b.j, T.waarde(b.l), b.u].filter(Boolean).join(' · ');
   }
 
+  /** Onder de titel: de originele titel, als die verschilt. */
+  function origineleTitel(b) {
+    return b.ot ? el('p', { class: 'originele-titel' }, t('origineleTitel') + ': ', el('span', { class: 'cursief' }, b.ot)) : null;
+  }
+
   /** Onder de titel: de auteur, of bij een film de regie. */
   function maker(b) {
     return b.a ? el('p', { class: 'auteur' }, FILM ? t('regieDoor', { naam: b.a }) : b.a) : null;
@@ -367,6 +372,7 @@
       cover(b, false),
       el('div', {},
         el('h2', { class: 'boek-titel' }, el('a', { href: '#/' + PAD + '/' + encodeURIComponent(b.id), 'data-id': b.id }, b.t)),
+        origineleTitel(b),
         maker(b),
         meta(b) ? el('p', { class: 'meta' }, meta(b)) : null,
         labels(b)));
@@ -463,6 +469,7 @@
       el('div', {}, cover(b, true)),
       el('div', {},
         el('h1', { tabindex: '-1' }, b.t),
+        origineleTitel(b),
         maker(b),
         el('p', { class: 'beschikbaarheid' }, D.statusLabel(b.b.c, status(b))),
         uitlegStatus ? el('p', {}, uitlegStatus) : null,

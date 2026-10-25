@@ -13,6 +13,7 @@
  *   te_koop     ja: te koop in de bib, niet uitleenbaar (werkt ook voor boeken)
  *   letterboxd  het korte adres van de film bij Letterboxd (bv. carol-2015), om dubbels te vermijden
  *   imdb        het nummer bij IMDb (bv. tt2402927), uit een export van IMDb
+ *   originele_titel  de titel in de oorspronkelijke taal, als die verschilt (uit IMDb of Wikidata)
  *   wikidata    het nummer bij Wikidata (bv. Q1047256)
  *   film_gezocht  de dag waarop het script de film opzocht. Opnieuw laten zoeken? Maak die cel leeg.
  *
@@ -125,7 +126,7 @@ function voegFilmsToe(rijen, films, vandaag, nieuwId) {
     if ((f.slug && sleutels['lb:' + f.slug]) || (f.imdb && sleutels['im:' + f.imdb]) || sleutels[sleutel(f.titel, f.jaar)]) return;
     var rij = {
       boek_id: nieuwId('film'), soort: 'film', titel: schoon(f.titel), jaartal: f.jaar || '',
-      letterboxd: f.slug || '', imdb: f.imdb || '', auteur: f.regie || '', genre: f.genre || '', duur: f.duur || '',
+      letterboxd: f.slug || '', imdb: f.imdb || '', auteur: f.regie || '', genre: f.genre || '', duur: f.duur || '', originele_titel: f.origineel || '',
       aantal: 1, uitleenbaar: 'ja', publiek: 'ja', uitvoering: 'dvd', toegevoegd_op: vandaag
     };
     rij.bron_sleutel = bronSleutel(rij);
@@ -156,6 +157,7 @@ function filmGenreNl(g) {
 /** De kolommen die we herkennen, met de namen bij IMDb en Letterboxd. */
 var FILM_KOLOMMEN = {
   titel: ['title', 'name', 'titel'],
+  origineel: ['original title', 'originele titel'],
   jaar: ['year', 'jaar', 'jaartal'],
   regie: ['directors', 'director', 'regie'],
   genres: ['genres', 'genre'],
@@ -184,7 +186,7 @@ function filmsUitTabel(waarden) {
     if (!titel || /episode/i.test(String(w(rij, 'soort')))) return null;
     var imdb = (String(w(rij, 'imdb')).match(/tt\d{6,10}/) || [])[0] || '';
     return {
-      titel: titel, jaar: parseerGetal(w(rij, 'jaar')) || '', imdb: imdb, slug: '',
+      titel: titel, jaar: parseerGetal(w(rij, 'jaar')) || '', imdb: imdb, slug: '', origineel: andereTitel(titel, w(rij, 'origineel')),
       regie: filmLijst(w(rij, 'regie')).slice(0, 3).join(', '),
       genre: filmLijst(w(rij, 'genres')).map(filmGenreNl).slice(0, FILM_MAX_GENRES).join(', '),
       duur: parseerGetal(w(rij, 'duur')) || ''
@@ -231,6 +233,7 @@ function sparqlTekst(t) {
 var FILM_SPARQL_VELDEN =
   '  OPTIONAL { ?film wdt:P577 ?datum . }\n' +
   '  OPTIONAL { ?film wdt:P2047 ?duur . }\n' +
+  '  OPTIONAL { ?film wdt:P1476 ?origineel . }\n' +
   '  OPTIONAL { ?film wdt:P57 ?r . ?r rdfs:label ?regieL . FILTER(LANG(?regieL) = "nl" || LANG(?regieL) = "en") }\n' +
   '  OPTIONAL { ?film wdt:P495 ?l . ?l rdfs:label ?landL . FILTER(LANG(?landL) = "nl") }\n' +
   '  OPTIONAL { ?film wdt:P136 ?g . ?g rdfs:label ?genreL . FILTER(LANG(?genreL) = "nl") }\n' +
@@ -240,7 +243,7 @@ var FILM_SPARQL_VELDEN =
 
 var FILM_SPARQL_KOP = 'SELECT ?film ?lb (MIN(YEAR(?datum)) AS ?jaar) (SAMPLE(?duur) AS ?minuten) ' +
   '(GROUP_CONCAT(DISTINCT ?regieL; separator="|") AS ?regie) (GROUP_CONCAT(DISTINCT ?landL; separator="|") AS ?land) ' +
-  '(GROUP_CONCAT(DISTINCT ?genreL; separator="|") AS ?genre) (SAMPLE(?taalL) AS ?taal) (SAMPLE(?nl) AS ?nlTitel) (SAMPLE(?en) AS ?enTitel) WHERE {\n';
+  '(GROUP_CONCAT(DISTINCT ?genreL; separator="|") AS ?genre) (SAMPLE(?taalL) AS ?taal) (SAMPLE(?origineel) AS ?ot) (SAMPLE(?nl) AS ?nlTitel) (SAMPLE(?en) AS ?enTitel) WHERE {\n';
 
 /** De vraag voor films met een Letterboxd-adres (eigenschap P6127 van Wikidata). */
 function filmVraagLetterboxd(slugs) {
@@ -273,7 +276,7 @@ function filmUitWikidata(data) {
       qid: qid, lb: w(b, 'lb'), jaar: Number(w(b, 'jaar')) || '', duur: Math.round(Number(w(b, 'minuten'))) || '',
       regie: lijst(b, 'regie').filter(function (n, i, alle) { return alle.indexOf(n) === i; }),
       land: lijst(b, 'land'), genre: lijst(b, 'genre').slice(0, FILM_MAX_GENRES),
-      taal: w(b, 'taal'), nl: w(b, 'nlTitel'), en: w(b, 'enTitel')
+      taal: w(b, 'taal'), nl: w(b, 'nlTitel'), en: w(b, 'enTitel'), origineel: w(b, 'ot')
     };
   }).filter(function (f) { return f.qid; });
 }
@@ -297,6 +300,7 @@ function filmVelden(rij, f) {
   if (f.land.length && leeg('land')) v.land = f.land.slice(0, 3).join(', ');
   if (f.genre.length && leeg('genre')) v.genre = f.genre.map(function (g) { return g.charAt(0).toUpperCase() + g.slice(1); }).join(', ');
   if (f.duur && leeg('duur')) v.duur = f.duur;
+  if (f.origineel && leeg('originele_titel') && andereTitel(rij.titel, f.origineel)) v.originele_titel = andereTitel(rij.titel, f.origineel);
   if (f.taal && leeg('taal')) v.taal = normaliseerTaal(f.taal) || f.taal;
   return v;
 }

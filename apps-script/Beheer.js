@@ -15,7 +15,7 @@ var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
   'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
   'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie',
-  'land', 'duur', 'film_tip', 'te_koop'
+  'land', 'duur', 'film_tip', 'te_koop', 'originele_titel'
 ];
 
 /** Velden met ja/nee. Bij startpagina betekent leeg "automatisch". */

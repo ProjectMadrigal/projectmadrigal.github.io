@@ -1958,7 +1958,7 @@ test('films: verborgen tot films_tonen, kijktip en te koop, uitlenen aan de bali
 test('films: export van IMDb of Letterboxd uit een tabblad', () => {
   const imdb = [
     ['Position', 'Const', 'Created', 'Modified', 'Description', 'Title', 'Original Title', 'URL', 'Title Type', 'IMDb Rating', 'Runtime (mins)', 'Year', 'Genres', 'Num Votes', 'Release Date', 'Directors'],
-    [1, 'tt0000001', '', '', '', 'Glitter op de dijk', '', 'https://www.imdb.com/title/tt0000001/', 'Movie', 7.1, 96, 2019, 'Drama, Romance, Sci-Fi', 100, '', 'Noor Aerts'],
+    [1, 'tt0000001', '', '', '', 'Glitter op de dijk', 'Glitter on the dyke', 'https://www.imdb.com/title/tt0000001/', 'Movie', 7.1, 96, 2019, 'Drama, Romance, Sci-Fi', 100, '', 'Noor Aerts'],
     [2, 'tt0000002', '', '', '', 'Een aflevering', '', '', 'TV Episode', 7, 30, 2020, 'Comedy', 1, '', 'Iemand'],
     [3, 'tt0000003', '', '', '', 'Het lange weekend', '', '', 'Movie', 6, 104, 1987, 'Drama', 1, '', 'Ilo Claes, Jo Dewit']
   ];
@@ -1975,6 +1975,15 @@ test('films: export van IMDb of Letterboxd uit een tabblad', () => {
   let n = 1;
   assert.strictEqual(M.voegFilmsToe(rijen, films, '2026-10-25', () => 'F' + String(++n).padStart(4, '0')), 1);
   gelijk([rijen[1].titel, rijen[1].auteur, rijen[1].genre, rijen[1].duur, rijen[1].imdb], ['Het lange weekend', 'Ilo Claes, Jo Dewit', 'Drama', 104, 'tt0000003']);
+  assert.strictEqual(films[0].origineel, 'Glitter on the dyke');
+  assert.strictEqual(rijen[1].originele_titel, '', 'Geen originele titel als die dezelfde is');
+  assert.strictEqual(M.andereTitel('Carol', 'carol!'), '');
+  assert.strictEqual(M.andereTitel('Portret van een vrouw in vuur', 'Portrait de la jeune fille en feu'), 'Portrait de la jeune fille en feu');
+  const s2 = maakStaat('2026-10-25', { films_tonen: 'ja' });
+  s2.catalogus.push({ boek_id: 'F0009', soort: 'film', titel: 'Stemmen in de nacht', originele_titel: 'Voix dans la nuit', publiek: 'ja' });
+  assert.strictEqual(M.bouwPubliekeCatalogus(s2, []).boeken.find((b) => b.id === 'F0009').ot, 'Voix dans la nuit');
+  const wv = M.filmVelden({ titel: 'Stemmen in de nacht' }, { qid: 'Q1', regie: [], land: [], genre: [], origineel: 'Voix dans la nuit' });
+  assert.strictEqual(wv.originele_titel, 'Voix dans la nuit');
   assert.ok(/P345/.test(M.filmVraagImdb(['tt0000003'])));
   // Wikidata vult enkel aan wat de export niet had.
   const v = M.filmVelden(rijen[1], { qid: 'Q9', regie: ['Iemand anders'], jaar: 1987, land: ['Nederland'], genre: ['dramafilm'], duur: 100, taal: '', nl: '', en: '' });
