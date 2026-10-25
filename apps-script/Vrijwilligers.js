@@ -178,7 +178,6 @@ function meldingActie(actie, invoer, wie) {
 /* ---------- Briefjes voor de volgende shift ---------- */
 
 var BRIEFJE_ZICHTBAAR_DAGEN = 14; // daarna verdwijnt een briefje vanzelf van Vandaag
-var BRIEFJE_BEWAREN_DAGEN = 60;   // daarna wist de privacy-opruiming het
 
 /** Een vrijwilliger laat een briefje achter voor de volgende shift. invoer: { tekst } */
 function maakBriefje(rijen, invoer, wie, vandaag, nieuwId) {
@@ -206,20 +205,20 @@ function briefjeWeg(rijen, invoer, wie, vandaag) {
   return { ok: true, tekst: 'Het briefje is weg.' };
 }
 
-/** Privacy: briefjes ouder dan BRIEFJE_BEWAREN_DAGEN gaan weg, ook de open. */
-function ruimBriefjesOpRijen(rijen, vandaag) {
+/** Privacy: briefjes ouder dan het aantal dagen (instelling briefjes_bewaren_dagen) gaan weg, ook de open. */
+function ruimBriefjesOpRijen(rijen, vandaag, dagen) {
   var n = 0;
   (rijen || []).forEach(function (b) {
     var d = parseerDatum(b.datum);
-    if (d && dagenTussen(d, vandaag) > BRIEFJE_BEWAREN_DAGEN) { markeerVerwijderen(b); n++; }
+    if (d && dagenTussen(d, vandaag) > dagen) { markeerVerwijderen(b); n++; }
   });
   return n;
 }
 
-function ruimBriefjesOp() {
+function ruimBriefjesOp(inst) {
   if (!spreadsheet().getSheetByName('Briefjes')) return 0;
   var tabel = leesTabel('Briefjes');
-  var n = ruimBriefjesOpRijen(tabel.rijen, vandaagTekst());
+  var n = ruimBriefjesOpRijen(tabel.rijen, vandaagTekst(), inst.briefjes_bewaren_dagen);
   if (n) bewaarTabel(tabel);
   return n;
 }

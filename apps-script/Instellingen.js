@@ -33,6 +33,7 @@ var STANDAARD_INSTELLINGEN = [
   ['backup_map', 'Project Madrigal back-ups', 'Naam van de map op Google Drive waar elke week een kopie van deze spreadsheet komt.'],
   ['backup_bewaren', 8, 'Hoeveel back-ups je bewaart. De oudste gaan vanzelf naar de prullenbak. Een back-up bevat ook de gegevens van leners.'],
   ['bewaartermijn_afgesloten_uitleningen_maanden', 12, 'Na hoeveel maanden de koppeling tussen een teruggebrachte uitlening en de lener gewist wordt.'],
+  ['briefjes_bewaren_dagen', 60, 'Na hoeveel dagen een briefje voor de volgende shift gewist wordt, ook als niemand het weghaalde. Op Vandaag staat een briefje hoogstens 14 dagen.'],
   ['meldingen_bewaren_dagen', 90, 'Na hoeveel dagen een afgehandelde melding van een vrijwilliger gewist wordt. Open meldingen blijven staan.'],
   ['tekst_checklist_openen', 'Licht en verwarming aan\nKassa en borgdoos klaarzetten\nBalie openen op de laptop\nTerugbrengbak leegmaken en boeken terugbrengen in het systeem', 'Checklist voor de vrijwilliger die de bib opent. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
   ['tekst_checklist_sluiten', 'Alle boeken terug in de kast\nBorgen tellen en in de borgdoos\nLaptop afmelden en uitzetten\nLicht en verwarming uit, ramen dicht', 'Checklist voor de vrijwilliger die de bib sluit. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
