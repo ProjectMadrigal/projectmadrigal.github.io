@@ -8,13 +8,21 @@
  *   in de cache van het script, zodat 2.500 boeken snel laden.
  *
  * Afgeschermd (POST, met een code): { actie, code, wie, ... }
- *   De code bepaalt de rol: "balie" of "bestuur". Het bestuur mag alles wat
- *   de balie mag. De codes zijn een eenvoudige drempel, geen echte beveiliging.
+ *   De code bepaalt de rol: "balie", "vrijwilliger" of "bestuur". Elke rol mag alles
+ *   van de rol ervoor (zie ROL_RANG). De codes zijn een eenvoudige drempel, geen echte beveiliging.
  */
 
 var CACHE_SLEUTEL = 'publiek_v1';
 var CACHE_DUUR_SECONDEN = 6 * 60 * 60; // het maximum van Google: 6 uur
 var CACHE_STUK = 90000;                 // een cachewaarde mag hoogstens 100 kB zijn
+
+/** De rollen, van weinig naar veel rechten. */
+var ROL_RANG = { publiek: 0, balie: 1, vrijwilliger: 2, bestuur: 3 };
+
+/** Mag deze rol deze actie? */
+function magActie(rol, actie) {
+  return ACTIES.hasOwnProperty(actie) && (ROL_RANG[rol] || 0) >= ROL_RANG[ACTIES[actie]];
+}
 
 /** Welke rol nodig is voor elke actie. */
 var ACTIES = {
@@ -28,25 +36,28 @@ var ACTIES = {
   nieuweLener: 'balie',
   roosterOverzicht: 'balie',
   bestuurData: 'bestuur',
+  // Vrijwilligersscherm (vrijwilliger.html): zonder contactgegevens van leners.
+  vrijwilligerData: 'vrijwilliger',
   borgTerugbetaald: 'bestuur',
   herinneringVerstuurd: 'bestuur',
   lenerAanpassen: 'bestuur',
   aanvraagAfhandelen: 'bestuur',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
-  // Beheer van de website (Beheer.js). Wil je vrijwilligers dit laten doen? Zet de actie op 'balie'.
+  // Beheer van de website (Beheer.js). Wat op 'vrijwilliger' staat, kan ook vanuit het vrijwilligersscherm.
+  // Nieuws en agenda van vrijwilligers blijven verborgen tot het bestuur ze goedkeurt (zie inhoudAanpassen).
   beheerBoekOphalen: 'bestuur',
   beheerBoekBewaren: 'bestuur',
-  beheerLeeslijstBoeken: 'bestuur',
+  beheerLeeslijstBoeken: 'vrijwilliger',
   bezoekersCijfers: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
-  beheerInhoud: 'bestuur',
-  beheerInhoudBewaren: 'bestuur',
+  beheerInhoud: 'vrijwilliger',
+  beheerInhoudBewaren: 'vrijwilliger',
   beheerInstellingBewaren: 'bestuur',
-  beheerCoversLijst: 'bestuur',
-  beheerCoversBewaren: 'bestuur',
-  beheerCoverUpload: 'bestuur',
+  beheerCoversLijst: 'vrijwilliger',
+  beheerCoversBewaren: 'vrijwilliger',
+  beheerCoverUpload: 'vrijwilliger',
   beheerTekstUitFoto: 'bestuur',
   beheerIaCovers: 'bestuur',
   beheerIaCoversWissen: 'bestuur'
@@ -172,6 +183,7 @@ function rolVoorCode(code, inst) {
   var c = schoon(code);
   if (!c) return '';
   if (inst.code_bestuur && c === String(inst.code_bestuur)) return 'bestuur';
+  if (inst.code_vrijwilliger && c === String(inst.code_vrijwilliger)) return 'vrijwilliger';
   if (inst.toegangscode_balie && c === String(inst.toegangscode_balie)) return 'balie';
   return '';
 }
@@ -203,8 +215,8 @@ function doPost(e) {
     Utilities.sleep(1500);
     return json({ ok: false, fout: 'De code klopt niet.', code: 'ongeldige_code' });
   }
-  if (ACTIES[actie] === 'bestuur' && rol !== 'bestuur') {
-    return json({ ok: false, fout: 'Dit kan enkel met de code van het bestuur.' });
+  if (!magActie(rol, actie)) {
+    return json({ ok: false, fout: ACTIES[actie] === 'bestuur' ? 'Dit kan enkel met de code van het bestuur.' : 'Dit kan niet met deze code.' });
   }
 
   try {
@@ -220,7 +232,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'aanmelden') return { ok: true, rol: rol };
   if (actie === 'roosterOverzicht') return roosterOverzicht(); // leest enkel, geen slot nodig
   if (actie === 'beheerIsbnOpzoeken') return isbnOpzoeken(invoer); // leest enkel bij Open Library en Google Books
-  if (actie === 'beheerInhoud') return beheerInhoudGegevens();
+  if (actie === 'beheerInhoud') return beheerInhoudGegevens(rol);
   if (actie === 'bezoekersCijfers') return bezoekersCijfers(invoer); // leest enkel bij GoatCounter
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
 
@@ -230,7 +242,7 @@ function voerActieUit(actie, invoer, rol) {
     var wie = tekstInvoer(invoer.wie, 40) || 'onbekend';
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {
-      var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie) : beheerInstellingBewaren(invoer, wie);
+      var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie, rol) : beheerInstellingBewaren(invoer, wie);
       if (gewijzigd.ok) leegCache();
       return gewijzigd;
     }
@@ -243,7 +255,9 @@ function voerActieUit(actie, invoer, rol) {
         antwoord = { ok: true, data: bestuurGegevens(staat, leesTabel('Onderwerpen').rijen) };
         antwoord.data.aanvragen = openAanvragen(spreadsheet().getSheetByName('Aanvragen') ? leesTabel('Aanvragen').rijen : []);
         antwoord.data.onlineReserveren = staat.inst.online_reserveren === true;
+        antwoord.data.voorstellen = telVoorstellen();
         break;
+      case 'vrijwilligerData': antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) }; break;
       case 'uitlenen': antwoord = uitlenen(staat, invoer); break;
       case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true }); break;
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
@@ -253,7 +267,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'borgTerugbetaald': antwoord = borgTerugbetaald(staat, invoer); break;
       case 'herinneringVerstuurd': antwoord = herinneringVerstuurd(staat, invoer); break;
       case 'beheerBoekOphalen': antwoord = boekOphalen(staat, invoer); break;
-      case 'beheerCoversLijst': antwoord = coversTeZoeken(staat); break;
+      case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;
       case 'beheerIaCoversWissen': antwoord = iaCoversWissen(staat, invoer); break;

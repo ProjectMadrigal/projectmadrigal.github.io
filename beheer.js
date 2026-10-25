@@ -23,10 +23,12 @@
   }
 
   var sessie = { code: '', wie: '', rol: '', codeSleutel: '' };
+  /** Zelfde rangorde als ROL_RANG in apps-script/Api.js. */
+  var RANG = { balie: 1, vrijwilliger: 2, bestuur: 3 };
 
   /**
    * Toont het aanmeldformulier, of meldt meteen aan met de bewaarde code.
-   * opties: { codeSleutel, reserveSleutel (optioneel), vereisteRol ('balie' of 'bestuur'), bijAangemeld(rol) }
+   * opties: { codeSleutel, reserveSleutel (optioneel, ook een lijst), vereisteRol ('balie', 'vrijwilliger' of 'bestuur'), bijAangemeld(rol) }
    */
   function aanmelden(opties) {
     sessie.codeSleutel = opties.codeSleutel;
@@ -39,7 +41,7 @@
     function probeer(code, wie, stil) {
       melding.hidden = true;
       return root.MadrigalApi.verstuur('aanmelden', { code: code, wie: wie }).then(function (r) {
-        if (r.ok && (opties.vereisteRol !== 'bestuur' || r.rol === 'bestuur')) {
+        if (r.ok && (RANG[r.rol] || 0) >= (RANG[opties.vereisteRol] || 1)) {
           sessie.code = code; sessie.wie = wie; sessie.rol = r.rol;
           schrijf(opties.codeSleutel, code);
           schrijf(SLEUTEL_WIE, wie);
@@ -51,7 +53,7 @@
         schrijf(opties.codeSleutel, '');
         document.getElementById('aanmelden').hidden = false;
         if (!stil) {
-          melding.textContent = r.ok ? 'Deze code geeft geen toegang tot het bestuursscherm.' : (r.fout || 'Aanmelden lukte niet.');
+          melding.textContent = r.ok ? 'Deze code geeft geen toegang tot dit scherm.' : (r.fout || 'Aanmelden lukte niet.');
           melding.hidden = false;
           codeVeld.focus();
         }
@@ -73,7 +75,8 @@
     });
 
     // Het bestuur mag ook de balie gebruiken: dan volstaat de bewaarde bestuurscode.
-    var bewaard = lees(opties.codeSleutel) || (opties.reserveSleutel ? lees(opties.reserveSleutel) : '');
+    var bewaard = lees(opties.codeSleutel);
+    [].concat(opties.reserveSleutel || []).forEach(function (s) { if (!bewaard) bewaard = lees(s); });
     if (bewaard && lees(SLEUTEL_WIE)) probeer(bewaard, lees(SLEUTEL_WIE), true);
     else document.getElementById('aanmelden').hidden = false;
   }

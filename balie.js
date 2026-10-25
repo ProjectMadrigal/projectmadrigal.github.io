@@ -550,9 +550,18 @@
 
   B.aanmelden({
     codeSleutel: 'madrigal_code_balie',
-    reserveSleutel: 'madrigal_code_bestuur',
+    reserveSleutel: ['madrigal_code_vrijwilliger', 'madrigal_code_bestuur'],
     vereisteRol: 'balie',
-    bijAangemeld: function () {
+    bijAangemeld: function (rol) {
+      // Met de code voor vrijwilligers of het bestuur: een knop naar dat scherm.
+      if ((rol === 'vrijwilliger' || rol === 'bestuur') && !$('naar-scherm')) {
+        var knop = document.createElement('a');
+        knop.id = 'naar-scherm';
+        knop.className = 'knop tweede';
+        knop.href = rol === 'bestuur' ? 'bestuur.html' : 'vrijwilliger.html';
+        knop.textContent = rol === 'bestuur' ? 'Naar het bestuursscherm' : 'Naar het vrijwilligersscherm';
+        $('vernieuw').parentNode.insertBefore(knop, $('vernieuw'));
+      }
       laad().then(function () { if (data) toonMenu(); });
     }
   });

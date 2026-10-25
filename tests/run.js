@@ -1166,8 +1166,51 @@ test('instellingen: per groep, codes nooit zichtbaar of aanpasbaar', () => {
   assert.strictEqual(M.instellingAanpassen(rijen, { sleutel: 'openingsuren', waarde: 'vrijdag 18-22' }).ok, true);
   assert.strictEqual(rijen[3].waarde, 'vrijdag 18-22');
 });
-test('elke beheeractie vraagt de code van het bestuur', () => {
-  Object.keys(M.ACTIES).filter((a) => /^beheer/.test(a)).forEach((a) => assert.strictEqual(M.ACTIES[a], 'bestuur', a));
+test('beheeracties: bestuur, behalve de lijst voor het vrijwilligersscherm', () => {
+  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload'];
+  Object.keys(M.ACTIES).filter((a) => /^beheer/.test(a)).forEach((a) => assert.strictEqual(M.ACTIES[a], vrijwilliger.indexOf(a) > -1 ? 'vrijwilliger' : 'bestuur', a));
+});
+test('rollen: drie codes, elke rol mag wat de rol ervoor mag', () => {
+  const inst = { toegangscode_balie: 'b1', code_vrijwilliger: 'v1', code_bestuur: 'x1' };
+  gelijk(['b1', 'v1', 'x1', 'fout', ''].map((c) => M.rolVoorCode(c, inst)), ['balie', 'vrijwilliger', 'bestuur', '', '']);
+  assert.strictEqual(M.rolVoorCode('', { code_vrijwilliger: '' }), '');
+  gelijk(['uitlenen', 'vrijwilligerData', 'beheerInhoudBewaren', 'bestuurData', 'beheerInstellingBewaren', 'beheerBoekBewaren', 'lenerAanpassen'].map((a) => M.magActie('vrijwilliger', a)),
+    [true, true, true, false, false, false, false]);
+  gelijk([M.magActie('balie', 'vrijwilligerData'), M.magActie('bestuur', 'vrijwilligerData'), M.magActie('bestuur', 'bestaatNiet')], [false, true, false]);
+});
+test('vrijwilliger: nieuws en agenda als voorstel, verborgen tot het bestuur het goedkeurt', () => {
+  const rijen = [{ _rij: 2, datum: '2026-10-01', titel: 'Online', publiek: 'ja' }];
+  const vinger = M.inhoudRijen('Nieuws', rijen)[0].vingerafdruk;
+  // Nieuw voorstel
+  let r = M.inhoudAanpassen(rijen, { tabblad: 'Nieuws', velden: { titel: 'Voorstel', datum: '20/10/2026', publiek: 'ja' } }, 'Kim');
+  gelijk([r.ok, rijen[1].publiek, rijen[1].voorgesteld_door, /bestuur/.test(r.tekst)], [true, 'nee', 'Kim', true]);
+  // Aanpassing aan een bericht dat online stond: weer verborgen
+  r = M.inhoudAanpassen(rijen, { tabblad: 'Nieuws', rij: 2, vingerafdruk: vinger, velden: { titel: 'Online, verbeterd' } }, 'Kim');
+  gelijk([r.ok, rijen[0].publiek, rijen[0].voorgesteld_door], [true, 'nee', 'Kim']);
+  // Het bestuur keurt goed
+  const v2 = M.inhoudRijen('Nieuws', rijen)[0];
+  assert.strictEqual(v2.voorgesteld_door, 'Kim');
+  r = M.inhoudAanpassen(rijen, { tabblad: 'Nieuws', rij: 2, vingerafdruk: v2.vingerafdruk, velden: { publiek: 'ja' } }, '');
+  gelijk([r.ok, rijen[0].publiek, rijen[0].voorgesteld_door], [true, 'ja', '']);
+  // Verwijderen mag enkel als het nog niet online staat
+  const v3 = M.inhoudRijen('Nieuws', rijen)[0];
+  assert.strictEqual(M.inhoudAanpassen(rijen, { tabblad: 'Nieuws', rij: 2, vingerafdruk: v3.vingerafdruk, verwijderen: true }, 'Kim').ok, false);
+  // Veelgestelde vragen: niet voor vrijwilligers. Leeslijsten wel, gewoon zichtbaar.
+  assert.strictEqual(M.inhoudAanpassen([], { tabblad: 'Veelgestelde vragen', velden: { vraag: 'V' } }, 'Kim').ok, false);
+  const lijsten = [];
+  M.inhoudAanpassen(lijsten, { tabblad: 'Leeslijsten', velden: { naam: 'Pride' } }, 'Kim');
+  gelijk([lijsten[0].publiek, lijsten[0].voorgesteld_door], ['ja', undefined]);
+});
+test('vrijwilligersscherm: uitleningen zonder contactgegevens of borg, geen sleutel van Google', () => {
+  const s = maakStaat();
+  uitleen(s, 'B0001', '1');
+  const d = M.vrijwilligerGegevens(s, []);
+  const tekst = JSON.stringify(d);
+  assert.strictEqual(d.lopend.length, 1);
+  ['email', 'telefoon', 'achternaam', 'borg', 'herinnering', 'leners'].forEach((k) => assert.ok(!(k in d.lopend[0]) && !(k in d), k));
+  assert.ok(tekst.indexOf('@') === -1);
+  s.inst.google_books_api_key = 'GEHEIM';
+  gelijk([M.coversTeZoeken(s, false).sleutel, M.coversTeZoeken(s, true).sleutel], ['', 'GEHEIM']);
 });
 
 test('nieuw binnen: nooit leeg, ook zonder datums (na de eerste opbouw)', () => {
@@ -1324,7 +1367,7 @@ test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', 
   assert.strictEqual(r.ok, true);
   gelijk(bewaard, [['B0001.jpg', 'image/jpeg']]);
   gelijk([s.catalogus[0].cover_url, s.catalogus[0].cover_bron], ['https://lh3.googleusercontent.com/d/test123', 'foto in de bib']);
-  assert.strictEqual(M.ACTIES.beheerCoverUpload, 'bestuur');
+  assert.strictEqual(M.ACTIES.beheerCoverUpload, 'vrijwilliger');
 });
 test('bol.com: beste afbeelding uit een onbekend antwoord, sleutels nooit zichtbaar op de site', () => {
   const antwoord = { images: [

@@ -5,6 +5,9 @@
  * Daarnaast boeken, nieuws, agenda en instellingen aanpassen (bestuur-beheer.js).
  * Herinneringen verstuur je zelf (WhatsApp, sms of mail). Dit scherm kopieert
  * de tekst en noteert daarna dat de herinnering verstuurd is.
+ *
+ * Hetzelfde script maakt ook het vrijwilligersscherm (vrijwilliger.html, data-scherm="vrijwilliger"):
+ * minder onderdelen, geen contactgegevens van leners. Welke onderdelen: zie SECTIES.
  */
 (function () {
   'use strict';
@@ -17,39 +20,47 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var data = null;
+  var VRIJWILLIGER = document.body.getAttribute('data-scherm') === 'vrijwilliger';
   var actief = 'telaat';
 
-  /** De onderdelen: [sleutel, knoptekst, functie, groep]. De groepen staan in GROEPEN. */
-  var SECTIES = [
-    ['telaat', 'Te laat', toonTeLaat, 'uitlenen'],
-    ['binnenkort', 'Vervalt binnenkort', toonBinnenkort, 'uitlenen'],
-    ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen'],
-    ['reservaties', 'Reservaties', toonReservaties, 'uitlenen'],
+  /**
+   * De onderdelen: [sleutel, knoptekst, functie, groep, scherm]. De groepen staan in GROEPEN.
+   * scherm: 'beide' staat ook in het vrijwilligersscherm, 'vrijwilliger' enkel daar, leeg enkel bij het bestuur.
+   */
+  var ALLE_SECTIES = [
+    ['telaat', 'Te laat', toonTeLaat, 'uitlenen', 'beide'],
+    ['binnenkort', 'Vervalt binnenkort', toonBinnenkort, 'uitlenen', 'beide'],
+    ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen', 'beide'],
+    ['reservaties', 'Reservaties', toonReservaties, 'uitlenen', 'beide'],
     ['aanvragen', 'Aanvragen van de website', toonAanvragen, 'uitlenen'],
     ['leners', 'Leners', toonLeners, 'uitlenen'],
     ['borgen', 'Borgen en giften', toonBorgen, 'uitlenen'],
     ['uitzonderingen', 'Uitzonderingen', toonUitzonderingen, 'uitlenen'],
     // De website aanpassen: zie bestuur-beheer.js.
     ['boeken', 'Boeken', function (vak) { W.boeken(vak, context()); }, 'website'],
+    ['covers', 'Boeken zonder cover', function (vak) { W.covers(vak, context()); }, 'website', 'vrijwilliger'],
     ['boekstatus', 'Verloren en gevoelig', toonBoekstatus, 'website'],
-    ['inhoud', 'Nieuws en agenda', function (vak) { W.inhoud(vak, context()); }, 'website'],
-    ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website'],
+    ['inhoud', 'Nieuws en agenda', function (vak) { W.inhoud(vak, context()); }, 'website', 'beide'],
+    ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website', 'beide'],
     ['instellingen', 'Teksten en instellingen', function (vak) { W.instellingen(vak, context()); }, 'website'],
     ['cijfers', 'Cijfers', toonCijfers, 'overzicht'],
-    ['rooster', 'Rooster', toonRoosterSectie, 'overzicht']
+    ['rooster', 'Rooster', toonRoosterSectie, 'overzicht', 'beide']
   ];
+  var SECTIES = ALLE_SECTIES.filter(function (s) {
+    return VRIJWILLIGER ? s[4] === 'beide' || s[4] === 'vrijwilliger' : s[4] !== 'vrijwilliger';
+  });
 
   var GROEPEN = [['uitlenen', 'Uitlenen'], ['website', 'Website'], ['overzicht', 'Overzicht']];
 
   /** Wat bestuur-beheer.js nodig heeft van dit scherm. */
   function context() {
-    return { data: data, kop: kop, laad: laad };
+    return { data: data, kop: kop, laad: laad, scherm: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur' };
   }
 
   /* ---------- Gegevens en navigatie ---------- */
 
   function laad() {
-    return B.voerUit('bestuurData').then(function (r) {
+    return B.voerUit(VRIJWILLIGER ? 'vrijwilligerData' : 'bestuurData').then(function (r) {
       if (!r.ok) { B.melding($('melding'), 'fout', r.fout || 'De gegevens konden niet laden.'); return; }
       data = r.data;
       $('bestuur-info').textContent = 'Aangemeld als ' + B.sessie.wie + ' · ' + data.vandaagTekst;
@@ -66,11 +77,13 @@
         el('div', { class: 'navgroep-knoppen' }, SECTIES.filter(function (s) { return s[3] === g[0]; }).map(function (s) {
           var aantal = s[0] === 'telaat' ? data.telaat.length : s[0] === 'binnenkort' ? data.binnenkort.length
             : s[0] === 'aanvragen' ? (data.aanvragen || []).length : null;
+          // Voorstellen van vrijwilligers die op goedkeuring wachten.
+          var extra = s[0] === 'inhoud' && data.voorstellen ? ' (' + data.voorstellen + ' te keuren)' : '';
           if (s[0] === 'aanvragen' && !data.onlineReserveren && !(data.aanvragen || []).length) return null;
           return el('button', {
             type: 'button', class: 'knop' + (s[0] === actief ? '' : ' tweede'), 'aria-pressed': s[0] === actief ? 'true' : 'false',
             onclick: function () { toonSectie(s[0], true); }
-          }, s[1] + (aantal !== null ? ' (' + aantal + ')' : ''));
+          }, s[1] + (aantal !== null ? ' (' + aantal + ')' : '') + extra);
         })));
     }));
   }
@@ -151,31 +164,36 @@
 
   function toonRoosterSectie(vak) {
     var inhoud = el('div');
-    D.vervang(vak, kop('Rooster', 'Wie staat er de komende vrijdagen in de bib? Het rooster zelf maak je in de roostertool.'), inhoud);
+    D.vervang(vak, kop('Rooster', VRIJWILLIGER ? 'Wie staat er de komende vrijdagen in de bib? Je beschikbaarheid vul je in via de knop naar de roostertool.'
+      : 'Wie staat er de komende vrijdagen in de bib? Het rooster zelf maak je in de roostertool.'), inhoud);
     B.toonRooster(inhoud);
   }
 
+  /** Voor het vrijwilligersscherm: wie en wanneer, zonder contactgegevens. */
+  function uitleningKaart(u) {
+    return el('li', { class: 'kaart ' + u.status.code },
+      el('h3', {}, u.titel),
+      el('p', {}, u.exemplaar + ' · lener ' + u.lenersnummer + ' (' + u.voornaam + ') · uit sinds ' + D.korteDatum(u.datum_uit)),
+      B.uitleenStatus(u),
+      u.borg ? el('p', {}, 'Borg: ' + D.euro(u.borg) + (u.betaalwijze_borg ? ' (' + u.betaalwijze_borg + ')' : '')) : null);
+  }
+
   function toonTeLaat(vak) {
-    D.vervang(vak, kop('Te laat', 'Kopieer de herinnering, verstuur ze zelf via WhatsApp, sms of mail, en noteer daarna dat ze verstuurd is.'),
-      data.telaat.length ? el('ul', { class: 'kaartlijst' }, data.telaat.map(herinneringKaart)) : el('p', {}, 'Geen boeken te laat. Fijn!'));
+    D.vervang(vak, kop('Te laat', VRIJWILLIGER ? 'Het bestuur stuurt de herinneringen. Komt de lener langs, dan breng je het boek terug in het uitleenscherm.'
+      : 'Kopieer de herinnering, verstuur ze zelf via WhatsApp, sms of mail, en noteer daarna dat ze verstuurd is.'),
+      data.telaat.length ? el('ul', { class: 'kaartlijst' }, data.telaat.map(VRIJWILLIGER ? uitleningKaart : herinneringKaart)) : el('p', {}, 'Geen boeken te laat. Fijn!'));
   }
 
   function toonBinnenkort(vak) {
-    D.vervang(vak, kop('Vervalt binnenkort', 'Stuur op tijd een vriendelijke herinnering.'),
-      data.binnenkort.length ? el('ul', { class: 'kaartlijst' }, data.binnenkort.map(herinneringKaart)) : el('p', {}, 'Er vervalt binnenkort niets.'));
+    D.vervang(vak, kop('Vervalt binnenkort', VRIJWILLIGER ? 'Deze boeken moeten binnenkort terug.' : 'Stuur op tijd een vriendelijke herinnering.'),
+      data.binnenkort.length ? el('ul', { class: 'kaartlijst' }, data.binnenkort.map(VRIJWILLIGER ? uitleningKaart : herinneringKaart)) : el('p', {}, 'Er vervalt binnenkort niets.'));
   }
 
   /* ---------- Lopende uitleningen ---------- */
 
   function toonLopend(vak) {
     D.vervang(vak, kop('Alle lopende uitleningen', data.lopend.length + (data.lopend.length === 1 ? ' boek' : ' boeken') + ' uitgeleend, gesorteerd op vervaldatum.'),
-      el('ul', { class: 'kaartlijst' }, data.lopend.map(function (u) {
-        return el('li', { class: 'kaart ' + u.status.code },
-          el('h3', {}, u.titel),
-          el('p', {}, u.exemplaar + ' · lener ' + u.lenersnummer + ' (' + u.voornaam + ') · uit sinds ' + D.korteDatum(u.datum_uit)),
-          B.uitleenStatus(u),
-          u.borg ? el('p', {}, 'Borg: ' + D.euro(u.borg) + (u.betaalwijze_borg ? ' (' + u.betaalwijze_borg + ')' : '')) : null);
-      })));
+      el('ul', { class: 'kaartlijst' }, data.lopend.map(uitleningKaart)));
   }
 
   /* ---------- Borgen en giften ---------- */
@@ -468,8 +486,9 @@
   $('afmelden').addEventListener('click', B.afmelden);
 
   B.aanmelden({
-    codeSleutel: 'madrigal_code_bestuur',
-    vereisteRol: 'bestuur',
+    codeSleutel: VRIJWILLIGER ? 'madrigal_code_vrijwilliger' : 'madrigal_code_bestuur',
+    reserveSleutel: VRIJWILLIGER ? 'madrigal_code_bestuur' : null,
+    vereisteRol: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur',
     bijAangemeld: function () { laad(); }
   });
 })();

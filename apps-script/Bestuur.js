@@ -106,6 +106,29 @@ function maandTekst(jjjjmm) {
   return MAANDEN[Number(d[1]) - 1] + ' ' + d[0];
 }
 
+/**
+ * Gegevens voor het vrijwilligersscherm: lopende uitleningen en reservaties zonder contactgegevens
+ * of borg, en de boeken (voor covers en leeslijsten). Geen leners, borgen of cijfers.
+ */
+function vrijwilligerGegevens(staat, onderwerpRijen) {
+  var lopend = lopendeUitleningen(staat).map(function (u) {
+    var info = uitleningInfo(staat, u, false);
+    delete info.borg;
+    delete info.betaalwijze_borg;
+    return info;
+  });
+  lopend.sort(function (a, b) { return a.vervaldatum.localeCompare(b.vervaldatum); });
+  return {
+    vandaagTekst: datumTekst(staat.vandaag),
+    telaat: lopend.filter(function (i) { return i.status.code === 'telaat'; }),
+    binnenkort: lopend.filter(function (i) { return i.status.code === 'binnenkort'; }),
+    lopend: lopend,
+    reservaties: alleReservaties(staat),
+    boeken: baliecatalogus(staat, vertaalTabel(onderwerpRijen)),
+    roosterLink: String(staat.inst.rooster_link || '')
+  };
+}
+
 /** Gegevens voor het bestuursscherm. */
 function bestuurGegevens(staat, onderwerpRijen) {
   var lopend = lopendeUitleningen(staat).map(function (u) { return uitleningInfo(staat, u, true); });
