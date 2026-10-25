@@ -429,8 +429,9 @@
         D.vervang(vak, el('p', {}, 'Nog niet gekoppeld. Maak in GoatCounter een API-sleutel (je naam rechtsboven > Preferences > tabblad API, enkel "Read statistics") en zet ze in de spreadsheet bij de instelling goatcounter_api_sleutel.'));
         return;
       }
-      bezoekCijfers[periode] = r.cijfers;
+      if (!r.waarschuwing) bezoekCijfers[periode] = r.cijfers;
       tekenBezoekers(vak, r.cijfers);
+      if (r.waarschuwing) vak.insertBefore(el('p', { class: 'melding let-op' }, r.waarschuwing), vak.firstChild);
     });
   }
 
