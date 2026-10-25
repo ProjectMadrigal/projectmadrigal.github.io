@@ -617,3 +617,9 @@ fieldset.blok > legend { font-weight: 700; padding: 0 .3rem; }
 .groot-getal { margin: .5rem 0 0; }
 .groot-getal strong { font-size: 2rem; }
 .pf-volledig { text-align: center; margin-top: 1.5rem; }
+
+/* ISBN scannen en het overzicht van een boek (bestuursscherm). */
+.scan-dialoog { width: min(32rem, calc(100vw - 2rem)); }
+.scan-video { width: 100%; max-height: 55vh; background: #000; border-radius: .4rem; display: block; }
+.boek-overzicht summary { cursor: pointer; font-weight: 700; }
+.boek-overzicht h3 { margin: 1rem 0 .3rem; font-size: 1rem; }

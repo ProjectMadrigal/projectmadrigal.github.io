@@ -1678,5 +1678,24 @@ test('Logboek en taken: stand per taak en nieuwste regels eerst', () => {
   assert.ok(M.achtergrondTaken().every((t) => typeof t[2] === 'function'), 'Elke taak heeft een selectie');
 });
 
+test('geschiedenis per boek en per lener, wijzigingen uit het Logboek', () => {
+  const s = maakStaat('2026-10-23');
+  s.uitleningen = [
+    { uitlening_id: 'U1', exemplaar: 'B0001-1', boek_id: 'B0001', lenersnummer: '1', datum_uit: '2026-01-05', datum_terug: '2026-02-01' },
+    { uitlening_id: 'U2', exemplaar: 'B0001-1', boek_id: 'B0001', lenersnummer: '2', datum_uit: '2026-09-01', datum_terug: '' },
+    { uitlening_id: 'U3', exemplaar: 'B0002-1', boek_id: 'B0002', lenersnummer: '1', datum_uit: '2026-03-10', datum_terug: '2026-04-01' }
+  ];
+  gelijk(M.boekHistoriek(s, 'B0001'), { keer: 2, laatst: '2026-09-01' });
+  const l = M.lenerHistoriek(s, '1');
+  gelijk(l.uitleningen.map((u) => u.titel), ['Twee kasten vol', 'De verzonnen zee']);
+  assert.strictEqual(M.lenerHistoriek(s, '2').uitleningen.length, 0, 'Een lopende uitlening is geen geschiedenis');
+  const log = [['tijdstip', 'wie', 'actie', 'details'],
+    [new Date(2026, 9, 20), 'Kim', 'boek aangepast', 'B0001: beschrijving'],
+    [new Date(2026, 9, 21), 'Kim', 'boek aangepast', 'B00011: titel'],
+    [new Date(2026, 9, 22), 'Sam', 'cover-foto', 'B0001'],
+    [new Date(2026, 9, 22), 'Sam', 'uitlenen', 'B0001-1']];
+  gelijk(M.boekWijzigingen(log, 'B0001').map((r) => r.wie + ' ' + r.actie), ['Sam cover-foto', 'Kim boek aangepast']);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

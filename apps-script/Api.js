@@ -52,6 +52,7 @@ var ACTIES = {
   bezoekersCijfers: 'bestuur',
   beheerLogboek: 'bestuur',
   beheerCoverLinks: 'vrijwilliger',
+  beheerLenerHistoriek: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -270,7 +271,15 @@ function voerActieUit(actie, invoer, rol) {
       case 'nieuweLener': antwoord = nieuweLener(staat, { voornaam: invoer.voornaam, achternaam: invoer.achternaam, telefoon: invoer.telefoon, email: invoer.email, toestemming: invoer.toestemming === true }); break;
       case 'borgTerugbetaald': antwoord = borgTerugbetaald(staat, invoer); break;
       case 'herinneringVerstuurd': antwoord = herinneringVerstuurd(staat, invoer); break;
-      case 'beheerBoekOphalen': antwoord = boekOphalen(staat, invoer); break;
+      case 'beheerBoekOphalen':
+        antwoord = boekOphalen(staat, invoer);
+        if (antwoord.ok) {
+          antwoord.historiek = boekHistoriek(staat, invoer.boek_id);
+          var logBlad = spreadsheet().getSheetByName('Logboek');
+          antwoord.wijzigingen = logBlad && logBlad.getLastRow() > 1 ? boekWijzigingen(logBlad.getDataRange().getValues(), invoer.boek_id) : [];
+        }
+        break;
+      case 'beheerLenerHistoriek': antwoord = lenerHistoriek(staat, invoer.lenersnummer); break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;
