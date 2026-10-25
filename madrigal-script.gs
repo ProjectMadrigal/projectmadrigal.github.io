@@ -129,6 +129,12 @@ var BOL_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
 var BOL_API = 'https://api.bol.com/marketing/catalog/v1';
 
+var BC_WEKEN_NL = ['', 'eerste', 'tweede', 'derde', 'vierde', 'laatste'];
+
+var BC_WEKEN_EN = ['', 'first', 'second', 'third', 'fourth', 'last'];
+
+var BC_DAGEN_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 /** Kolomnamen in Stock en Zines, en hoe ze in de Catalogus heten. */
 var BRONKOLOMMEN = {
   'titel': 'titel',
@@ -322,6 +328,13 @@ var STANDAARD_INSTELLINGEN = [
   ['tekst_schenken_en', '', 'Pagina Doe mee, boeken schenken, in het Engels.'],
   ['tekst_steunen', '', 'Pagina Doe mee: hoe kan iemand Project Madrigal steunen (gift, rekeningnummer, materiaal)? Leeg: dit blok staat niet op de pagina.'],
   ['tekst_steunen_en', '', 'Pagina Doe mee, steunen, in het Engels.'],
+  ['bookclub_naam', 'Antwerp Queer Bookclub', 'De naam van de bookclub die in de bib samenkomt. De eerstvolgende keren staan vanzelf in de agenda op de startpagina. Leeg: niets tonen.'],
+  ['bookclub_week', 2, 'De hoeveelste week van de maand: 1 tot 4, of 5 voor de laatste.'],
+  ['bookclub_dag', 'zondag', 'Op welke weekdag de bookclub samenkomt.'],
+  ['bookclub_uur', '', 'Het uur, bv. 14:00 of 14:00 - 16:00. Leeg: enkel de datum.'],
+  ['tekst_bookclub', 'De Antwerp Queer Bookclub komt samen in de bib van Project Madrigal. Hun programma en andere activiteiten vind je op hun Instagram.', 'De tekst bij de bookclub, in de agenda en op Over ons.'],
+  ['tekst_bookclub_en', 'The Antwerp Queer Bookclub meets in the Project Madrigal library. You will find their programme and other activities on their Instagram.', 'De tekst bij de bookclub, in het Engels.'],
+  ['bookclub_link', '', 'Het adres van hun Instagram, bv. https://www.instagram.com/... Komt bij Meer info.'],
   ['peperfabriek_url', 'https://www.peperfabriek.be/nl/programma', 'Adres van het programma van De Peperfabriek. Het script haalt het elke nacht op voor de pagina Peperfabriek. Leeg: niets ophalen, enkel de tekst en een link.'],
   ['tekst_peperfabriek', 'De bib van Project Madrigal vind je in De Peperfabriek. Dit staat er de komende weken nog op het programma.', 'Pagina Peperfabriek: de tekst bovenaan.'],
   ['tekst_peperfabriek_en', 'You will find the Project Madrigal library in De Peperfabriek. This is what is coming up there.', 'Pagina Peperfabriek, in het Engels.'],
@@ -421,6 +434,7 @@ var INSTELLING_GROEPEN = [
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
   ['Website: leeslijsten', ['leeslijsten_tonen']],
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
+  ['Website: Antwerp Queer Bookclub', ['bookclub_naam', 'bookclub_week', 'bookclub_dag', 'bookclub_uur', 'tekst_bookclub', 'tekst_bookclub_en', 'bookclub_link']],
   ['Website: De Peperfabriek', ['peperfabriek_url', 'tekst_peperfabriek', 'tekst_peperfabriek_en', 'peperfabriek_aantal']],
   ['Aanraders', ['aanraders_uit_stocklijst', 'aanraders_verbergen', 'nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal']],
   ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
@@ -451,7 +465,7 @@ var ROOSTER_CACHE_SLEUTEL = 'rooster_v1';
 
 var ROOSTER_CACHE_SECONDEN = 10 * 60;
 
-var SITE_CACHE_SLEUTEL = 'site_v4'; // v4: met het programma van De Peperfabriek
+var SITE_CACHE_SLEUTEL = 'site_v5'; // v5: met de Antwerp Queer Bookclub
 
 var SITE_MAX_NIEUWS = 3;
 
@@ -1287,6 +1301,53 @@ function bolVraag(pad, token) {
   return { code: r.getResponseCode(), data: data };
 }
 
+/** De eerstvolgende datums (vandaag inbegrepen). */
+function bookclubDatums(vandaag, week, dag, aantal) {
+  var uit = [];
+  var jaar = Number(vandaag.slice(0, 4)), maand = Number(vandaag.slice(5, 7));
+  for (var i = 0; uit.length < aantal && i < 24; i++) {
+    var d = nDeWeekdag(jaar, maand, dag, week);
+    if (d && d >= vandaag) uit.push(d);
+    maand++;
+    if (maand > 12) { maand = 1; jaar++; }
+  }
+  return uit;
+}
+
+/**
+ * Alles over de bookclub voor ?actie=site, of null als bookclub_naam leeg is.
+ * agendaRijen: om datums over te slaan waarvoor al een eigen event met de naam van de bookclub bestaat.
+ */
+function bookclubGegevens(inst, vandaag, agendaRijen) {
+  var naam = schoon(inst.bookclub_naam);
+  if (!naam) return null;
+  var week = Math.min(5, Math.max(1, Math.round(Number(inst.bookclub_week) || 2)));
+  var dag = WEEKDAGEN.indexOf(normaliseerTekst(inst.bookclub_dag));
+  if (dag < 0) dag = 0;
+  var eigen = {};
+  (agendaRijen || []).forEach(function (r) {
+    var d = parseerDatum(r.datum);
+    if (d && normaliseerTekst(r.titel).indexOf(normaliseerTekst(naam)) > -1) eigen[d] = true;
+  });
+  var tekst = { nl: String(inst.tekst_bookclub || '').trim(), en: String(inst.tekst_bookclub_en || '').trim() || String(inst.tekst_bookclub || '').trim() };
+  var link = veiligeCoverUrl(inst.bookclub_link);
+  var datums = bookclubDatums(vandaag, week, dag, 3);
+  return {
+    naam: naam, regel: bookclubRegel(week, dag), uur: schoon(inst.bookclub_uur), tekst: tekst, link: link, volgende: datums,
+    events: datums.filter(function (d) { return !eigen[d]; }).map(function (d) {
+      return { datum: d, uur: schoon(inst.bookclub_uur), titel: { nl: naam, en: naam }, tekst: tekst, locatie: '', afbeelding: '', link: link };
+    })
+  };
+}
+
+/** De regel in woorden: { nl: "elke tweede zondag van de maand", en: "every second Sunday of the month" }. */
+function bookclubRegel(week, dag) {
+  return {
+    nl: 'elke ' + BC_WEKEN_NL[week] + ' ' + WEEKDAGEN[dag] + ' van de maand',
+    en: 'every ' + BC_WEKEN_EN[week] + ' ' + BC_DAGEN_EN[dag] + ' of the month'
+  };
+}
+
 /** Bestuur: de borg van een uitlening als terugbetaald noteren. */
 function borgTerugbetaald(staat, invoer) {
   var u = uitleningVan(staat, invoer.uitlening_id);
@@ -1420,6 +1481,9 @@ function bouwSiteInhoud(staat, tabellen) {
         locatie: schoon(r.locatie), afbeelding: veiligeCoverUrl(r.afbeelding), link: veiligeCoverUrl(r.link)
       };
     });
+  // De vaste bijeenkomst van de bookclub (zie Bookclub.js) komt er vanzelf bij.
+  var bookclub = bookclubGegevens(inst, staat.vandaag, tabellen.agenda);
+  if (bookclub) events = events.concat(bookclub.events);
   var komend = events.filter(function (e) { return e.datum >= staat.vandaag; }).sort(function (a, b) { return a.datum.localeCompare(b.datum); });
   var voorbij = events.filter(function (e) { return e.datum < staat.vandaag; }).sort(function (a, b) { return b.datum.localeCompare(a.datum); });
 
@@ -1509,6 +1573,8 @@ function bouwSiteInhoud(staat, tabellen) {
       schenken: { nl: String(inst.tekst_schenken || ''), en: String(inst.tekst_schenken_en || '') || String(inst.tekst_schenken || '') },
       steunen: { nl: String(inst.tekst_steunen || ''), en: String(inst.tekst_steunen_en || '') || String(inst.tekst_steunen || '') }
     },
+    // Blok op de pagina Over ons: de bookclub, met de eerstvolgende datums. null als bookclub_naam leeg is.
+    bookclub: bookclub ? { naam: bookclub.naam, regel: bookclub.regel, uur: bookclub.uur, tekst: bookclub.tekst, link: bookclub.link, volgende: bookclub.volgende } : null,
     // Pagina Peperfabriek: de tekst, het adres van hun programma en de komende activiteiten (zie Peperfabriek.js).
     peperfabriek: {
       tekst: { nl: String(inst.tekst_peperfabriek || ''), en: String(inst.tekst_peperfabriek_en || '') || String(inst.tekst_peperfabriek || '') },
@@ -3350,6 +3416,18 @@ function metNullen(n, breedte) {
 function naarUtc(datum) {
   var d = datum.split('-');
   return new Date(Date.UTC(Number(d[0]), Number(d[1]) - 1, Number(d[2])));
+}
+
+/** De n-de weekdag (0 = zondag) van een maand, als JJJJ-MM-DD. n = 5: de laatste. */
+function nDeWeekdag(jaar, maand, dag, n) {
+  var eerste = jaar + '-' + ('0' + maand).slice(-2) + '-01';
+  var d = telDagenOp(eerste, (dag - weekdag(eerste) + 7) % 7);
+  if (n >= 5) {
+    while (telDagenOp(d, 7).slice(0, 7) === d.slice(0, 7)) d = telDagenOp(d, 7);
+    return d;
+  }
+  d = telDagenOp(d, 7 * (n - 1));
+  return d.slice(0, 7) === eerste.slice(0, 7) ? d : '';
 }
 
 /** Menu: vraagt de link naar het oude blad en neemt de lopende uitleningen over. */

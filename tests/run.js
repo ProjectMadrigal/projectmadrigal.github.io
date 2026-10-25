@@ -846,6 +846,24 @@ test('peperfabriek: de startpagina-gegevens geven tekst, adres en komende activi
     ['https://www.peperfabriek.be/nl/programma', ['Nog bezig', 'Komt eraan'], true]);
   gelijk(M.bouwSiteInhoud(s, {}).peperfabriek.activiteiten, []);
 });
+test('bookclub: elke tweede zondag vanzelf in de agenda, een eigen event van die dag gaat voor', () => {
+  gelijk([M.nDeWeekdag(2026, 11, 0, 2), M.nDeWeekdag(2026, 11, 0, 5), M.nDeWeekdag(2026, 2, 0, 5), M.nDeWeekdag(2026, 3, 0, 5)], ['2026-11-08', '2026-11-29', '2026-02-22', '2026-03-29']);
+  assert.strictEqual(M.nDeWeekdag(2026, 2, 0, 5).slice(0, 7), '2026-02');
+  gelijk(M.bookclubDatums('2026-11-08', 2, 0, 3), ['2026-11-08', '2026-12-13', '2027-01-10']);
+  gelijk(M.bookclubDatums('2026-11-09', 2, 0, 2), ['2026-12-13', '2027-01-10']);
+  gelijk(M.bookclubRegel(2, 0), { nl: 'elke tweede zondag van de maand', en: 'every second Sunday of the month' });
+  const s = maakStaat('2026-10-25');
+  s.inst.bookclub_uur = '14:00';
+  s.inst.bookclub_link = 'https://www.instagram.com/verzonnen.bookclub';
+  const agenda = [{ datum: '2026-12-13', titel: 'Antwerp Queer Bookclub: kerstspecial', publiek: 'ja' }, { datum: '2026-11-20', titel: 'Verzonnen event', publiek: 'ja' }];
+  const d = M.bouwSiteInhoud(s, { agenda: agenda });
+  gelijk(d.agenda.komend.map((e) => e.datum + ' ' + e.titel.nl), ['2026-11-08 Antwerp Queer Bookclub', '2026-11-20 Verzonnen event', '2026-12-13 Antwerp Queer Bookclub: kerstspecial']);
+  gelijk([d.agenda.komend[0].uur, d.agenda.komend[0].link, d.bookclub.volgende, d.bookclub.regel.nl], ['14:00', 'https://www.instagram.com/verzonnen.bookclub', ['2026-11-08', '2026-12-13', '2027-01-10'], 'elke tweede zondag van de maand']);
+  // Uitzetten: naam leeg
+  s.inst.bookclub_naam = '';
+  const leeg = M.bouwSiteInhoud(s, {});
+  gelijk([leeg.bookclub, leeg.agenda.komend.length], [null, 0]);
+});
 test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
   const s = maakStaat();
   s.catalogus[0].leeslijsten = 'Andere lijst';
@@ -934,6 +952,7 @@ console.log('\nWebsite');
 
 test('startpagina: enkel publieke rijen, nieuwste nieuws, komend en vorig event, vragen op volgorde', () => {
   const s = maakStaat('2026-10-23');
+  s.inst.bookclub_naam = ''; // de bookclub heeft een eigen test
   s.catalogus[0].aanrader = 'Robin';
   s.catalogus[3].aanrader = 'Kai'; // niet publiek
   const d = M.bouwSiteInhoud(s, {

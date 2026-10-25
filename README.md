@@ -286,6 +286,22 @@ Enkel wie de code van het bestuur heeft, kan dit. Wil je later vrijwilligers bv.
 - Tegen misbruik: hoogstens 30 aanvragen per uur, 3 open aanvragen per contact, en een verborgen veld dat enkel robots invullen.
 - Privacy: na `aanvragen_bewaren_dagen` (standaard 60) wist de nachtelijke opruiming de aanvraag. Vermeld online reserveren in je privacytekst voor je het aanzet.
 
+### Antwerp Queer Bookclub
+
+De bookclub komt op een vaste dag in de bib samen. De eerstvolgende keren staan vanzelf in de agenda op de startpagina, met "Zet in mijn agenda". Op de pagina Over ons staat een blok met hun tekst, de volgende datums en een knop naar hun Instagram.
+
+In Instellingen, onder `── WEBSITE: ANTWERP QUEER BOOKCLUB ──`:
+
+| Instelling | Wat |
+| --- | --- |
+| `bookclub_naam` | de naam. Leeg: niets tonen. |
+| `bookclub_week` en `bookclub_dag` | standaard 2 en zondag: elke tweede zondag van de maand. 5 betekent de laatste. |
+| `bookclub_uur` | bv. `14:00` of `14:00 - 16:00`. |
+| `tekst_bookclub`, `tekst_bookclub_en` | de tekst in de agenda en op Over ons. |
+| `bookclub_link` | het adres van hun Instagram. |
+
+Een uitzonderlijke editie (ander uur, speciaal thema)? Zet zelf een event in de Agenda met de naam van de bookclub in de titel. Dat vervangt de automatische datum van die dag.
+
 ### De Peperfabriek
 
 De pagina **Peperfabriek** (in het menu, naast Doe mee) toont het programma van De Peperfabriek, het huis waar de bib zit. Met hun toestemming: titel, datum, korte tekst en afbeelding, telkens met een link naar hun site en een knop "Zet in mijn agenda".
