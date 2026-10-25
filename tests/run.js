@@ -1811,7 +1811,8 @@ test('vrijwilligers: briefjes voor de volgende shift', () => {
   gelijk(M.openBriefjes(rijen, '2026-10-20').map((b) => b.briefje_id), ['N0002', 'N0001'], 'Nieuwste eerst');
   assert.strictEqual(M.briefjeWeg(rijen, { briefje_id: 'N0002' }, 'Sam', '2026-10-23').ok, true);
   gelijk(M.openBriefjes(rijen, '2026-10-23'), []);
-  assert.strictEqual(M.ruimBriefjesOpRijen(rijen, '2026-12-10'), 1);
+  assert.strictEqual(M.ruimBriefjesOpRijen(rijen, '2026-12-10', 60), 1);
+  assert.strictEqual(instellingen({}).briefjes_bewaren_dagen, 60);
 });
 
 test('vrijwilligers: mijn voorstellen en meldingen, en terug te zetten', () => {

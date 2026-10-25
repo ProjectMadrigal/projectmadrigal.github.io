@@ -320,6 +320,7 @@ var STANDAARD_INSTELLINGEN = [
   ['backup_map', 'Project Madrigal back-ups', 'Naam van de map op Google Drive waar elke week een kopie van deze spreadsheet komt.'],
   ['backup_bewaren', 8, 'Hoeveel back-ups je bewaart. De oudste gaan vanzelf naar de prullenbak. Een back-up bevat ook de gegevens van leners.'],
   ['bewaartermijn_afgesloten_uitleningen_maanden', 12, 'Na hoeveel maanden de koppeling tussen een teruggebrachte uitlening en de lener gewist wordt.'],
+  ['briefjes_bewaren_dagen', 60, 'Na hoeveel dagen een briefje voor de volgende shift gewist wordt, ook als niemand het weghaalde. Op Vandaag staat een briefje hoogstens 14 dagen.'],
   ['meldingen_bewaren_dagen', 90, 'Na hoeveel dagen een afgehandelde melding van een vrijwilliger gewist wordt. Open meldingen blijven staan.'],
   ['tekst_checklist_openen', 'Licht en verwarming aan\nKassa en borgdoos klaarzetten\nBalie openen op de laptop\nTerugbrengbak leegmaken en boeken terugbrengen in het systeem', 'Checklist voor de vrijwilliger die de bib opent. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
   ['tekst_checklist_sluiten', 'Alle boeken terug in de kast\nBorgen tellen en in de borgdoos\nLaptop afmelden en uitzetten\nLicht en verwarming uit, ramen dicht', 'Checklist voor de vrijwilliger die de bib sluit. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
@@ -415,7 +416,7 @@ var KOLOMMEN = {
   // Van vrijwilligers (Vrijwilligers.js): voorgestelde beschrijvingen en meldingen voor het bestuur.
   'Voorstellen': ['voorstel_id', 'datum', 'boek_id', 'titel', 'tekst', 'voorgesteld_door', 'status', 'behandeld_door', 'datum_behandeld'],
   'Meldingen': ['melding_id', 'datum', 'wie', 'soort', 'onderwerp', 'bericht', 'status', 'afgehandeld_door', 'datum_afgehandeld'],
-  // Briefjes van vrijwilligers voor de volgende shift. Staan 14 dagen op Vandaag, gewist na 60 dagen.
+  // Briefjes van vrijwilligers voor de volgende shift. Staan 14 dagen op Vandaag, gewist na briefjes_bewaren_dagen.
   'Briefjes': ['briefje_id', 'datum', 'wie', 'tekst', 'status', 'weg_door', 'datum_weg'],
   // Inhoud van de website. Kolommen op _en zijn de Engelse versie (mag leeg: dan toont de site het Nederlands).
   // online_vanaf: een bericht met een datum in de toekomst verschijnt pas op die dag.
@@ -468,7 +469,7 @@ var INSTELLING_GROEPEN = [
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
   ['Website: Antwerp Queer Bookclub', ['bookclub_naam', 'bookclub_week', 'bookclub_dag', 'bookclub_uur', 'tekst_bookclub', 'tekst_bookclub_en', 'bookclub_link']],
   ['Website: De Peperfabriek', ['peperfabriek_url', 'tekst_peperfabriek', 'tekst_peperfabriek_en', 'peperfabriek_aantal']],
-  ['Privacy: bewaartermijnen', ['bewaartermijn_afgesloten_uitleningen_maanden', 'aanvragen_bewaren_dagen', 'meldingen_bewaren_dagen']],
+  ['Privacy: bewaartermijnen', ['bewaartermijn_afgesloten_uitleningen_maanden', 'aanvragen_bewaren_dagen', 'meldingen_bewaren_dagen', 'briefjes_bewaren_dagen']],
   ['Techniek: toegang (codes)', ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur']],
   ['Techniek: koppeling met het rooster', ['rooster_url', 'rooster_code']],
   ['Techniek: boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
@@ -551,8 +552,6 @@ var VOORSTEL_MIN_TEKENS = 40;
 /* ---------- Beschrijvingen voorstellen ---------- */
 
 var BRIEFJE_ZICHTBAAR_DAGEN = 14; // daarna verdwijnt een briefje vanzelf van Vandaag
-
-var BRIEFJE_BEWAREN_DAGEN = 60;   // daarna wist de privacy-opruiming het
 
 var MIJN_DAGEN = 60; // zo ver kijkt "Mijn voorstellen en meldingen" terug
 
@@ -4742,20 +4741,20 @@ function ruimAanvragenOpRijen(rijen, vandaag, dagen) {
   return n;
 }
 
-function ruimBriefjesOp() {
+function ruimBriefjesOp(inst) {
   if (!spreadsheet().getSheetByName('Briefjes')) return 0;
   var tabel = leesTabel('Briefjes');
-  var n = ruimBriefjesOpRijen(tabel.rijen, vandaagTekst());
+  var n = ruimBriefjesOpRijen(tabel.rijen, vandaagTekst(), inst.briefjes_bewaren_dagen);
   if (n) bewaarTabel(tabel);
   return n;
 }
 
-/** Privacy: briefjes ouder dan BRIEFJE_BEWAREN_DAGEN gaan weg, ook de open. */
-function ruimBriefjesOpRijen(rijen, vandaag) {
+/** Privacy: briefjes ouder dan het aantal dagen (instelling briefjes_bewaren_dagen) gaan weg, ook de open. */
+function ruimBriefjesOpRijen(rijen, vandaag, dagen) {
   var n = 0;
   (rijen || []).forEach(function (b) {
     var d = parseerDatum(b.datum);
-    if (d && dagenTussen(d, vandaag) > BRIEFJE_BEWAREN_DAGEN) { markeerVerwijderen(b); n++; }
+    if (d && dagenTussen(d, vandaag) > dagen) { markeerVerwijderen(b); n++; }
   });
   return n;
 }
@@ -4794,7 +4793,7 @@ function ruimOp() {
     bewaarStaat(staat);
     var aanvragen = ruimAanvragenOp(staat.inst);
     var meldingen = ruimMeldingenOp(staat.inst);
-    var briefjes = ruimBriefjesOp();
+    var briefjes = ruimBriefjesOp(staat.inst);
     logboek('systeem', 'privacy-opruiming', teller.koppelingen + ' koppelingen gewist, ' + teller.leners + ' leners gewist, ' + aanvragen + ' aanvragen gewist, ' + meldingen + ' meldingen gewist, ' + briefjes + ' briefjes gewist');
   } finally {
     lock.releaseLock();
