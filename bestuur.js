@@ -75,13 +75,35 @@
 
   /* ---------- Gegevens en navigatie ---------- */
 
+  /*
+   * Sneller openen: de gegevens van het vorige bezoek in dit tabblad (sessionStorage, weg als je het
+   * tabblad sluit of afmeldt) verschijnen meteen. Intussen haalt het scherm de verse gegevens op.
+   * Begon je al te werken, dan verandert het scherm niet onder je handen: enkel de gegevens en de tellers.
+   */
+  var CACHE = VRIJWILLIGER ? 'madrigal_data_vrijwilliger' : 'madrigal_data_bestuur';
+  var eersteKeer = true, bezigSindsCache = false;
+  ['click', 'keydown', 'input'].forEach(function (n) { $('sectie').addEventListener(n, function () { bezigSindsCache = true; }); });
+
+  function toonGegevens(nieuw, volledig) {
+    data = nieuw;
+    $('bestuur-info').textContent = 'Aangemeld als ' + B.sessie.wie + ' · ' + data.vandaagTekst;
+    tekenNav();
+    if (volledig) toonSectie(actief, false);
+  }
+
   function laad() {
+    var vanCache = false;
+    if (eersteKeer) {
+      eersteKeer = false;
+      var bewaard = null;
+      try { bewaard = JSON.parse(sessionStorage.getItem(CACHE) || 'null'); } catch (e) { bewaard = null; }
+      if (bewaard) { toonGegevens(bewaard, true); bezigSindsCache = false; vanCache = true; }
+    }
     return B.voerUit(VRIJWILLIGER ? 'vrijwilligerData' : 'bestuurData').then(function (r) {
       if (!r.ok) { B.melding($('melding'), 'fout', r.fout || 'De gegevens konden niet laden.'); return; }
-      data = r.data;
-      $('bestuur-info').textContent = 'Aangemeld als ' + B.sessie.wie + ' · ' + data.vandaagTekst;
-      tekenNav();
-      toonSectie(actief, false);
+      try { sessionStorage.setItem(CACHE, JSON.stringify(r.data)); } catch (e) { /* te groot of geen opslag: niet erg */ }
+      // Na een actie (bv. Teruggebracht) altijd opnieuw tekenen. Na het snelle openen enkel als je nog niets deed.
+      toonGegevens(r.data, !(vanCache && bezigSindsCache));
     });
   }
 
@@ -234,6 +256,7 @@
     terug.addEventListener('click', function () {
       var bevestig = el('button', { type: 'button', class: 'knop' }, 'Bevestig: boek is terug');
       var naam = 'borg-' + u.uitlening_id;
+      var staatVraag = B.staatVraag('t-' + u.uitlening_id);
       var vraag = u.borg > 0 ? el('fieldset', { class: 'keuzes' },
         el('legend', {}, 'Borg van ' + D.euro(u.borg) + ' terugbetaald?'),
         el('label', {}, el('input', { type: 'radio', name: naam, value: 'ja', checked: true }), 'Ja, teruggegeven'),
@@ -241,13 +264,13 @@
       bevestig.addEventListener('click', function () {
         var keuze = vak.querySelector('input[name="' + naam + '"]:checked');
         bevestig.disabled = true;
-        B.voerUit('terugbrengen', { uitlening_id: u.uitlening_id, borg_terugbetaald: !!keuze && keuze.value === 'ja' }).then(function (r) {
+        B.voerUit('terugbrengen', Object.assign({ uitlening_id: u.uitlening_id, borg_terugbetaald: !!keuze && keuze.value === 'ja' }, staatVraag.lees())).then(function (r) {
           if (!r.ok) { bevestig.disabled = false; B.melding(fout, 'fout', r.fout); return; }
           B.melding($('melding'), 'ok', r.tekst || '"' + u.titel + '" is terug.');
           laad();
         });
       });
-      D.vervang(vak, vraag, fout, el('div', { class: 'knoppen' }, bevestig,
+      D.vervang(vak, staatVraag.blok, vraag, fout, el('div', { class: 'knoppen' }, bevestig,
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { D.vervang(vak, rij); } }, 'Annuleer')));
     });
     verleng.addEventListener('click', function () {
@@ -495,6 +518,8 @@
         veld('l-achternaam', 'Achternaam', l.achternaam),
         veld('l-telefoon', 'Telefoon', l.telefoon, 'tel'),
         veld('l-email', 'E-mail', l.email, 'email'),
+        el('div', { class: 'veld' }, el('label', { for: 'l-notitie' }, 'Notitie ', el('span', { class: 'hulptekst' }, '(enkel voor het bestuur, verdwijnt met de lener bij de privacy-opruiming)')),
+          el('textarea', { id: 'l-notitie', rows: '3', maxlength: '500' }, l.notitie || '')),
         el('label', { class: 'vinkje', for: 'l-actief' }, el('input', { type: 'checkbox', id: 'l-actief', checked: l.actief }), 'Actief'),
         el('p', { class: 'hulptekst' }, 'Ingeschreven op ' + D.korteDatum(l.datum_inschrijving) + '. Toestemming privacy: ' + (l.toestemming_privacy || 'onbekend') + '. Pas de toestemming aan in het tabblad Leners.'),
         fout,
@@ -505,7 +530,7 @@
         e.preventDefault();
         B.voerUit('lenerAanpassen', {
           lenersnummer: l.lenersnummer, voornaam: $('l-voornaam').value, achternaam: $('l-achternaam').value,
-          telefoon: $('l-telefoon').value, email: $('l-email').value, actief: $('l-actief').checked
+          telefoon: $('l-telefoon').value, email: $('l-email').value, actief: $('l-actief').checked, notitie: $('l-notitie').value
         }).then(function (r) {
           if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
           B.melding($('melding'), 'ok', r.tekst);
@@ -664,22 +689,33 @@
       lijstOfNiets('Land', 'Land', c.landen.map(function (b) { return [b.naam, b.n]; })));
   }
 
+  var cijfers = null; // apart geladen (bestuurCijfers), tot je op Vernieuw klikt
+
   function toonCijfers(vak) {
+    if (!cijfers) {
+      D.vervang(vak, kop('Cijfers'), el('p', {}, 'Cijfers laden...'));
+      B.voerUit('bestuurCijfers').then(function (r) {
+        if (!r.ok) { D.vervang(vak, kop('Cijfers'), el('p', { class: 'melding fout' }, r.fout || 'De cijfers laden lukte niet.')); return; }
+        cijfers = r.cijfers;
+        if (actief === 'cijfers') toonCijfers(vak);
+      });
+      return;
+    }
     D.vervang(vak, kop('Cijfers'),
       bezoekersBlok(),
       el('h3', { style: 'margin-top:1.5rem' }, 'Uitleningen'),
       el('h4', {}, 'Uitleningen per maand'),
       staafTabel('Uitleningen per maand', 'Maand', data.perMaand.map(function (m) { return [m.maand, m.uitleningen]; })),
       el('h4', {}, 'Meest geleende boeken'),
-      data.meestGeleend.length ? staafTabel('Meest geleende boeken', 'Boek', data.meestGeleend.map(function (b) { return [b.titel + (b.auteur ? ' (' + b.auteur + ')' : ''), b.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
+      cijfers.meestGeleend.length ? staafTabel('Meest geleende boeken', 'Boek', cijfers.meestGeleend.map(function (b) { return [b.titel + (b.auteur ? ' (' + b.auteur + ')' : ''), b.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
       el('h4', {}, 'Uitleningen per filtergroep'),
-      data.groepen.length ? staafTabel('Uitleningen per filtergroep', 'Filtergroep', data.groepen.map(function (g) { return [g.groep, g.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
+      cijfers.groepen.length ? staafTabel('Uitleningen per filtergroep', 'Filtergroep', cijfers.groepen.map(function (g) { return [g.groep, g.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
       extraCijfersBlok());
   }
 
   /** Leners en collectie: nieuwe leners, actieve leners, uitleenduur, boeken die nooit uitgeleend werden. */
   function extraCijfersBlok() {
-    var x = data.extraCijfers;
+    var x = cijfers.extraCijfers;
     if (!x) return null;
     return [
       el('h3', { style: 'margin-top:1.5rem' }, 'Leners en collectie'),
@@ -833,7 +869,7 @@
 
   /* ---------- Start ---------- */
 
-  $('vernieuw').addEventListener('click', function () { W.vergeet(); bezoekCijfers = {}; laad(); });
+  $('vernieuw').addEventListener('click', function () { W.vergeet(); bezoekCijfers = {}; cijfers = null; bezigSindsCache = false; laad(); });
   $('afmelden').addEventListener('click', B.afmelden);
 
   B.aanmelden({

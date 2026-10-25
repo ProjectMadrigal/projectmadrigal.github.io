@@ -69,11 +69,12 @@ function antwoord(rol, actie, vraag) {
       lopend: [UITLENING, UITLENING2], aanvragen: [], uitzonderingen: [],
       leners: [{ lenersnummer: '12', voornaam: 'Sam', achternaam: 'Verzonnen', telefoon: '0400000000', email: '', actief: true, toestemming_privacy: 'ja', lopend: 1, datum_inschrijving: '2026-01-01' }],
       boekstatus: { verloren: [], gevoelig_verborgen: [], gevoelig_zichtbaar: [] }, borgen: { ingehouden: { totaal: 0, perBetaalwijze: {} }, terugTeBetalen: [] },
-      perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], meestGeleend: [], groepen: [], voorstellen: 1,
-      privacy: 'Verzonnen privacyverklaring.',
-      extraCijfers: { nieuweLeners: [{ maand: 'oktober 2026', aantal: 2 }], nooitUitgeleend: 1, nooitVoorbeelden: [{ boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Aerts, Noor' }], gemiddeldeDagen: 17, afgesloten: 2, actieveLeners: 2 }
+      perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], voorstellen: 1,
+      privacy: 'Verzonnen privacyverklaring.'
     }) },
     balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'] }, leners: [{ n: '12', v: 'Sam' }] }) },
+    bestuurCijfers: { ok: true, cijfers: { meestGeleend: [], groepen: [],
+      extraCijfers: { nieuweLeners: [{ maand: 'oktober 2026', aantal: 2 }], nooitUitgeleend: 1, nooitVoorbeelden: [{ boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Aerts, Noor' }], gemiddeldeDagen: 17, afgesloten: 2, actieveLeners: 2 } } },
     nieuweLener: { ok: true, lenersnummer: '14', voornaam: 'Alex', tekst: 'Alex is ingeschreven met lenersnummer 14.' },
     terugbrengen: { ok: true, tekst: '"De verzonnen zee" is terug.' },
     verlengen: { ok: true, tekst: '"De verzonnen zee" is verlengd.' },
@@ -390,7 +391,12 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("Klaar")');
     await page.click('#sectienav button:has-text("Alle uitleningen")');
     await page.click('.kaart >> nth=0 >> button:has-text("Teruggebracht")');
+    await page.check('input[value="beschadigd"]');
+    await page.fill('input[id$="-opmerking"]', 'koffievlek');
+    const verstuurd = page.waitForRequest((v) => /terugbrengen/.test(v.postData() || ''));
     await page.click('button:has-text("Bevestig: boek is terug")');
+    const terugVraag = JSON.parse((await verstuurd).postData());
+    verwacht(terugVraag.staat_boek === 'beschadigd' && terugVraag.opmerking === 'koffievlek', 'Staat meegestuurd: ' + JSON.stringify(terugVraag));
     await page.waitForSelector('#melding :text("is terug")');
     await page.click('#sectienav button:has-text("Alle uitleningen")');
     await page.click('.kaart >> nth=0 >> button:has-text("Verleng")');
@@ -421,6 +427,7 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("Stop de reeks")');
     // Cijfers
     await page.click('#sectienav button:has-text("Cijfers")');
+    await page.waitForSelector('h4:has-text("Nooit uitgeleend")');
     verwacht(/Nooit uitgeleend[\s\S]*Stille lichten/.test(await page.textContent('#sectie')), 'Extra cijfers');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));

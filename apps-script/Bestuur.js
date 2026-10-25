@@ -164,7 +164,6 @@ function bestuurGegevens(staat, onderwerpRijen) {
     var sleutel = telMaandenOp(vanaf + '-01', m).slice(0, 7);
     perMaand[sleutel] = { maand: maandTekst(sleutel), uitleningen: 0, giften: 0 };
   }
-  var perBoek = {}, perGroep = {};
   var vertaal = vertaalTabel(onderwerpRijen);
   staat.uitleningen.forEach(function (u) {
     var maand = String(u.datum_uit || '').slice(0, 7);
@@ -172,16 +171,6 @@ function bestuurGegevens(staat, onderwerpRijen) {
       perMaand[maand].uitleningen++;
       perMaand[maand].giften += Number(u.gift || 0);
     }
-    perBoek[u.boek_id] = (perBoek[u.boek_id] || 0) + 1;
-    var boek = boekVan(staat, u.boek_id);
-    if (boek) filtergroepenVan(boek, vertaal).forEach(function (g) { perGroep[g] = (perGroep[g] || 0) + 1; });
-  });
-  var meestGeleend = Object.keys(perBoek).sort(function (a, b) { return perBoek[b] - perBoek[a]; }).slice(0, 10).map(function (id) {
-    var b = boekVan(staat, id);
-    return { boek_id: id, titel: b ? b.titel : id, auteur: b ? b.auteur : '', aantal: perBoek[id] };
-  });
-  var groepen = Object.keys(perGroep).sort(function (a, b) { return perGroep[b] - perGroep[a]; }).map(function (g) {
-    return { groep: g, aantal: perGroep[g] };
   });
 
   // Uitzonderingen van de laatste 6 maanden, nieuwste eerst.
@@ -206,21 +195,40 @@ function bestuurGegevens(staat, onderwerpRijen) {
       terugTeBetalen: terugTeBetalen
     },
     perMaand: Object.keys(perMaand).sort().map(function (k) { return perMaand[k]; }),
-    meestGeleend: meestGeleend,
-    groepen: groepen,
     reservaties: alleReservaties(staat),
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
-    extraCijfers: extraCijfers(staat),
     privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {
         lenersnummer: l.lenersnummer, voornaam: l.voornaam, achternaam: l.achternaam, telefoon: l.telefoon,
         email: l.email, datum_inschrijving: l.datum_inschrijving, toestemming_privacy: l.toestemming_privacy,
-        actief: jaNee(l.actief) !== 'nee',
+        actief: jaNee(l.actief) !== 'nee', notitie: schoonMetRegels(l.notitie),
         lopend: lopendeUitleningenVan(staat, l.lenersnummer).length
       };
     })
   };
+}
+
+/**
+ * De zwaardere cijfers (meest geleend, per filtergroep, leners en collectie). Apart van bestuurData,
+ * zodat het bestuursscherm sneller opent: deze cijfers laden pas als je Cijfers opent.
+ */
+function bestuurCijfers(staat, onderwerpRijen) {
+  var perBoek = {}, perGroep = {};
+  var vertaal = vertaalTabel(onderwerpRijen);
+  staat.uitleningen.forEach(function (u) {
+    perBoek[u.boek_id] = (perBoek[u.boek_id] || 0) + 1;
+    var boek = boekVan(staat, u.boek_id);
+    if (boek) filtergroepenVan(boek, vertaal).forEach(function (g) { perGroep[g] = (perGroep[g] || 0) + 1; });
+  });
+  var meestGeleend = Object.keys(perBoek).sort(function (a, b) { return perBoek[b] - perBoek[a]; }).slice(0, 10).map(function (id) {
+    var b = boekVan(staat, id);
+    return { boek_id: id, titel: b ? b.titel : id, auteur: b ? b.auteur : '', aantal: perBoek[id] };
+  });
+  var groepen = Object.keys(perGroep).sort(function (a, b) { return perGroep[b] - perGroep[a]; }).map(function (g) {
+    return { groep: g, aantal: perGroep[g] };
+  });
+  return { meestGeleend: meestGeleend, groepen: groepen, extraCijfers: extraCijfers(staat) };
 }
