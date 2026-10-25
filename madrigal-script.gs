@@ -3683,7 +3683,8 @@ function onOpen() {
       .addItem('Maak nu een back-up', 'maakBackupMenu')
       .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
       .addItem('Peperfabriek: test het ophalen', 'testPeperfabriek')
-      .addItem('Wikipedia: test het opzoeken', 'testWikipedia'))
+      .addItem('Wikipedia: test het opzoeken', 'testWikipedia')
+      .addItem('Wikipedia: test het bewaren', 'testWikipediaBewaren'))
     .addSeparator()
     .addSubMenu(ui.createMenu('Eenmalig bij de start')
       .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
@@ -4579,6 +4580,35 @@ function testWikipedia() {
     regels.push(taal + ': ' + (r.fout ? 'fout, ' + r.fout : r.tekst ? 'beschrijving gevonden: ' + r.tekst.slice(0, 80) + '...' : 'geen passende beschrijving'));
   });
   logboek('menu', 'testWikipedia', regels.join(' | ').slice(0, 450));
+  meld(regels.join('\n'));
+}
+
+/**
+ * Menu: probeert stap voor stap wiki_gezocht te bewaren bij het eerste boek dat nog aan de beurt is,
+ * en zet de cel daarna terug leeg. Zo zien we waar het bewaren misloopt.
+ */
+function testWikipediaBewaren() {
+  var tabel = leesTabel('Catalogus');
+  var boek = tabel.rijen.filter(heeftWikiNodig)[0];
+  if (!boek) { meld('Er is geen boek meer dat op Wikipedia wacht.'); return; }
+  var kolom = tabel.kop.indexOf('wiki_gezocht') + 1;
+  var cel = tabel.blad.getRange(boek._rij, kolom);
+  var lees = function () { SpreadsheetApp.flush(); var w = cel.getValue(); return isDatumObject(w) ? parseerDatum(w) : '"' + String(w) + '"'; };
+  var regels = ['rij ' + boek._rij + ' (' + (boek.boek_id || 'zonder boek_id') + '), kolom ' + kolom + ' met kop "' + tabel.blad.getRange(1, kolom).getValue() + '"',
+    'voor: ' + lees() + ', formule: "' + cel.getFormula() + '", opmaak: ' + cel.getNumberFormat() + ', regel: ' + (cel.getDataValidation() ? 'ja' : 'nee') +
+    ', beveiligd: ' + tabel.blad.getProtections(SpreadsheetApp.ProtectionType.RANGE).length + ' bereiken, ' + tabel.blad.getProtections(SpreadsheetApp.ProtectionType.SHEET).length + ' tabblad'];
+  try {
+    wijzig(boek, { wiki_gezocht: vandaagTekst() });
+    regels.push('bewaren zoals de run: ' + (bewaarAchtergrond(tabel) ? 'gelukt' : 'slot bezet') + ', daarna: ' + lees());
+    cel.setValue(new Date());
+    regels.push('rechtstreeks in de cel: ' + lees());
+  } catch (e) {
+    regels.push('fout: ' + e.message);
+  } finally {
+    cel.setValue('');
+    regels.push('teruggezet: ' + lees());
+  }
+  logboek('menu', 'testWikipediaBewaren', regels.join(' | ').slice(0, 450));
   meld(regels.join('\n'));
 }
 
