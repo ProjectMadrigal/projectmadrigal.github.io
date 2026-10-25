@@ -1232,7 +1232,7 @@ test('instellingen: per groep, codes nooit zichtbaar of aanpasbaar', () => {
   assert.strictEqual(rijen[3].waarde, 'vrijdag 18-22');
 });
 test('beheeracties: bestuur, behalve de lijst voor het vrijwilligersscherm', () => {
-  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload'];
+  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload', 'beheerCoverLinks'];
   Object.keys(M.ACTIES).filter((a) => /^beheer/.test(a)).forEach((a) => assert.strictEqual(M.ACTIES[a], vrijwilliger.indexOf(a) > -1 ? 'vrijwilliger' : 'bestuur', a));
 });
 test('rollen: drie codes, elke rol mag wat de rol ervoor mag', () => {
