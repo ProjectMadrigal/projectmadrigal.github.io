@@ -71,6 +71,7 @@
           s.backup ? ' (als back-up)' : '', s.mijn.event ? '. Event: ' + s.mijn.event : '', '.')
           : el('p', {}, 'Je staat de komende weken niet op het rooster als ' + B.sessie.wie + '.'),
         vandaag ? knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { ctx.toonSectie('shift'); } }, 'Open de checklist')) : null,
+        r.data.verouderd ? el('p', { class: 'hulptekst' }, B.roosterVerouderd(r.data)) : null,
         s.week.length ? el('div', {}, el('p', { class: 'hulptekst' }, 'Deze week in de bib:'),
           el('ul', {}, s.week.map(function (a) { return el('li', {}, B.langeDatum(a.datum) + ': ' + namen(a)); }))) : null);
     }, function () { /* geen verbinding: het blok blijft staan */ });

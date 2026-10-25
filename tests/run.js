@@ -1835,5 +1835,25 @@ test('vrijwilligers: mijn voorstellen en meldingen, en terug te zetten', () => {
   assert.ok(JSON.stringify(terug).indexOf('Sam') === -1 && !('lenersnummer' in terug[0]), 'Geen lener');
 });
 
+test('daglimiet van Google: wachten, herkennen en het laatste rooster tonen', () => {
+  const uur = 3600000;
+  assert.strictEqual(M.daglimietWachttijd(0, 10 * uur), 0, 'Geen limiet genoteerd');
+  assert.strictEqual(M.daglimietWachttijd(10 * uur, 12 * uur), 4 * uur);
+  assert.strictEqual(M.daglimietWachttijd(10 * uur, 17 * uur), 0, 'Na 6 uur niet meer wachten');
+  assert.ok(M.isDaglimietFout(new Error('Service is te vaak aangeroepen voor één dag: urlfetch.')));
+  assert.ok(M.isDaglimietFout(new Error('Service invoked too many times for one day: urlfetch.')));
+  assert.ok(!M.isDaglimietFout(new Error('Address unavailable')));
+  // Geen bewaarde versie: een duidelijke fout.
+  const geen = M.laatsteRooster(null, '2026-10-25', true);
+  assert.ok(!geen.ok && /daglimiet/.test(geen.fout));
+  // Wel een bewaarde versie: zonder de avonden die voorbij zijn, met de tijd erbij.
+  const bewaard = JSON.stringify({ tijd: 123, data: { gekoppeld: true, link: 'x', vandaag: '2026-10-20', nietGepubliceerd: [],
+    avonden: [{ datum: '2026-10-23', vrijwilligers: ['Kim'] }, { datum: '2026-10-30', vrijwilligers: ['Ilo'] }] } });
+  const r = M.laatsteRooster(bewaard, '2026-10-25', true);
+  assert.ok(r.ok && r.data.verouderd.tijd === 123 && /daglimiet/.test(r.data.verouderd.reden));
+  gelijk(r.data.avonden.map((a) => a.datum), ['2026-10-30']);
+  assert.strictEqual(r.data.vandaag, '2026-10-25');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

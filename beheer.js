@@ -269,6 +269,14 @@
    * Toont het rooster in een container: elke avond vanaf vandaag, deze en volgende maand.
    * Laadt het zelf op via de actie roosterOverzicht.
    */
+  /** Toont de site een oudere versie van het rooster (zie laatsteRooster in Rooster.js)? Dan deze uitleg. */
+  function roosterVerouderd(d) {
+    if (!d.verouderd) return '';
+    var t = new Date(d.verouderd.tijd);
+    var wanneer = d.verouderd.tijd ? t.getDate() + '/' + (t.getMonth() + 1) + ' om ' + ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2) : 'eerder';
+    return 'Dit is het rooster zoals het ' + wanneer + ' was. ' + d.verouderd.reden + ' Wie zich intussen aan- of afmeldde, staat er misschien nog niet bij.';
+  }
+
   function toonRooster(container) {
     D.vervang(container, el('p', { class: 'laden' }, 'Het rooster laden...'));
     voerUit('roosterOverzicht').then(function (r) {
@@ -303,6 +311,7 @@
         return el('li', { class: 'kaart rooster-avond' + (dicht ? ' dicht' : '') }, inhoud);
       });
       D.vervang(container,
+        d.verouderd ? el('div', { class: 'melding let-op' }, roosterVerouderd(d)) : null,
         maandenZonder.length ? el('div', { class: 'melding info' }, 'Het rooster van ' + maandenZonder.join(' en ') + ' is nog niet gepubliceerd.') : null,
         kaarten.length ? el('ul', { class: 'kaartlijst' }, kaarten) : el('p', {}, 'Er staan geen avonden meer gepland deze en volgende maand.'),
         knop);
@@ -335,6 +344,6 @@
   root.MadrigalBeheer = {
     aanmelden: aanmelden, afmelden: afmelden, wisselWie: wisselWie, voerUit: voerUit,
     uitleenStatus: uitleenStatus, melding: melding, sessie: sessie, toonRooster: toonRooster, staatVraag: staatVraag,
-    langeDatum: langeDatum, AVONDSTATUS: AVONDSTATUS
+    langeDatum: langeDatum, AVONDSTATUS: AVONDSTATUS, roosterVerouderd: roosterVerouderd
   };
 })(window);

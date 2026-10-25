@@ -47,6 +47,62 @@ function noteerDaglimiet() {
   try { CacheService.getScriptCache().put(DAGLIMIET_SLEUTEL, String(Date.now()), 6 * 60 * 60); } catch (e) { /* niet erg */ }
 }
 
+/*
+ * De daglimiet van Google (UrlFetch): een gratis account mag per dag maar een beperkt aantal vragen
+ * naar buiten sturen. De achtergrondtaken gebruiken er veel zolang er nog veel boeken op te zoeken zijn.
+ * Is de limiet op, dan:
+ *   - wacht elke taak 6 uur en gaat dan vanzelf verder (geen stilstaande taak meer);
+ *   - telt een mislukte vraag nooit als "niets gevonden": het boek komt later opnieuw aan de beurt;
+ *   - toont het rooster de laatst opgehaalde versie.
+ */
+var DAGLIMIET_WACHT_MS = 6 * 60 * 60 * 1000;
+var HUIDIGE_TAAK = ''; // de achtergrondtaak die nu loopt (zie startAchtergrond)
+
+/** Is deze fout de daglimiet van Google? */
+function isDaglimietFout(e) {
+  return /te vaak|too many times/i.test(String(e && e.message || e || ''));
+}
+
+/** Hoeveel ms nog wachten na een daglimiet die om "sinds" (ms) genoteerd werd. 0: niet meer wachten. */
+function daglimietWachttijd(sinds, nu) {
+  sinds = Number(sinds) || 0;
+  return sinds ? Math.max(0, sinds + DAGLIMIET_WACHT_MS - nu) : 0;
+}
+
+/** Vraag naar buiten (zoals UrlFetchApp.fetch). Bij de daglimiet: noteren en de lopende taak over 6 uur herstarten. */
+function haalExtern(url, opties) {
+  try {
+    return UrlFetchApp.fetch(url, opties);
+  } catch (e) {
+    if (isDaglimietFout(e)) {
+      noteerDaglimiet();
+      if (HUIDIGE_TAAK) planTaak(HUIDIGE_TAAK, DAGLIMIET_WACHT_MS);
+    }
+    throw e;
+  }
+}
+
+function planTaak(naam, ms) {
+  try {
+    verwijderTriggers(naam);
+    ScriptApp.newTrigger(naam).timeBased().after(Math.max(60 * 1000, ms)).create();
+  } catch (e) { /* lukt het niet, dan start je de taak met de hand */ }
+}
+
+/**
+ * Voor elke achtergrondtaak, helemaal vooraan: is de daglimiet nog op, dan start de taak niet
+ * en plant ze zich opnieuw als de limiet voorbij is. Geeft true als de taak moet wachten.
+ */
+function wachtOpDaglimiet(naam) {
+  var sinds = 0;
+  try { sinds = Number(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL)) || 0; } catch (e) { return false; }
+  var wacht = daglimietWachttijd(sinds, Date.now());
+  if (!wacht) return false;
+  planTaak(naam, wacht);
+  try { spreadsheet().toast('De daglimiet van Google voor vragen naar buiten is op. Deze taak gaat vanzelf verder over ' + Math.ceil(wacht / 3600000) + ' uur.', 'Madrigal', 15); } catch (e) { /* geen spreadsheet open */ }
+  return true;
+}
+
 /** Actie beheerLogboek (enkel het bestuur). */
 function logboekEnTaken() {
   var cache = CacheService.getScriptCache();

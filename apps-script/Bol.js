@@ -26,7 +26,7 @@ function bolToken(inst) {
   var cache = CacheService.getScriptCache();
   var bewaard = cache.get('bol_token');
   if (bewaard) return { token: bewaard };
-  var r = UrlFetchApp.fetch('https://login.bol.com/token?grant_type=client_credentials', {
+  var r = haalExtern('https://login.bol.com/token?grant_type=client_credentials', {
     method: 'post', muteHttpExceptions: true,
     headers: { Authorization: 'Basic ' + Utilities.base64Encode(inst.bol_client_id + ':' + inst.bol_client_secret), Accept: 'application/json' }
   });
@@ -41,7 +41,7 @@ function bolToken(inst) {
 
 /** Vraagt iets op bij de Marketing Catalog API. Geeft { code, data }. */
 function bolVraag(pad, token) {
-  var r = UrlFetchApp.fetch(BOL_API + pad, {
+  var r = haalExtern(BOL_API + pad, {
     muteHttpExceptions: true,
     headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', 'Accept-Language': 'nl' }
   });
@@ -80,6 +80,7 @@ function bolAfbeelding(data) {
 /** Menu: zoekt covers bij bol.com, in porties. */
 function zoekCoversBol() {
   var start = Date.now();
+  if (wachtOpDaglimiet('zoekCoversBol')) return;
   var inst = leesInstellingen();
   var t = bolToken(inst);
   if (t.fout) { logboek('menu', 'zoekCoversBol', t.fout); meld(t.fout); return; }

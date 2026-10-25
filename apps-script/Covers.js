@@ -61,6 +61,7 @@ function olZoek(parameters) {
 /** Menu: zoekt covers van andere uitgaven bij Open Library, in porties. */
 function zoekCoversAndereUitgaven() {
   var start = Date.now();
+  if (wachtOpDaglimiet('zoekCoversAndereUitgaven')) return;
   if (!startAchtergrond('zoekCoversAndereUitgaven')) {
     meldAlBezig('zoekCoversAndereUitgaven');
     return;
@@ -185,10 +186,11 @@ function isStaandeCover(afm) {
 /** Haalt een afbeelding op en kijkt of het een staande cover is (en niet het logo van Internet Archive). */
 function iaCoverIsEcht(url) {
   try {
-    var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
+    var r = haalExtern(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
     if (r.getResponseCode() !== 200) return false;
     return isStaandeCover(afbeeldingAfmetingen(r.getBlob().getBytes()));
   } catch (e) {
+    if (isDaglimietFout(e)) throw e; // geen "geen cover": later opnieuw
     return false;
   }
 }
@@ -196,6 +198,7 @@ function iaCoverIsEcht(url) {
 /** Menu: zoekt covers bij Internet Archive, in porties. */
 function zoekCoversInternetArchive() {
   var start = Date.now();
+  if (wachtOpDaglimiet('zoekCoversInternetArchive')) return;
   if (!startAchtergrond('zoekCoversInternetArchive')) { meldAlBezig('zoekCoversInternetArchive'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {

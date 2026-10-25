@@ -98,7 +98,8 @@ function antwoord(rol, actie, vraag) {
     bezoekersCijfers: { ok: true, nietIngesteld: true },
     roosterOverzicht: { ok: true, data: { gekoppeld: true, vandaag: '2026-10-25', link: 'https://voorbeeld.test/rooster', nietGepubliceerd: [], avonden: [
       { datum: '2026-10-30', status: '', event: '', vrijwilligers: ['Ilo', 'Kim V.'], backups: [], afgemeld: [], gepubliceerd: true },
-      { datum: '2026-11-06', status: 'gesloten', event: '', vrijwilligers: [], backups: [], afgemeld: [], gepubliceerd: true }] } },
+      { datum: '2026-11-06', status: 'gesloten', event: '', vrijwilligers: [], backups: [], afgemeld: [], gepubliceerd: true }],
+      verouderd: { tijd: Date.UTC(2026, 9, 25, 16, 5), reden: 'Google laat vandaag geen nieuwe vragen naar buiten meer toe (daglimiet).' } } },
     voorstelBeschrijving: { ok: true, tekst: 'Dank je! Het bestuur bekijkt je beschrijving.' },
     voorstelBehandelen: { ok: true, tekst: 'De beschrijving staat bij "De verzonnen zee".' },
     meldingMaken: { ok: true, tekst: 'Je melding is doorgegeven aan het bestuur. Dank je!' },
@@ -481,6 +482,7 @@ async function meldAan(page, basis, pagina) {
     await meldAan(page, basis, 'vrijwilliger.html');
     // Jouw shift: Kim staat als "Kim V." op het rooster.
     await page.waitForSelector('text=Je volgende shift: vrijdag 30 oktober');
+    verwacht(/Dit is het rooster zoals het 25\/10 om/.test(await page.textContent('#sectie')), 'Uitleg bij een ouder rooster ontbreekt');
     verwacht(/Ilo, Kim V\./.test(await page.textContent('#sectie')), 'Deze week ontbreekt');
     // Rondleiding de eerste keer, daarna niet meer.
     await page.click('button:has-text("Start de rondleiding")');

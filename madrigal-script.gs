@@ -493,6 +493,8 @@ var ROOSTER_CACHE_SLEUTEL = 'rooster_v1';
 
 var ROOSTER_CACHE_SECONDEN = 10 * 60;
 
+var ROOSTER_LAATST_SLEUTEL = 'rooster_laatst';
+
 var SITE_CACHE_SLEUTEL = 'site_v6'; // v6: de bookclub maar één keer in de agenda
 
 var SITE_MAX_NIEUWS = 3;
@@ -502,6 +504,18 @@ var SITE_MAX_AANRADERS = 12;
 var LOGBOEK_REGELS = 60; // zoveel regels toont het bestuursscherm
 
 var DAGLIMIET_SLEUTEL = 'daglimiet_urlfetch';
+
+/*
+ * De daglimiet van Google (UrlFetch): een gratis account mag per dag maar een beperkt aantal vragen
+ * naar buiten sturen. De achtergrondtaken gebruiken er veel zolang er nog veel boeken op te zoeken zijn.
+ * Is de limiet op, dan:
+ *   - wacht elke taak 6 uur en gaat dan vanzelf verder (geen stilstaande taak meer);
+ *   - telt een mislukte vraag nooit als "niets gevonden": het boek komt later opnieuw aan de beurt;
+ *   - toont het rooster de laatst opgehaalde versie.
+ */
+var DAGLIMIET_WACHT_MS = 6 * 60 * 60 * 1000;
+
+var HUIDIGE_TAAK = ''; // de achtergrondtaak die nu loopt (zie startAchtergrond)
 
 var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'status', 'aanrader', 'startpagina', 'publiek', 'uitleenbaar', 'klassieker'];
 
@@ -1404,7 +1418,7 @@ function bolToken(inst) {
   var cache = CacheService.getScriptCache();
   var bewaard = cache.get('bol_token');
   if (bewaard) return { token: bewaard };
-  var r = UrlFetchApp.fetch('https://login.bol.com/token?grant_type=client_credentials', {
+  var r = haalExtern('https://login.bol.com/token?grant_type=client_credentials', {
     method: 'post', muteHttpExceptions: true,
     headers: { Authorization: 'Basic ' + Utilities.base64Encode(inst.bol_client_id + ':' + inst.bol_client_secret), Accept: 'application/json' }
   });
@@ -1419,7 +1433,7 @@ function bolToken(inst) {
 
 /** Vraagt iets op bij de Marketing Catalog API. Geeft { code, data }. */
 function bolVraag(pad, token) {
-  var r = UrlFetchApp.fetch(BOL_API + pad, {
+  var r = haalExtern(BOL_API + pad, {
     muteHttpExceptions: true,
     headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', 'Accept-Language': 'nl' }
   });
@@ -1914,6 +1928,12 @@ function dagenTussen(a, b) {
   return Math.round((naarUtc(b) - naarUtc(a)) / 86400000);
 }
 
+/** Hoeveel ms nog wachten na een daglimiet die om "sinds" (ms) genoteerd werd. 0: niet meer wachten. */
+function daglimietWachttijd(sinds, nu) {
+  sinds = Number(sinds) || 0;
+  return sinds ? Math.max(0, sinds + DAGLIMIET_WACHT_MS - nu) : 0;
+}
+
 /**
  * Een cachesleutel per dag. Zo verschijnt gepland nieuws en een geplande leeslijst
  * vanzelf op de juiste dag, zonder dat iemand iets moet wissen.
@@ -2304,10 +2324,23 @@ function googleItemsMetIsbn(items, isbn) {
   });
 }
 
+/** Vraag naar buiten (zoals UrlFetchApp.fetch). Bij de daglimiet: noteren en de lopende taak over 6 uur herstarten. */
+function haalExtern(url, opties) {
+  try {
+    return UrlFetchApp.fetch(url, opties);
+  } catch (e) {
+    if (isDaglimietFout(e)) {
+      noteerDaglimiet();
+      if (HUIDIGE_TAAK) planTaak(HUIDIGE_TAAK, DAGLIMIET_WACHT_MS);
+    }
+    throw e;
+  }
+}
+
 /** Haalt JSON op. Geeft { code, data } terug. */
 function haalJson(url) {
   // Api-User-Agent: de manier die Wikipedia aanraadt om je script te herkennen.
-  var antwoord = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT, 'Api-User-Agent': BS_USER_AGENT } });
+  var antwoord = haalExtern(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT, 'Api-User-Agent': BS_USER_AGENT } });
   var data = null;
   try { data = JSON.parse(antwoord.getContentText()); } catch (e) { data = null; }
   return { code: antwoord.getResponseCode(), data: data };
@@ -2342,7 +2375,7 @@ function haalPeperfabriekOp() {
 
 /** Vraagt één maand op bij de roostertool. */
 function haalRoosterMaand(url, code, maand) {
-  var antwoord = UrlFetchApp.fetch(url, {
+  var antwoord = haalExtern(url, {
     method: 'post',
     contentType: 'text/plain',
     payload: JSON.stringify({ actie: 'maand', code: code, maand: maand }),
@@ -2526,10 +2559,11 @@ function htmlNaarTekst(html) {
 /** Haalt een afbeelding op en kijkt of het een staande cover is (en niet het logo van Internet Archive). */
 function iaCoverIsEcht(url) {
   try {
-    var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
+    var r = haalExtern(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
     if (r.getResponseCode() !== 200) return false;
     return isStaandeCover(afbeeldingAfmetingen(r.getBlob().getBytes()));
   } catch (e) {
+    if (isDaglimietFout(e)) throw e; // geen "geen cover": later opnieuw
     return false;
   }
 }
@@ -2899,6 +2933,11 @@ function isbnVoorstel(olDetails, gbInfo) {
   return v;
 }
 
+/** Is deze fout de daglimiet van Google? */
+function isDaglimietFout(e) {
+  return /te vaak|too many times/i.test(String(e && e.message || e || ''));
+}
+
 /** Is dit een Date-object (zoals de spreadsheet datums teruggeeft)? */
 function isDatumObject(waarde) {
   return Object.prototype.toString.call(waarde) === '[object Date]' && !isNaN(waarde.getTime());
@@ -3112,6 +3151,22 @@ function laatsteLogregels(waarden, aantal) {
     var tijd = isDatumObject(r[0]) ? r[0].getTime() : (Date.parse(r[0]) || 0);
     return { tijd: tijd, wie: String(r[1] || ''), actie: String(r[2] || ''), details: String(r[3] || '') };
   }).sort(function (a, b) { return b.tijd - a.tijd; }).slice(0, aantal);
+}
+
+/**
+ * De laatst opgehaalde versie van het rooster, zonder de avonden die al voorbij zijn.
+ * bewaard: de tekst uit ROOSTER_LAATST_SLEUTEL. daglimiet: lag het aan de daglimiet van Google?
+ */
+function laatsteRooster(bewaard, vandaag, daglimiet) {
+  var oud = null;
+  try { oud = JSON.parse(bewaard || 'null'); } catch (e) { oud = null; }
+  var reden = daglimiet ? 'Google laat vandaag geen nieuwe vragen naar buiten meer toe (daglimiet).' : 'De roostertool antwoordt nu niet.';
+  if (!oud || !oud.data) return { ok: false, fout: 'Het rooster kon niet laden. ' + reden + ' Probeer het later opnieuw.' };
+  var data = oud.data;
+  data.avonden = (data.avonden || []).filter(function (a) { return String(a.datum) >= vandaag; });
+  data.vandaag = vandaag;
+  data.verouderd = { tijd: Number(oud.tijd) || 0, reden: reden };
+  return { ok: true, data: data };
 }
 
 /** Maakt de cache van de publieke catalogus leeg, zodat de volgende opvraging vers is. */
@@ -4467,6 +4522,13 @@ function pfVoorSite(lijst, vandaag, aantal) {
   return (lijst || []).filter(function (a) { return (a.einde || a.datum) >= vandaag; }).slice(0, aantal || 12);
 }
 
+function planTaak(naam, ms) {
+  try {
+    verwijderTriggers(naam);
+    ScriptApp.newTrigger(naam).timeBased().after(Math.max(60 * 1000, ms)).create();
+  } catch (e) { /* lukt het niet, dan start je de taak met de hand */ }
+}
+
 /** Plant de vertaling over een paar minuten (één keer). */
 function planVertaling(minuten) {
   verwijderTriggers('vertaalBeschrijvingen');
@@ -4624,18 +4686,31 @@ function roosterOverzicht() {
   var cache = CacheService.getScriptCache();
   var bewaard = cache.get(ROOSTER_CACHE_SLEUTEL);
   if (bewaard) return { ok: true, data: JSON.parse(bewaard) };
-
+  var props = PropertiesService.getScriptProperties();
   var vandaag = vandaagTekst();
-  var antwoorden = roosterMaanden(vandaag).map(function (m) { return haalRoosterMaand(url, code, m); });
+  // De daglimiet van Google is op: niet opnieuw proberen, meteen de laatste versie.
+  if (daglimietWachttijd(cache.get(DAGLIMIET_SLEUTEL), Date.now())) return laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, true);
+
+  var antwoorden;
+  try {
+    antwoorden = roosterMaanden(vandaag).map(function (m) { return haalRoosterMaand(url, code, m); });
+  } catch (e) {
+    return laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, isDaglimietFout(e));
+  }
   var fout = antwoorden.filter(function (a) { return !a || !a.ok; })[0];
   if (fout && fout.codeFout) return { ok: false, fout: 'De rooster_code in Instellingen klopt niet. Gebruik de toegangscode voor vrijwilligers van het rooster.' };
-  if (fout && antwoorden.every(function (a) { return !a || !a.ok; })) return { ok: false, fout: 'Het rooster kon niet laden: ' + (fout.fout || 'onbekende fout') };
+  if (fout && antwoorden.every(function (a) { return !a || !a.ok; })) {
+    var oud = laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, false);
+    return oud.ok ? oud : { ok: false, fout: 'Het rooster kon niet laden: ' + (fout.fout || 'onbekende fout') };
+  }
 
   var data = bouwRoosterOverzicht(antwoorden, vandaag);
   data.gekoppeld = true;
   data.link = link;
   data.vandaag = vandaag;
-  try { cache.put(ROOSTER_CACHE_SLEUTEL, JSON.stringify(data), ROOSTER_CACHE_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
+  var tekst = JSON.stringify(data);
+  try { cache.put(ROOSTER_CACHE_SLEUTEL, tekst, ROOSTER_CACHE_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
+  try { props.setProperty(ROOSTER_LAATST_SLEUTEL, JSON.stringify({ tijd: Date.now(), data: data })); } catch (e) { /* te groot: dan zonder reserve */ }
   return { ok: true, data: data };
 }
 
@@ -4830,6 +4905,7 @@ function startAchtergrond(naam) {
   var cache = CacheService.getScriptCache();
   if (cache.get('taak_' + naam)) return false;
   cache.put('taak_' + naam, String(Date.now()), ACHTERGROND_DUUR_SECONDEN);
+  HUIDIGE_TAAK = naam;
   return true;
 }
 
@@ -6048,6 +6124,7 @@ function vulAanUitGoodreads(stil) {
 /** Menu: vult covers aan uit Google Books, in porties. */
 function vulAanUitGoogleBooks() {
   var start = Date.now();
+  if (wachtOpDaglimiet('vulAanUitGoogleBooks')) return;
   if (!startAchtergrond('vulAanUitGoogleBooks')) {
     meldAlBezig('vulAanUitGoogleBooks');
     return;
@@ -6124,6 +6201,7 @@ function vulAanUitGoogleBooks() {
 /** Menu: vult de Catalogus aan uit Open Library, in porties. */
 function vulAanUitOpenLibrary() {
   var start = Date.now();
+  if (wachtOpDaglimiet('vulAanUitOpenLibrary')) return;
   if (!startAchtergrond('vulAanUitOpenLibrary')) {
     meldAlBezig('vulAanUitOpenLibrary');
     return;
@@ -6138,7 +6216,7 @@ function vulAanUitOpenLibrary() {
       var portie = teDoen.slice(i, i + OL_PORTIE);
       var sleutels = portie.map(function (b) { return 'ISBN:' + b.isbn; }).join(',');
       var url = 'https://openlibrary.org/api/books?format=json&jscmd=details&bibkeys=' + encodeURIComponent(sleutels);
-      var antwoord = UrlFetchApp.fetch(url, {
+      var antwoord = haalExtern(url, {
         muteHttpExceptions: true,
         headers: { 'User-Agent': BS_USER_AGENT } // zie Beschrijvingen.js
       });
@@ -6182,6 +6260,7 @@ function vulAanUitOpenLibrary() {
 /** Menu: zoekt beschrijvingen voor boeken waar die nog ontbreekt, in porties. */
 function vulBeschrijvingenAan() {
   var start = Date.now();
+  if (wachtOpDaglimiet('vulBeschrijvingenAan')) return;
   if (!startAchtergrond('vulBeschrijvingenAan')) {
     meldAlBezig('vulBeschrijvingenAan');
     return;
@@ -6272,6 +6351,20 @@ function vulOnderwerpenAan(onderwerpRijen, catalogusRijen) {
     nieuw++;
   });
   return nieuw;
+}
+
+/**
+ * Voor elke achtergrondtaak, helemaal vooraan: is de daglimiet nog op, dan start de taak niet
+ * en plant ze zich opnieuw als de limiet voorbij is. Geeft true als de taak moet wachten.
+ */
+function wachtOpDaglimiet(naam) {
+  var sinds = 0;
+  try { sinds = Number(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL)) || 0; } catch (e) { return false; }
+  var wacht = daglimietWachttijd(sinds, Date.now());
+  if (!wacht) return false;
+  planTaak(naam, wacht);
+  try { spreadsheet().toast('De daglimiet van Google voor vragen naar buiten is op. Deze taak gaat vanzelf verder over ' + Math.ceil(wacht / 3600000) + ' uur.', 'Madrigal', 15); } catch (e) { /* geen spreadsheet open */ }
+  return true;
 }
 
 /** Zocht enkel Open Library al, en moet Google dit boek nog opzoeken? */
@@ -6554,6 +6647,7 @@ function zetTekstopmaak(blad, kolommen) {
 /** Menu: zoekt beschrijvingen bij Wikipedia, in porties. */
 function zoekBeschrijvingenWikipedia() {
   var start = Date.now();
+  if (wachtOpDaglimiet('zoekBeschrijvingenWikipedia')) return;
   if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meldAlBezig('zoekBeschrijvingenWikipedia'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, quotum = false, vast = false, fout = '', nietBewaard = 0, laatste = null, controle = '';
   try {
@@ -6632,6 +6726,7 @@ function zoekBoekOpTitel(catalogus, titel, auteur) {
 /** Menu: zoekt covers van andere uitgaven bij Open Library, in porties. */
 function zoekCoversAndereUitgaven() {
   var start = Date.now();
+  if (wachtOpDaglimiet('zoekCoversAndereUitgaven')) return;
   if (!startAchtergrond('zoekCoversAndereUitgaven')) {
     meldAlBezig('zoekCoversAndereUitgaven');
     return;
@@ -6694,6 +6789,7 @@ function zoekCoversAndereUitgaven() {
 /** Menu: zoekt covers bij bol.com, in porties. */
 function zoekCoversBol() {
   var start = Date.now();
+  if (wachtOpDaglimiet('zoekCoversBol')) return;
   var inst = leesInstellingen();
   var t = bolToken(inst);
   if (t.fout) { logboek('menu', 'zoekCoversBol', t.fout); meld(t.fout); return; }
@@ -6734,6 +6830,7 @@ function zoekCoversBol() {
 /** Menu: zoekt covers bij Internet Archive, in porties. */
 function zoekCoversInternetArchive() {
   var start = Date.now();
+  if (wachtOpDaglimiet('zoekCoversInternetArchive')) return;
   if (!startAchtergrond('zoekCoversInternetArchive')) { meldAlBezig('zoekCoversInternetArchive'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {

@@ -114,6 +114,7 @@ function zoekCoversOpnieuw() {
 /** Menu: vult covers aan uit Google Books, in porties. */
 function vulAanUitGoogleBooks() {
   var start = Date.now();
+  if (wachtOpDaglimiet('vulAanUitGoogleBooks')) return;
   if (!startAchtergrond('vulAanUitGoogleBooks')) {
     meldAlBezig('vulAanUitGoogleBooks');
     return;
