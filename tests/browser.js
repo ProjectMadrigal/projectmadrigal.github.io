@@ -45,7 +45,7 @@ function startServer() {
 
 const STATUS = (code, label) => ({ code, label, tekst: label });
 const UITLENING = { uitlening_id: 'U0001', exemplaar: 'B0001-1', boek_id: 'B0001', titel: 'De verzonnen zee', lenersnummer: '12', voornaam: 'Sam', datum_uit: '2026-09-20', vervaldatum: '2026-10-18', status: STATUS('telaat', 'Te laat') };
-const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', c: true, g: ['Geschiedenis en maatschappij'] }];
+const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', x: 1, u: true, c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', x: 1, u: true, c: true, g: ['Geschiedenis en maatschappij'] }];
 // Veel boeken zonder beschrijving (verzonnen), om Toon er nog 100 te testen.
 const VEEL = Array.from({ length: 150 }, (_, i) => ({ id: 'X' + String(i).padStart(3, '0'), t: 'Verzonnen titel ' + String(i).padStart(3, '0'), a: '', c: true, zb: true }));
 const UITLENING2 = Object.assign({}, UITLENING, { uitlening_id: 'U0002', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', lenersnummer: '13', voornaam: 'Jo' });
@@ -62,7 +62,11 @@ function antwoord(rol, actie, vraag) {
   const basis = { vandaagTekst: 'zondag 25 oktober', telaat: [UITLENING], binnenkort: [], lopend: [UITLENING], reservaties: [], boeken: BOEKEN };
   return {
     aanmelden: { ok: true, rol: rol === 'bestuur' && (vraag || {}).alsRol === 'vrijwilliger' ? 'vrijwilliger' : rol, echteRol: rol },
-    vrijwilligerData: { ok: true, data: Object.assign({}, basis, { voorgesteld: [], checklist: { openen: ['Licht aan', 'Balie openen'], sluiten: ['Licht uit'] } }) },
+    vrijwilligerData: { ok: true, data: Object.assign({}, basis, { voorgesteld: [], checklist: { openen: ['Licht aan', 'Balie openen'], sluiten: ['Licht uit'] },
+      briefjes: [{ briefje_id: 'N0001', datum: '2026-10-23', wie: 'Ilo', tekst: 'De printer is stuk.' }],
+      vandaagTerug: [{ uitlening_id: 'U0009', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', auteur: 'Dewit, Rein', onderwerp: 'Geschiedenis en maatschappij', staat_terug: 'licht beschadigd' }],
+      reservaties: [{ reservatie_id: 'R0001', boek_id: 'B0001', lenersnummer: '13', voornaam: 'Jo', status: 'wacht', tekst: 'Wacht' }],
+      mijn: { voorstellen: [{ datum: '2026-10-20', titel: 'Stille lichten', status: 'goedgekeurd', datum_behandeld: '2026-10-21' }], meldingen: [{ datum: '2026-10-22', soort: 'boek kapot', onderwerp: 'B0001', status: 'nieuw', datum_afgehandeld: '' }] } }) },
     bestuurData: { ok: true, data: Object.assign({}, basis, {
       boeken: BOEKEN.concat(VEEL),
       telaat: [Object.assign({}, UITLENING, { telefoon: '0400000000', herinnering: 'Hoi Sam' }), Object.assign({}, UITLENING2, { email: 'jo@voorbeeld.test', herinnering: 'Hoi Jo' })],
@@ -98,7 +102,9 @@ function antwoord(rol, actie, vraag) {
     voorstelBeschrijving: { ok: true, tekst: 'Dank je! Het bestuur bekijkt je beschrijving.' },
     voorstelBehandelen: { ok: true, tekst: 'De beschrijving staat bij "De verzonnen zee".' },
     meldingMaken: { ok: true, tekst: 'Je melding is doorgegeven aan het bestuur. Dank je!' },
-    meldingAfhandelen: { ok: true, tekst: 'Melding M0001 is afgehandeld.' }
+    meldingAfhandelen: { ok: true, tekst: 'Melding M0001 is afgehandeld.' },
+    briefjeMaken: { ok: true, tekst: 'Je briefje staat bij Vandaag voor de volgende shift.' },
+    briefjeWeg: { ok: true, tekst: 'Het briefje is weg.' }
   }[actie] || { ok: false, fout: 'Niet nagebootst: ' + actie };
 }
 
@@ -454,7 +460,7 @@ async function meldAan(page, basis, pagina) {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
     await meldAan(page, basis, 'vrijwilliger.html');
     const knoppen = await page.$$eval('#sectienav button', (x) => x.map((e) => e.textContent.replace(/ \(.*\)$/, '')));
-    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Checklist voor de shift', 'Iets melden', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
     verwacht(!/Logboek/.test(await page.textContent('#sectie')), 'Vandaag toont het Logboek aan een vrijwilliger');
     await page.click('#sectienav button:has-text("Te laat")');
     verwacht(!/0400000000|Kopieer herinnering/.test(await page.textContent('#sectie')), 'Contactgegevens zichtbaar');
@@ -516,6 +522,40 @@ async function meldAan(page, basis, pagina) {
     const tekst = await page.textContent('#sectie');
     verwacht(/Ontbreekt \(0\)/.test(tekst) && /Uitgeleend \(1\)/.test(tekst) && /Gevonden \(1\)/.test(tekst), 'Resultaat kastcontrole: ' + tekst.slice(0, 300));
     verwacht(!(await axe(page)).length, 'Toegankelijkheid kastcontrole: ' + (await axe(page)).join(' | '));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('vrijwilligersscherm: briefjes, mijn voorstellen, terug te zetten en boek opzoeken', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
+    const vragen = [];
+    page.on('request', (r) => { if (r.url().indexOf('web-app.test') > -1) vragen.push(JSON.parse(r.postData() || '{}')); });
+    await meldAan(page, basis, 'vrijwilliger.html');
+    await page.waitForSelector('text=De printer is stuk.');
+    await page.click('summary:has-text("Schrijf een briefje")');
+    await page.fill('#briefje-tekst', 'Sleutel ligt in de schuif.');
+    await page.click('button:has-text("Laat het briefje achter")');
+    await page.waitForSelector('text=Je briefje staat bij Vandaag');
+    verwacht(vragen.some((v) => v.actie === 'briefjeMaken' && v.tekst === 'Sleutel ligt in de schuif.'), 'Briefje niet verstuurd');
+    await page.click('button:has-text("Gelezen, haal weg")');
+    await page.waitForSelector('text=Het briefje is weg');
+    verwacht(vragen.some((v) => v.actie === 'briefjeWeg' && v.briefje_id === 'N0001'), 'Briefje niet weggehaald');
+    await page.click('#sectienav button:has-text("Mijn voorstellen en meldingen")');
+    const mijn = await page.textContent('#sectie');
+    verwacht(/Stille lichten/.test(mijn) && /Goedgekeurd/.test(mijn) && /Wacht op het bestuur/.test(mijn), 'Mijn voorstellen: ' + mijn.slice(0, 200));
+    await page.click('#sectienav button:has-text("Terug te zetten (1)")');
+    verwacht(/Geschiedenis en maatschappij \(1\)/.test(await page.textContent('#sectie')), 'Onderwerp ontbreekt');
+    await page.check('#gezet-U0009');
+    await page.reload();
+    await page.click('#sectienav button:has-text("Terug te zetten")');
+    verwacht(await page.isChecked('#gezet-U0009'), 'Teruggezet niet onthouden');
+    await page.click('#sectienav button:has-text("Boek opzoeken")');
+    await page.fill('#opzoeken-zoek', 'zee');
+    const kaart = await page.textContent('#sectie .kaartlijst');
+    verwacht(/Niet beschikbaar/.test(kaart) && /B0001-1: moet terug op 18\/10\/2026 \(te laat\)/.test(kaart) && /1 persoon wacht/.test(kaart), 'Boek opzoeken: ' + kaart);
+    verwacht(!/Jo\b|Sam/.test(kaart), 'Naam van een lener zichtbaar');
+    await page.fill('#opzoeken-zoek', 'b0002');
+    verwacht(/Beschikbaar/.test(await page.textContent('#sectie .kaartlijst')), 'Zoeken op boek-ID');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });

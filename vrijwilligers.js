@@ -79,12 +79,17 @@
 
   /* ---------- Checklist voor de shift ---------- */
 
+  /** De datum van vandaag op dit toestel (niet in UTC): "2026-10-25". */
+  function vandaagLokaal() {
+    var nu = new Date();
+    return nu.getFullYear() + '-' + ('0' + (nu.getMonth() + 1)).slice(-2) + '-' + ('0' + nu.getDate()).slice(-2);
+  }
+
   function vinkSleutel(datum) { return 'madrigal_checklist_' + datum; }
 
   /** De checklist: wat je afvinkt, blijft op dit toestel bewaard tot morgen. */
   function toonChecklist(vak, ctx) {
-    var nu = new Date();
-    var datum = nu.getFullYear() + '-' + ('0' + (nu.getMonth() + 1)).slice(-2) + '-' + ('0' + nu.getDate()).slice(-2);
+    var datum = vandaagLokaal();
     var gevinkt = {};
     try { gevinkt = JSON.parse(lees(vinkSleutel(datum)) || '{}') || {}; } catch (e) { gevinkt = {}; }
     // Oude dagen opruimen.
@@ -126,11 +131,11 @@
 
   var STAPPEN = [
     ['Welkom', 'Fijn dat je meehelpt! In dit scherm vind je alles wat je als vrijwilliger nodig hebt. Deze korte rondleiding toont de onderdelen. Je kan ze altijd opnieuw openen onderaan Vandaag.'],
-    ['Vandaag', 'Vandaag toont wat aandacht vraagt: boeken die te laat zijn, reservaties die klaarliggen, en wanneer jij op het rooster staat. Klik op Open om ernaartoe te gaan.'],
-    ['Uitlenen', 'Uitlenen en terugbrengen doe je in het uitleenscherm (knop bovenaan). Hier zie je de lopende uitleningen, de reservaties en wat te laat is. Teruggebracht en Verleng werken ook vanuit dit scherm.'],
+    ['Vandaag', 'Vandaag toont wat aandacht vraagt: boeken die te laat zijn, reservaties die klaarliggen, wanneer jij op het rooster staat en briefjes van de vorige shift. Laat zelf een briefje achter als de volgende shift iets moet weten.'],
+    ['Uitlenen', 'Uitlenen en terugbrengen doe je in het uitleenscherm (knop bovenaan). Hier zie je de lopende uitleningen, de reservaties en wat te laat is. Met Boek opzoeken beantwoord je vragen van leners. Terug te zetten toont welke boeken vandaag terugkwamen en in welke kast ze horen.'],
     ['Je shift', 'De checklist toont wat je doet bij het openen en het sluiten van de bib. In het rooster zie je wie wanneer staat. Je beschikbaarheid vul je in via de roostertool.'],
     ['Boeken aanvullen', 'Bij Boeken zonder cover neem je een foto van de voorkant. Bij Boeken zonder beschrijving stel je een tekst voor. Het bestuur keurt die goed voor ze op de website komt. Met Kastcontrole scan je een kast en zie je wat ontbreekt.'],
-    ['Iets melden', 'Is een boek kapot, raakte iets kwijt of had een lener een vraag die je niet kon beantwoorden? Gebruik Iets melden. Het bestuur ziet je melding en volgt ze op.']
+    ['Iets melden', 'Is een boek kapot, raakte iets kwijt of had een lener een vraag die je niet kon beantwoorden? Gebruik Iets melden. Het bestuur ziet je melding en volgt ze op. Bij Mijn voorstellen en meldingen zie je wat ermee gebeurde.']
   ];
 
   function rondleiding(vak, ctx, i) {
@@ -372,7 +377,156 @@
       })) : el('p', {}, 'Geen voorstellen die wachten.'));
   }
 
+
+  /* ---------- Briefjes voor de volgende shift (Vandaag) ---------- */
+
+  function briefjesBlok(ctx) {
+    var briefjes = ctx.data.briefjes || [];
+    var fout = el('div', { 'aria-live': 'assertive' });
+    var tekst = el('textarea', { id: 'briefje-tekst', rows: '3', maxlength: '300' });
+    var schrijf = el('details', { class: 'briefje-nieuw' }, el('summary', {}, 'Schrijf een briefje voor de volgende shift'),
+      el('div', { class: 'veld' }, el('label', { for: 'briefje-tekst' }, 'Wat moet de volgende shift weten?'), tekst,
+        el('p', { class: 'hulptekst' }, 'Het briefje staat 14 dagen op Vandaag, tot iemand het weghaalt. Schrijf geen telefoonnummers of mailadressen van leners.')),
+      fout,
+      knoppen(el('button', { type: 'button', class: 'knop', onclick: function (e) {
+        e.target.disabled = true;
+        B.voerUit('briefjeMaken', { tekst: tekst.value }).then(function (r) {
+          e.target.disabled = false;
+          if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+          B.melding($('melding'), 'ok', r.tekst);
+          ctx.laad();
+        });
+      } }, 'Laat het briefje achter')));
+    return el('div', { class: 'blok briefjes' }, el('h3', {}, 'Briefjes van de vorige shifts' + (briefjes.length ? ' (' + briefjes.length + ')' : '')),
+      briefjes.length ? el('ul', { class: 'kaartlijst' }, briefjes.map(function (b) {
+        return el('li', { class: 'kaart briefje' }, el('p', { class: 'met-regels' }, b.tekst),
+          el('p', { class: 'hulptekst' }, b.wie + ', ' + D.korteDatum(b.datum)),
+          knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function (e) {
+            e.target.disabled = true;
+            B.voerUit('briefjeWeg', { briefje_id: b.briefje_id }).then(function (r) {
+              if (!r.ok) { e.target.disabled = false; B.melding($('melding'), 'fout', r.fout); return; }
+              B.melding($('melding'), 'ok', r.tekst);
+              ctx.laad();
+            });
+          } }, 'Gelezen, haal weg')));
+      })) : el('p', { class: 'hulptekst' }, 'Geen briefjes.'),
+      schrijf);
+  }
+
+  /* ---------- Mijn voorstellen en meldingen ---------- */
+
+  var STAND = { nieuw: ['gereserveerd', 'Wacht op het bestuur'], goedgekeurd: ['beschikbaar', 'Goedgekeurd'], afgekeurd: ['gesloten', 'Niet gebruikt'], afgehandeld: ['beschikbaar', 'Afgehandeld'] };
+
+  function standLabel(status) {
+    var s = STAND[status] || ['niet_uitleenbaar', status || 'onbekend'];
+    return D.statusLabel(s[0], s[1]);
+  }
+
+  function toonMijn(vak, ctx) {
+    var m = ctx.data.mijn || { voorstellen: [], meldingen: [] };
+    D.vervang(vak, ctx.kop('Mijn voorstellen en meldingen', 'Wat je de laatste 60 dagen voorstelde en meldde als ' + B.sessie.wie + ', en wat het bestuur ermee deed.'),
+      el('h3', {}, 'Beschrijvingen (' + m.voorstellen.length + ')'),
+      m.voorstellen.length ? el('ul', { class: 'kaartlijst' }, m.voorstellen.map(function (v) {
+        return el('li', { class: 'kaart' }, el('p', {}, el('strong', {}, v.titel)), el('p', { class: 'labels' }, standLabel(v.status)),
+          el('p', { class: 'hulptekst' }, 'Voorgesteld op ' + D.korteDatum(v.datum) + (v.datum_behandeld ? ', bekeken op ' + D.korteDatum(v.datum_behandeld) : '')));
+      })) : el('p', {}, 'Je stelde nog geen beschrijving voor. Kijk bij Boeken zonder beschrijving.'),
+      el('h3', {}, 'Meldingen (' + m.meldingen.length + ')'),
+      m.meldingen.length ? el('ul', { class: 'kaartlijst' }, m.meldingen.map(function (x) {
+        return el('li', { class: 'kaart' }, el('p', {}, el('strong', {}, x.soort.charAt(0).toUpperCase() + x.soort.slice(1)), x.onderwerp ? ': ' + x.onderwerp : ''),
+          el('p', { class: 'labels' }, standLabel(x.status)),
+          el('p', { class: 'hulptekst' }, 'Gemeld op ' + D.korteDatum(x.datum) + (x.datum_afgehandeld ? ', afgehandeld op ' + D.korteDatum(x.datum_afgehandeld) : '')));
+      })) : el('p', {}, 'Je deed nog geen melding.'));
+  }
+
+  /* ---------- Terug te zetten ---------- */
+
+  function toonTerugzetten(vak, ctx) {
+    var lijst = ctx.data.vandaagTerug || [];
+    var sleutel = 'madrigal_teruggezet_' + vandaagLokaal();
+    var gezet = {};
+    try { gezet = JSON.parse(lees(sleutel) || '{}') || {}; } catch (e) { gezet = {}; }
+    try {
+      Object.keys(localStorage).forEach(function (k) { if (k.indexOf('madrigal_teruggezet_') === 0 && k !== sleutel) localStorage.removeItem(k); });
+    } catch (e) { /* niet erg */ }
+    var teller = el('p', { 'aria-live': 'polite' });
+    function tel() {
+      var n = lijst.filter(function (b) { return gezet[b.uitlening_id]; }).length;
+      teller.textContent = n === lijst.length ? 'Alles staat terug in de kast.' : n + ' van ' + lijst.length + ' teruggezet.';
+    }
+    var perOnderwerp = {};
+    lijst.forEach(function (b) { (perOnderwerp[b.onderwerp] = perOnderwerp[b.onderwerp] || []).push(b); });
+    tel();
+    D.vervang(vak, ctx.kop('Terug te zetten', 'De boeken die vandaag terugkwamen, per onderwerp. Vink aan wat terug in de kast staat. Dit toestel onthoudt het tot het einde van de dag.'),
+      lijst.length ? [teller].concat(Object.keys(perOnderwerp).map(function (o) {
+        return el('fieldset', { class: 'blok' }, el('legend', {}, o + ' (' + perOnderwerp[o].length + ')'), perOnderwerp[o].map(function (b) {
+          var id = 'gezet-' + b.uitlening_id;
+          var v = el('input', { type: 'checkbox', id: id, checked: !!gezet[b.uitlening_id] });
+          v.addEventListener('change', function () {
+            if (v.checked) gezet[b.uitlening_id] = true; else delete gezet[b.uitlening_id];
+            bewaar(sleutel, JSON.stringify(gezet));
+            tel();
+          });
+          return el('label', { class: 'vinkje', for: id }, v, el('span', {}, el('strong', {}, b.titel), ' ',
+            el('span', { class: 'hulptekst' }, [b.auteur, b.exemplaar].filter(Boolean).join(' · ')),
+            b.staat_terug && b.staat_terug !== 'in orde' ? [' ', D.statusLabel('binnenkort', b.staat_terug)] : null));
+        }));
+      })) : el('p', {}, 'Vandaag kwam er nog geen boek terug.'));
+  }
+
+  /* ---------- Boek opzoeken ---------- */
+
+  /** Hoe staat een boek ervoor? Zonder namen van leners: enkel wanneer het terug moet en hoeveel mensen wachten. */
+  function boekStand(b, lopend, reservaties) {
+    var uit = lopend.filter(function (u) { return String(u.boek_id) === b.id; });
+    var res = reservaties.filter(function (r) { return String(r.boek_id) === b.id; });
+    var apart = res.filter(function (r) { return r.status === 'klaar om op te halen'; }).length;
+    var totaal = b.x || 1;
+    return { totaal: totaal, uit: uit, apart: apart, wachten: res.length - apart, vrij: Math.max(0, totaal - uit.length - apart) };
+  }
+
+  function boekKaart(b, ctx) {
+    var s = boekStand(b, ctx.data.lopend || [], ctx.data.reservaties || []);
+    var label = b.st === 'verloren' ? D.statusLabel('verloren', 'Verloren')
+      : !b.u ? D.statusLabel('niet_uitleenbaar', 'Niet uitleenbaar')
+      : s.vrij ? D.statusLabel('beschikbaar', s.vrij === 1 ? 'Beschikbaar' : s.vrij + ' beschikbaar')
+      : D.statusLabel('uitgeleend', 'Niet beschikbaar');
+    return el('li', { class: 'kaart' },
+      el('h3', {}, b.t), el('p', {}, [b.a, b.id, b.i].filter(Boolean).join(' · ')),
+      el('p', { class: 'labels' }, label, b.st === 'gevoelig' ? el('span', { class: 'label label-gevoelig' }, 'Gevoelige inhoud') : null),
+      el('p', {}, s.totaal + (s.totaal === 1 ? ' exemplaar' : ' exemplaren') +
+        (s.uit.length ? ', ' + s.uit.length + ' uitgeleend' : '') + (s.apart ? ', ' + s.apart + ' apart gelegd voor een reservatie' : '') + '.'),
+      s.uit.length ? el('ul', {}, s.uit.map(function (u) {
+        return el('li', {}, u.exemplaar + ': moet terug op ' + D.korteDatum(u.vervaldatum) + (u.status && u.status.code === 'telaat' ? ' (te laat)' : ''));
+      })) : null,
+      s.wachten ? el('p', {}, s.wachten + (s.wachten === 1 ? ' persoon wacht' : ' mensen wachten') + ' op dit boek.') : null,
+      b.u && !s.vrij ? el('p', { class: 'hulptekst' }, 'Wil de lener het reserveren? Dat doe je in het uitleenscherm, bij Reserveren.') : null);
+  }
+
+  function toonOpzoeken(vak, ctx) {
+    var boeken = ctx.data.boeken || [];
+    var index = Z.maakIndex(boeken);
+    var zoek = el('input', { type: 'search', id: 'opzoeken-zoek', autocomplete: 'off', placeholder: 'Titel, auteur, ISBN of boek-ID' });
+    var lijst = el('div', { 'aria-live': 'polite' });
+    function teken() {
+      var q = zoek.value.trim();
+      if (!q) { D.vervang(lijst); return; }
+      var id = q.toUpperCase();
+      var gevonden = boeken.filter(function (b) { return b.id === id || b.id === id.replace(/-\d+$/, ''); });
+      if (!gevonden.length) gevonden = Z.zoek(index, q).slice(0, 10).map(function (r) { return r.boek; });
+      D.vervang(lijst, gevonden.length ? el('ul', { class: 'kaartlijst' }, gevonden.map(function (b) { return boekKaart(b, ctx); })) : el('p', {}, 'Geen boek gevonden.'));
+    }
+    zoek.addEventListener('input', teken);
+    D.vervang(vak, ctx.kop('Boek opzoeken', 'Vraagt een lener naar een boek? Zoek het hier op: hoeveel exemplaren er zijn, wanneer een uitgeleend boek terug moet en hoeveel mensen erop wachten.'),
+      el('div', { class: 'veld' }, el('label', { for: 'opzoeken-zoek' }, 'Zoek een boek'), zoek),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+        W.scanIsbn().then(function (isbn) { if (isbn) { zoek.value = isbn; teken(); } });
+      } }, 'Scan een ISBN')),
+      lijst);
+    zoek.focus();
+  }
+
   root.MadrigalVrijwilligers = {
+    briefjes: briefjesBlok, mijn: toonMijn, terugzetten: toonTerugzetten, opzoeken: toonOpzoeken, boekStand: boekStand,
     shiftBlok: shiftBlok, checklist: toonChecklist, welkomBlok: welkomBlok, rondleidingKnop: rondleidingKnop,
     kast: toonKast, melden: toonMelden, meldingen: toonMeldingen, voorstellen: toonVoorstellen,
     /** Voor de tests. */

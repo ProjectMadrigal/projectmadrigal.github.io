@@ -51,6 +51,8 @@ var ACTIES = {
   voorstelBehandelen: 'bestuur',
   meldingMaken: 'vrijwilliger',
   meldingAfhandelen: 'bestuur',
+  briefjeMaken: 'vrijwilliger',
+  briefjeWeg: 'vrijwilliger',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
   // Beheer van de website (Beheer.js). Wat op 'vrijwilliger' staat, kan ook vanuit het vrijwilligersscherm.
@@ -413,6 +415,8 @@ var KOLOMMEN = {
   // Van vrijwilligers (Vrijwilligers.js): voorgestelde beschrijvingen en meldingen voor het bestuur.
   'Voorstellen': ['voorstel_id', 'datum', 'boek_id', 'titel', 'tekst', 'voorgesteld_door', 'status', 'behandeld_door', 'datum_behandeld'],
   'Meldingen': ['melding_id', 'datum', 'wie', 'soort', 'onderwerp', 'bericht', 'status', 'afgehandeld_door', 'datum_afgehandeld'],
+  // Briefjes van vrijwilligers voor de volgende shift. Staan 14 dagen op Vandaag, gewist na 60 dagen.
+  'Briefjes': ['briefje_id', 'datum', 'wie', 'tekst', 'status', 'weg_door', 'datum_weg'],
   // Inhoud van de website. Kolommen op _en zijn de Engelse versie (mag leeg: dan toont de site het Nederlands).
   // online_vanaf: een bericht met een datum in de toekomst verschijnt pas op die dag.
   // voorgesteld_door: voornaam van de vrijwilliger die dit voorstelde. Leeg zodra het bestuur het online zet.
@@ -430,7 +434,7 @@ var KOLOMMEN = {
 var DATUMKOLOMMEN = [
   'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
-  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'datum_behandeld', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
+  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'datum_behandeld', 'datum_weg', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
   'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
 ];
 
@@ -470,7 +474,7 @@ var INSTELLING_GROEPEN = [
 ];
 
 var TABBLAD_GROEPEN = [
-  ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen']],      // uitlenen
+  ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
   ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken']],                     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#1b1b1c', ['Instellingen', 'Logboek']],                                      // beheer
@@ -528,6 +532,12 @@ var MELDING_SOORTEN = ['boek kapot', 'iets kwijt', 'vraag van een lener', 'ander
 var VOORSTEL_MIN_TEKENS = 40;
 
 /* ---------- Beschrijvingen voorstellen ---------- */
+
+var BRIEFJE_ZICHTBAAR_DAGEN = 14; // daarna verdwijnt een briefje vanzelf van Vandaag
+
+var BRIEFJE_BEWAREN_DAGEN = 60;   // daarna wist de privacy-opruiming het
+
+var MIJN_DAGEN = 60; // zo ver kijkt "Mijn voorstellen en meldingen" terug
 
 var WIKI_TALEN = ['nl', 'en'];
 
@@ -1702,6 +1712,30 @@ function bouwSiteInhoud(staat, tabellen) {
       activiteiten: pfVoorSite((tabellen.peperfabriek || {}).activiteiten, staat.vandaag, inst.peperfabriek_aantal)
     }
   };
+}
+
+/** Acties briefjeMaken en briefjeWeg (binnen het slot). */
+function briefjeActie(actie, invoer, wie) {
+  var tabel = tabelOfLeeg('Briefjes');
+  if (!tabel) return { ok: false, fout: 'Het tabblad Briefjes ontbreekt nog. Vraag het bestuur om Madrigal > Installeer tabbladen uit te voeren.' };
+  var r = actie === 'briefjeMaken'
+    ? maakBriefje(tabel.rijen, invoer, wie, vandaagTekst(), nieuwIdVoor(tabel.rijen, 'briefje_id', 'briefje', 'N'))
+    : briefjeWeg(tabel.rijen, invoer, wie, vandaagTekst());
+  if (r.ok) {
+    bewaarTabel(tabel);
+    logboek(wie, actie === 'briefjeMaken' ? 'briefje' : 'briefje weg', actie === 'briefjeMaken' ? '' : String(invoer.briefje_id));
+  }
+  return r;
+}
+
+/* ---------- Mijn voorstellen en meldingen ---------- */
+
+/** Iemand haalt een briefje weg (gelezen, opgelost). invoer: { briefje_id } */
+function briefjeWeg(rijen, invoer, wie, vandaag) {
+  var b = (rijen || []).filter(function (r) { return String(r.briefje_id) === String(invoer.briefje_id); })[0];
+  if (!b) return { ok: false, fout: 'Dit briefje bestaat niet meer.' };
+  wijzig(b, { status: 'weg', weg_door: tekstInvoer(wie, 40), datum_weg: vandaag });
+  return { ok: true, tekst: 'Het briefje is weg.' };
 }
 
 /**
@@ -3561,6 +3595,14 @@ function maakBeschrijvingVoorstel(staat, rijen, invoer, nieuwId) {
   return { ok: true, tekst: 'Dank je! Het bestuur bekijkt je beschrijving van "' + schoon(boek.titel) + '".' };
 }
 
+/** Een vrijwilliger laat een briefje achter voor de volgende shift. invoer: { tekst } */
+function maakBriefje(rijen, invoer, wie, vandaag, nieuwId) {
+  var tekst = schoonMetRegels(invoer.tekst).slice(0, 300);
+  if (tekst.length < 3) return { ok: false, fout: 'Schrijf kort wat de volgende shift moet weten.' };
+  voegToe(rijen, { briefje_id: nieuwId(), datum: vandaag, wie: tekstInvoer(wie, 40) || 'onbekend', tekst: tekst, status: 'open' });
+  return { ok: true, tekst: 'Je briefje staat bij Vandaag voor de volgende shift.' };
+}
+
 /** Menu: bouwt de Catalogus op uit Stock en Zines. */
 function maakCatalogus() {
   var lock = LockService.getScriptLock();
@@ -3709,6 +3751,8 @@ function meldingActie(actie, invoer, wie) {
   return r;
 }
 
+/* ---------- Briefjes voor de volgende shift ---------- */
+
 /** Het bestuur zet een melding op afgehandeld. invoer: { melding_id } */
 function meldingAfhandelen(rijen, invoer, wie, vandaag) {
   var m = (rijen || []).filter(function (r) { return String(r.melding_id) === String(invoer.melding_id); })[0];
@@ -3723,6 +3767,25 @@ function metNullen(n, breedte) {
   while (s.length < breedte) s = '0' + s;
   return s;
 }
+
+/**
+ * Wat deze vrijwilliger de laatste MIJN_DAGEN voorstelde en meldde, met de stand.
+ * Enkel titel, soort en onderwerp: niet de tekst van de melding zelf.
+ */
+function mijnBijdragen(voorstelRijen, meldingRijen, wie, vandaag) {
+  var recent = function (d) { d = parseerDatum(d); return !!d && dagenTussen(d, vandaag) <= MIJN_DAGEN; };
+  var nieuwsteEerst = function (a, b) { return b.datum.localeCompare(a.datum); };
+  return {
+    voorstellen: (voorstelRijen || []).filter(function (v) { return zelfdeNaam(v.voorgesteld_door, wie) && recent(v.datum); }).map(function (v) {
+      return { datum: parseerDatum(v.datum), titel: schoon(v.titel), status: schoon(v.status), datum_behandeld: parseerDatum(v.datum_behandeld) || '' };
+    }).sort(nieuwsteEerst),
+    meldingen: (meldingRijen || []).filter(function (m) { return zelfdeNaam(m.wie, wie) && recent(m.datum); }).map(function (m) {
+      return { datum: parseerDatum(m.datum), soort: schoon(m.soort), onderwerp: schoon(m.onderwerp), status: schoon(m.status), datum_afgehandeld: parseerDatum(m.datum_afgehandeld) || '' };
+    }).sort(nieuwsteEerst)
+  };
+}
+
+/* ---------- Terug te zetten ---------- */
 
 /** "2026-11-20" naar een Date in UTC (enkel om mee te rekenen). */
 function naarUtc(datum) {
@@ -4012,6 +4075,16 @@ function openAanvragen(rijen) {
       voornaam: schoon(a.voornaam), contact: schoon(a.contact), opmerking: schoon(a.opmerking)
     };
   }).sort(function (a, b) { return String(a.datum).localeCompare(String(b.datum)); });
+}
+
+/** De briefjes die nog op Vandaag staan, nieuwste eerst. */
+function openBriefjes(rijen, vandaag) {
+  return (rijen || []).filter(function (b) {
+    var d = parseerDatum(b.datum);
+    return b.status === 'open' && d && dagenTussen(d, vandaag) <= BRIEFJE_ZICHTBAAR_DAGEN;
+  }).map(function (b) {
+    return { briefje_id: String(b.briefje_id), datum: parseerDatum(b.datum), wie: schoon(b.wie), tekst: schoonMetRegels(b.tekst) };
+  }).sort(function (a, b) { return b.datum.localeCompare(a.datum) || b.briefje_id.localeCompare(a.briefje_id); });
 }
 
 /** De open meldingen voor het bestuursscherm, oudste eerst. */
@@ -4585,6 +4658,24 @@ function ruimAanvragenOpRijen(rijen, vandaag, dagen) {
   return n;
 }
 
+function ruimBriefjesOp() {
+  if (!spreadsheet().getSheetByName('Briefjes')) return 0;
+  var tabel = leesTabel('Briefjes');
+  var n = ruimBriefjesOpRijen(tabel.rijen, vandaagTekst());
+  if (n) bewaarTabel(tabel);
+  return n;
+}
+
+/** Privacy: briefjes ouder dan BRIEFJE_BEWAREN_DAGEN gaan weg, ook de open. */
+function ruimBriefjesOpRijen(rijen, vandaag) {
+  var n = 0;
+  (rijen || []).forEach(function (b) {
+    var d = parseerDatum(b.datum);
+    if (d && dagenTussen(d, vandaag) > BRIEFJE_BEWAREN_DAGEN) { markeerVerwijderen(b); n++; }
+  });
+  return n;
+}
+
 /** Nachtelijke opruiming van de meldingen (zie Privacy.js). */
 function ruimMeldingenOp(inst) {
   if (!spreadsheet().getSheetByName('Meldingen')) return 0;
@@ -4619,7 +4710,8 @@ function ruimOp() {
     bewaarStaat(staat);
     var aanvragen = ruimAanvragenOp(staat.inst);
     var meldingen = ruimMeldingenOp(staat.inst);
-    logboek('systeem', 'privacy-opruiming', teller.koppelingen + ' koppelingen gewist, ' + teller.leners + ' leners gewist, ' + aanvragen + ' aanvragen gewist, ' + meldingen + ' meldingen gewist');
+    var briefjes = ruimBriefjesOp();
+    logboek('systeem', 'privacy-opruiming', teller.koppelingen + ' koppelingen gewist, ' + teller.leners + ' leners gewist, ' + aanvragen + ' aanvragen gewist, ' + meldingen + ' meldingen gewist, ' + briefjes + ' briefjes gewist');
   } finally {
     lock.releaseLock();
   }
@@ -5196,6 +5288,17 @@ function vandaagTekst() {
   return Utilities.formatDate(new Date(), tijdzone(), 'yyyy-MM-dd');
 }
 
+/** De boeken die vandaag terugkwamen, met hun onderwerp: zo weet je in welke kast ze horen. Zonder gegevens van leners. */
+function vandaagTerug(staat, vertaal) {
+  return staat.uitleningen.filter(function (u) { return parseerDatum(u.datum_terug) === staat.vandaag; }).map(function (u) {
+    var boek = boekVan(staat, u.boek_id);
+    var groepen = boek && vertaal ? filtergroepenVan(boek, vertaal) : [];
+    return { uitlening_id: String(u.uitlening_id), exemplaar: String(u.exemplaar || ''), boek_id: String(u.boek_id),
+      titel: boek ? schoon(boek.titel) : String(u.boek_id), auteur: boek ? schoon(boek.auteur) : '',
+      onderwerp: groepen[0] || (boek ? schoon(boek.genre) : '') || 'Zonder onderwerp', staat_terug: schoon(u.staat_terug) };
+  }).sort(function (a, b) { return a.onderwerp.localeCompare(b.onderwerp) || a.auteur.localeCompare(b.auteur); });
+}
+
 /** Date in UTC terug naar "JJJJ-MM-DD". */
 function vanUtc(d) {
   return d.getUTCFullYear() + '-' + tweeCijfers(d.getUTCMonth() + 1) + '-' + tweeCijfers(d.getUTCDate());
@@ -5723,6 +5826,7 @@ function voerActieUit(actie, invoer, rol) {
     var wie = tekstInvoer(invoer.wie, 40) || 'onbekend';
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
     if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
+    if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {
       var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie, rol) : beheerInstellingBewaren(invoer, wie);
       if (gewijzigd.ok) leegCache();
@@ -5741,11 +5845,18 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.beschrijvingVoorstellen = openVoorstellen(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
         antwoord.data.meldingen = openMeldingen(tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : []);
         antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
+        antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(leesTabel('Onderwerpen').rijen));
         break;
       case 'vrijwilligerData':
-        antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) };
-        antwoord.data.voorgesteld = voorgesteldeBoeken(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
+        var onderwerpRijen = leesTabel('Onderwerpen').rijen;
+        var voorstelRijen = tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : [];
+        antwoord = { ok: true, data: vrijwilligerGegevens(staat, onderwerpRijen) };
+        antwoord.data.voorgesteld = voorgesteldeBoeken(voorstelRijen);
         antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
+        antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(onderwerpRijen));
+        antwoord.data.mijn = mijnBijdragen(voorstelRijen, tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : [], staat.wie, staat.vandaag);
         break;
       case 'voorstelBeschrijving':
       case 'voorstelBehandelen': antwoord = voorstelActie(staat, actie, invoer); break;
@@ -6359,6 +6470,12 @@ function woorden(waarde) {
   var alle = normaliseerTekst(waarde).split(' ').filter(function (w) { return w; });
   var zonder = alle.filter(function (w) { return LIDWOORDEN.indexOf(w) === -1; });
   return zonder.length ? zonder : alle;
+}
+
+/** Is deze naam van wie aangemeld is? Op de voornaam, zonder hoofdletters of accenten. */
+function zelfdeNaam(a, b) {
+  var x = normaliseerTekst(a).split(' ')[0], y = normaliseerTekst(b).split(' ')[0];
+  return !!x && x === y;
 }
 
 /** Vergelijkt twee teksten zonder hoofdletters, leestekens en spaties. */
