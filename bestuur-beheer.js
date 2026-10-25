@@ -319,7 +319,7 @@
 
   function fotoBlok(boek, coverVeld, ctx) {
     var invoer = el('input', { type: 'file', id: 'bb-foto', accept: 'image/*', capture: 'environment' });
-    var voorbeeld = el('img', { alt: 'Voorbeeld van de foto', hidden: true, style: 'max-width:12rem;border-radius:.4rem;display:block;margin-top:.5rem' });
+    var voorbeeld = el('img', { alt: 'Voorbeeld van de foto', hidden: true, style: 'max-width:12rem;border-radius:.4rem;margin-top:.5rem' });
     var melding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
     var knop = el('button', { type: 'button', class: 'knop', disabled: true }, 'Gebruik deze foto als cover');
     var dataUrl = '';
@@ -338,7 +338,7 @@
       B.voerUit('beheerCoverUpload', { boek_id: boek.boek_id, data: dataUrl.split(',')[1], mime: 'image/jpeg' }).then(function (r) {
         klaar();
         if (!r.ok) { melding.textContent = r.fout; return; }
-        if (coverVeld) { coverVeld.invoer.value = r.cover_url; coverVeld.oud = r.cover_url; }
+        if (coverVeld) { coverVeld.invoer.value = r.cover_url; coverVeld.oud = r.cover_url; coverVeld.invoer.dispatchEvent(new Event('input')); }
         // Meteen uit de lijst zonder cover halen, zonder alles opnieuw te laden.
         (ctx.data.boeken || []).forEach(function (b) { if (b.id === String(boek.boek_id)) b.c = true; });
         knop.disabled = true;
@@ -348,6 +348,25 @@
     return el('fieldset', { class: 'blok' }, el('legend', {}, 'Foto van de cover'),
       el('p', { class: 'hulptekst' }, 'Neem met je gsm een foto van de voorkant, of kies een foto. De site verkleint ze en bewaart ze op Google Drive.'),
       el('div', { class: 'veld' }, el('label', { for: 'bb-foto' }, 'Foto nemen of kiezen'), invoer), voorbeeld, melding, knoppen(knop));
+  }
+
+  /**
+   * De huidige cover bovenaan het formulier. Volgt het veld Link naar de cover: plak je een
+   * andere link of bewaar je een foto, dan zie je meteen de nieuwe cover.
+   */
+  function huidigeCover(coverVeld) {
+    var beeld = el('img', { alt: 'Huidige cover', style: 'max-width:8rem;border:1px solid var(--kleur-rand);border-radius:.3rem' });
+    var tekst = el('p', { class: 'hulptekst' });
+    function toon() {
+      var url = coverVeld.invoer.value.trim();
+      beeld.hidden = !url;
+      tekst.textContent = url ? '' : 'Dit boek heeft nog geen cover.';
+      if (url && beeld.getAttribute('src') !== url) beeld.src = url;
+    }
+    beeld.addEventListener('error', function () { beeld.hidden = true; tekst.textContent = 'De cover op deze link laadt niet.'; });
+    coverVeld.invoer.addEventListener('input', toon);
+    toon();
+    return el('div', { class: 'blok' }, beeld, tekst);
   }
 
   /** Het formulier voor een boek. boek: bestaand boek of {} voor een nieuw. */
@@ -380,6 +399,7 @@
           if (w === undefined || w === '' || w === null) return;
           if (v.naam !== 'isbn' && v.lees()) return; // wat je zelf al invulde, blijft staan
           v.invoer.value = String(w);
+          v.invoer.dispatchEvent(new Event('input'));
           ingevuld++;
         });
         opzoekMelding.textContent = r.gevonden ? ingevuld + ' velden ingevuld. Kijk ze na voor je bewaart.' : 'Open Library en Google Books kennen dit ISBN niet. Vul de gegevens zelf in.';
@@ -389,9 +409,10 @@
     var bewaar = el('button', { type: 'submit', class: 'knop' }, nieuw ? 'Voeg toe aan de catalogus' : 'Bewaar');
     var coverVeld = velden.filter(function (v) { return v.naam === 'cover_url'; })[0];
     var foto = nieuw ? null : fotoBlok(boek, coverVeld, ctx);
+    var cover = coverVeld ? huidigeCover(coverVeld) : null;
     var beschrijvingVeld = velden.filter(function (v) { return v.naam === 'beschrijving'; })[0];
     var achterkant = beschrijvingVeld ? achterkantBlok(beschrijvingVeld) : null;
-    var formulier = el('form', { novalidate: true }, opzoeken, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
+    var formulier = el('form', { novalidate: true }, cover, opzoeken, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
       fout, knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, terugNaarLijstTekst())));
 
     function verstuur(toch) {

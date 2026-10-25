@@ -65,6 +65,7 @@ function antwoord(rol, actie) {
     }) },
     balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'] }, leners: [] }) },
     beheerInhoud: { ok: true, data: INHOUD },
+    beheerBoekOphalen: { ok: true, boek: { boek_id: 'B0001', titel: 'De verzonnen zee', auteur: 'Verbeek, Mira', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
     bezoekersCijfers: { ok: true, nietIngesteld: true },
     roosterOverzicht: { ok: true, data: { avonden: [] } }
   }[actie] || { ok: false, fout: 'Niet nagebootst: ' + actie };
@@ -197,6 +198,12 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("Boeken zonder beschrijving (1)")');
     const titels = await page.$$eval('.kaartlijst strong', (x) => x.map((e) => e.textContent));
     verwacht(JSON.stringify(titels) === JSON.stringify(['De verzonnen zee']), 'Lijst: ' + titels.join(', '));
+    await page.click('.kaartlijst button');
+    await page.waitForSelector('img[alt="Huidige cover"]', { state: 'attached' }); await page.waitForTimeout(300);
+    const zichtbaar = await page.$eval('img[alt="Huidige cover"]', (e) => !e.hidden);
+    verwacht(zichtbaar, 'De huidige cover staat niet in het formulier');
+    const voorbeeldVerborgen = await page.$eval('img[alt="Voorbeeld van de foto"]', (e) => getComputedStyle(e).display === 'none');
+    verwacht(voorbeeldVerborgen, 'Het lege voorbeeld van de foto is zichtbaar');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });
