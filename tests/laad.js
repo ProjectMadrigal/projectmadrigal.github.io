@@ -38,6 +38,7 @@ const SCRIPTS = [
   'apps-script/Bezoekers.js',
   'apps-script/Peperfabriek.js',
   'apps-script/Bookclub.js',
+  'apps-script/Shifts.js',
   'apps-script/Beheer.js',
   'apps-script/Backup.js',
   'apps-script/Aanvragen.js',

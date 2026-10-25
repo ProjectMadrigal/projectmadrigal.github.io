@@ -853,6 +853,7 @@ test('bookclub: de eerstvolgende tweede zondag vanzelf in de agenda (één keer)
   gelijk(M.bookclubDatums('2026-11-09', 2, 0, 2), ['2026-12-13', '2027-01-10']);
   gelijk(M.bookclubRegel(2, 0), { nl: 'elke tweede zondag van de maand', en: 'every second Sunday of the month' });
   const s = maakStaat('2026-10-25');
+  s.inst.tekst_vaste_events = 'geen'; // de vaste events hebben een eigen test
   s.inst.bookclub_uur = '14:00';
   s.inst.bookclub_link = 'https://www.instagram.com/verzonnen.bookclub';
   const agenda = [{ datum: '2026-12-13', titel: 'Antwerp Queer Bookclub: kerstspecial', publiek: 'ja' }, { datum: '2026-11-20', titel: 'Verzonnen event', publiek: 'ja' }];
@@ -982,6 +983,7 @@ console.log('\nWebsite');
 test('startpagina: enkel publieke rijen, nieuwste nieuws, komend en vorig event, vragen op volgorde', () => {
   const s = maakStaat('2026-10-23');
   s.inst.bookclub_naam = ''; // de bookclub heeft een eigen test
+  s.inst.tekst_vaste_events = 'geen';
   s.catalogus[0].aanrader = 'Robin';
   s.catalogus[3].aanrader = 'Kai'; // niet publiek
   const d = M.bouwSiteInhoud(s, {
@@ -2087,6 +2089,56 @@ test('uitlening annuleren: reservatie terug open, en oude uitleningen enkel door
   assert.strictEqual(M.annuleerUitlening(oud, { uitlening_id: 'U00001' }, false).ok, false);
   assert.strictEqual(M.annuleerUitlening(oud, { uitlening_id: 'U00001' }, true).ok, true);
   gelijk([M.ACTIES.vervaldatumAanpassen, M.ACTIES.annuleerUitlening, M.ACTIES.annuleerVerlenging], ['bestuur', 'vrijwilliger', 'vrijwilliger']);
+});
+
+test('vaste events: elke maand terug, in de agenda en bij het rooster', () => {
+  const lijst = M.vasteEventsUitTekst('Leesavond: tweede vrijdag\nSoepcafé: laatste vrijdag\nfout zonder dubbelpunt\nIets: vijftigste vrijdag');
+  gelijk(lijst.map((e) => [e.naam, e.week, e.dag]), [['Leesavond', 2, 5], ['Soepcafé', 5, 5]]);
+  gelijk(M.vasteEventsOp('2026-11-13', lijst), ['Leesavond']);
+  gelijk(M.vasteEventsOp('2026-11-27', lijst), ['Soepcafé']);
+  gelijk(M.vasteEventsOp('2026-11-20', lijst), []);
+  const inst = { tekst_vaste_events: 'Leesavond: tweede vrijdag\nSoepcafé: laatste vrijdag' };
+  const agenda = M.vasteEventsVoorAgenda(inst, '2026-10-25', [{ datum: '2026-10-30', titel: 'Soepcafé' }]);
+  gelijk(agenda.map((e) => e.datum + ' ' + e.titel.nl), ['2026-11-13 Leesavond'], 'Eigen event vervangt de automatische datum');
+  const avonden = M.vulVasteEventsAan([{ datum: '2026-11-13', event: '' }, { datum: '2026-11-27', event: 'Eigen event' }], inst);
+  gelijk(avonden.map((a) => a.event), ['Leesavond', 'Eigen event']);
+});
+
+test('oud rooster: een tabblad per maand wordt het archief Shifts, met cijfers per vrijwilliger', () => {
+  const blad = [
+    ['', '', '', '', '', "Mei '26", '', '', ''],
+    ['', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY', ''],
+    ['', '', '', '', '', 1, 2, 3, ''],
+    ['events', '', '', '', '', '', '', '', ''],
+    ['bib', '', '', '', '', 'GESLOTEN!', '', '', ''],
+    ['backup', '', '', '', '', '', '', '', ''],
+    ['', 4, 5, 6, 7, 8, 9, 10, ''],
+    ['events', '', '', '', '', 'Leesavond', '', '', ''],
+    ['bib', '', '', '', '', 'Kim & Ilo', '', '', ''],
+    ['backup', '', '', '', '', '(Sam?)', '', '', ''],
+    ['', 11, 12, 13, 14, 15, 16, 17, ''],
+    ['events', '', '', '', '', '', '', '', ''],
+    ['bib', '', '', '', '', 'kim / Jo', '', '', ''],
+    ['backup', '', '', '', '', '...', '', '', ''],
+    ['', 25, 26, 27, 28, '', '', '', ''],
+    ['bib', '', '', '', '', 'Niemand', '', '', '']
+  ];
+  const shifts = M.shiftsUitMaandblad(blad, 'mei 26');
+  gelijk(shifts.map((x) => [x.datum, x.rol, x.naam, x.event]), [
+    ['2026-05-01', 'gesloten', '', ''],
+    ['2026-05-08', 'bib', 'Kim', 'Leesavond'], ['2026-05-08', 'bib', 'Ilo', 'Leesavond'], ['2026-05-08', 'backup', 'Sam', 'Leesavond'],
+    ['2026-05-15', 'bib', 'kim', ''], ['2026-05-15', 'bib', 'Jo', '']
+  ]);
+  assert.strictEqual(M.shiftsUitMaandblad([['Iets anders']], 'Catalogus'), null);
+  gelijk(M.maandUitTitel("Sept '26"), { jaar: 2026, maand: 9 });
+  gelijk(M.maandUitTitel('febr 26'), { jaar: 2026, maand: 2 });
+  const rijen = [];
+  assert.strictEqual(M.voegShiftsToe(rijen, shifts), 6);
+  assert.strictEqual(M.voegShiftsToe(rijen, shifts), 0, 'Geen dubbels');
+  const c = M.shiftCijfers(rijen, 2026);
+  gelijk(c.personen.map((p) => [p.naam, p.bib, p.backup]), [['Kim', 2, 0], ['Ilo', 1, 0], ['Jo', 1, 0], ['Sam', 0, 1]]);
+  gelijk(c.dicht, [{ datum: '2026-05-01', rol: 'gesloten' }]);
+  gelijk(M.shiftCijfers(rijen, 2025).personen, []);
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
