@@ -402,7 +402,7 @@ const voorbeeldBoeken = [
 ];
 const index = Z.maakIndex(voorbeeldBoeken);
 
-test('lees ook: zelfde auteur en leeslijst eerst, één gedeeld onderwerp is te weinig', () => {
+test('lees ook: sterke overeenkomst eerst, dan één onderwerp, dan zelfde taal', () => {
   const boeken = [
     { id: 'A', t: 'Start', a: 'Baldwin, Jamie', g: ['Fictie', 'Klassiekers'], ll: ['Thema'], b: { c: 'beschikbaar' } },
     { id: 'B', t: 'Zelfde auteur', a: 'baldwin, jamie', g: ['Poëzie'], b: { c: 'uitgeleend' } },
@@ -411,9 +411,20 @@ test('lees ook: zelfde auteur en leeslijst eerst, één gedeeld onderwerp is te 
     { id: 'E', t: 'Twee onderwerpen, vrij', a: 'Y', g: ['Klassiekers', 'Fictie'], b: { c: 'beschikbaar' } },
     { id: 'F', t: 'Eén onderwerp', a: 'Z', g: ['Fictie'], b: { c: 'beschikbaar' } }
   ];
-  gelijk(F.gelijkaardig(boeken, boeken[0], 6).map((b) => b.id), ['B', 'C', 'E', 'D']);
+  gelijk(F.gelijkaardig(boeken, boeken[0], 6).map((b) => b.id), ['B', 'C', 'E', 'D', 'F']);
   gelijk(F.gelijkaardig(boeken, boeken[0], 2).map((b) => b.id), ['B', 'C']);
-  gelijk(F.gelijkaardig(boeken, boeken[5], 6).map((b) => b.id), []);
+  // F deelt enkel Fictie met A, D en E: die eerst. Daarna B en C (zelfde taal: geen).
+  const f = F.gelijkaardig(boeken, boeken[5], 6).map((b) => b.id);
+  gelijk([f.slice(0, 3).sort(), f.slice(3).sort()], [['A', 'D', 'E'], ['B', 'C']]);
+  const metTaal = [
+    { id: '1', t: 'Een', a: 'P', g: [], l: 'Engels', b: { c: 'beschikbaar' } },
+    { id: '2', t: 'Twee', a: 'Q', g: [], l: 'Engels', b: { c: 'uitgeleend' } },
+    { id: '3', t: 'Drie', a: 'R', g: [], l: 'Engels', s: 'zine', b: { c: 'beschikbaar' } },
+    { id: '4', t: 'Vier', a: 'S', g: [], l: 'Frans', b: { c: 'beschikbaar' } }
+  ];
+  // Zelfde taal eerst (zelfde soort voor de zine), dan de rest.
+  gelijk(F.gelijkaardig(metTaal, metTaal[0], 6).map((b) => b.id), ['2', '3', '4']);
+  gelijk(F.gelijkaardig(metTaal, metTaal[0], 1).map((b) => b.id), ['2']);
 });
 test('filter leeslijst: in de volgorde van de catalogus', () => {
   const boeken = [{ id: '1', ll: ['Z-lijst', 'A-lijst'] }, { id: '2', ll: ['A-lijst'] }, { id: '3' }];
