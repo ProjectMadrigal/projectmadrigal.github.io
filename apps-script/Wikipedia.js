@@ -83,7 +83,14 @@ function wikiVraagUrl(taal, vraag) {
 /** Zoekt een boek op bij Wikipedia in één taal. Geeft { tekst, link }, {} of { fout }. */
 function zoekWikipedia(boek, taal) {
   var vraag = titelSleutel(boek.titel) + ' ' + achternaam(boek.auteur);
-  var z = haalJson(wikiVraagUrl(taal, vraag));
+  var z;
+  try {
+    z = haalJson(wikiVraagUrl(taal, vraag));
+  } catch (e) {
+    // Google laat per dag maar een beperkt aantal vragen naar buiten toe. Op is op, tot morgen.
+    if (/te vaak|too many times/i.test(e.message)) return { fout: 'dagelijkse limiet van Google voor vragen naar buiten bereikt', quotum: true };
+    return { fout: e.message };
+  }
   // Elk ander antwoord dan 200 (geweigerd, te druk, storing) is geen "niet gevonden": later opnieuw proberen.
   if (z.code !== 200 || !z.data) return { fout: 'zoeken gaf code ' + z.code };
   if (z.data.error) return { fout: 'Wikipedia meldt ' + (z.data.error.code || 'een fout') };
@@ -94,7 +101,7 @@ function zoekWikipedia(boek, taal) {
 function zoekBeschrijvingenWikipedia() {
   var start = Date.now();
   if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meldAlBezig('zoekBeschrijvingenWikipedia'); return; }
-  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '', nietBewaard = 0, laatste = null, controle = '';
+  var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, quotum = false, vast = false, fout = '', nietBewaard = 0, laatste = null, controle = '';
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('wiki_gezocht') === -1 || tabel.kop.indexOf('beschrijving_bron') === -1) {
@@ -102,14 +109,14 @@ function zoekBeschrijvingenWikipedia() {
       return;
     }
     var vandaag = vandaagTekst();
-    wisRegelsInKolom(tabel, 'wiki_gezocht');
+    herstelKolom(tabel, 'wiki_gezocht');
     var teDoen = tabel.rijen.filter(heeftWikiNodig);
     for (var i = 0; i < teDoen.length; i++) {
       if (Date.now() - start > WIKI_MAX_LOOPTIJD_MS) break;
       var boek = teDoen[i];
       var r = {};
       for (var t = 0; t < WIKI_TALEN.length && !r.tekst && !r.fout; t++) r = zoekWikipedia(boek, WIKI_TALEN[t]);
-      if (r.fout) { wachten = true; fout = r.fout; break; }
+      if (r.fout) { wachten = true; quotum = !!r.quotum; fout = r.fout; break; }
       var velden = { wiki_gezocht: vandaag };
       if (r.tekst) {
         velden.beschrijving = r.tekst;
@@ -126,27 +133,40 @@ function zoekBeschrijvingenWikipedia() {
     if (!bewaarAchtergrond(tabel)) nietBewaard++;
     // Controle: hoeveel boeken heeft de spreadsheet zelf nog nodig? Zo zien we of het bewaren lukte.
     rest = leesTabel('Catalogus').rijen.filter(heeftWikiNodig).length;
-    if (laatste) controle = wikiControle(tabel, laatste);
+    if (laatste) {
+      controle = wikiControle(tabel, laatste);
+      // Blijft de cel leeg, dan zoeken we telkens dezelfde boeken op. Stoppen, anders is de limiet van Google zo op.
+      vast = wikiCelWaarde(tabel, laatste) === '';
+    }
   } finally {
     stopAchtergrond('zoekBeschrijvingenWikipedia');
   }
   verwijderTriggers('zoekBeschrijvingenWikipedia');
-  if (rest > 0) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
+  if (rest > 0 && !vast) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((quotum ? 6 * 60 : wachten ? 15 : 1) * 60 * 1000).create();
   if (gevonden) { leegCache(); planVertaling(2); }
   logboek('menu', 'zoekBeschrijvingenWikipedia', verwerkt + ' opgezocht, ' + gevonden + ' beschrijvingen gevonden, ' + rest + ' te gaan volgens de spreadsheet' +
     (fout ? ' (Wikipedia: ' + fout + ', later verder)' : '') + (nietBewaard ? ' (bewaren lukte ' + nietBewaard + ' keer niet: de spreadsheet was bezet)' : '') +
-    (controle ? ' | ' + controle : ''));
+    (controle ? ' | ' + controle : '') + (vast ? ' | GESTOPT: bewaren lukt niet. Start opnieuw via het menu zodra dat opgelost is.' : ''));
   try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Wikipedia, ' + gevonden + ' beschrijvingen gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
 }
 
 /**
- * Een technische kolom hoort geen keuzelijst of andere regel te hebben. Een regel die er per
- * ongeluk op terechtkwam (bv. meegekopieerd met een kolom), houdt het bewaren tegen.
+ * Een technische kolom hoort geen keuzelijst en geen samengevoegde cellen te hebben. Een regel
+ * die er per ongeluk op terechtkwam, halen we weg. In een samengevoegde cel blijft enkel de
+ * eerste cel bewaard: wat het script in de andere schrijft, verdwijnt. Die maken we los.
  */
-function wisRegelsInKolom(tabel, naam) {
+function herstelKolom(tabel, naam) {
   var kolom = tabel.kop.indexOf(naam) + 1;
   if (!kolom || tabel.blad.getMaxRows() < 2) return;
-  tabel.blad.getRange(2, kolom, tabel.blad.getMaxRows() - 1, 1).clearDataValidations();
+  var bereik = tabel.blad.getRange(2, kolom, tabel.blad.getMaxRows() - 1, 1);
+  bereik.clearDataValidations();
+  bereik.getMergedRanges().forEach(function (m) { m.breakApart(); });
+}
+
+/** Wat staat er echt in de cel wiki_gezocht van dit boek? Een datum als 2026-10-25, anders de tekst. */
+function wikiCelWaarde(tabel, boek) {
+  var cel = tabel.blad.getRange(boek._rij, tabel.kop.indexOf('wiki_gezocht') + 1).getValue();
+  return isDatumObject(cel) ? parseerDatum(cel) : String(cel);
 }
 
 /**
@@ -154,11 +174,8 @@ function wisRegelsInKolom(tabel, naam) {
  * Meldt ook dubbele kolommen en dubbele boek_id's, want die sturen het bewaren naar een andere rij.
  */
 function wikiControle(tabel, boek) {
-  var kop = tabel.kop;
-  var kolom = kop.indexOf('wiki_gezocht');
-  var cel = tabel.blad.getRange(boek._rij, kolom + 1).getValue();
-  return 'controle rij ' + boek._rij + ' (' + (boek.boek_id || 'zonder boek_id') + '): wiki_gezocht is "' + (isDatumObject(cel) ? parseerDatum(cel) : String(cel)) + '"' +
-    wikiDubbels(kop, tabel.rijen);
+  return 'controle rij ' + boek._rij + ' (' + (boek.boek_id || 'zonder boek_id') + '): wiki_gezocht is "' + wikiCelWaarde(tabel, boek) + '"' +
+    wikiDubbels(tabel.kop, tabel.rijen);
 }
 
 /** Tekst over dubbele kolommen wiki_gezocht en dubbele boek_id's, of ''. */
@@ -193,6 +210,16 @@ function testWikipediaBewaren() {
     regels.push('bewaren zoals de run: ' + (bewaarAchtergrond(tabel) ? 'gelukt' : 'slot bezet') + ', daarna: ' + lees());
     cel.setValue(new Date());
     regels.push('rechtstreeks in de cel: ' + lees());
+    cel.setValue('test');
+    regels.push('tekst "test" in de cel: ' + lees() + ', weergave: "' + cel.getDisplayValue() + '"');
+    var samen = cel.getMergedRanges();
+    regels.push('samengevoegd: ' + (cel.isPartOfMerge() ? 'ja, ' + samen.map(function (m) { return m.getA1Notation(); }).join(', ') : 'nee') +
+      ', cel ' + cel.getA1Notation() + ', tabblad ' + tabel.blad.getMaxRows() + ' rijen en ' + tabel.blad.getMaxColumns() + ' kolommen, filter: ' + (tabel.blad.getFilter() ? 'ja' : 'nee'));
+    if (samen.length) {
+      samen.forEach(function (m) { m.breakApart(); });
+      cel.setValue(new Date());
+      regels.push('losgemaakt, rechtstreeks: ' + lees());
+    }
     var regel = cel.getDataValidation();
     if (regel) {
       regels.push('regel: ' + regel.getCriteriaType() + ' ' + JSON.stringify(regel.getCriteriaValues()).slice(0, 120) + ', ongeldig toegelaten: ' + regel.getAllowInvalid());
