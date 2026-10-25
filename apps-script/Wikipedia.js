@@ -47,26 +47,47 @@ function wikiLink(s) {
   return /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(String(url || '')) ? url : '';
 }
 
-/** Zoekt een boek op bij Wikipedia in één taal. Geeft { tekst, link }, {} of { fout }. */
-function zoekWikipedia(boek, taal) {
-  var basis = 'https://' + taal + '.wikipedia.org';
-  var vraag = titelSleutel(boek.titel) + ' ' + achternaam(boek.auteur);
-  var z = haalJson(basis + '/w/api.php?action=query&list=search&srlimit=5&srprop=&format=json&srsearch=' + encodeURIComponent(vraag));
-  // Elk ander antwoord dan 200 (geweigerd, te druk, storing) is geen "niet gevonden": later opnieuw proberen.
-  if (z.code !== 200 || !z.data || !z.data.query) return { fout: 'zoeken gaf code ' + z.code };
-  var titels = ((z.data && z.data.query && z.data.query.search) || []).map(function (r) { return r.title; });
-  var kandidaten = kiesWikiTitels(boek, titels);
-  for (var i = 0; i < kandidaten.length && i < 3; i++) {
-    Utilities.sleep(WIKI_PAUZE_MS);
-    var s = haalJson(basis + '/api/rest_v1/page/summary/' + encodeURIComponent(kandidaten[i].replace(/ /g, '_')));
-    // 404: dit artikel bestaat niet, dan het volgende. Een ander antwoord dan 200: later opnieuw.
-    if (s.code === 404) continue;
-    if (s.code !== 200) return { fout: 'samenvatting gaf code ' + s.code };
-    if (wikiSamenvattingOk(boek, s.data) && wikiLink(s.data)) {
-      return { tekst: maakBeschrijvingNetjes(s.data.extract), link: wikiLink(s.data) };
+/**
+ * Zet de pagina's uit één antwoord van Wikipedia (zoeken + eerste alinea in één vraag) om naar
+ * de vorm die wikiSamenvattingOk en wikiLink verwachten. Volgorde zoals Wikipedia ze rangschikt.
+ */
+function wikiPaginas(data) {
+  var paginas = ((data && data.query && data.query.pages) || []).slice();
+  paginas.sort(function (a, b) { return (a.index || 0) - (b.index || 0); });
+  return paginas.map(function (p) {
+    var doorverwijs = !!(p.pageprops && p.pageprops.disambiguation !== undefined);
+    return { titel: p.title, type: doorverwijs ? 'disambiguation' : 'standard', extract: p.extract || '',
+      description: p.description || '', content_urls: { desktop: { page: p.fullurl || '' } } };
+  });
+}
+
+/** Kiest uit de pagina's de eerste die past bij het boek. Geeft { tekst, link } of {}. */
+function wikiKies(boek, paginas) {
+  var goed = kiesWikiTitels(boek, paginas.map(function (p) { return p.titel; }));
+  for (var i = 0; i < paginas.length; i++) {
+    var s = paginas[i];
+    if (goed.indexOf(s.titel) > -1 && wikiSamenvattingOk(boek, s) && wikiLink(s)) {
+      return { tekst: maakBeschrijvingNetjes(s.extract), link: wikiLink(s) };
     }
   }
   return {};
+}
+
+/** De vraag aan Wikipedia: zoeken en meteen de eerste alinea, de link en doorverwijspagina's. */
+function wikiVraagUrl(taal, vraag) {
+  return 'https://' + taal + '.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&redirects=1' +
+    '&generator=search&gsrlimit=5&gsrsearch=' + encodeURIComponent(vraag) +
+    '&prop=extracts%7Cinfo%7Cpageprops%7Cdescription&exintro=1&explaintext=1&exlimit=5&inprop=url&ppprop=disambiguation';
+}
+
+/** Zoekt een boek op bij Wikipedia in één taal. Geeft { tekst, link }, {} of { fout }. */
+function zoekWikipedia(boek, taal) {
+  var vraag = titelSleutel(boek.titel) + ' ' + achternaam(boek.auteur);
+  var z = haalJson(wikiVraagUrl(taal, vraag));
+  // Elk ander antwoord dan 200 (geweigerd, te druk, storing) is geen "niet gevonden": later opnieuw proberen.
+  if (z.code !== 200 || !z.data) return { fout: 'zoeken gaf code ' + z.code };
+  if (z.data.error) return { fout: 'Wikipedia meldt ' + (z.data.error.code || 'een fout') };
+  return wikiKies(boek, wikiPaginas(z.data));
 }
 
 /** Menu: zoekt beschrijvingen bij Wikipedia, in porties. */
@@ -81,6 +102,7 @@ function zoekBeschrijvingenWikipedia() {
       return;
     }
     var vandaag = vandaagTekst();
+    wisRegelsInKolom(tabel, 'wiki_gezocht');
     var teDoen = tabel.rijen.filter(heeftWikiNodig);
     for (var i = 0; i < teDoen.length; i++) {
       if (Date.now() - start > WIKI_MAX_LOOPTIJD_MS) break;
@@ -115,6 +137,16 @@ function zoekBeschrijvingenWikipedia() {
     (fout ? ' (Wikipedia: ' + fout + ', later verder)' : '') + (nietBewaard ? ' (bewaren lukte ' + nietBewaard + ' keer niet: de spreadsheet was bezet)' : '') +
     (controle ? ' | ' + controle : ''));
   try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Wikipedia, ' + gevonden + ' beschrijvingen gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
+}
+
+/**
+ * Een technische kolom hoort geen keuzelijst of andere regel te hebben. Een regel die er per
+ * ongeluk op terechtkwam (bv. meegekopieerd met een kolom), houdt het bewaren tegen.
+ */
+function wisRegelsInKolom(tabel, naam) {
+  var kolom = tabel.kop.indexOf(naam) + 1;
+  if (!kolom || tabel.blad.getMaxRows() < 2) return;
+  tabel.blad.getRange(2, kolom, tabel.blad.getMaxRows() - 1, 1).clearDataValidations();
 }
 
 /**
@@ -161,6 +193,13 @@ function testWikipediaBewaren() {
     regels.push('bewaren zoals de run: ' + (bewaarAchtergrond(tabel) ? 'gelukt' : 'slot bezet') + ', daarna: ' + lees());
     cel.setValue(new Date());
     regels.push('rechtstreeks in de cel: ' + lees());
+    var regel = cel.getDataValidation();
+    if (regel) {
+      regels.push('regel: ' + regel.getCriteriaType() + ' ' + JSON.stringify(regel.getCriteriaValues()).slice(0, 120) + ', ongeldig toegelaten: ' + regel.getAllowInvalid());
+      cel.clearDataValidations();
+      cel.setValue(new Date());
+      regels.push('zonder regel, rechtstreeks: ' + lees());
+    }
   } catch (e) {
     regels.push('fout: ' + e.message);
   } finally {
@@ -176,9 +215,11 @@ function testWikipedia() {
   var boek = { titel: 'Giovanni\'s Room', auteur: 'Baldwin, James' };
   var regels = [];
   WIKI_TALEN.forEach(function (taal) {
-    var z = haalJson('https://' + taal + '.wikipedia.org/w/api.php?action=query&list=search&srlimit=5&srprop=&format=json&srsearch=' + encodeURIComponent('Giovanni Baldwin'));
-    var titels = ((z.data && z.data.query && z.data.query.search) || []).map(function (r) { return r.title; });
-    regels.push(taal + ': zoeken gaf code ' + z.code + ', ' + titels.length + ' resultaten' + (titels.length ? ' (' + titels.slice(0, 3).join(', ') + ')' : ''));
+    var z = haalJson(wikiVraagUrl(taal, titelSleutel(boek.titel) + ' ' + achternaam(boek.auteur)));
+    var paginas = wikiPaginas(z.data);
+    regels.push(taal + ': code ' + z.code + ', ' + paginas.length + ' pagina\'s' + (paginas.length ? ' (' + paginas.slice(0, 3).map(function (p) {
+      return p.titel + ', ' + String(p.extract).length + ' tekens';
+    }).join('; ') + ')' : '') + (z.data && z.data.error ? ', fout ' + z.data.error.code : ''));
     var r = zoekWikipedia(boek, taal);
     regels.push(taal + ': ' + (r.fout ? 'fout, ' + r.fout : r.tekst ? 'beschrijving gevonden: ' + r.tekst.slice(0, 80) + '...' : 'geen passende beschrijving'));
   });
