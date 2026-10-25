@@ -9,6 +9,7 @@ Project Madrigal is een queer bibliotheek in Antwerpen, gedragen door vrijwillig
 | **Over ons** | iedereen | https://projectmadrigal.github.io/over-ons.html |
 | **Uitleenscherm** | vrijwilligers aan de balie (met code) | https://projectmadrigal.github.io/balie.html |
 | **Bestuursscherm** | het bestuur (met een aparte code) | https://projectmadrigal.github.io/bestuur.html |
+| **Vrijwilligersscherm** | vaste vrijwilligers (met de code voor vrijwilligers) | https://projectmadrigal.github.io/vrijwilliger.html |
 | **Rooster** | vrijwilligers en planner (aparte tool) | https://projectmadrigal.github.io/rooster/ |
 
 Daarnaast is er een **handleiding van één pagina** voor de balie, om af te drukken: [`handleiding-balie.html`](handleiding-balie.html).
@@ -54,6 +55,7 @@ Daarnaast is er een **handleiding van één pagina** voor de balie, om af te dru
 2. [Orde in de spreadsheet](#d2-orde-in-de-spreadsheet)
 3. [De website zelf aanpassen](#d3-de-website-zelf-aanpassen)
 4. [Waar alles staat](#d4-waar-alles-staat)
+5. [Technische fiche](#d5-technische-fiche)
 
 ---
 
@@ -695,7 +697,10 @@ GitHub opent bij elke wijziging ook de site in een browser, met verzonnen gegeve
 | --- | --- |
 | `index.html`, `home.js` | de startpagina |
 | `boeken.html`, `app.js` | de publieke catalogus |
-| `over-ons.html` | de pagina Over ons |
+| `over-ons.html`, `overons.js` | de pagina Over ons, met het blok over de bookclub |
+| `doe-mee.html`, `doemee.js` | de pagina Doe mee: vrijwilliger worden, schenken, steunen |
+| `peperfabriek.html`, `peperfabriek.js` | de pagina De Peperfabriek, met hun programma |
+| `agenda.js` | "Zet in mijn agenda": een event als .ics-bestand |
 | `layout.js` | de kop (menu, taal, donkere modus) en de voet van elke publieke pagina |
 | `i18n.js` | alle vaste teksten in het Nederlands en het Engels |
 | `404.html` | stuurt adressen van de oude website door (bv. `/boeken`) |
@@ -703,13 +708,16 @@ GitHub opent bij elke wijziging ook de site in een browser, met verzonnen gegeve
 | `zoeken.js` | zoeken met tikfouten, zonder hoofdletters, accenten en lidwoorden |
 | `filters.js` | de filters en het sorteren |
 | `balie.html`, `balie.js` | het uitleenscherm |
-| `bestuur.html`, `bestuur.js` | het bestuursscherm |
-| `beheer.js` | gedeeld door balie en bestuur: aanmelden, statuslabels, het rooster |
+| `bestuur.html`, `bestuur.js` | het bestuursscherm, en met `vrijwilliger.html` ook het vrijwilligersscherm |
+| `bestuur-beheer.js` | boeken, covers, beschrijvingen, nieuws, leeslijsten en instellingen aanpassen, ISBN scannen |
+| `vrijwilligers.js` | shift, checklist, briefjes, kastcontrole, iets melden, boek opzoeken, en wat het bestuur daarvan ziet |
+| `beheer.js` | gedeeld door balie, bestuur en vrijwilligers: aanmelden, statuslabels, het rooster |
 | `api.js` | praat met de web-app |
 | `dom.js` | kleine hulpfuncties om pagina's te bouwen, en de tijdelijke covers |
 | `config.js` | de URL van de web-app |
 | `styles.css` | kleuren, lettertypes en opmaak |
 | `manifest.json`, `icons/`, `favicon.ico` | om de site op het beginscherm te zetten |
+| `sw.js` | de service worker: de site werkt ook zonder internet |
 | `handleiding-balie.html` | handleiding van één pagina om af te drukken |
 | `voorbeeld/` | verzonnen voorbeeldboeken en -nieuws, voor als de web-app nog niet gekoppeld is |
 | `apps-script/` | alle code van Google Apps Script, per onderwerp |
@@ -733,10 +741,75 @@ GitHub opent bij elke wijziging ook de site in een browser, met verzonnen gegeve
 | `Publiek.js` | welke velden van een boek publiek zijn |
 | `Site.js` | de inhoud van de startpagina |
 | `Bestuur.js` | gegevens voor het uitleenscherm en het bestuursscherm |
-| `Rooster.js` | het vrijwilligersrooster ophalen |
+| `Rooster.js` | het vrijwilligersrooster ophalen, met de laatste versie als reserve |
+| `Beheer.js` | wat het bestuur via de website aanpast: boeken, nieuws, agenda, instellingen, covers |
+| `Covers.js`, `Bol.js`, `Wikipedia.js` | covers en beschrijvingen bij andere bronnen |
+| `Taken.js` | de stand van de achtergrondtaken, het Logboek in het bestuursscherm, de daglimiet van Google |
+| `Aanvragen.js` | reservatieaanvragen via de website |
+| `Vrijwilligers.js` | voorgestelde beschrijvingen, meldingen, briefjes en de checklist van vrijwilligers |
+| `Bezoekers.js` | bezoekerscijfers uit GoatCounter |
+| `Bookclub.js`, `Peperfabriek.js` | de bookclub in de agenda, het programma van De Peperfabriek |
+| `Backup.js` | de wekelijkse back-up van de spreadsheet |
 | `Privacy.js` | de nachtelijke opruiming |
 | `Overzetten.js` | eenmalig: lopende uitleningen uit het oude blad |
 | `OudeSite.js` | eenmalig: nieuws, agenda en vragen van de oude website |
 | `Api.js` | de web-app: het publieke en de afgeschermde eindpunten |
 | `Opslag.js` | lezen en schrijven van de tabbladen |
 | `Hulp.js` | hulpfuncties voor tekst, ISBN en datums |
+
+## D5. Technische fiche
+
+Voor wie met programmeerervaring wil meehelpen. De korte versie: gewone HTML, CSS en JavaScript, met een Google-spreadsheet als databank.
+
+**Uitgangspunten**
+
+- **Geen framework en geen build-stap.** Geen React, Vue of npm-pakketten in de site. De bestanden in deze repository zijn precies wat de browser laadt. Zo kan een vrijwilliger met basiskennis later zelf iets aanpassen.
+- **Alle gegevens blijven in Google.** De repository is publiek en bevat enkel code. Tests en `voorbeeld/` gebruiken verzonnen namen.
+- **Toegankelijkheid**: echte knoppen en labels, zichtbare focus, `prefers-reduced-motion`, en voldoende contrast in licht en donker.
+- **Teksten**: in de jij-vorm, actief en kort. Vaste teksten van de publieke site staan in `i18n.js`, in het Nederlands en het Engels.
+
+**De voorkant (deze repository, online via GitHub Pages)**
+
+| Onderdeel | Techniek |
+| --- | --- |
+| Pagina's | HTML, zonder sjablonen. Kop en voet komen uit `layout.js`. |
+| Opmaak | Eén `styles.css`. Kleuren staan bovenaan als variabelen (`--kleur-...`), met een donkere variant voor `prefers-color-scheme: dark` en `[data-theme="dark"]`. |
+| Gedrag | JavaScript in de stijl van ES5, zonder modules: elk bestand is een functie die zichzelf uitvoert en iets op `window` zet (bv. `window.MadrigalBeheer`). De volgorde van de `<script>`-tags telt. |
+| Elementen maken | `dom.js` met `el()` en `vervang()`. Altijd `textContent`, nooit `innerHTML` met gegevens. |
+| Zoeken | `zoeken.js`: een eigen index die tikfouten, accenten en lidwoorden opvangt. |
+| Lettertypes | Geist Mono en Geist, op de site zelf (`assets/fonts/`), met een open licentie. |
+| Offline | Een service worker (`sw.js`). Verhoog `VERSIE` als je een vast bestand toevoegt. |
+| Cache | Na een wijziging aan een script verhoog je het nummer in de `<script>`-tag (bv. `bestuur.js?v=23`), zodat browsers de nieuwe versie laden. |
+| Externe scripts | Enkel ZXing 0.21.3 via jsDelivr, voor het scannen van een ISBN op toestellen zonder `BarcodeDetector`. Het laadt pas als iemand scant. |
+| Bezoekers | GoatCounter, zonder cookies. |
+
+**De achterkant (`apps-script/`, Google Apps Script)**
+
+- JavaScript op de V8-motor van Google, gekoppeld aan de spreadsheet. Elk bestand is een onderwerp (zie [D4](#d4-waar-alles-staat)).
+- Eén web-app in `Api.js`:
+  - `doGet` geeft de publieke catalogus (`?actie=catalogus`) en de inhoud van de site (`?actie=site`), bewaard in de cache van het script.
+  - `doPost` voert acties uit met een code. De code bepaalt de rol: `balie`, `vrijwilliger` of `bestuur`. Welke rol welke actie mag, staat in `ACTIES`. Een wijzigende actie gebeurt onder een slot (`LockService`), zodat twee balies elkaar niet storen.
+- De logica staat zoveel mogelijk in gewone functies zonder Google-diensten. Die kan je testen zonder Google.
+- Achtergrondtaken (covers en beschrijvingen zoeken) werken in porties van enkele minuten en plannen zichzelf opnieuw. Is de daglimiet van Google voor vragen naar buiten op, dan wachten ze 6 uur (`Taken.js`).
+- Nieuwe instelling? Zet ze in `STANDAARD_INSTELLINGEN` (`Instellingen.js`) en in een groep in `Ordenen.js`. Nieuw tabblad of nieuwe kolom? Zet ze in `KOLOMMEN` (`Opslag.js`), en voor een tabblad ook in `TABBLAD_GROEPEN`. Daarna **Madrigal > Installeer tabbladen**.
+- `node tools/bundel.js` voegt alle bestanden samen tot `madrigal-script.gs`. Een GitHub Action zet dat bestand in Apps Script en publiceert een nieuwe versie (zie [D1](#d1-een-nieuwe-versie-van-het-script-publiceren)).
+
+**Tests**
+
+| Commando | Wat |
+| --- | --- |
+| `node tests/run.js` | de logica van Apps Script en het zoeken, in Node zonder Google (`tests/laad.js` laadt de bestanden) |
+| `BUNDEL=1 node tests/run.js` | dezelfde tests op het samengevoegde `madrigal-script.gs` |
+| `node tests/browser.js` | de pagina's en schermen in Chromium met Playwright, met een nagebootste web-app, en een controle op toegankelijkheid met axe-core |
+
+Voor de browsertests installeer je eerst `npm install --no-save playwright@1.63.0 axe-core@4.14.0 @zxing/library@0.21.3` (dezelfde versies als op GitHub). GitHub voert alle tests uit bij elke pull request (`.github/workflows/tests.yml`). Merge pas als ze slagen.
+
+**Werkwijze**
+
+1. Werk op een aparte branch.
+2. Pas de code aan. Nieuwe logica in Apps Script krijgt een test in `tests/run.js`.
+3. Voer `node tools/bundel.js` en de tests uit.
+4. Open een pull request en merge als de tests groen zijn.
+5. Laat het bestuur daarna weten of het **Madrigal > Installeer tabbladen** moet uitvoeren.
+
+**Verwante repository**: `rooster`, het vrijwilligersrooster. Dat is een aparte tool met een eigen spreadsheet en script, online op `/rooster/`.
