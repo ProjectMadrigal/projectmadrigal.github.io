@@ -57,6 +57,11 @@ jobs:
           # Eerst ophalen: zo blijft het manifest (diensten, tijdzone, web-app) zoals het is.
           clasp pull
           test -f appsscript.json
+          # Vangnet: is dit wel het script van de catalogus? Anders zou een verkeerde SCRIPT_ID een ander script overschrijven.
+          if ! grep -lq "bouwPubliekeCatalogus" ./*.js ./*.gs 2>/dev/null; then
+            echo "::error::De SCRIPT_ID hoort niet bij het script van de catalogus. Kijk het geheim SCRIPT_ID na. Er is niets aangepast."
+            exit 1
+          fi
           # Alle code vervangen door het ene bestand uit deze repository.
           find . -maxdepth 1 -type f \( -name '*.js' -o -name '*.gs' \) -delete
           cp ../madrigal-script.gs ./Code.js
