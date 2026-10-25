@@ -21,6 +21,8 @@
 /** Bouwt het object dat het publieke eindpunt teruggeeft. */
 function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
   var vertaal = vertaalTabel(onderwerpRijen);
+  // Leeslijsten pas tonen als de instelling leeslijsten_tonen op ja staat. Tot dan staan ze klaar.
+  var toonLijsten = (staat.inst || {}).leeslijsten_tonen === true;
   var lijsten = leeslijstInfo(lijstRijen);
   // Namen in de instelling aanraders_verbergen verschijnen nergens op de website.
   var verborgen = splitsLijst((staat.inst || {}).aanraders_verbergen).map(normaliseerTekst);
@@ -56,20 +58,22 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
       return verborgen.indexOf(normaliseerTekst(naam)) === -1;
     });
     if (aanraders.length) boek.r = aanraders;
-    var ll = leeslijstenVan(rij, lijsten);
+    var ll = toonLijsten ? leeslijstenVan(rij, lijsten) : [];
     if (ll.length) boek.ll = ll;
     boeken.push(boek);
   });
   // Filtergroepen: eerst de standaardvolgorde, dan eventuele eigen groepen.
   var groepen = FILTERGROEPEN.slice();
   boeken.forEach(function (b) { b.g.forEach(function (g) { if (groepen.indexOf(g) === -1) groepen.push(g); }); });
-  return {
+  var uit = {
     bijgewerkt: staat.vandaag,
     teksten: publiekeTeksten(staat.inst),
     filtergroepen: groepen,
-    leeslijsten: gebruikteLeeslijsten(lijsten, boeken),
     boeken: boeken
   };
+  // Enkel als ze getoond worden: zo weet de website of het menu-item Leeslijsten mag verschijnen.
+  if (toonLijsten) uit.leeslijsten = gebruikteLeeslijsten(lijsten, boeken);
+  return uit;
 }
 
 /*

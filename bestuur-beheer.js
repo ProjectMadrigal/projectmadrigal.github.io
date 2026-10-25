@@ -3,6 +3,7 @@
  * De onderdelen van het bestuursscherm die de website aanpassen:
  *   - Boeken: een boek zoeken en aanpassen, of een nieuw boek toevoegen (met opzoeken via het ISBN);
  *   - Nieuws en agenda: ook de veelgestelde vragen;
+ *   - Leeslijsten: een lijst maken en er boeken in zetten;
  *   - Teksten en instellingen.
  * Alles komt in de spreadsheet terecht (zie apps-script/Beheer.js).
  */
@@ -26,6 +27,7 @@
     cover_url: 'Link naar de cover', herkomst: 'Herkomst',
     datum: 'Datum', uur: 'Uur', titel_en: 'Titel (Engels)', tekst: 'Tekst', tekst_en: 'Tekst (Engels)',
     locatie: 'Locatie', afbeelding: 'Link naar een afbeelding', link: 'Link voor meer info',
+    naam: 'Naam', naam_en: 'Naam (Engels)', uitleg: 'Uitleg', uitleg_en: 'Uitleg (Engels)',
     volgorde: 'Volgorde', vraag: 'Vraag', vraag_en: 'Vraag (Engels)', antwoord: 'Antwoord', antwoord_en: 'Antwoord (Engels)'
   };
 
@@ -40,7 +42,10 @@
     herkomst: 'Nooit publiek: donatie, schenker, ... Enkel zichtbaar in de spreadsheet',
     publiek: 'Nee: blijft bewaard, maar verschijnt niet op de website',
     tekst_en: 'Leeg laten: dan toont de site het Nederlands',
-    volgorde: 'Kleinste getal eerst'
+    volgorde: 'Kleinste getal eerst',
+    naam: 'Bv. Pride-maand. Geen komma\'s.',
+    naam_en: 'Leeg laten: dan toont de Engelse site de Nederlandse naam',
+    uitleg_en: 'Leeg laten: dan toont de Engelse site de Nederlandse uitleg'
   };
 
   var KEUZES = {
@@ -53,7 +58,7 @@
     status: [['', 'Gewoon'], ['verloren', 'Verloren'], ['gevoelig verborgen', 'Gevoelig, verborgen'], ['gevoelig zichtbaar', 'Gevoelig, zichtbaar met label']]
   };
 
-  var LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en'];
+  var LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
   var GETAL = ['jaartal', 'paginas', 'aantal', 'volgorde'];
 
   /** Eén veld van een formulier. Geeft { blok, lees } terug. */
@@ -726,6 +731,203 @@
     vak.querySelector('h2').focus();
   }
 
+  /* ---------- Leeslijsten ---------- */
+
+  var LIJST_VELDEN = ['naam', 'naam_en', 'uitleg', 'uitleg_en', 'volgorde', 'publiek'];
+
+  function zelfde(a, b) { return Z.normaliseer(a) === Z.normaliseer(b); }
+
+  function inLijst(b, naam) {
+    return (b.ll || []).some(function (n) { return zelfde(n, naam); });
+  }
+
+  /** De waarde van één instelling uit beheerInhoud. */
+  function instelling(sleutel) {
+    var gevonden = null;
+    (inhoud.instellingen || []).forEach(function (g) {
+      g.instellingen.forEach(function (i) { if (i.sleutel === sleutel) gevonden = i; });
+    });
+    return gevonden;
+  }
+
+  function toonLeeslijsten(vak, ctx) {
+    laadInhoud(vak, ctx, function () {
+      var rijen = (inhoud.tabbladen.Leeslijsten || []).slice().sort(function (a, b) {
+        return (Number(a.volgorde) || 999) - (Number(b.volgorde) || 999) || String(a.naam).localeCompare(String(b.naam));
+      });
+      var boeken = ctx.data.boeken || [];
+      var tonen = instelling('leeslijsten_tonen');
+      var aan = tonen && /^(ja|j|yes|x|1|true|waar)$/i.test(String(tonen.waarde).trim());
+      var schakel = el('button', { type: 'button', class: 'knop tweede' }, aan ? 'Verberg de leeslijsten op de website' : 'Zet de leeslijsten op de website');
+      var schakelMelding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
+      schakel.addEventListener('click', function () {
+        if (!tonen) { schakelMelding.textContent = 'De instelling leeslijsten_tonen ontbreekt nog. Kies in de spreadsheet Madrigal > Installeer tabbladen.'; return; }
+        var klaar = bezig(schakel, 'Bezig...');
+        B.voerUit('beheerInstellingBewaren', { sleutel: 'leeslijsten_tonen', waarde: aan ? 'nee' : 'ja' }).then(function (r) {
+          klaar();
+          if (!r.ok) { schakelMelding.textContent = r.fout; return; }
+          tonen.waarde = aan ? 'nee' : 'ja';
+          B.melding($('melding'), 'ok', aan ? 'De leeslijsten zijn verborgen.' : 'De leeslijsten staan op de website, ook in het menu. Dat is binnen enkele minuten zichtbaar.');
+          toonLeeslijsten(vak, ctx);
+        });
+      });
+      var verwittiging = inhoud.tabbladen.hasOwnProperty('Leeslijsten') && (tonen || !rijen.length) ? null
+        : el('p', { class: 'melding let-op' }, 'Kies eerst in de spreadsheet Madrigal > Installeer tabbladen. Dan komen het tabblad Leeslijsten en de instelling leeslijsten_tonen erbij.');
+      D.vervang(vak, ctx.kop('Leeslijsten', 'Boeken rond een thema, zoals Pride-maand. Maak een lijst en kies de boeken. Alles komt in het tabblad Leeslijsten en in de kolom leeslijsten van de Catalogus.'),
+        verwittiging,
+        el('div', { class: 'blok' },
+          el('p', {}, el('strong', {}, aan ? 'Op de website: zichtbaar.' : 'Op de website: verborgen.'), ' ',
+            aan ? 'Bezoekers zien de leeslijsten via het menu en op de pagina Boeken.' : 'De lijsten staan klaar. Enkel jij ziet ze hier. Zet ze op de website wanneer je klaar bent.'),
+          knoppen(schakel), schakelMelding),
+        knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { leeslijstFormulier(vak, ctx, null); } }, '+ Nieuwe leeslijst')),
+        rijen.length ? el('ul', { class: 'kaartlijst' }, rijen.map(function (r) {
+          var n = boeken.filter(function (b) { return inLijst(b, r.naam); }).length;
+          return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { leeslijstOpenen(vak, ctx, r); } },
+            el('strong', {}, r.naam || '(zonder naam)'), el('span', {}, n === 1 ? '1 boek' : n + ' boeken'),
+            r.publiek === 'nee' ? el('span', { class: 'labels' }, D.statusLabel('niet_uitleenbaar', 'Verborgen')) : null));
+        })) : el('p', {}, 'Er is nog geen leeslijst.'));
+    });
+  }
+
+  /** Naam, uitleg en volgorde van een lijst. rij leeg: een nieuwe lijst. */
+  function leeslijstFormulier(vak, ctx, rij) {
+    var velden = LIJST_VELDEN.map(function (naam) { return veld('ll', naam, rij ? rij[naam] : (naam === 'publiek' ? 'ja' : '')); });
+    var fout = el('div', { 'aria-live': 'assertive' });
+    var bewaar = el('button', { type: 'submit', class: 'knop' }, rij ? 'Bewaar' : 'Maak de lijst');
+    var verwijder = rij ? el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+      if (!window.confirm('Wil je de leeslijst ' + rij.naam + ' echt verwijderen? De boeken blijven in de catalogus, enkel de lijst verdwijnt.')) return;
+      stuur({ tabblad: 'Leeslijsten', rij: rij.rij, vingerafdruk: rij.vingerafdruk, verwijderen: true }, verwijder, null);
+    } }, 'Verwijder de lijst') : null;
+    var formulier = el('form', { novalidate: true }, velden.map(function (v) { return v.blok; }), fout,
+      knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { if (rij) leeslijstOpenen(vak, ctx, rij); else toonLeeslijsten(vak, ctx); } }, 'Terug'), verwijder));
+
+    function stuur(invoer, knop, nieuweNaam) {
+      var klaar = bezig(knop, 'Bezig...');
+      B.voerUit('beheerInhoudBewaren', invoer).then(function (r) {
+        klaar();
+        if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+        // Hernoemd of verwijderd: het script paste de boeken aan. Hier doen we hetzelfde.
+        if (rij) {
+          (ctx.data.boeken || []).forEach(function (b) {
+            if (!inLijst(b, rij.naam)) return;
+            b.ll = b.ll.filter(function (n) { return !zelfde(n, rij.naam); });
+            if (nieuweNaam) b.ll.push(nieuweNaam);
+          });
+        }
+        B.melding($('melding'), 'ok', r.tekst);
+        inhoud = null;
+        if (invoer.verwijderen) { toonLeeslijsten(vak, ctx); return; }
+        laadInhoud(vak, ctx, function () {
+          var naam = nieuweNaam || (rij && rij.naam);
+          var vers = (inhoud.tabbladen.Leeslijsten || []).filter(function (x) { return zelfde(x.naam, naam); })[0];
+          if (vers) leeslijstOpenen(vak, ctx, vers); else toonLeeslijsten(vak, ctx);
+        });
+      });
+    }
+    formulier.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = gewijzigd(velden, !rij);
+      if (rij && !Object.keys(v).length) { B.melding(fout, 'ok', 'Er is niets veranderd.'); return; }
+      var naam = v.hasOwnProperty('naam') ? v.naam.trim() : (rij ? rij.naam : '');
+      stuur({ tabblad: 'Leeslijsten', rij: rij ? rij.rij : null, vingerafdruk: rij ? rij.vingerafdruk : null, velden: v }, bewaar, naam);
+    });
+    D.vervang(vak, ctx.kop(rij ? 'Leeslijst ' + rij.naam + ' aanpassen' : 'Nieuwe leeslijst'), formulier);
+    vak.querySelector('h2').focus();
+  }
+
+  /**
+   * Boeken kiezen voor een lijst. Je zoekt en vinkt aan of uit. Pas bij "Bewaar" gaat alles
+   * in één keer naar de spreadsheet.
+   */
+  function leeslijstOpenen(vak, ctx, rij) {
+    var naam = rij.naam;
+    var boeken = ctx.data.boeken || [];
+    var index = Z.maakIndex(boeken);
+    var keuze = {}; // boek-ID: true (erin) of false (eruit), enkel wat veranderde
+    var zoekveld = el('input', { type: 'search', id: 'll-zoek', autocomplete: 'off', placeholder: 'Titel, auteur, ISBN of boek-ID' });
+    var gevondenVak = el('div', { 'aria-live': 'polite' });
+    var inLijstVak = el('div');
+    var bewaar = el('button', { type: 'button', class: 'knop', disabled: true }, 'Bewaar');
+    var bewaarMelding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
+
+    function zitErin(b) { return keuze.hasOwnProperty(b.id) ? keuze[b.id] : inLijst(b, naam); }
+
+    // Een vinkje verandert niets aan de lijst eronder, zodat de focus blijft waar ze is.
+    // Enkel een boek dat nieuw aangevinkt wordt in de zoekresultaten, komt onderaan bij.
+    function vinkje(b, waar) {
+      var id = 'll-' + waar + '-' + b.id;
+      var vak2 = el('input', { type: 'checkbox', id: id, checked: zitErin(b), 'data-boek': b.id });
+      vak2.addEventListener('change', function () {
+        if (vak2.checked === inLijst(b, naam)) delete keuze[b.id]; else keuze[b.id] = vak2.checked;
+        Array.prototype.forEach.call(vak.querySelectorAll('input[data-boek="' + CSS.escape(b.id) + '"]'), function (x) { x.checked = vak2.checked; });
+        knop();
+        if (waar === 'zoek' && vak2.checked && !inLijstVak.querySelector('input[data-boek="' + CSS.escape(b.id) + '"]')) tekenLijst();
+      });
+      return el('li', {}, el('label', { class: 'vinkje', for: id }, vak2,
+        el('span', {}, el('strong', {}, b.t), ' ', el('span', { class: 'hulptekst' }, [b.a, b.id].filter(Boolean).join(' · ')))));
+    }
+
+    function knop() {
+      var aantal = Object.keys(keuze).length;
+      bewaar.disabled = !aantal;
+      bewaar.textContent = aantal ? 'Bewaar (' + aantal + (aantal === 1 ? ' wijziging)' : ' wijzigingen)') : 'Bewaar';
+      var erin = boeken.filter(zitErin).length;
+      var titel = inLijstVak.querySelector('h3');
+      if (titel) titel.textContent = 'In deze lijst (' + erin + ')';
+    }
+
+    /** De boeken in de lijst, ook die je net uitvinkte (dan zonder vinkje, tot je bewaart). */
+    function tekenLijst() {
+      var toon = boeken.filter(function (b) { return inLijst(b, naam) || keuze[b.id] === true; })
+        .sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
+      D.vervang(inLijstVak, el('h3', {}, ''),
+        toon.length ? el('ul', { class: 'vinklijst' }, toon.map(function (b) { return vinkje(b, 'lijst'); }))
+          : el('p', { class: 'hulptekst' }, 'Nog geen boeken. Zoek hierboven en vink aan.'));
+      knop();
+    }
+
+    function tekenZoek() {
+      var q = zoekveld.value.trim();
+      if (!q) { D.vervang(gevondenVak, el('p', { class: 'hulptekst' }, 'Typ een deel van een titel, auteur of ISBN.')); return; }
+      var gevonden = Z.zoek(index, q).slice(0, 30).map(function (r) { return r.boek; });
+      D.vervang(gevondenVak, gevonden.length ? el('ul', { class: 'vinklijst' }, gevonden.map(function (b) { return vinkje(b, 'zoek'); })) : el('p', {}, 'Geen boek gevonden.'));
+    }
+
+    bewaar.addEventListener('click', function () {
+      var toevoegen = [], weghalen = [];
+      Object.keys(keuze).forEach(function (id) { (keuze[id] ? toevoegen : weghalen).push(id); });
+      var klaar = bezig(bewaar, 'Bezig...');
+      B.voerUit('beheerLeeslijstBoeken', { naam: naam, toevoegen: toevoegen, weghalen: weghalen }).then(function (r) {
+        klaar();
+        if (!r.ok) { bewaarMelding.textContent = r.fout; return; }
+        boeken.forEach(function (b) {
+          if (!keuze.hasOwnProperty(b.id)) return;
+          var rest = (b.ll || []).filter(function (n) { return !zelfde(n, naam); });
+          b.ll = keuze[b.id] ? rest.concat([naam]) : rest;
+        });
+        keuze = {};
+        bewaarMelding.textContent = r.tekst;
+        tekenLijst();
+        tekenZoek();
+      });
+    });
+    zoekveld.addEventListener('input', tekenZoek);
+
+    D.vervang(vak, ctx.kop('Leeslijst ' + naam, rij.uitleg || 'Zoek boeken en vink ze aan. Klik daarna op Bewaar.'),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+        if (Object.keys(keuze).length && !window.confirm('Je hebt nog niet bewaard. Toch teruggaan?')) return;
+        toonLeeslijsten(vak, ctx);
+      } }, '← Alle leeslijsten'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { leeslijstFormulier(vak, ctx, rij); } }, 'Naam en uitleg aanpassen')),
+      el('div', { class: 'veld' }, el('label', { for: 'll-zoek' }, 'Zoek een boek om toe te voegen'), zoekveld),
+      gevondenVak,
+      el('div', { class: 'blok' }, inLijstVak),
+      el('div', { class: 'knoppen plakkend' }, bewaar), bewaarMelding);
+    tekenLijst();
+    tekenZoek();
+    vak.querySelector('h2').focus();
+  }
+
   /* ---------- Teksten en instellingen ---------- */
 
   function toonInstellingen(vak, ctx) {
@@ -765,6 +967,7 @@
   root.MadrigalBestuurBeheer = {
     boeken: toonBoeken,
     inhoud: toonInhoud,
+    leeslijsten: toonLeeslijsten,
     instellingen: toonInstellingen,
     /** Bij Vernieuw: nieuws, agenda en instellingen opnieuw ophalen. */
     vergeet: function () { inhoud = null; }

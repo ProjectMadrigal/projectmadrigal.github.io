@@ -200,6 +200,7 @@
     try { nieuw = JSON.parse(tekst); } catch (e) { return; }
     if (!nieuw || !nieuw.contact) return;
     data = nieuw;
+    if (window.MadrigalLayout) window.MadrigalLayout.leeslijstenTonen(nieuw.leeslijsten === true);
     if (bewaar) { try { localStorage.setItem(CACHE_SLEUTEL, tekst); } catch (e) { /* geen opslag */ } }
     teken();
   }

@@ -12,6 +12,9 @@ function baliecatalogus(staat) {
       id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), i: schoon(b.isbn),
       x: aantalExemplaren(b), u: isUitleenbaar(b), c: !isLeeg(b.cover_url)
     };
+    // ll: de leeslijsten van het boek, voor het onderdeel Leeslijsten van het bestuursscherm.
+    var ll = splitsLijst(b.leeslijsten);
+    if (ll.length) info.ll = ll;
     // st: zodat de vrijwilliger het weet. Gevoelig (verborgen of zichtbaar) mag je gewoon uitlenen.
     var status = boekStatus(b);
     if (status === 'verloren') info.st = 'verloren';

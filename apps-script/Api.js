@@ -37,6 +37,7 @@ var ACTIES = {
   // Beheer van de website (Beheer.js). Wil je vrijwilligers dit laten doen? Zet de actie op 'balie'.
   beheerBoekOphalen: 'bestuur',
   beheerBoekBewaren: 'bestuur',
+  beheerLeeslijstBoeken: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'bestuur',
@@ -247,6 +248,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'beheerIaCoversWissen': antwoord = iaCoversWissen(staat, invoer); break;
       case 'beheerCoverUpload': antwoord = coverUploaden(staat, invoer, bewaarFotoInDrive); break;
       case 'beheerBoekBewaren': antwoord = boekAanpassen(staat, invoer); break;
+      case 'beheerLeeslijstBoeken': antwoord = leeslijstBoeken(staat, invoer); break;
       case 'beheerBoekToevoegen':
         var ids = maakIdGenerator(staat.catalogus);
         antwoord = boekToevoegen(staat, invoer, ids.nieuw);

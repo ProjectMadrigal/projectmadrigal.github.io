@@ -46,6 +46,7 @@ var ACTIES = {
   // Beheer van de website (Beheer.js). Wil je vrijwilligers dit laten doen? Zet de actie op 'balie'.
   beheerBoekOphalen: 'bestuur',
   beheerBoekBewaren: 'bestuur',
+  beheerLeeslijstBoeken: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'bestuur',
@@ -77,14 +78,15 @@ var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'start
 var BEHEER_INHOUD = {
   'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek'],
   'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek'],
-  'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek']
+  'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek'],
+  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek']
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
 var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret'];
 
 /** Lange teksten: meer tekens toegelaten en regeleinden blijven staan. */
-var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en'];
+var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
 
 var FOTO_MAX_BYTES = 1500000;
 
@@ -277,6 +279,7 @@ var STANDAARD_INSTELLINGEN = [
   ['rooster_code', '', 'De toegangscode voor vrijwilligers van het rooster. Blijft op de server, de browser ziet ze nooit.'],
   ['rooster_link', 'https://projectmadrigal.github.io/rooster/', 'Adres van de roostertool, voor de knop "Beschikbaarheid invullen".'],
   ['code_bestuur', '', 'Code voor het bestuursscherm. Geef ze enkel aan het bestuur.'],
+  ['leeslijsten_tonen', 'nee', 'ja: de leeslijsten staan op de website, met een eigen plek in het menu. nee: ze staan klaar, maar enkel het bestuursscherm toont ze.'],
   ['online_reserveren', 'nee', 'ja: de website toont bij elk uitleenbaar boek de knop "Reserveer dit boek". De aanvragen verschijnen in het bestuursscherm en in het tabblad Aanvragen.'],
   ['aanvragen_bewaren_dagen', 60, 'Na hoeveel dagen een aanvraag (met voornaam en contactgegevens) gewist wordt.'],
   ['backup_map', 'Project Madrigal back-ups', 'Naam van de map op Google Drive waar elke week een kopie van deze spreadsheet komt.'],
@@ -374,6 +377,7 @@ var INSTELLING_GROEPEN = [
   ['Herinneringen', ['tekst_herinnering', 'tekst_herinnering_binnenkort']],
   ['Website: contact', ['adres', 'openingsuren', 'openingsuren_en', 'mail_algemeen', 'mail_events']],
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
+  ['Website: leeslijsten', ['leeslijsten_tonen']],
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
   ['Aanraders', ['aanraders_uit_stocklijst', 'aanraders_verbergen', 'nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal']],
   ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
@@ -552,6 +556,9 @@ function baliecatalogus(staat) {
       id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), i: schoon(b.isbn),
       x: aantalExemplaren(b), u: isUitleenbaar(b), c: !isLeeg(b.cover_url)
     };
+    // ll: de leeslijsten van het boek, voor het onderdeel Leeslijsten van het bestuursscherm.
+    var ll = splitsLijst(b.leeslijsten);
+    if (ll.length) info.ll = ll;
     // st: zodat de vrijwilliger het weet. Gevoelig (verborgen of zichtbaar) mag je gewoon uitlenen.
     var status = boekStatus(b);
     if (status === 'verloren') info.st = 'verloren';
@@ -643,17 +650,30 @@ function beheerBoek(rij) {
   return boek;
 }
 
-/** Bewaart een wijziging in Nieuws, Agenda of Veelgestelde vragen. */
+/** Bewaart een wijziging in Nieuws, Agenda, Veelgestelde vragen of Leeslijsten. */
 function beheerInhoudBewaren(invoer, wie) {
   if (!BEHEER_INHOUD[invoer.tabblad]) return { ok: false, fout: 'Onbekend tabblad.' };
   var tabel = leesTabel(invoer.tabblad);
+  var oud = invoer.rij ? tabel.rijen.filter(function (r) { return r._rij === Number(invoer.rij); })[0] : null;
+  var oudeNaam = oud ? schoon(oud.naam) : '';
   var antwoord = inhoudAanpassen(tabel.rijen, invoer);
   if (antwoord.ok) {
     bewaarTabel(tabel);
     logboek(wie, 'website aangepast', invoer.tabblad);
+    // Een leeslijst hernoemd of verwijderd: ook de boeken in de Catalogus aanpassen.
+    if (invoer.tabblad === 'Leeslijsten' && oudeNaam) {
+      var nieuweNaam = invoer.verwijderen ? '' : schoon(oud.naam);
+      if (nieuweNaam !== oudeNaam) {
+        var cat = leesTabel('Catalogus');
+        var n = hernoemLeeslijst(cat.rijen, oudeNaam, nieuweNaam);
+        if (n) bewaarTabel(cat);
+      }
+    }
   }
   return antwoord;
 }
+
+/* ---------- Leeslijsten: boeken kiezen ---------- */
 
 /** Gegevens voor de onderdelen Nieuws en agenda, en Teksten en instellingen. */
 function beheerInhoudGegevens() {
@@ -1150,6 +1170,8 @@ function borgTerugbetaald(staat, invoer) {
 /** Bouwt het object dat het publieke eindpunt teruggeeft. */
 function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
   var vertaal = vertaalTabel(onderwerpRijen);
+  // Leeslijsten pas tonen als de instelling leeslijsten_tonen op ja staat. Tot dan staan ze klaar.
+  var toonLijsten = (staat.inst || {}).leeslijsten_tonen === true;
   var lijsten = leeslijstInfo(lijstRijen);
   // Namen in de instelling aanraders_verbergen verschijnen nergens op de website.
   var verborgen = splitsLijst((staat.inst || {}).aanraders_verbergen).map(normaliseerTekst);
@@ -1185,20 +1207,22 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
       return verborgen.indexOf(normaliseerTekst(naam)) === -1;
     });
     if (aanraders.length) boek.r = aanraders;
-    var ll = leeslijstenVan(rij, lijsten);
+    var ll = toonLijsten ? leeslijstenVan(rij, lijsten) : [];
     if (ll.length) boek.ll = ll;
     boeken.push(boek);
   });
   // Filtergroepen: eerst de standaardvolgorde, dan eventuele eigen groepen.
   var groepen = FILTERGROEPEN.slice();
   boeken.forEach(function (b) { b.g.forEach(function (g) { if (groepen.indexOf(g) === -1) groepen.push(g); }); });
-  return {
+  var uit = {
     bijgewerkt: staat.vandaag,
     teksten: publiekeTeksten(staat.inst),
     filtergroepen: groepen,
-    leeslijsten: gebruikteLeeslijsten(lijsten, boeken),
     boeken: boeken
   };
+  // Enkel als ze getoond worden: zo weet de website of het menu-item Leeslijsten mag verschijnen.
+  if (toonLijsten) uit.leeslijsten = gebruikteLeeslijsten(lijsten, boeken);
+  return uit;
 }
 
 /**
@@ -1332,6 +1356,8 @@ function bouwSiteInhoud(staat, tabellen) {
     faq: faq,
     aanraders: aanraders,
     nieuw: nieuwBinnen,
+    // Het menu-item Leeslijsten: enkel als de instelling leeslijsten_tonen op ja staat.
+    leeslijsten: inst.leeslijsten_tonen === true,
     // Pagina Doe mee. Een leeg blok toont de website niet.
     doeMee: {
       vrijwilliger: { nl: String(inst.tekst_vrijwilliger || ''), en: String(inst.tekst_vrijwilliger_en || '') || String(inst.tekst_vrijwilliger || '') },
@@ -1912,6 +1938,24 @@ function herinneringVerstuurd(staat, invoer) {
   return { ok: true, tekst: 'Herinnering genoteerd op ' + korteDatum(staat.vandaag) + '.' };
 }
 
+/**
+ * Hernoemt een leeslijst in alle boeken, of haalt ze weg (nieuw leeg). Geeft het aantal aangepaste boeken.
+ */
+function hernoemLeeslijst(catalogus, oud, nieuw) {
+  var sleutel = normaliseerTekst(oud);
+  var n = 0;
+  catalogus.forEach(function (b) {
+    var namen = splitsLijst(b.leeslijsten);
+    var i = namen.map(normaliseerTekst).indexOf(sleutel);
+    if (i === -1) return;
+    if (nieuw) namen[i] = nieuw; else namen.splice(i, 1);
+    namen = namen.filter(function (x, j) { return namen.map(normaliseerTekst).indexOf(normaliseerTekst(x)) === j; });
+    wijzig(b, { leeslijsten: leeslijstTekst(namen) });
+    n++;
+  });
+  return n;
+}
+
 /** Menu: zoekt de afgebroken beschrijvingen opnieuw op, volledig. */
 function herstelAfgebrokenBeschrijvingen() {
   var lock = LockService.getScriptLock();
@@ -2075,9 +2119,14 @@ function inhoudAanpassen(rijen, invoer) {
   var r = beheerVelden(invoer.velden, kolommen);
   if (r.fout) return { ok: false, fout: r.fout };
   var v = r.velden;
-  var hoofd = tabblad === 'Veelgestelde vragen' ? 'vraag' : 'titel';
+  var hoofd = { 'Veelgestelde vragen': 'vraag', 'Leeslijsten': 'naam' }[tabblad] || 'titel';
   var nieuweWaarde = v.hasOwnProperty(hoofd) ? v[hoofd] : (rij ? rij[hoofd] : '');
   if (isLeeg(nieuweWaarde)) return { ok: false, fout: 'Vul een ' + hoofd + ' in.' };
+  if (tabblad === 'Leeslijsten') {
+    if (/[,;]/.test(nieuweWaarde)) return { ok: false, fout: 'Een naam van een leeslijst mag geen komma of puntkomma bevatten.' };
+    var dubbel = rijen.some(function (r) { return r !== rij && !r._verwijderen && normaliseerTekst(r.naam) === normaliseerTekst(nieuweWaarde); });
+    if (dubbel) return { ok: false, fout: 'Er bestaat al een leeslijst met die naam.' };
+  }
   if (tabblad === 'Agenda' && isLeeg(v.hasOwnProperty('datum') ? v.datum : (rij ? rij.datum : ''))) {
     return { ok: false, fout: 'Een event heeft een datum nodig.' };
   }
@@ -2629,6 +2678,36 @@ function leesInstellingen() {
   return verwerkInstellingen(ruw);
 }
 
+/**
+ * Zet boeken in een leeslijst of haalt ze eruit.
+ * invoer: { naam, toevoegen: [boek_id], weghalen: [boek_id] }
+ */
+function leeslijstBoeken(staat, invoer) {
+  var naam = tekstInvoer(invoer.naam, 80);
+  if (!naam || /[,;]/.test(naam)) return { ok: false, fout: 'Kies eerst een leeslijst.' };
+  var sleutel = normaliseerTekst(naam);
+  var erbij = 0, eruit = 0;
+  function pas(ids, toevoegen) {
+    (Array.isArray(ids) ? ids : []).slice(0, 500).forEach(function (id) {
+      var boek = boekVan(staat, String(id));
+      if (!boek) return;
+      var namen = splitsLijst(boek.leeslijsten);
+      var i = namen.map(normaliseerTekst).indexOf(sleutel);
+      if (toevoegen && i === -1) { namen.push(naam); erbij++; }
+      else if (!toevoegen && i > -1) { namen.splice(i, 1); eruit++; }
+      else return;
+      wijzig(boek, { leeslijsten: leeslijstTekst(namen) });
+    });
+  }
+  pas(invoer.toevoegen, true);
+  pas(invoer.weghalen, false);
+  if (erbij || eruit) {
+    staat.catalogusGewijzigd = true;
+    staat.log.push(['leeslijst ' + naam, erbij + ' boeken erbij, ' + eruit + ' eruit']);
+  }
+  return { ok: true, tekst: 'Leeslijst ' + naam + ': ' + erbij + ' boeken toegevoegd, ' + eruit + ' weggehaald.' };
+}
+
 /** De publieke leeslijsten van een boek, met de naam zoals in het tabblad. */
 function leeslijstenVan(rij, info) {
   var namen = [];
@@ -2660,6 +2739,11 @@ function leeslijstInfo(rijen) {
     };
   });
   return info;
+}
+
+/** Zet de namen in de kolom leeslijsten terug als tekst. */
+function leeslijstTekst(namen) {
+  return namen.join(', ');
 }
 
 /** Zet de waarden van het oude blad om naar objecten met vaste namen. */
@@ -4553,6 +4637,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'beheerIaCoversWissen': antwoord = iaCoversWissen(staat, invoer); break;
       case 'beheerCoverUpload': antwoord = coverUploaden(staat, invoer, bewaarFotoInDrive); break;
       case 'beheerBoekBewaren': antwoord = boekAanpassen(staat, invoer); break;
+      case 'beheerLeeslijstBoeken': antwoord = leeslijstBoeken(staat, invoer); break;
       case 'beheerBoekToevoegen':
         var ids = maakIdGenerator(staat.catalogus);
         antwoord = boekToevoegen(staat, invoer, ids.nieuw);

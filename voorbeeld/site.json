@@ -84,9 +84,18 @@
   }
  ],
  "doeMee": {
-   "vrijwilliger": { "nl": "Voorbeeldtekst: zo word je vrijwilliger aan de balie. Het bestuur vult de echte tekst in.", "en": "Example text: how to become a volunteer at the desk." },
-   "schenken": { "nl": "Voorbeeldtekst: welke boeken we graag aannemen.", "en": "Example text: which books we gladly accept." },
-   "steunen": { "nl": "", "en": "" }
+  "vrijwilliger": {
+   "nl": "Voorbeeldtekst: zo word je vrijwilliger aan de balie. Het bestuur vult de echte tekst in.",
+   "en": "Example text: how to become a volunteer at the desk."
+  },
+  "schenken": {
+   "nl": "Voorbeeldtekst: welke boeken we graag aannemen.",
+   "en": "Example text: which books we gladly accept."
+  },
+  "steunen": {
+   "nl": "",
+   "en": ""
+  }
  },
  "aanraders": [
   {
@@ -183,5 +192,6 @@
    "vrij": false,
    "n": 1
   }
- ]
+ ],
+ "leeslijsten": true
 }

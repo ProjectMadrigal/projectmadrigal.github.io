@@ -155,6 +155,9 @@
     $('welkom').textContent = tekst('welkom');
     $('uitleg-lenen').textContent = tekst('uitleg');
     $('privacy-tekst').textContent = tekst('privacy');
+    // Leeslijsten staan enkel in de catalogus als de instelling leeslijsten_tonen op ja staat.
+    var tonen = !!(staat.data && Array.isArray(staat.data.leeslijsten));
+    if (window.MadrigalLayout) window.MadrigalLayout.leeslijstenTonen(tonen);
     $('naar-leeslijsten').hidden = !leeslijsten().length;
     var stat = $('privacy-statistiek');
     if (stat) stat.hidden = !(window.MADRIGAL_CONFIG || {}).statistiek;
@@ -470,6 +473,7 @@
     detail.hidden = adres.scherm !== 'boek';
     privacy.hidden = adres.scherm !== 'privacy';
     lijsten.hidden = adres.scherm !== 'leeslijsten';
+    if (window.MadrigalLayout) window.MadrigalLayout.huidig(adres.scherm === 'leeslijsten' || (adres.keuzes && adres.keuzes.lijst) ? 'leeslijsten' : 'boeken');
 
     if (adres.scherm === 'lijst') {
       document.title = t('catalogusTitel') + ' · Project Madrigal';

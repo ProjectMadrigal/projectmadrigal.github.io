@@ -679,6 +679,7 @@ test('publieke catalogus toont geen herkomst, geen niet-publieke boeken en geen 
 });
 test('publieke catalogus: leeslijsten met naam en uitleg uit het tabblad, verborgen lijsten weg', () => {
   const s = maakStaat();
+  s.inst.leeslijsten_tonen = true;
   s.catalogus[0].leeslijsten = 'eerste keer, Verborgen lijst';
   s.catalogus[1].leeslijsten = 'Zonder uitleg; Eerste keer';
   const p = M.bouwPubliekeCatalogus(s, [], [
@@ -691,7 +692,34 @@ test('publieke catalogus: leeslijsten met naam en uitleg uit het tabblad, verbor
   gelijk(JSON.parse(JSON.stringify(p.leeslijsten)), [{ n: 'Eerste keer', ne: 'First time', u: 'Voor wie begint.' }, { n: 'Zonder uitleg' }]);
   assert.ok(JSON.stringify(p).indexOf('Verborgen lijst') === -1);
   assert.ok(!p.boeken.find((b) => b.id === 'B0003').ll);
-  gelijk(JSON.parse(JSON.stringify(M.bouwPubliekeCatalogus(maakStaat(), []).leeslijsten)), []);
+  const leeg = maakStaat(); leeg.inst.leeslijsten_tonen = true;
+  gelijk(JSON.parse(JSON.stringify(M.bouwPubliekeCatalogus(leeg, []).leeslijsten)), []);
+});
+test('publieke catalogus: leeslijsten blijven weg zolang leeslijsten_tonen op nee staat', () => {
+  const s = maakStaat();
+  s.catalogus[0].leeslijsten = 'Pride-maand';
+  const p = M.bouwPubliekeCatalogus(s, [], [{ naam: 'Pride-maand' }]);
+  assert.strictEqual(s.inst.leeslijsten_tonen, false);
+  assert.ok(!('leeslijsten' in p));
+  assert.ok(JSON.stringify(p).indexOf('Pride-maand') === -1);
+});
+test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
+  const s = maakStaat();
+  s.catalogus[0].leeslijsten = 'Andere lijst';
+  const r = M.leeslijstBoeken(s, { naam: 'Pride-maand', toevoegen: ['B0001', 'B0002', 'B9999'], weghalen: [] });
+  gelijk([r.ok, s.catalogus[0].leeslijsten, s.catalogus[1].leeslijsten, s.catalogusGewijzigd], [true, 'Andere lijst, Pride-maand', 'Pride-maand', true]);
+  M.leeslijstBoeken(s, { naam: 'pride-MAAND', toevoegen: ['B0001'], weghalen: ['B0002'] });
+  gelijk([s.catalogus[0].leeslijsten, s.catalogus[1].leeslijsten], ['Andere lijst, Pride-maand', '']);
+  assert.strictEqual(M.leeslijstBoeken(s, { naam: 'a, b', toevoegen: ['B0001'] }).ok, false);
+  gelijk(M.hernoemLeeslijst(s.catalogus, 'Pride-maand', 'Pride 2027'), 1);
+  assert.strictEqual(s.catalogus[0].leeslijsten, 'Andere lijst, Pride 2027');
+  M.hernoemLeeslijst(s.catalogus, 'andere lijst', '');
+  assert.strictEqual(s.catalogus[0].leeslijsten, 'Pride 2027');
+  const rijen = [{ _rij: 2, naam: 'Pride 2027', publiek: 'ja' }];
+  assert.strictEqual(M.inhoudAanpassen(rijen, { tabblad: 'Leeslijsten', velden: { naam: 'pride 2027' } }).ok, false);
+  assert.strictEqual(M.inhoudAanpassen(rijen, { tabblad: 'Leeslijsten', velden: { naam: 'Met, komma' } }).ok, false);
+  assert.strictEqual(M.inhoudAanpassen(rijen, { tabblad: 'Leeslijsten', velden: { naam: 'Eerste keer', uitleg: 'Twee\nregels' } }).ok, true);
+  gelijk([rijen.length, rijen[1].publiek, rijen[1].uitleg], [2, 'ja', 'Twee\nregels']);
 });
 test('publieke catalogus: aanraders_verbergen haalt de naam weg bij de boeken', () => {
   const s = maakStaat();

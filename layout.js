@@ -17,6 +17,8 @@
   var MENU = [
     { pagina: 'home', href: 'index.html', tekst: 'menuHome' },
     { pagina: 'boeken', href: 'boeken.html', tekst: 'menuBoeken' },
+    // Verborgen tot de instelling leeslijsten_tonen op ja staat (zie leeslijstenTonen hieronder).
+    { pagina: 'leeslijsten', href: 'boeken.html#/leeslijsten', tekst: 'menuLeeslijsten', verborgen: true },
     { pagina: 'over', href: 'over-ons.html', tekst: 'menuOver' },
     { pagina: 'doemee', href: 'doe-mee.html', tekst: 'menuDoeMee' }
   ];
@@ -69,7 +71,8 @@
       '  <button type="button" class="menuknop" id="menuknop" aria-expanded="false" aria-controls="hoofdmenu" data-i18n-aria-label="menu">' + ICOON.menu + '</button>' +
       '  <nav class="hoofdmenu" id="hoofdmenu" data-i18n-aria-label="menu"><ul>' +
       MENU.map(function (m) {
-        return '<li><a href="' + m.href + '" data-i18n="' + m.tekst + '"' + (m.pagina === pagina ? ' aria-current="page"' : '') + '></a></li>';
+        var weg = m.verborgen && leesLeeslijsten() !== 'ja';
+        return '<li' + (weg ? ' hidden' : '') + ' data-menu="' + m.pagina + '"><a href="' + m.href + '" data-i18n="' + m.tekst + '"' + (m.pagina === pagina ? ' aria-current="page"' : '') + '></a></li>';
       }).join('') +
       '  </ul>' +
       '  <div class="kopknoppen"><button type="button" class="ikoonknop" id="taalknop"></button><button type="button" class="ikoonknop" id="themaknop"></button></div>' +
@@ -126,6 +129,28 @@
     var hash = location.hash.split('?')[0];
     window.goatcounter.count({ path: location.pathname + (/^#\/(boek|privacy|leeslijsten)/.test(hash) ? hash : '') });
   }
+
+  /*
+   * Het menu-item Leeslijsten. De catalogus en de startpagina vertellen of het mag verschijnen
+   * (instelling leeslijsten_tonen). De browser onthoudt dat voor de andere pagina's.
+   */
+  var LEESLIJSTEN = 'madrigal_leeslijsten';
+  function leesLeeslijsten() {
+    try { return localStorage.getItem(LEESLIJSTEN); } catch (e) { return null; }
+  }
+  function leeslijstenTonen(aan) {
+    try { localStorage.setItem(LEESLIJSTEN, aan ? 'ja' : 'nee'); } catch (e) { /* enkel voor deze pagina */ }
+    var li = document.querySelector('[data-menu="leeslijsten"]');
+    if (li) li.hidden = !aan;
+  }
+  /** Welk menu-item de huidige pagina is (op boeken.html: Boeken of Leeslijsten). */
+  function huidig(pagina) {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-menu]'), function (li) {
+      var a = li.querySelector('a');
+      if (li.getAttribute('data-menu') === pagina) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+  }
+  window.MadrigalLayout = { leeslijstenTonen: leeslijstenTonen, huidig: huidig };
 
   /** Offline werken en installeren als app (zie sw.js). Niet in het voorbeeld op je eigen computer. */
   function offline() {
