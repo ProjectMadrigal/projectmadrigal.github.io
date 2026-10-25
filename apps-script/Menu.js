@@ -89,37 +89,49 @@ function installeer() {
   meld('De tabbladen staan klaar. Kijk in Instellingen de codes en teksten na.');
 }
 
-/** Zet het menu klaar telkens de spreadsheet opent. */
+/**
+ * Zet het menu klaar telkens de spreadsheet opent. Bovenaan wat je het vaakst nodig hebt,
+ * daarna een deelmenu per onderwerp, en achteraan wat je enkel bij de start gebruikt.
+ * Een nieuw menu-item? Zet het in het passende deelmenu, en verwijs in de README en in
+ * meldingen naar "Madrigal > Deelmenu > Item".
+ */
 function onOpen() {
-  SpreadsheetApp.getUi().createMenu('Madrigal')
-    .addItem('1. Installeer tabbladen', 'installeer')
-    .addItem('2. Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
-    .addItem('3. Vul aan uit Goodreads', 'vulAanUitGoodreads')
-    .addItem('4. Vul aan uit Open Library', 'vulAanUitOpenLibrary')
-    .addItem('5. Zoek ontbrekende covers bij Google Books', 'vulAanUitGoogleBooks')
-    .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
-    .addItem('Zoek opnieuw bij Google (boeken zonder cover of beschrijving)', 'zoekCoversOpnieuw')
-    .addItem('6. Zoek ontbrekende beschrijvingen', 'vulBeschrijvingenAan')
-    .addItem('7. Vertaal de beschrijvingen (Nederlands en Engels)', 'vertaalBeschrijvingen')
-    .addItem('8. Zoek covers van andere uitgaven (Open Library)', 'zoekCoversAndereUitgaven')
-    .addItem('9. Zoek covers bij bol.com', 'zoekCoversBol')
-    .addItem('10. Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
-    .addItem('11. Zoek beschrijvingen bij Wikipedia', 'zoekBeschrijvingenWikipedia')
-    .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol')
-    .addItem('Zoek afgebroken beschrijvingen opnieuw (volledig)', 'herstelAfgebrokenBeschrijvingen')
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Madrigal')
+    .addItem('Installeer tabbladen (na een nieuw script)', 'installeer')
     .addSeparator()
-    .addItem('Nieuwe boeken verwerken', 'verwerkNieuweBoeken')
-    .addItem('Werk de vertaaltabel Onderwerpen bij', 'werkOnderwerpenBijMenu')
-    .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock')
-    .addItem('Ververs de publieke catalogus', 'verversMenu')
+    .addSubMenu(ui.createMenu('Boeken')
+      .addItem('Nieuwe boeken verwerken', 'verwerkNieuweBoeken')
+      .addItem('Ververs de publieke catalogus', 'verversMenu')
+      .addItem('Werk de vertaaltabel Onderwerpen bij', 'werkOnderwerpenBijMenu')
+      .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock'))
+    .addSubMenu(ui.createMenu('Covers')
+      .addItem('Vul aan uit Open Library', 'vulAanUitOpenLibrary')
+      .addItem('Zoek covers bij Google Books', 'vulAanUitGoogleBooks')
+      .addItem('Zoek covers van andere uitgaven', 'zoekCoversAndereUitgaven')
+      .addItem('Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
+      .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
+      .addSeparator()
+      .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
+      .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
+      .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol'))
+    .addSubMenu(ui.createMenu('Beschrijvingen')
+      .addItem('Zoek ontbrekende beschrijvingen', 'vulBeschrijvingenAan')
+      .addItem('Zoek beschrijvingen bij Wikipedia', 'zoekBeschrijvingenWikipedia')
+      .addItem('Vertaal de beschrijvingen', 'vertaalBeschrijvingen')
+      .addItem('Zoek afgebroken beschrijvingen opnieuw', 'herstelAfgebrokenBeschrijvingen'))
+    .addSubMenu(ui.createMenu('Onderhoud')
+      .addItem('Orden tabbladen en instellingen', 'ordenAlles')
+      .addItem('Maak nu een back-up', 'maakBackupMenu')
+      .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp'))
     .addSeparator()
-    .addItem('Neem lopende uitleningen over uit het oude blad', 'neemUitleningenOver')
-    .addItem('Neem nieuws, agenda en vragen over van de oude website', 'importeerOudeSite')
-    .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
-    .addItem('Maak nu een back-up', 'maakBackupMenu')
-    .addItem('Orden tabbladen en instellingen', 'ordenAlles')
-    .addSeparator()
-    .addItem('Catalogus wissen en opnieuw opbouwen (enkel bij de start)', 'herbouwCatalogus')
+    .addSubMenu(ui.createMenu('Eenmalig bij de start')
+      .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
+      .addItem('Vul aan uit Goodreads', 'vulAanUitGoodreads')
+      .addItem('Neem lopende uitleningen over', 'neemUitleningenOver')
+      .addItem('Neem nieuws, agenda en vragen over', 'importeerOudeSite')
+      .addSeparator()
+      .addItem('Catalogus wissen en opnieuw opbouwen', 'herbouwCatalogus'))
     .addToUi();
 }
 

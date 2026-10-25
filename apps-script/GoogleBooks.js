@@ -154,7 +154,7 @@ function vulAanUitGoogleBooks() {
   }
   verwijderTriggers('vulAanUitGoogleBooks');
   if (verdacht) {
-    var waarschuwing = 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Test Google Books.';
+    var waarschuwing = 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Covers > Test Google Books.';
     logboek('menu', 'vulAanUitGoogleBooks', waarschuwing);
     meld(waarschuwing);
     return;

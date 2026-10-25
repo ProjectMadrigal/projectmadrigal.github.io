@@ -7,8 +7,8 @@
  *   - Tabbladen: eerst wat je dagelijks gebruikt, achteraan wat zelden nodig
  *     is, met een kleur per groep.
  *
- * "Installeer tabbladen" doet dit vanzelf. Je kan het ook apart uitvoeren via
- * het menu: Madrigal > Orden tabbladen en instellingen.
+ * "Madrigal > Installeer tabbladen" doet dit vanzelf. Je kan het ook apart uitvoeren via
+ * het menu: Madrigal > Onderhoud > Orden tabbladen en instellingen.
  *
  * Een nieuwe instelling toevoegen? Zet ze in STANDAARD_INSTELLINGEN
  * (Instellingen.js) én in een groep hieronder. Een test controleert dat.

@@ -2639,7 +2639,7 @@ function leesOudeUitleningen(waarden) {
  */
 function leesTabel(naam) {
   var blad = spreadsheet().getSheetByName(naam);
-  if (!blad) throw new Error('Het tabblad "' + naam + '" bestaat niet. Voer eerst "Installeer tabbladen" uit.');
+  if (!blad) throw new Error('Het tabblad "' + naam + '" bestaat niet. Voer eerst "Madrigal > Installeer tabbladen" uit.');
   var waarden = blad.getDataRange().getValues();
   var kop = (waarden[0] || []).map(function (k) { return schoon(k); });
   var rijen = [];
@@ -2780,7 +2780,7 @@ function maakAfgebrokenLeeg(rijen) {
   return n;
 }
 
-/** Maakt een back-up en ruimt de oudste op. Draait elke week vanzelf (zie Installeer tabbladen). */
+/** Maakt een back-up en ruimt de oudste op. Draait elke week vanzelf (zie Madrigal > Installeer tabbladen). */
 function maakBackup() {
   var inst = leesInstellingen();
   var ss = spreadsheet();
@@ -3153,37 +3153,49 @@ function olZoek(parameters) {
   return { docs: (r.data && r.data.docs) || [] };
 }
 
-/** Zet het menu klaar telkens de spreadsheet opent. */
+/**
+ * Zet het menu klaar telkens de spreadsheet opent. Bovenaan wat je het vaakst nodig hebt,
+ * daarna een deelmenu per onderwerp, en achteraan wat je enkel bij de start gebruikt.
+ * Een nieuw menu-item? Zet het in het passende deelmenu, en verwijs in de README en in
+ * meldingen naar "Madrigal > Deelmenu > Item".
+ */
 function onOpen() {
-  SpreadsheetApp.getUi().createMenu('Madrigal')
-    .addItem('1. Installeer tabbladen', 'installeer')
-    .addItem('2. Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
-    .addItem('3. Vul aan uit Goodreads', 'vulAanUitGoodreads')
-    .addItem('4. Vul aan uit Open Library', 'vulAanUitOpenLibrary')
-    .addItem('5. Zoek ontbrekende covers bij Google Books', 'vulAanUitGoogleBooks')
-    .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
-    .addItem('Zoek opnieuw bij Google (boeken zonder cover of beschrijving)', 'zoekCoversOpnieuw')
-    .addItem('6. Zoek ontbrekende beschrijvingen', 'vulBeschrijvingenAan')
-    .addItem('7. Vertaal de beschrijvingen (Nederlands en Engels)', 'vertaalBeschrijvingen')
-    .addItem('8. Zoek covers van andere uitgaven (Open Library)', 'zoekCoversAndereUitgaven')
-    .addItem('9. Zoek covers bij bol.com', 'zoekCoversBol')
-    .addItem('10. Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
-    .addItem('11. Zoek beschrijvingen bij Wikipedia', 'zoekBeschrijvingenWikipedia')
-    .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol')
-    .addItem('Zoek afgebroken beschrijvingen opnieuw (volledig)', 'herstelAfgebrokenBeschrijvingen')
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Madrigal')
+    .addItem('Installeer tabbladen (na een nieuw script)', 'installeer')
     .addSeparator()
-    .addItem('Nieuwe boeken verwerken', 'verwerkNieuweBoeken')
-    .addItem('Werk de vertaaltabel Onderwerpen bij', 'werkOnderwerpenBijMenu')
-    .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock')
-    .addItem('Ververs de publieke catalogus', 'verversMenu')
+    .addSubMenu(ui.createMenu('Boeken')
+      .addItem('Nieuwe boeken verwerken', 'verwerkNieuweBoeken')
+      .addItem('Ververs de publieke catalogus', 'verversMenu')
+      .addItem('Werk de vertaaltabel Onderwerpen bij', 'werkOnderwerpenBijMenu')
+      .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock'))
+    .addSubMenu(ui.createMenu('Covers')
+      .addItem('Vul aan uit Open Library', 'vulAanUitOpenLibrary')
+      .addItem('Zoek covers bij Google Books', 'vulAanUitGoogleBooks')
+      .addItem('Zoek covers van andere uitgaven', 'zoekCoversAndereUitgaven')
+      .addItem('Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
+      .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
+      .addSeparator()
+      .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
+      .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
+      .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol'))
+    .addSubMenu(ui.createMenu('Beschrijvingen')
+      .addItem('Zoek ontbrekende beschrijvingen', 'vulBeschrijvingenAan')
+      .addItem('Zoek beschrijvingen bij Wikipedia', 'zoekBeschrijvingenWikipedia')
+      .addItem('Vertaal de beschrijvingen', 'vertaalBeschrijvingen')
+      .addItem('Zoek afgebroken beschrijvingen opnieuw', 'herstelAfgebrokenBeschrijvingen'))
+    .addSubMenu(ui.createMenu('Onderhoud')
+      .addItem('Orden tabbladen en instellingen', 'ordenAlles')
+      .addItem('Maak nu een back-up', 'maakBackupMenu')
+      .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp'))
     .addSeparator()
-    .addItem('Neem lopende uitleningen over uit het oude blad', 'neemUitleningenOver')
-    .addItem('Neem nieuws, agenda en vragen over van de oude website', 'importeerOudeSite')
-    .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
-    .addItem('Maak nu een back-up', 'maakBackupMenu')
-    .addItem('Orden tabbladen en instellingen', 'ordenAlles')
-    .addSeparator()
-    .addItem('Catalogus wissen en opnieuw opbouwen (enkel bij de start)', 'herbouwCatalogus')
+    .addSubMenu(ui.createMenu('Eenmalig bij de start')
+      .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
+      .addItem('Vul aan uit Goodreads', 'vulAanUitGoodreads')
+      .addItem('Neem lopende uitleningen over', 'neemUitleningenOver')
+      .addItem('Neem nieuws, agenda en vragen over', 'importeerOudeSite')
+      .addSeparator()
+      .addItem('Catalogus wissen en opnieuw opbouwen', 'herbouwCatalogus'))
     .addToUi();
 }
 
@@ -4156,7 +4168,7 @@ function verwerkNieuweBoeken() {
 }
 
 /**
- * Elk uur vanzelf (zie Installeer tabbladen): een boek dat je met de hand in de
+ * Elk uur vanzelf (zie Madrigal > Installeer tabbladen): een boek dat je met de hand in de
  * Catalogus typte, krijgt een boek-ID en verschijnt zo op de website en in Nieuw binnen.
  */
 function verwerkNieuweBoekenAutomatisch() {
@@ -4619,7 +4631,7 @@ function vulAanUitGoogleBooks() {
   }
   verwijderTriggers('vulAanUitGoogleBooks');
   if (verdacht) {
-    var waarschuwing = 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Test Google Books.';
+    var waarschuwing = 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Covers > Test Google Books.';
     logboek('menu', 'vulAanUitGoogleBooks', waarschuwing);
     meld(waarschuwing);
     return;
@@ -5016,7 +5028,7 @@ function zoekBeschrijvingenWikipedia() {
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('wiki_gezocht') === -1 || tabel.kop.indexOf('beschrijving_bron') === -1) {
-      meld('De kolommen wiki_gezocht en beschrijving_bron ontbreken nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.');
+      meld('De kolommen wiki_gezocht en beschrijving_bron ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.');
       return;
     }
     var vandaag = vandaagTekst();
@@ -5088,7 +5100,7 @@ function zoekCoversAndereUitgaven() {
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('cover_gezocht') === -1 || tabel.kop.indexOf('cover_bron') === -1) {
-      meld('De kolommen cover_gezocht en cover_bron ontbreken nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.');
+      meld('De kolommen cover_gezocht en cover_bron ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.');
       return;
     }
     var vandaag = vandaagTekst();
@@ -5150,7 +5162,7 @@ function zoekCoversBol() {
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
-    if (tabel.kop.indexOf('bol_gezocht') === -1) { meld('De kolom bol_gezocht ontbreekt nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.'); return; }
+    if (tabel.kop.indexOf('bol_gezocht') === -1) { meld('De kolom bol_gezocht ontbreekt nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
     var vandaag = vandaagTekst();
     var teDoen = tabel.rijen.filter(heeftBolNodig);
     for (var i = 0; i < teDoen.length; i++) {
@@ -5188,7 +5200,7 @@ function zoekCoversInternetArchive() {
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
-    if (tabel.kop.indexOf('ia_gezocht') === -1) { meld('De kolom ia_gezocht ontbreekt nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.'); return; }
+    if (tabel.kop.indexOf('ia_gezocht') === -1) { meld('De kolom ia_gezocht ontbreekt nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
     var vandaag = vandaagTekst();
     var teDoen = tabel.rijen.filter(heeftIaNodig);
     for (var i = 0; i < teDoen.length; i++) {

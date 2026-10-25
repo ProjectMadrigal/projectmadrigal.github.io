@@ -2,7 +2,7 @@
  * Instellingen.js
  * De standaardwaarden voor het tabblad Instellingen, en het inlezen ervan.
  * Wil je een nieuwe instelling toevoegen? Zet ze in de lijst hieronder én in een
- * groep in Ordenen.js, en voer daarna "Installeer tabbladen" uit: ontbrekende
+ * groep in Ordenen.js, en voer daarna "Madrigal > Installeer tabbladen" uit: ontbrekende
  * sleutels worden aangevuld, bestaande waarden blijven staan, en het tabblad
  * wordt per thema geordend.
  */

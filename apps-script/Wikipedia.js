@@ -75,7 +75,7 @@ function zoekBeschrijvingenWikipedia() {
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('wiki_gezocht') === -1 || tabel.kop.indexOf('beschrijving_bron') === -1) {
-      meld('De kolommen wiki_gezocht en beschrijving_bron ontbreken nog. Voer eerst Madrigal > 1. Installeer tabbladen uit.');
+      meld('De kolommen wiki_gezocht en beschrijving_bron ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.');
       return;
     }
     var vandaag = vandaagTekst();
