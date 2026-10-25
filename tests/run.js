@@ -2010,5 +2010,61 @@ test('daglimiet: de films herstarten eerst, de andere taken een half uur later',
   assert.strictEqual(M.wachtVoorTaak('vulAanUitGoogleBooks', 0, 17 * uur), 0, 'Geen daglimiet genoteerd');
 });
 
+test('uitlening aanpassen: termijn met dagen verschuiven, verlenging en uitlening annuleren', () => {
+  const s = maakStaat();
+  uitleen(s, 'B0001', '1');
+  const u = s.uitleningen[0];
+  // +7 dagen: van vrijdag 20/11 naar vrijdag 27/11. Telt niet als verlenging.
+  let r = M.vervaldatumAanpassen(s, { uitlening_id: u.uitlening_id, dagen: 7 });
+  gelijk([r.ok, u.vervaldatum, Number(u.aantal_verlengingen)], [true, '2026-11-27', 0]);
+  // +3 dagen schuift door naar de volgende openingsdag (vrijdag).
+  r = M.vervaldatumAanpassen(s, { uitlening_id: u.uitlening_id, dagen: 3 });
+  assert.strictEqual(u.vervaldatum, '2026-12-04');
+  assert.strictEqual(M.vervaldatumAanpassen(s, { uitlening_id: u.uitlening_id, dagen: 'veel' }).ok, false);
+  assert.strictEqual(M.vervaldatumAanpassen(s, { uitlening_id: u.uitlening_id, dagen: -100 }).ok, false, 'Niet voor de uitleendatum');
+  // Verlengen en de verlenging annuleren: de vorige datum komt terug.
+  M.verlengen(s, { uitlening_id: u.uitlening_id });
+  assert.strictEqual(u.vervaldatum, '2027-01-01');
+  r = M.annuleerVerlenging(s, { uitlening_id: u.uitlening_id });
+  gelijk([r.ok, u.vervaldatum, u.aantal_verlengingen], [true, '2026-12-04', 0]);
+  assert.strictEqual(M.annuleerVerlenging(s, { uitlening_id: u.uitlening_id }).ok, false, 'Geen verlenging meer');
+  // Een oude verlenging zonder vorige_vervaldatum: terug naar de oorspronkelijke datum.
+  const s2 = maakStaat();
+  uitleen(s2, 'B0001', '1');
+  const u2 = s2.uitleningen[0];
+  M.verlengen(s2, { uitlening_id: u2.uitlening_id });
+  u2.vorige_vervaldatum = '';
+  assert.strictEqual(M.annuleerVerlenging(s2, { uitlening_id: u2.uitlening_id }).ok, true);
+  assert.strictEqual(u2.vervaldatum, '2026-11-20');
+  // Uitlening annuleren: weg, borg terug, het boek is weer beschikbaar.
+  r = M.annuleerUitlening(s, { uitlening_id: u.uitlening_id }, false);
+  assert.ok(r.ok && /borg van 5 euro terug/.test(r.tekst), r.tekst);
+  assert.ok(u._verwijderen, 'Uitlening gemarkeerd om te wissen');
+  assert.strictEqual(M.beschikbaarheid(s, s.catalogus[0]).code, 'beschikbaar');
+  assert.strictEqual(M.annuleerUitlening(s, { uitlening_id: 'U99999' }, false).ok, false);
+});
+
+test('uitlening annuleren: reservatie terug open, en oude uitleningen enkel door het bestuur', () => {
+  const s = maakStaat('2026-10-23');
+  uitleen(s, 'B0001', '1');
+  M.reserveren(s, { boek_id: 'B0001', lenersnummer: '2' });
+  // Lener 2 haalt het boek op na het terugbrengen.
+  M.terugbrengen(s, { uitlening_id: s.uitleningen[0].uitlening_id, borg_terugbetaald: true });
+  const r = uitleen(s, 'B0001-1', '2');
+  assert.strictEqual(r.ok, true, r.fout);
+  assert.strictEqual(s.reservaties[0].status, 'afgehaald');
+  const tweede = s.uitleningen[1];
+  const a = M.annuleerUitlening(s, { uitlening_id: tweede.uitlening_id }, false);
+  assert.ok(a.ok);
+  assert.notStrictEqual(s.reservaties[0].status, 'afgehaald', 'Reservatie terug open');
+  assert.ok(a.apartLeggen.length === 1, 'Het boek ligt terug apart voor lener 2');
+  // Na 7 dagen: enkel het bestuur.
+  const oud = maakStaat('2026-11-10');
+  oud.uitleningen.push({ uitlening_id: 'U00001', exemplaar: 'B0001-1', boek_id: 'B0001', lenersnummer: '1', datum_uit: '2026-10-23', vervaldatum: '2026-11-20', datum_terug: '' });
+  assert.strictEqual(M.annuleerUitlening(oud, { uitlening_id: 'U00001' }, false).ok, false);
+  assert.strictEqual(M.annuleerUitlening(oud, { uitlening_id: 'U00001' }, true).ok, true);
+  gelijk([M.ACTIES.vervaldatumAanpassen, M.ACTIES.annuleerUitlening, M.ACTIES.annuleerVerlenging], ['bestuur', 'vrijwilliger', 'vrijwilliger']);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

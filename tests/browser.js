@@ -48,7 +48,7 @@ const UITLENING = { uitlening_id: 'U0001', exemplaar: 'B0001-1', boek_id: 'B0001
 const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', x: 1, u: true, c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', x: 1, u: true, c: true, g: ['Geschiedenis en maatschappij'] }];
 // Veel boeken zonder beschrijving (verzonnen), om Toon er nog 100 te testen.
 const VEEL = Array.from({ length: 150 }, (_, i) => ({ id: 'X' + String(i).padStart(3, '0'), t: 'Verzonnen titel ' + String(i).padStart(3, '0'), a: '', c: true, zb: true }));
-const UITLENING2 = Object.assign({}, UITLENING, { uitlening_id: 'U0002', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', lenersnummer: '13', voornaam: 'Jo' });
+const UITLENING2 = Object.assign({}, UITLENING, { uitlening_id: 'U0002', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', lenersnummer: '13', voornaam: 'Jo', aantal_verlengingen: 1 });
 const INHOUD = {
   tabbladen: {
     Nieuws: [{ rij: 2, vingerafdruk: 'a', datum: '2026-10-20', titel: 'Voorstel boekenruil', publiek: 'nee', voorgesteld_door: 'Kim' }],
@@ -106,6 +106,9 @@ function antwoord(rol, actie, vraag) {
     voorstelBehandelen: { ok: true, tekst: 'De beschrijving staat bij "De verzonnen zee".' },
     meldingMaken: { ok: true, tekst: 'Je melding is doorgegeven aan het bestuur. Dank je!' },
     meldingAfhandelen: { ok: true, tekst: 'Melding M0001 is afgehandeld.' },
+    vervaldatumAanpassen: { ok: true, tekst: '"Twee kasten vol" moet nu terug tegen vrijdag 25 oktober.' },
+    annuleerVerlenging: { ok: true, tekst: 'De verlenging van "Twee kasten vol" is geannuleerd.' },
+    annuleerUitlening: { ok: true, tekst: 'De uitlening van "Twee kasten vol" is geannuleerd. Geef de borg van 5 euro terug.' },
     briefjeMaken: { ok: true, tekst: 'Je briefje staat bij Vandaag voor de volgende shift.' },
     briefjeWeg: { ok: true, tekst: 'Het briefje is weg.' }
   }[actie] || { ok: false, fout: 'Niet nagebootst: ' + actie };
@@ -657,6 +660,41 @@ async function meldAan(page, basis, pagina) {
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('uitlening aanpassen: termijn (bestuur), verlenging en uitlening annuleren (ook vrijwilligers)', async () => {
+    let r = await nieuweContext(browser, { rol: 'bestuur' });
+    const vragen = [];
+    r.page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    r.page.on('dialog', (d) => d.accept());
+    await meldAan(r.page, basis, 'bestuur.html');
+    await r.page.click('#sectienav button:has-text("Alle uitleningen")');
+    const kaart = r.page.locator('.kaartlijst > li', { hasText: 'Twee kasten vol' });
+    await kaart.locator('summary:has-text("Meer opties")').click();
+    await kaart.locator('input[type="number"]').fill('7');
+    await kaart.locator('button:has-text("Pas de termijn aan")').click();
+    await r.page.waitForSelector('text=moet nu terug tegen');
+    verwacht(vragen.some((v) => v.actie === 'vervaldatumAanpassen' && v.uitlening_id === 'U0002' && String(v.dagen) === '7'), 'Termijn niet verstuurd');
+    await r.page.click('#sectienav button:has-text("Alle uitleningen")');
+    await kaart.locator('summary:has-text("Meer opties")').click();
+    await kaart.locator('button:has-text("Annuleer de verlenging")').click();
+    await r.page.waitForSelector('text=De verlenging van');
+    verwacht(!(await axe(r.page)).length, 'Toegankelijkheid: ' + (await axe(r.page)).join(' | '));
+    await r.ctx.close();
+    verwacht(!r.fouten.length, r.fouten.join(' | '));
+    // Vrijwilliger: geen termijn aanpassen, wel annuleren.
+    r = await nieuweContext(browser, { rol: 'vrijwilliger' });
+    const vragen2 = [];
+    r.page.on('request', (q) => { if (q.method() === 'POST') vragen2.push(JSON.parse(q.postData() || '{}')); });
+    r.page.on('dialog', (d) => d.accept());
+    await meldAan(r.page, basis, 'vrijwilliger.html');
+    await r.page.click('#sectienav button:has-text("Alle uitleningen")');
+    await r.page.click('.kaartlijst > li summary:has-text("Meer opties")');
+    verwacht(!(await r.page.$('button:has-text("Pas de termijn aan")')), 'Vrijwilliger kan de termijn aanpassen');
+    await r.page.click('.kaartlijst > li button:has-text("Annuleer de uitlening")');
+    await r.page.waitForSelector('text=Geef de borg van 5 euro terug');
+    verwacht(vragen2.some((v) => v.actie === 'annuleerUitlening'), 'Annuleren niet verstuurd');
+    await r.ctx.close();
+    verwacht(!r.fouten.length, r.fouten.join(' | '));
   });
   await test('bestuur bekijkt het vrijwilligersscherm met de rechten van een vrijwilliger', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });

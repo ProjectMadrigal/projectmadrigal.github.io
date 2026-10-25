@@ -35,7 +35,9 @@ var KOLOMMEN = {
     'vervaldatum', 'datum_terug', 'aantal_verlengingen', 'datum_verlenging', 'borg', 'betaalwijze_borg',
     'borg_terugbetaald', 'gift', 'laatste_herinnering', 'vrijwilliger', 'bron',
     // Hoe het boek terugkwam (in orde, licht beschadigd, beschadigd), met een opmerking.
-    'staat_terug'
+    'staat_terug',
+    // De vervaldatum voor de laatste verlenging: zo kan je een verlenging annuleren.
+    'vorige_vervaldatum'
   ],
   'Reservaties': [
     'reservatie_id', 'boek_id', 'lenersnummer', 'datum_reservatie', 'status', 'exemplaar',
@@ -75,7 +77,7 @@ function datumNaarGetal(d) {
 var DATUMKOLOMMEN = [
   'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
-  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'datum_behandeld', 'datum_weg', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
+  'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'datum_behandeld', 'vorige_vervaldatum', 'datum_weg', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
   'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
 ];
 

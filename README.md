@@ -265,6 +265,12 @@ Het bestuursscherm toont:
 
 Verstuurde je een herinnering? Klik op **Herinnering verstuurd**, dan zie je wanneer de laatste herinnering vertrok.
 
+**Een uitlening aanpassen of annuleren.** Klik bij een uitlening op **Meer opties**:
+
+- **Pas de termijn aan:** schuif de terugbrengdatum op met een aantal dagen, bv. 7 extra (of -7 om in te korten). Dat telt niet als verlenging. Valt de datum niet op een openingsdag, dan schuift ze door naar de volgende. Enkel het bestuur.
+- **Annuleer de verlenging:** de terugbrengdatum van voor de laatste verlenging komt terug.
+- **Annuleer de uitlening:** na een vergissing aan de balie. De uitlening verdwijnt, alsof ze nooit gebeurde. Geef de borg terug. Een reservatie die ze afsloot, gaat terug open. Vrijwilligers annuleren enkel uitleningen van de laatste 7 dagen, het bestuur ook oudere. Komt een boek gewoon terug, kies dan **Teruggebracht**.
+
 **De website aanpassen zonder de spreadsheet.** Het bestuursscherm heeft drie onderdelen om de website te beheren. Alles komt in dezelfde spreadsheet terecht, je kan dus ook daar blijven werken.
 
 - **Boeken:** zoek een boek en pas het aan (status, aanrader, startpagina, beschrijving, cover, aantal, ...). Of klik op **Nieuw boek toevoegen**: vul het ISBN in en klik op **Zoek gegevens op**, dan vult de site titel, auteur, cover en beschrijving voor je in via Open Library en Google Books. Staat het ISBN al in de catalogus, dan zegt de site dat en kan je beter het aantal verhogen.

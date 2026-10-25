@@ -77,7 +77,7 @@ function lenerNaam(staat, lenersnummer) {
 }
 
 function lopendeUitleningen(staat) {
-  return staat.uitleningen.filter(function (u) { return u.exemplaar && isLeeg(u.datum_terug); });
+  return staat.uitleningen.filter(function (u) { return u.exemplaar && isLeeg(u.datum_terug) && !u._verwijderen; });
 }
 
 function lopendeUitleningenVan(staat, lenersnummer) {
@@ -330,12 +330,89 @@ function verlengen(staat, invoer) {
   var nieuw = berekenVerlenging(u.vervaldatum, staat.inst);
   wijzig(u, {
     vervaldatum: nieuw,
+    vorige_vervaldatum: u.vervaldatum,
     aantal_verlengingen: Number(u.aantal_verlengingen || 0) + 1,
     datum_verlenging: staat.vandaag,
     oorspronkelijke_vervaldatum: u.oorspronkelijke_vervaldatum || u.vervaldatum
   });
   staat.log.push(['verlengen', u.uitlening_id + ' tot ' + nieuw]);
   return { ok: true, terugTekst: 'Nieuwe datum: breng terug tegen ' + datumTekst(nieuw, staat.vandaag), vervaldatum: nieuw, uitlening: uitleningInfo(staat, u) };
+}
+
+/* ---------- Een uitlening aanpassen of annuleren ---------- */
+
+var ANNULEREN_MAX_DAGEN = 7; // een vrijwilliger annuleert enkel uitleningen van de laatste 7 dagen
+
+/**
+ * Het bestuur verschuift de vervaldatum met een aantal dagen (bv. 7 extra, of -7).
+ * Staat terugbrengdatum_op_openingsdag aan, dan schuift de datum door naar de eerstvolgende openingsdag.
+ * Telt niet als verlenging. invoer: { uitlening_id, dagen }
+ */
+function vervaldatumAanpassen(staat, invoer) {
+  var u = uitleningVan(staat, invoer.uitlening_id);
+  if (!u) return { ok: false, fout: 'Deze uitlening bestaat niet.' };
+  if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht.' };
+  var dagen = parseerGetal(invoer.dagen);
+  if (dagen === null || dagen !== Math.round(dagen) || dagen === 0 || Math.abs(dagen) > 365) return { ok: false, fout: 'Vul een aantal dagen in, bv. 7 (of -7 om in te korten).' };
+  var nieuw = telDagenOp(parseerDatum(u.vervaldatum), dagen);
+  if (staat.inst.terugbrengdatum_op_openingsdag) nieuw = volgendeOpeningsdag(nieuw, staat.inst, true);
+  if (nieuw <= parseerDatum(u.datum_uit)) return { ok: false, fout: 'De nieuwe datum valt voor of op de dag van de uitlening.' };
+  var oud = parseerDatum(u.vervaldatum);
+  wijzig(u, { vervaldatum: nieuw });
+  staat.log.push(['vervaldatum aangepast', u.uitlening_id + ' ' + u.exemplaar + ': ' + oud + ' wordt ' + nieuw + ' (' + (dagen > 0 ? '+' : '') + dagen + ' dagen)']);
+  return { ok: true, tekst: '"' + boekTitel(staat, u) + '" moet nu terug tegen ' + datumTekst(nieuw, staat.vandaag) + '.', vervaldatum: nieuw };
+}
+
+function boekTitel(staat, u) {
+  var b = boekVan(staat, u.boek_id);
+  return b ? schoon(b.titel) : String(u.exemplaar);
+}
+
+/**
+ * Een uitlening annuleren, bv. na een vergissing aan de balie. De uitlening verdwijnt, alsof ze
+ * nooit gebeurde. Een reservatie die ze afsloot, gaat terug open. invoer: { uitlening_id }
+ * magOud: het bestuur mag ook oudere uitleningen annuleren, een vrijwilliger enkel die van de laatste 7 dagen.
+ */
+function annuleerUitlening(staat, invoer, magOud) {
+  var u = uitleningVan(staat, invoer.uitlening_id);
+  if (!u) return { ok: false, fout: 'Deze uitlening bestaat niet.' };
+  if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht. Een teruggebracht boek annuleer je niet.' };
+  var uit = parseerDatum(u.datum_uit);
+  if (!magOud && uit && dagenTussen(uit, staat.vandaag) > ANNULEREN_MAX_DAGEN) {
+    return { ok: false, fout: 'Deze uitlening is ouder dan ' + ANNULEREN_MAX_DAGEN + ' dagen. Breng het boek terug, of vraag het bestuur om ze te annuleren.' };
+  }
+  markeerVerwijderen(u);
+  // Een reservatie die door deze uitlening afgesloten werd, gaat terug in de wachtrij.
+  var meldingen = [];
+  staat.reservaties.forEach(function (r) {
+    if (r.status === STATUS_AFGEHAALD && String(r.boek_id) === String(u.boek_id) && String(r.lenersnummer) === String(u.lenersnummer) &&
+      parseerDatum(r.datum_afgesloten) === uit) {
+      wijzig(r, { status: STATUS_WACHT, exemplaar: '', datum_klaar: '', ophalen_tot: '', datum_afgesloten: '' });
+    }
+  });
+  // Het exemplaar is terug vrij: wacht er iemand op dit boek, dan ligt het voor die persoon apart.
+  var m = geefExemplaarDoor(staat, u.boek_id, u.exemplaar);
+  if (m) meldingen.push(m);
+  staat.log.push(['uitlening geannuleerd', u.uitlening_id + ' ' + u.exemplaar + ' (lener ' + u.lenersnummer + ', uit op ' + uit + ')']);
+  var borg = Number(u.borg || 0), gift = Number(u.gift || 0);
+  var geld = [borg > 0 ? 'de borg van ' + bedragTekst(borg) : '', gift > 0 ? 'de gift van ' + bedragTekst(gift) : ''].filter(Boolean);
+  return { ok: true, apartLeggen: meldingen,
+    tekst: 'De uitlening van "' + boekTitel(staat, u) + '" is geannuleerd.' + (geld.length ? ' Geef ' + geld.join(' en ') + ' terug.' : '') };
+}
+
+/** De laatste verlenging ongedaan maken: de vervaldatum van voor die verlenging komt terug. invoer: { uitlening_id } */
+function annuleerVerlenging(staat, invoer) {
+  var u = uitleningVan(staat, invoer.uitlening_id);
+  if (!u) return { ok: false, fout: 'Deze uitlening bestaat niet.' };
+  if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht.' };
+  var aantal = Number(u.aantal_verlengingen || 0);
+  if (aantal < 1) return { ok: false, fout: 'Deze uitlening werd niet verlengd.' };
+  var vorige = parseerDatum(u.vorige_vervaldatum) || (aantal === 1 ? parseerDatum(u.oorspronkelijke_vervaldatum) : '');
+  if (!vorige) return { ok: false, fout: 'De datum van voor de verlenging is niet bewaard. Vraag het bestuur om de vervaldatum aan te passen.' };
+  var oud = parseerDatum(u.vervaldatum);
+  wijzig(u, { vervaldatum: vorige, vorige_vervaldatum: '', aantal_verlengingen: aantal - 1, datum_verlenging: aantal - 1 ? u.datum_verlenging : '' });
+  staat.log.push(['verlenging geannuleerd', u.uitlening_id + ' ' + u.exemplaar + ': ' + oud + ' wordt ' + vorige]);
+  return { ok: true, tekst: 'De verlenging van "' + boekTitel(staat, u) + '" is geannuleerd. Het moet terug tegen ' + datumTekst(vorige, staat.vandaag) + '.', vervaldatum: vorige };
 }
 
 /**
