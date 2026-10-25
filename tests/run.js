@@ -1630,5 +1630,24 @@ test('Wikipedia-controle meldt dubbele kolommen en boek_ids', () => {
     ', 2 kolommen wiki_gezocht, 1 dubbele boek_id\'s');
 });
 
+test('Wikipedia: zoeken en eerste alinea in één antwoord', () => {
+  const boek = { titel: 'Giovanni\'s Room', auteur: 'Baldwin, James' };
+  const data = { query: { pages: [
+    { title: 'James Baldwin', index: 2, extract: 'James Arthur Baldwin was an American writer and civil rights activist who wrote novels, essays and plays.', fullurl: 'https://en.wikipedia.org/wiki/James_Baldwin' },
+    { title: 'Giovanni\'s Room', index: 1, extract: 'Giovanni\'s Room is a 1956 novel by James Baldwin. The book focuses on the events in the life of an American man living in Paris.', fullurl: 'https://en.wikipedia.org/wiki/Giovanni%27s_Room' }
+  ] } };
+  const paginas = M.wikiPaginas(data);
+  gelijk(paginas.map((p) => p.titel), ['Giovanni\'s Room', 'James Baldwin']);
+  const r = M.wikiKies(boek, paginas);
+  assert.strictEqual(r.link, 'https://en.wikipedia.org/wiki/Giovanni%27s_Room');
+  assert.ok(r.tekst.indexOf('1956 novel') > -1);
+  // Een doorverwijspagina telt niet.
+  data.query.pages[1].pageprops = { disambiguation: '' };
+  gelijk(M.wikiKies(boek, M.wikiPaginas(data)), {});
+  // Geen resultaten: Wikipedia stuurt dan geen query mee.
+  gelijk(M.wikiPaginas({ batchcomplete: true }), []);
+  assert.ok(M.wikiVraagUrl('nl', 'giovanni room baldwin').indexOf('https://nl.wikipedia.org/w/api.php?') === 0);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
