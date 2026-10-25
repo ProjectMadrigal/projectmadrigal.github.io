@@ -846,7 +846,7 @@ test('peperfabriek: de startpagina-gegevens geven tekst, adres en komende activi
     ['https://www.peperfabriek.be/nl/programma', ['Nog bezig', 'Komt eraan'], true]);
   gelijk(M.bouwSiteInhoud(s, {}).peperfabriek.activiteiten, []);
 });
-test('bookclub: elke tweede zondag vanzelf in de agenda, een eigen event van die dag gaat voor', () => {
+test('bookclub: de eerstvolgende tweede zondag vanzelf in de agenda (één keer), een eigen event van die dag gaat voor', () => {
   gelijk([M.nDeWeekdag(2026, 11, 0, 2), M.nDeWeekdag(2026, 11, 0, 5), M.nDeWeekdag(2026, 2, 0, 5), M.nDeWeekdag(2026, 3, 0, 5)], ['2026-11-08', '2026-11-29', '2026-02-22', '2026-03-29']);
   assert.strictEqual(M.nDeWeekdag(2026, 2, 0, 5).slice(0, 7), '2026-02');
   gelijk(M.bookclubDatums('2026-11-08', 2, 0, 3), ['2026-11-08', '2026-12-13', '2027-01-10']);
@@ -863,6 +863,12 @@ test('bookclub: elke tweede zondag vanzelf in de agenda, een eigen event van die
   s.inst.bookclub_naam = '';
   const leeg = M.bouwSiteInhoud(s, {});
   gelijk([leeg.bookclub, leeg.agenda.komend.length], [null, 0]);
+  // Zonder eigen events: maar één kaart van de bookclub, de eerstvolgende.
+  s.inst.bookclub_naam = 'Antwerp Queer Bookclub';
+  gelijk(M.bouwSiteInhoud(s, {}).agenda.komend.map((e) => e.datum), ['2026-11-08']);
+  // Is de eerstvolgende al een eigen event, dan komt er geen tweede kaart bij.
+  gelijk(M.bouwSiteInhoud(s, { agenda: [{ datum: '2026-11-08', titel: 'Antwerp Queer Bookclub special', publiek: 'ja' }] }).agenda.komend.map((e) => e.datum + ' ' + e.titel.nl),
+    ['2026-11-08 Antwerp Queer Bookclub special']);
 });
 test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
   const s = maakStaat();

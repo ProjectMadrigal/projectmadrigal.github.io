@@ -9,7 +9,7 @@
  * De kolommen op _en zijn de Engelse versie. Leeg? Dan toont de site het Nederlands.
  */
 
-var SITE_CACHE_SLEUTEL = 'site_v5'; // v5: met de Antwerp Queer Bookclub
+var SITE_CACHE_SLEUTEL = 'site_v6'; // v6: de bookclub maar één keer in de agenda
 var SITE_MAX_NIEUWS = 3;
 var SITE_MAX_AANRADERS = 12;
 

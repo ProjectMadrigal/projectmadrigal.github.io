@@ -1,7 +1,7 @@
 /**
  * Bookclub.js
  * De Antwerp Queer Bookclub komt op een vaste dag in de bib samen (standaard elke tweede zondag
- * van de maand). Het script zet de eerstvolgende keren vanzelf in de agenda op de startpagina,
+ * van de maand). Het script zet de eerstvolgende keer vanzelf in de agenda op de startpagina,
  * en geeft de gegevens mee voor het blok op de pagina Over ons. Hun eigen programma staat op Instagram.
  *
  * Instellingen (groep "Website: Antwerp Queer Bookclub"):
@@ -68,7 +68,9 @@ function bookclubGegevens(inst, vandaag, agendaRijen) {
   var datums = bookclubDatums(vandaag, week, dag, 3);
   return {
     naam: naam, regel: bookclubRegel(week, dag), uur: schoon(inst.bookclub_uur), tekst: tekst, link: link, volgende: datums,
-    events: datums.filter(function (d) { return !eigen[d]; }).map(function (d) {
+    // In de agenda enkel de eerstvolgende keer: meerdere kaarten met dezelfde tekst ogen vreemd.
+    // Staat die keer al als eigen event in de Agenda, dan komt er niets bij.
+    events: datums.slice(0, 1).filter(function (d) { return !eigen[d]; }).map(function (d) {
       return { datum: d, uur: schoon(inst.bookclub_uur), titel: { nl: naam, en: naam }, tekst: tekst, locatie: '', afbeelding: '', link: link };
     })
   };

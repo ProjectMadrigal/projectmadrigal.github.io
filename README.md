@@ -288,7 +288,7 @@ Enkel wie de code van het bestuur heeft, kan dit. Wil je later vrijwilligers bv.
 
 ### Antwerp Queer Bookclub
 
-De bookclub komt op een vaste dag in de bib samen. De eerstvolgende keren staan vanzelf in de agenda op de startpagina, met "Zet in mijn agenda". Op de pagina Over ons staat een blok met hun tekst, de volgende datums en een knop naar hun Instagram.
+De bookclub komt op een vaste dag in de bib samen. De eerstvolgende keer staat vanzelf in de agenda op de startpagina, met "Zet in mijn agenda". Op de pagina Over ons staat een blok met hun tekst, de volgende datums en een knop naar hun Instagram.
 
 In Instellingen, onder `── WEBSITE: ANTWERP QUEER BOOKCLUB ──`:
 
