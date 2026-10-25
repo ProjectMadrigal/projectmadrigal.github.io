@@ -1231,6 +1231,23 @@ test('achterkant: tekst netjes, gesplitste woorden terug aan elkaar, alinea\'s b
   assert.strictEqual(M.ACTIES.beheerTekstUitFoto, 'bestuur');
 });
 
+test('Internet Archive: logo herkennen aan de vorm, wissen enkel bij die bron', () => {
+  // PNG van 180 x 180 (vierkant logo) en JPG van 300 x 450 (staande cover), enkel de koppen.
+  const png = [0x89, 0x50, 0x4E, 0x47, 13, 10, 26, 10, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 180, 0, 0, 0, 180, 8, 6];
+  const jpg = [0xFF, 0xD8, 0xFF, 0xE0, 0, 4, 0, 0, 0xFF, 0xC0, 0, 17, 8, 1, 0xC2, 1, 0x2C, 3, 0, 0, 0, 0, 0, 0];
+  gelijk(M.afbeeldingAfmetingen(png), { breedte: 180, hoogte: 180 });
+  gelijk(M.afbeeldingAfmetingen(jpg), { breedte: 300, hoogte: 450 });
+  assert.strictEqual(M.isStaandeCover(M.afbeeldingAfmetingen(png)), false);
+  assert.strictEqual(M.isStaandeCover(M.afbeeldingAfmetingen(jpg)), true);
+  assert.strictEqual(M.afbeeldingAfmetingen([1, 2, 3]), null);
+  const s = maakStaat('2026-10-25');
+  s.catalogus[0].cover_url = 'https://archive.org/services/img/x'; s.catalogus[0].cover_bron = 'Internet Archive'; s.catalogus[0].gb_gecontroleerd = '2026-10-24';
+  s.catalogus[1].cover_url = 'https://x.test/eigen.jpg'; s.catalogus[1].cover_bron = 'foto in de bib';
+  gelijk(M.iaCoversLijst(s).boeken.map((b) => b.id), ['B0001']);
+  const r = M.iaCoversWissen(s, { ids: ['B0001', 'B0002'] });
+  gelijk([r.gewist, s.catalogus[0].cover_url, s.catalogus[0].gb_gecontroleerd, s.catalogus[1].cover_url], [1, '', '', 'https://x.test/eigen.jpg']);
+});
+
 console.log('\nBack-up');
 test('back-up: naam met de datum', () => {
   assert.strictEqual(M.backupNaam('2026-10-24'), 'Madrigal back-up 2026-10-24');

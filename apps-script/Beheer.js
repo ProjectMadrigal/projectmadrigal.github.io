@@ -556,3 +556,33 @@ function ocrViaDrive(base64, mime) {
     DriveApp.getFileById(bestand.id).setTrashed(true);
   }
 }
+
+/* ---------- Covers van Internet Archive nakijken ---------- */
+
+/** De boeken met een cover van Internet Archive, om in de browser na te kijken. */
+function iaCoversLijst(staat) {
+  return {
+    ok: true,
+    boeken: staat.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && schoon(b.cover_bron) === IA_BRON && !isLeeg(b.cover_url); })
+      .map(function (b) { return { id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), cover: String(b.cover_url) }; })
+  };
+}
+
+/**
+ * Wist covers van Internet Archive die enkel het logo tonen. invoer: { ids: [...] }
+ * Enkel covers met bron Internet Archive. Het boek komt daarna weer aan de beurt bij Google.
+ */
+function iaCoversWissen(staat, invoer) {
+  var n = 0;
+  (invoer.ids || []).slice(0, 2000).forEach(function (id) {
+    var boek = boekVan(staat, String(id));
+    if (!boek || schoon(boek.cover_bron) !== IA_BRON) return;
+    wijzig(boek, { cover_url: '', cover_bron: '', gb_gecontroleerd: '' });
+    n++;
+  });
+  if (n) {
+    staat.catalogusGewijzigd = true;
+    staat.log.push(['logo van Internet Archive gewist', n + ' covers']);
+  }
+  return { ok: true, gewist: n, tekst: n + ' covers met het logo van Internet Archive gewist.' };
+}
