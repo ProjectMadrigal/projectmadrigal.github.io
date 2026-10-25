@@ -465,7 +465,7 @@ var ROOSTER_CACHE_SLEUTEL = 'rooster_v1';
 
 var ROOSTER_CACHE_SECONDEN = 10 * 60;
 
-var SITE_CACHE_SLEUTEL = 'site_v5'; // v5: met de Antwerp Queer Bookclub
+var SITE_CACHE_SLEUTEL = 'site_v6'; // v6: de bookclub maar één keer in de agenda
 
 var SITE_MAX_NIEUWS = 3;
 
@@ -1334,7 +1334,9 @@ function bookclubGegevens(inst, vandaag, agendaRijen) {
   var datums = bookclubDatums(vandaag, week, dag, 3);
   return {
     naam: naam, regel: bookclubRegel(week, dag), uur: schoon(inst.bookclub_uur), tekst: tekst, link: link, volgende: datums,
-    events: datums.filter(function (d) { return !eigen[d]; }).map(function (d) {
+    // In de agenda enkel de eerstvolgende keer: meerdere kaarten met dezelfde tekst ogen vreemd.
+    // Staat die keer al als eigen event in de Agenda, dan komt er niets bij.
+    events: datums.slice(0, 1).filter(function (d) { return !eigen[d]; }).map(function (d) {
       return { datum: d, uur: schoon(inst.bookclub_uur), titel: { nl: naam, en: naam }, tekst: tekst, locatie: '', afbeelding: '', link: link };
     })
   };
