@@ -112,6 +112,22 @@
 
   var vanZonderCover = false; // kwam je van de lijst zonder cover? Dan gaat "Terug" daarheen.
 
+  /** Terug: in het vrijwilligersscherm naar de lijst zonder cover, anders naar Boeken. */
+  function naarBoeken(vak, ctx) {
+    if (ctx.scherm === 'vrijwilliger') toonZonderCover(vak, ctx); else toonBoeken(vak, ctx);
+  }
+  function terugTekst(ctx) {
+    return ctx.scherm === 'vrijwilliger' ? 'Terug naar de lijst zonder cover' : 'Terug naar de boeken';
+  }
+
+  /** Vrijwilligersscherm: een cover toevoegen met een foto. De andere velden past het bestuur aan. */
+  function coverToevoegen(vak, ctx, b) {
+    D.vervang(vak, ctx.kop(b.t, [b.a, b.id].filter(Boolean).join(' · ')),
+      fotoBlok({ boek_id: b.id }, null, ctx),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Terug naar de lijst zonder cover')));
+    vak.querySelector('h2').focus();
+  }
+
   function terugNaarLijst(vak, ctx) {
     if (vanZonderCover) toonZonderCover(vak, ctx); else toonBoeken(vak, ctx);
   }
@@ -148,7 +164,7 @@
     var status = el('p', { 'aria-live': 'polite' }, 'Lijst ophalen...');
     var resultaat = el('div');
     D.vervang(vak, ctx.kop('Covers van Internet Archive nakijken', 'Heeft een boek bij Internet Archive geen afbeelding, dan toont die het eigen logo. Deze pagina zoekt die logo\'s. Je ziet ze eerst, daarna kan je ze wissen.'),
-      voortgang, status, resultaat, knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+      voortgang, status, resultaat, knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { naarBoeken(vak, ctx); } }, terugTekst(ctx))));
     B.voerUit('beheerIaCovers').then(function (r) {
       if (!r.ok) { status.textContent = r.fout || 'De lijst laden lukte niet.'; return; }
       var boeken = r.boeken, slecht = [], gedaan = 0;
@@ -201,14 +217,20 @@
       var q = Z.normaliseer(filter.value);
       var zichtbaar = lijst.filter(function (b) { return !q || Z.normaliseer([b.t, b.a, b.id].join(' ')).indexOf(q) > -1; }).slice(0, 100);
       D.vervang(vakLijst, zichtbaar.length ? el('ul', { class: 'kaartlijst' }, zichtbaar.map(function (b) {
-        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { bewerkBoek(vak, ctx, b.id); } },
-          el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · '))));
+        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () {
+          if (ctx.scherm === 'vrijwilliger') coverToevoegen(vak, ctx, b); else bewerkBoek(vak, ctx, b.id);
+        } }, el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · '))));
       })) : el('p', {}, lijst.length ? 'Geen boek gevonden.' : 'Alle boeken hebben een cover.'));
     }
     filter.addEventListener('input', teken);
+    var vrijwilliger = ctx.scherm === 'vrijwilliger';
+    var onder = vrijwilliger
+      ? knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek covers automatisch op het internet'))
+      : knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken'));
     D.vervang(vak, ctx.kop('Boeken zonder cover (' + lijst.length + ')', 'Kies een boek en neem een foto van de cover met je gsm. Tip: leg het boek op een effen achtergrond, met goed licht en zonder schaduw.'),
+      vrijwilliger ? onder : null,
       el('div', { class: 'veld' }, el('label', { for: 'zonder-cover-zoek' }, 'Zoek in deze lijst'), filter), vakLijst,
-      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+      vrijwilliger ? null : onder);
     teken();
   }
 
@@ -544,7 +566,7 @@
     var status = el('p', { 'aria-live': 'polite' }, 'Lijst ophalen...');
     var stopKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; stopKnop.disabled = true; status.textContent = 'Stoppen...'; } }, 'Stop');
     D.vervang(vak, ctx.kop('Ontbrekende covers en beschrijvingen zoeken', 'Deze browser zoekt een cover en een beschrijving voor elk boek waar die ontbreken: eerst bij Google Books (jouw uitgave), dan voor de cover ook bij Open Library (soms een andere uitgave) en Internet Archive (ingescande boeken). Wat gevonden wordt, komt meteen in de Catalogus. Laat dit venster open tot het klaar is. Je kan altijd stoppen en later verdergaan.'),
-      voortgang, status, knoppen(stopKnop, el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+      voortgang, status, knoppen(stopKnop, el('button', { type: 'button', class: 'knop tweede', onclick: function () { stop = true; naarBoeken(vak, ctx); } }, terugTekst(ctx))));
 
     B.voerUit('beheerCoversLijst').then(function (r) {
       if (!r.ok) { status.textContent = r.fout || 'De lijst laden lukte niet.'; return; }
@@ -678,17 +700,22 @@
 
   function toonInhoud(vak, ctx) {
     laadInhoud(vak, ctx, function () {
-      var soort = INHOUD.filter(function (s) { return s[0] === gekozenInhoud; })[0];
+      var vrijwilliger = ctx.scherm === 'vrijwilliger';
+      var soorten = INHOUD.filter(function (s) { return !vrijwilliger || s[0] !== 'Veelgestelde vragen'; });
+      if (!soorten.some(function (s) { return s[0] === gekozenInhoud; })) gekozenInhoud = soorten[0][0];
+      var soort = soorten.filter(function (s) { return s[0] === gekozenInhoud; })[0];
       var rijen = (inhoud.tabbladen[soort[0]] || []).slice();
       if (soort[0] === 'Veelgestelde vragen') rijen.sort(function (a, b) { return (Number(a.volgorde) || 999) - (Number(b.volgorde) || 999); });
       else rijen.sort(function (a, b) { return String(b.datum).localeCompare(String(a.datum)); });
-      var tabs = el('div', { class: 'knoppen', role: 'group', 'aria-label': 'Kies wat je wil aanpassen' }, INHOUD.map(function (s) {
+      var tabs = el('div', { class: 'knoppen', role: 'group', 'aria-label': 'Kies wat je wil aanpassen' }, soorten.map(function (s) {
         return el('button', {
           type: 'button', class: 'knop' + (s[0] === gekozenInhoud ? '' : ' tweede'), 'aria-pressed': s[0] === gekozenInhoud ? 'true' : 'false',
           onclick: function () { gekozenInhoud = s[0]; toonInhoud(vak, ctx); }
         }, s[1]);
       }));
-      D.vervang(vak, ctx.kop('Nieuws en agenda', 'Berichten, events en veelgestelde vragen op de startpagina. Alles komt in het gelijknamige tabblad van de spreadsheet.'),
+      D.vervang(vak, ctx.kop('Nieuws en agenda', vrijwilliger
+        ? 'Stel een bericht of event voor. Het bestuur leest het na en zet het online. Tot dan blijft het verborgen.'
+        : 'Berichten, events en veelgestelde vragen op de startpagina. Alles komt in het gelijknamige tabblad van de spreadsheet.'),
         tabs,
         knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { inhoudFormulier(vak, ctx, soort, null); } }, '+ ' + soort[3])),
         rijen.length ? el('ul', { class: 'kaartlijst' }, rijen.map(function (r) {
@@ -696,14 +723,18 @@
           var sub = soort[0] === 'Veelgestelde vragen' ? (r.volgorde ? 'Volgorde ' + r.volgorde : '') : [D.korteDatum(r.datum), r.uur, r.locatie].filter(Boolean).join(' · ');
           return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { inhoudFormulier(vak, ctx, soort, r); } },
             el('strong', {}, hoofd), sub ? el('span', {}, sub) : null,
-            r.publiek === 'nee' ? el('span', { class: 'labels' }, D.statusLabel('niet_uitleenbaar', 'Verborgen'))
+            r.voorgesteld_door && r.publiek === 'nee' ? el('span', { class: 'labels' }, D.statusLabel('gereserveerd', 'Voorstel van ' + r.voorgesteld_door + ', wacht op het bestuur'))
+              : r.publiek === 'nee' ? el('span', { class: 'labels' }, D.statusLabel('niet_uitleenbaar', 'Verborgen'))
               : (r.online_vanaf && r.online_vanaf > vandaag() ? el('span', { class: 'labels' }, D.statusLabel('gereserveerd', 'Gepland vanaf ' + D.korteDatum(r.online_vanaf))) : null)));
         })) : el('p', {}, 'Hier staat nog niets.'));
     });
   }
 
   function inhoudFormulier(vak, ctx, soort, rij) {
-    var velden = soort[2].map(function (naam) {
+    var vrijwilliger = ctx.scherm === 'vrijwilliger';
+    // Een vrijwilliger kiest niet zelf of het online staat: dat doet het bestuur.
+    var namen = vrijwilliger ? soort[2].filter(function (n) { return n !== 'publiek'; }) : soort[2];
+    var velden = namen.map(function (naam) {
       var w = rij ? rij[naam] : (naam === 'publiek' ? 'ja' : '');
       return veld('bi', naam, w);
     });
@@ -713,8 +744,19 @@
       if (!window.confirm('Wil je dit echt verwijderen? Wil je het enkel even weghalen van de website, zet dan "Op de website" op Nee.')) return;
       stuur({ tabblad: soort[0], rij: rij.rij, vingerafdruk: rij.vingerafdruk, verwijderen: true }, verwijder);
     } }, 'Verwijder') : null;
-    var formulier = el('form', { novalidate: true }, velden.map(function (v) { return v.blok; }), fout,
-      knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonInhoud(vak, ctx); } }, 'Terug'), verwijder));
+    if (vrijwilliger && rij && rij.publiek !== 'nee') verwijder = null; // al online: enkel het bestuur verwijdert
+    var goedkeuren = !vrijwilliger && rij && rij.voorgesteld_door && rij.publiek === 'nee'
+      ? el('button', { type: 'button', class: 'knop', onclick: function () {
+        stuur({ tabblad: soort[0], rij: rij.rij, vingerafdruk: rij.vingerafdruk, velden: { publiek: 'ja' } }, goedkeuren);
+      } }, 'Keur goed en zet online') : null;
+    var uitleg = vrijwilliger
+      ? el('p', { class: 'melding info' }, rij && rij.publiek !== 'nee'
+        ? 'Dit staat online. Bewaar je een aanpassing, dan gaat het offline tot het bestuur het opnieuw goedkeurt.'
+        : 'Na het bewaren leest het bestuur je voorstel na en zet het online.')
+      : (rij && rij.voorgesteld_door && rij.publiek === 'nee'
+        ? el('p', { class: 'melding let-op' }, 'Voorstel van ' + rij.voorgesteld_door + '. Lees het na en klik op "Keur goed en zet online", of zet "Op de website" op Ja.') : null);
+    var formulier = el('form', { novalidate: true }, uitleg, velden.map(function (v) { return v.blok; }), fout,
+      knoppen(goedkeuren, bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonInhoud(vak, ctx); } }, 'Terug'), verwijder));
 
     function stuur(invoer, knop) {
       var klaar = bezig(knop, 'Bezig...');
@@ -804,7 +846,7 @@
           el('p', {}, el('strong', {}, aan ? 'Op de website: zichtbaar.' : 'Op de website: verborgen.'), ' ',
             aan ? 'Bezoekers zien de leeslijsten via het menu en op de pagina Boeken.' : 'De lijsten staan klaar. Enkel jij ziet ze hier. Zet ze op de website wanneer je klaar bent.'),
           el('p', { class: 'hulptekst' }, 'Een lijst met "Zichtbaar vanaf" of "Zichtbaar tot" volgt haar eigen data, ook als deze knop op verborgen staat. Zo zet je Pride-maand klaar voor 1 juni.'),
-          knoppen(schakel), schakelMelding),
+          ctx.scherm === 'vrijwilliger' ? el('p', { class: 'hulptekst' }, 'Alle leeslijsten online zetten doet het bestuur.') : knoppen(schakel), schakelMelding),
         knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { leeslijstFormulier(vak, ctx, null); } }, '+ Nieuwe leeslijst')),
         rijen.length ? el('ul', { class: 'kaartlijst' }, rijen.map(function (r) {
           var n = boeken.filter(function (b) { return inLijst(b, r.naam); }).length;
@@ -1021,6 +1063,7 @@
   root.MadrigalBestuurBeheer = {
     boeken: toonBoeken,
     inhoud: toonInhoud,
+    covers: toonZonderCover,
     leeslijsten: toonLeeslijsten,
     instellingen: toonInstellingen,
     /** Bij Vernieuw: nieuws, agenda en instellingen opnieuw ophalen. */

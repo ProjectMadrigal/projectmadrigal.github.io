@@ -25,6 +25,9 @@ var CACHE_DUUR_SECONDEN = 6 * 60 * 60; // het maximum van Google: 6 uur
 
 var CACHE_STUK = 90000;                 // een cachewaarde mag hoogstens 100 kB zijn
 
+/** De rollen, van weinig naar veel rechten. */
+var ROL_RANG = { publiek: 0, balie: 1, vrijwilliger: 2, bestuur: 3 };
+
 /** Welke rol nodig is voor elke actie. */
 var ACTIES = {
   aanmelden: 'balie',
@@ -37,25 +40,28 @@ var ACTIES = {
   nieuweLener: 'balie',
   roosterOverzicht: 'balie',
   bestuurData: 'bestuur',
+  // Vrijwilligersscherm (vrijwilliger.html): zonder contactgegevens van leners.
+  vrijwilligerData: 'vrijwilliger',
   borgTerugbetaald: 'bestuur',
   herinneringVerstuurd: 'bestuur',
   lenerAanpassen: 'bestuur',
   aanvraagAfhandelen: 'bestuur',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
-  // Beheer van de website (Beheer.js). Wil je vrijwilligers dit laten doen? Zet de actie op 'balie'.
+  // Beheer van de website (Beheer.js). Wat op 'vrijwilliger' staat, kan ook vanuit het vrijwilligersscherm.
+  // Nieuws en agenda van vrijwilligers blijven verborgen tot het bestuur ze goedkeurt (zie inhoudAanpassen).
   beheerBoekOphalen: 'bestuur',
   beheerBoekBewaren: 'bestuur',
-  beheerLeeslijstBoeken: 'bestuur',
+  beheerLeeslijstBoeken: 'vrijwilliger',
   bezoekersCijfers: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
-  beheerInhoud: 'bestuur',
-  beheerInhoudBewaren: 'bestuur',
+  beheerInhoud: 'vrijwilliger',
+  beheerInhoudBewaren: 'vrijwilliger',
   beheerInstellingBewaren: 'bestuur',
-  beheerCoversLijst: 'bestuur',
-  beheerCoversBewaren: 'bestuur',
-  beheerCoverUpload: 'bestuur',
+  beheerCoversLijst: 'vrijwilliger',
+  beheerCoversBewaren: 'vrijwilliger',
+  beheerCoverUpload: 'vrijwilliger',
   beheerTekstUitFoto: 'bestuur',
   beheerIaCovers: 'bestuur',
   beheerIaCoversWissen: 'bestuur'
@@ -84,10 +90,15 @@ var BEHEER_INHOUD = {
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
-var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'goatcounter_api_sleutel'];
+var BEHEER_GEHEIM = ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'goatcounter_api_sleutel'];
 
 /** Lange teksten: meer tekens toegelaten en regeleinden blijven staan. */
 var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
+
+/** Tabbladen die een vrijwilliger mag aanpassen. Nieuws en Agenda enkel als voorstel. */
+var VRIJWILLIGER_INHOUD = ['Nieuws', 'Agenda', 'Leeslijsten'];
+
+var VOORSTEL_TABBLADEN = ['Nieuws', 'Agenda'];
 
 var FOTO_MAX_BYTES = 1500000;
 
@@ -284,6 +295,7 @@ var STANDAARD_INSTELLINGEN = [
   ['rooster_code', '', 'De toegangscode voor vrijwilligers van het rooster. Blijft op de server, de browser ziet ze nooit.'],
   ['rooster_link', 'https://projectmadrigal.github.io/rooster/', 'Adres van de roostertool, voor de knop "Beschikbaarheid invullen".'],
   ['code_bestuur', '', 'Code voor het bestuursscherm. Geef ze enkel aan het bestuur.'],
+  ['code_vrijwilliger', '', 'Code voor het vrijwilligersscherm: uitleningen nakijken, covers toevoegen, nieuws en agenda voorstellen, leeslijsten opmaken. Werkt ook aan de balie. Geef ze aan vaste vrijwilligers.'],
   ['leeslijsten_tonen', 'nee', 'ja: de leeslijsten staan op de website, met een eigen plek in het menu. nee: ze staan klaar, maar enkel het bestuursscherm toont ze.'],
   ['online_reserveren', 'nee', 'ja: de website toont bij elk uitleenbaar boek de knop "Reserveer dit boek". De aanvragen verschijnen in het bestuursscherm en in het tabblad Aanvragen.'],
   ['aanvragen_bewaren_dagen', 60, 'Na hoeveel dagen een aanvraag (met voornaam en contactgegevens) gewist wordt.'],
@@ -322,6 +334,9 @@ var STANDAARD_INSTELLINGEN = [
   ['tekst_herinnering', 'Hoi {voornaam}, je leende bij Project Madrigal "{titel}". Dat boek moest terug op {vervaldatum}. Breng je het binnenkort binnen? Lukt dat niet, laat het ons dan even weten. Dank je!', 'Herinnering voor een boek dat te laat is. Gebruik {voornaam}, {titel} en {vervaldatum}.'],
   ['tekst_herinnering_binnenkort', 'Hoi {voornaam}, een vriendelijke herinnering: "{titel}" mag terug naar Project Madrigal op {vervaldatum}. Wil je het langer houden? Laat het ons weten, dan verlengen we het. Veel leesplezier!', 'Herinnering voor een boek dat binnenkort vervalt.']
 ];
+
+/** Instellingen met een toegangscode: leeg betekent bij het installeren een nieuwe willekeurige code. */
+var CODE_INSTELLINGEN = ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur'];
 
 var OL_PORTIE = 20;
 
@@ -362,8 +377,9 @@ var KOLOMMEN = {
   'Aanvragen': ['aanvraag_id', 'datum', 'boek_id', 'titel', 'voornaam', 'contact', 'opmerking', 'status', 'datum_afgehandeld', 'afgehandeld_door'],
   // Inhoud van de website. Kolommen op _en zijn de Engelse versie (mag leeg: dan toont de site het Nederlands).
   // online_vanaf: een bericht met een datum in de toekomst verschijnt pas op die dag.
-  'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'online_vanaf', 'bron_id'],
-  'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek', 'bron_id'],
+  // voorgesteld_door: voornaam van de vrijwilliger die dit voorstelde. Leeg zodra het bestuur het online zet.
+  'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'online_vanaf', 'voorgesteld_door', 'bron_id'],
+  'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek', 'voorgesteld_door', 'bron_id'],
   'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek', 'bron_id'],
   // Leeslijsten (thema's). Welke boeken erin staan, zet je in de kolom leeslijsten van de Catalogus.
   // zichtbaar_vanaf en zichtbaar_tot: een geplande lijst verschijnt en verdwijnt vanzelf.
@@ -391,7 +407,7 @@ var DATUMKOLOMMEN = [
 var ACHTERGROND_DUUR_SECONDEN = 6 * 60;
 
 var INSTELLING_GROEPEN = [
-  ['Toegang', ['toegangscode_balie', 'code_bestuur']],
+  ['Toegang', ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur']],
   ['Uitlenen', ['uitleentermijn_weken', 'verlengingstermijn_weken', 'max_verlengingen', 'verlengen_niet_bij_reservatie',
     'max_boeken_per_lener', 'waarschuwing_dagen_voor_vervaldatum', 'ophaaltermijn_openingsdagen', 'zines_te_koop_uitleenbaar']],
   ['Borg en giften', ['borg_per_boek', 'borg_betaalwijzen', 'gift_mogelijk']],
@@ -679,13 +695,16 @@ function beheerBoek(rij) {
 }
 
 /** Bewaart een wijziging in Nieuws, Agenda, Veelgestelde vragen of Leeslijsten. */
-function beheerInhoudBewaren(invoer, wie) {
+function beheerInhoudBewaren(invoer, wie, rol) {
   if (!BEHEER_INHOUD[invoer.tabblad]) return { ok: false, fout: 'Onbekend tabblad.' };
   var tabel = leesTabel(invoer.tabblad);
   var oud = invoer.rij ? tabel.rijen.filter(function (r) { return r._rij === Number(invoer.rij); })[0] : null;
   var oudeNaam = oud ? schoon(oud.naam) : '';
-  var antwoord = inhoudAanpassen(tabel.rijen, invoer);
+  var antwoord = inhoudAanpassen(tabel.rijen, invoer, rol && rol !== 'bestuur' ? (wie || 'vrijwilliger') : '');
   if (antwoord.ok) {
+    if (tabel.kop.indexOf('voorgesteld_door') === -1 && tabel.rijen.some(function (r) { return r.voorgesteld_door; })) {
+      return { ok: false, fout: 'De kolom voorgesteld_door ontbreekt nog. Vraag het bestuur om Madrigal > Installeer tabbladen uit te voeren.' };
+    }
     bewaarTabel(tabel);
     logboek(wie, 'website aangepast', invoer.tabblad);
     // Een leeslijst hernoemd of verwijderd: ook de boeken in de Catalogus aanpassen.
@@ -703,13 +722,24 @@ function beheerInhoudBewaren(invoer, wie) {
 
 /* ---------- Leeslijsten: boeken kiezen ---------- */
 
-/** Gegevens voor de onderdelen Nieuws en agenda, en Teksten en instellingen. */
-function beheerInhoudGegevens() {
+/**
+ * Gegevens voor de onderdelen Nieuws en agenda, Leeslijsten, en Teksten en instellingen.
+ * Een vrijwilliger krijgt enkel Nieuws, Agenda en Leeslijsten, en van de instellingen enkel leeslijsten_tonen.
+ */
+function beheerInhoudGegevens(rol) {
+  var vrijwilliger = rol && rol !== 'bestuur';
   var uit = { tabbladen: {} };
   Object.keys(BEHEER_INHOUD).forEach(function (naam) {
+    if (vrijwilliger && VRIJWILLIGER_INHOUD.indexOf(naam) === -1) return;
     uit.tabbladen[naam] = spreadsheet().getSheetByName(naam) ? inhoudRijen(naam, leesTabel(naam).rijen) : [];
   });
-  uit.instellingen = instellingenVoorBeheer(leesTabel('Instellingen').rijen);
+  var groepen = instellingenVoorBeheer(leesTabel('Instellingen').rijen);
+  if (vrijwilliger) {
+    groepen = groepen.map(function (g) {
+      return { titel: g.titel, instellingen: g.instellingen.filter(function (i) { return i.sleutel === 'leeslijsten_tonen'; }) };
+    }).filter(function (g) { return g.instellingen.length; });
+  }
+  uit.instellingen = groepen;
   return { ok: true, data: uit };
 }
 
@@ -1581,7 +1611,7 @@ function coversBewaren(staat, invoer) {
  *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
  *   i: nog niet bij Internet Archive opgezocht (enkel met een ISBN)
  */
-function coversTeZoeken(staat) {
+function coversTeZoeken(staat, metSleutel) {
   var boeken = [];
   staat.catalogus.forEach(function (b) {
     if (isLeeg(b.boek_id)) return;
@@ -1594,7 +1624,8 @@ function coversTeZoeken(staat) {
     var i = zonderCover && !!isbn && isLeeg(b.ia_gezocht);
     if (g || o || i) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o, i: i });
   });
-  return { ok: true, boeken: boeken, sleutel: String(staat.inst.google_books_api_key || '') };
+  // De sleutel van Google Books enkel voor het bestuur. Vrijwilligers zoeken zonder sleutel (trager, wel gratis).
+  return { ok: true, boeken: boeken, sleutel: metSleutel === false ? '' : String(staat.inst.google_books_api_key || '') };
 }
 
 /**
@@ -1698,8 +1729,8 @@ function doPost(e) {
     Utilities.sleep(1500);
     return json({ ok: false, fout: 'De code klopt niet.', code: 'ongeldige_code' });
   }
-  if (ACTIES[actie] === 'bestuur' && rol !== 'bestuur') {
-    return json({ ok: false, fout: 'Dit kan enkel met de code van het bestuur.' });
+  if (!magActie(rol, actie)) {
+    return json({ ok: false, fout: ACTIES[actie] === 'bestuur' ? 'Dit kan enkel met de code van het bestuur.' : 'Dit kan niet met deze code.' });
   }
 
   try {
@@ -2260,10 +2291,13 @@ function importeerOudeSite() {
  * invoer: { tabblad, rij (leeg = nieuw), vingerafdruk, velden, verwijderen }
  * rijen: de rijen van dat tabblad (worden aangepast).
  */
-function inhoudAanpassen(rijen, invoer) {
+function inhoudAanpassen(rijen, invoer, vrijwilliger) {
   var tabblad = String(invoer.tabblad || '');
   var kolommen = BEHEER_INHOUD[tabblad];
   if (!kolommen) return { ok: false, fout: 'Onbekend tabblad.' };
+  // vrijwilliger: de voornaam als een vrijwilliger dit doet (leeg bij het bestuur).
+  if (vrijwilliger && VRIJWILLIGER_INHOUD.indexOf(tabblad) === -1) return { ok: false, fout: 'Dit kan enkel met de code van het bestuur.' };
+  var voorstel = !!vrijwilliger && VOORSTEL_TABBLADEN.indexOf(tabblad) > -1;
   var rij = null;
   if (invoer.rij) {
     rij = rijen.filter(function (r) { return r._rij === Number(invoer.rij); })[0];
@@ -2273,6 +2307,7 @@ function inhoudAanpassen(rijen, invoer) {
   }
   if (invoer.verwijderen) {
     if (!rij) return { ok: false, fout: 'Er is niets om te verwijderen.' };
+    if (voorstel && jaNee(rij.publiek) !== 'nee') return { ok: false, fout: 'Dit staat al online. Vraag het bestuur om het te verwijderen.' };
     markeerVerwijderen(rij);
     return { ok: true, tekst: 'Verwijderd uit ' + tabblad + '.' };
   }
@@ -2294,14 +2329,20 @@ function inhoudAanpassen(rijen, invoer) {
     return { ok: false, fout: 'Een event heeft een datum nodig.' };
   }
   if (!v.publiek && !rij) v.publiek = 'ja';
+  // Een vrijwilliger stelt voor: het bericht blijft verborgen tot het bestuur het op zichtbaar zet.
+  // Ook een aanpassing aan een bericht dat al online stond, gaat eerst langs het bestuur.
+  if (voorstel) { v.publiek = 'nee'; v.voorgesteld_door = tekstInvoer(vrijwilliger, 40); }
+  else if (VOORSTEL_TABBLADEN.indexOf(tabblad) > -1 && v.publiek === 'ja') v.voorgesteld_door = '';
   if (rij) {
     wijzig(rij, v);
   } else {
     var nieuw = {};
     kolommen.forEach(function (k) { nieuw[k] = v.hasOwnProperty(k) ? v[k] : ''; });
+    if (v.voorgesteld_door) nieuw.voorgesteld_door = v.voorgesteld_door;
     if (tabblad === 'Nieuws' && !nieuw.datum) nieuw.datum = vandaagTekst();
     voegToe(rijen, nieuw);
   }
+  if (voorstel) return { ok: true, tekst: (rij ? 'Aangepast' : 'Toegevoegd') + ' in ' + tabblad + '. Het bestuur zet het online na nalezen.' };
   return { ok: true, tekst: (rij ? 'Aangepast' : 'Toegevoegd') + ' in ' + tabblad + '.' };
 }
 
@@ -2313,14 +2354,12 @@ function inhoudRijen(tabblad, rijen) {
   return rijen.map(function (rij) {
     var uit = { rij: rij._rij, vingerafdruk: vingerafdruk(rij, kolommen) };
     kolommen.forEach(function (k) { uit[k] = isLeeg(rij[k]) ? '' : rij[k]; });
+    // Voorstel van een vrijwilliger dat nog op goedkeuring wacht (zie inhoudAanpassen).
+    if (!isLeeg(rij.voorgesteld_door)) uit.voorgesteld_door = schoon(rij.voorgesteld_door);
     return uit;
   });
 }
 
-/**
- * Menu: maakt de nieuwe tabbladen aan. Bestaande tabbladen en gegevens blijven
- * staan: enkel ontbrekende tabbladen, kolommen en instellingen komen erbij.
- */
 function installeer() {
   var ss = spreadsheet();
 
@@ -2335,13 +2374,13 @@ function installeer() {
   STANDAARD_INSTELLINGEN.forEach(function (rij) {
     if (bestaand.hasOwnProperty(rij[0])) {
       // Een lege code vullen we in met een willekeurige code.
-      if ((rij[0] === 'toegangscode_balie' || rij[0] === 'code_bestuur') && isLeeg(bestaand[rij[0]])) {
+      if (CODE_INSTELLINGEN.indexOf(rij[0]) > -1 && isLeeg(bestaand[rij[0]])) {
         zetInstelling(inst, rij[0], willekeurigeCode());
       }
       return;
     }
     var waarde = rij[1];
-    if (rij[0] === 'toegangscode_balie' || rij[0] === 'code_bestuur') waarde = willekeurigeCode();
+    if (CODE_INSTELLINGEN.indexOf(rij[0]) > -1) waarde = willekeurigeCode();
     inst.appendRow([rij[0], waarde, rij[2]]);
   });
   ordenInstellingen(ss); // per thema, met tussenkoppen (zie Ordenen.js)
@@ -3244,6 +3283,11 @@ function maandTekst(jjjjmm) {
   return MAANDEN[Number(d[1]) - 1] + ' ' + d[0];
 }
 
+/** Mag deze rol deze actie? */
+function magActie(rol, actie) {
+  return ACTIES.hasOwnProperty(actie) && (ROL_RANG[rol] || 0) >= ROL_RANG[ACTIES[actie]];
+}
+
 /** Markeert een rij om te verwijderen (enkel gebruikt bij de privacy-opruiming). */
 function markeerVerwijderen(rij) {
   rij._verwijderen = true;
@@ -3812,6 +3856,7 @@ function rolVoorCode(code, inst) {
   var c = schoon(code);
   if (!c) return '';
   if (inst.code_bestuur && c === String(inst.code_bestuur)) return 'bestuur';
+  if (inst.code_vrijwilliger && c === String(inst.code_vrijwilliger)) return 'vrijwilliger';
   if (inst.toegangscode_balie && c === String(inst.toegangscode_balie)) return 'balie';
   return '';
 }
@@ -4070,6 +4115,14 @@ function telMaandenOp(datum, maanden) {
   var laatste = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
   d.setUTCDate(Math.min(dag, laatste));
   return vanUtc(d);
+}
+
+/** Hoeveel nieuwsberichten en events van vrijwilligers nog op goedkeuring wachten. */
+function telVoorstellen() {
+  return VOORSTEL_TABBLADEN.reduce(function (n, naam) {
+    if (!spreadsheet().getSheetByName(naam)) return n;
+    return n + leesTabel(naam).rijen.filter(function (r) { return !isLeeg(r.voorgesteld_door) && jaNee(r.publiek) === 'nee'; }).length;
+  }, 0);
 }
 
 /**
@@ -4841,7 +4894,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'aanmelden') return { ok: true, rol: rol };
   if (actie === 'roosterOverzicht') return roosterOverzicht(); // leest enkel, geen slot nodig
   if (actie === 'beheerIsbnOpzoeken') return isbnOpzoeken(invoer); // leest enkel bij Open Library en Google Books
-  if (actie === 'beheerInhoud') return beheerInhoudGegevens();
+  if (actie === 'beheerInhoud') return beheerInhoudGegevens(rol);
   if (actie === 'bezoekersCijfers') return bezoekersCijfers(invoer); // leest enkel bij GoatCounter
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
 
@@ -4851,7 +4904,7 @@ function voerActieUit(actie, invoer, rol) {
     var wie = tekstInvoer(invoer.wie, 40) || 'onbekend';
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {
-      var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie) : beheerInstellingBewaren(invoer, wie);
+      var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie, rol) : beheerInstellingBewaren(invoer, wie);
       if (gewijzigd.ok) leegCache();
       return gewijzigd;
     }
@@ -4864,7 +4917,9 @@ function voerActieUit(actie, invoer, rol) {
         antwoord = { ok: true, data: bestuurGegevens(staat, leesTabel('Onderwerpen').rijen) };
         antwoord.data.aanvragen = openAanvragen(spreadsheet().getSheetByName('Aanvragen') ? leesTabel('Aanvragen').rijen : []);
         antwoord.data.onlineReserveren = staat.inst.online_reserveren === true;
+        antwoord.data.voorstellen = telVoorstellen();
         break;
+      case 'vrijwilligerData': antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) }; break;
       case 'uitlenen': antwoord = uitlenen(staat, invoer); break;
       case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true }); break;
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
@@ -4874,7 +4929,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'borgTerugbetaald': antwoord = borgTerugbetaald(staat, invoer); break;
       case 'herinneringVerstuurd': antwoord = herinneringVerstuurd(staat, invoer); break;
       case 'beheerBoekOphalen': antwoord = boekOphalen(staat, invoer); break;
-      case 'beheerCoversLijst': antwoord = coversTeZoeken(staat); break;
+      case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;
       case 'beheerIaCoversWissen': antwoord = iaCoversWissen(staat, invoer); break;
@@ -4935,6 +4990,29 @@ function volgendNummer(sleutel, bestaande) {
   laatste += 1;
   props.setProperty('teller_' + sleutel, String(laatste));
   return laatste;
+}
+
+/**
+ * Gegevens voor het vrijwilligersscherm: lopende uitleningen en reservaties zonder contactgegevens
+ * of borg, en de boeken (voor covers en leeslijsten). Geen leners, borgen of cijfers.
+ */
+function vrijwilligerGegevens(staat, onderwerpRijen) {
+  var lopend = lopendeUitleningen(staat).map(function (u) {
+    var info = uitleningInfo(staat, u, false);
+    delete info.borg;
+    delete info.betaalwijze_borg;
+    return info;
+  });
+  lopend.sort(function (a, b) { return a.vervaldatum.localeCompare(b.vervaldatum); });
+  return {
+    vandaagTekst: datumTekst(staat.vandaag),
+    telaat: lopend.filter(function (i) { return i.status.code === 'telaat'; }),
+    binnenkort: lopend.filter(function (i) { return i.status.code === 'binnenkort'; }),
+    lopend: lopend,
+    reservaties: alleReservaties(staat),
+    boeken: baliecatalogus(staat, vertaalTabel(onderwerpRijen)),
+    roosterLink: String(staat.inst.rooster_link || '')
+  };
 }
 
 /** Menu: vult de Catalogus aan uit het tabblad Goodreads-export. */

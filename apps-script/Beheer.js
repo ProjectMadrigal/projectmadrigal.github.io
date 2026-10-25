@@ -29,7 +29,7 @@ var BEHEER_INHOUD = {
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
-var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'goatcounter_api_sleutel'];
+var BEHEER_GEHEIM = ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'goatcounter_api_sleutel'];
 
 /** Lange teksten: meer tekens toegelaten en regeleinden blijven staan. */
 var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
@@ -244,19 +244,36 @@ function inhoudRijen(tabblad, rijen) {
   return rijen.map(function (rij) {
     var uit = { rij: rij._rij, vingerafdruk: vingerafdruk(rij, kolommen) };
     kolommen.forEach(function (k) { uit[k] = isLeeg(rij[k]) ? '' : rij[k]; });
+    // Voorstel van een vrijwilliger dat nog op goedkeuring wacht (zie inhoudAanpassen).
+    if (!isLeeg(rij.voorgesteld_door)) uit.voorgesteld_door = schoon(rij.voorgesteld_door);
     return uit;
   });
 }
+
+/** Hoeveel nieuwsberichten en events van vrijwilligers nog op goedkeuring wachten. */
+function telVoorstellen() {
+  return VOORSTEL_TABBLADEN.reduce(function (n, naam) {
+    if (!spreadsheet().getSheetByName(naam)) return n;
+    return n + leesTabel(naam).rijen.filter(function (r) { return !isLeeg(r.voorgesteld_door) && jaNee(r.publiek) === 'nee'; }).length;
+  }, 0);
+}
+
+/** Tabbladen die een vrijwilliger mag aanpassen. Nieuws en Agenda enkel als voorstel. */
+var VRIJWILLIGER_INHOUD = ['Nieuws', 'Agenda', 'Leeslijsten'];
+var VOORSTEL_TABBLADEN = ['Nieuws', 'Agenda'];
 
 /**
  * Past een rij van Nieuws, Agenda of Veelgestelde vragen aan, voegt er een toe of verwijdert er een.
  * invoer: { tabblad, rij (leeg = nieuw), vingerafdruk, velden, verwijderen }
  * rijen: de rijen van dat tabblad (worden aangepast).
  */
-function inhoudAanpassen(rijen, invoer) {
+function inhoudAanpassen(rijen, invoer, vrijwilliger) {
   var tabblad = String(invoer.tabblad || '');
   var kolommen = BEHEER_INHOUD[tabblad];
   if (!kolommen) return { ok: false, fout: 'Onbekend tabblad.' };
+  // vrijwilliger: de voornaam als een vrijwilliger dit doet (leeg bij het bestuur).
+  if (vrijwilliger && VRIJWILLIGER_INHOUD.indexOf(tabblad) === -1) return { ok: false, fout: 'Dit kan enkel met de code van het bestuur.' };
+  var voorstel = !!vrijwilliger && VOORSTEL_TABBLADEN.indexOf(tabblad) > -1;
   var rij = null;
   if (invoer.rij) {
     rij = rijen.filter(function (r) { return r._rij === Number(invoer.rij); })[0];
@@ -266,6 +283,7 @@ function inhoudAanpassen(rijen, invoer) {
   }
   if (invoer.verwijderen) {
     if (!rij) return { ok: false, fout: 'Er is niets om te verwijderen.' };
+    if (voorstel && jaNee(rij.publiek) !== 'nee') return { ok: false, fout: 'Dit staat al online. Vraag het bestuur om het te verwijderen.' };
     markeerVerwijderen(rij);
     return { ok: true, tekst: 'Verwijderd uit ' + tabblad + '.' };
   }
@@ -287,14 +305,20 @@ function inhoudAanpassen(rijen, invoer) {
     return { ok: false, fout: 'Een event heeft een datum nodig.' };
   }
   if (!v.publiek && !rij) v.publiek = 'ja';
+  // Een vrijwilliger stelt voor: het bericht blijft verborgen tot het bestuur het op zichtbaar zet.
+  // Ook een aanpassing aan een bericht dat al online stond, gaat eerst langs het bestuur.
+  if (voorstel) { v.publiek = 'nee'; v.voorgesteld_door = tekstInvoer(vrijwilliger, 40); }
+  else if (VOORSTEL_TABBLADEN.indexOf(tabblad) > -1 && v.publiek === 'ja') v.voorgesteld_door = '';
   if (rij) {
     wijzig(rij, v);
   } else {
     var nieuw = {};
     kolommen.forEach(function (k) { nieuw[k] = v.hasOwnProperty(k) ? v[k] : ''; });
+    if (v.voorgesteld_door) nieuw.voorgesteld_door = v.voorgesteld_door;
     if (tabblad === 'Nieuws' && !nieuw.datum) nieuw.datum = vandaagTekst();
     voegToe(rijen, nieuw);
   }
+  if (voorstel) return { ok: true, tekst: (rij ? 'Aangepast' : 'Toegevoegd') + ' in ' + tabblad + '. Het bestuur zet het online na nalezen.' };
   return { ok: true, tekst: (rij ? 'Aangepast' : 'Toegevoegd') + ' in ' + tabblad + '.' };
 }
 
@@ -335,24 +359,38 @@ function instellingAanpassen(rijen, invoer) {
 
 /* ---------- Acties die enkel een tabblad lezen of schrijven ---------- */
 
-/** Gegevens voor de onderdelen Nieuws en agenda, en Teksten en instellingen. */
-function beheerInhoudGegevens() {
+/**
+ * Gegevens voor de onderdelen Nieuws en agenda, Leeslijsten, en Teksten en instellingen.
+ * Een vrijwilliger krijgt enkel Nieuws, Agenda en Leeslijsten, en van de instellingen enkel leeslijsten_tonen.
+ */
+function beheerInhoudGegevens(rol) {
+  var vrijwilliger = rol && rol !== 'bestuur';
   var uit = { tabbladen: {} };
   Object.keys(BEHEER_INHOUD).forEach(function (naam) {
+    if (vrijwilliger && VRIJWILLIGER_INHOUD.indexOf(naam) === -1) return;
     uit.tabbladen[naam] = spreadsheet().getSheetByName(naam) ? inhoudRijen(naam, leesTabel(naam).rijen) : [];
   });
-  uit.instellingen = instellingenVoorBeheer(leesTabel('Instellingen').rijen);
+  var groepen = instellingenVoorBeheer(leesTabel('Instellingen').rijen);
+  if (vrijwilliger) {
+    groepen = groepen.map(function (g) {
+      return { titel: g.titel, instellingen: g.instellingen.filter(function (i) { return i.sleutel === 'leeslijsten_tonen'; }) };
+    }).filter(function (g) { return g.instellingen.length; });
+  }
+  uit.instellingen = groepen;
   return { ok: true, data: uit };
 }
 
 /** Bewaart een wijziging in Nieuws, Agenda, Veelgestelde vragen of Leeslijsten. */
-function beheerInhoudBewaren(invoer, wie) {
+function beheerInhoudBewaren(invoer, wie, rol) {
   if (!BEHEER_INHOUD[invoer.tabblad]) return { ok: false, fout: 'Onbekend tabblad.' };
   var tabel = leesTabel(invoer.tabblad);
   var oud = invoer.rij ? tabel.rijen.filter(function (r) { return r._rij === Number(invoer.rij); })[0] : null;
   var oudeNaam = oud ? schoon(oud.naam) : '';
-  var antwoord = inhoudAanpassen(tabel.rijen, invoer);
+  var antwoord = inhoudAanpassen(tabel.rijen, invoer, rol && rol !== 'bestuur' ? (wie || 'vrijwilliger') : '');
   if (antwoord.ok) {
+    if (tabel.kop.indexOf('voorgesteld_door') === -1 && tabel.rijen.some(function (r) { return r.voorgesteld_door; })) {
+      return { ok: false, fout: 'De kolom voorgesteld_door ontbreekt nog. Vraag het bestuur om Madrigal > Installeer tabbladen uit te voeren.' };
+    }
     bewaarTabel(tabel);
     logboek(wie, 'website aangepast', invoer.tabblad);
     // Een leeslijst hernoemd of verwijderd: ook de boeken in de Catalogus aanpassen.
@@ -450,7 +488,7 @@ function beheerInstellingBewaren(invoer, wie) {
  *   o: nog niet bij Open Library opgezocht voor een andere uitgave (ISBN, of titel en auteur)
  *   i: nog niet bij Internet Archive opgezocht (enkel met een ISBN)
  */
-function coversTeZoeken(staat) {
+function coversTeZoeken(staat, metSleutel) {
   var boeken = [];
   staat.catalogus.forEach(function (b) {
     if (isLeeg(b.boek_id)) return;
@@ -463,7 +501,8 @@ function coversTeZoeken(staat) {
     var i = zonderCover && !!isbn && isLeeg(b.ia_gezocht);
     if (g || o || i) boeken.push({ id: String(b.boek_id), isbn: isbn, t: schoon(b.titel), a: schoon(b.auteur), g: g, o: o, i: i });
   });
-  return { ok: true, boeken: boeken, sleutel: String(staat.inst.google_books_api_key || '') };
+  // De sleutel van Google Books enkel voor het bestuur. Vrijwilligers zoeken zonder sleutel (trager, wel gratis).
+  return { ok: true, boeken: boeken, sleutel: metSleutel === false ? '' : String(staat.inst.google_books_api_key || '') };
 }
 
 function isGoogleCover(url) {

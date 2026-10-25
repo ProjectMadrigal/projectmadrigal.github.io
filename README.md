@@ -286,6 +286,18 @@ Enkel wie de code van het bestuur heeft, kan dit. Wil je later vrijwilligers bv.
 - Tegen misbruik: hoogstens 30 aanvragen per uur, 3 open aanvragen per contact, en een verborgen veld dat enkel robots invullen.
 - Privacy: na `aanvragen_bewaren_dagen` (standaard 60) wist de nachtelijke opruiming de aanvraag. Vermeld online reserveren in je privacytekst voor je het aanzet.
 
+### Het vrijwilligersscherm
+
+Op `vrijwilliger.html` werken vaste vrijwilligers met een eigen code: de instelling `code_vrijwilliger` (onder `── TOEGANG ──`). Die code werkt ook aan de balie. Het scherm is een eenvoudigere versie van het bestuursscherm:
+
+- **Uitlenen:** te laat, vervalt binnenkort, alle uitleningen en reservaties. Enkel voornaam en lenersnummer, geen telefoon, e-mail of borg. Herinneringen sturen blijft bij het bestuur.
+- **Boeken zonder cover:** een foto van de cover nemen, of covers automatisch laten zoeken.
+- **Nieuws en agenda:** een bericht of event voorstellen. Het blijft verborgen tot het bestuur het goedkeurt. In het bestuursscherm staat dan bij Nieuws en agenda "(1 te keuren)". Open het voorstel en klik op **Keur goed en zet online**. Past een vrijwilliger een bericht aan dat al online stond, dan gaat het offline tot het bestuur het opnieuw goedkeurt. Veelgestelde vragen blijven bij het bestuur.
+- **Leeslijsten:** lijsten maken en boeken kiezen, ook met data. Alle leeslijsten online zetten blijft bij het bestuur.
+- **Rooster:** wie er de komende vrijdagen staat, met een knop naar de roostertool om je beschikbaarheid in te vullen.
+
+Een nieuwe code maken? Maak de cel `code_vrijwilliger` leeg en kies **Madrigal > Installeer tabbladen**. Dan komt er een nieuwe willekeurige code.
+
 ## A8. Wat te doen als iets niet werkt
 
 | Wat je ziet | Wat je doet |

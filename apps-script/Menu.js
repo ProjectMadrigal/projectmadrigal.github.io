@@ -7,6 +7,9 @@
  * Menu: maakt de nieuwe tabbladen aan. Bestaande tabbladen en gegevens blijven
  * staan: enkel ontbrekende tabbladen, kolommen en instellingen komen erbij.
  */
+/** Instellingen met een toegangscode: leeg betekent bij het installeren een nieuwe willekeurige code. */
+var CODE_INSTELLINGEN = ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur'];
+
 function installeer() {
   var ss = spreadsheet();
 
@@ -21,13 +24,13 @@ function installeer() {
   STANDAARD_INSTELLINGEN.forEach(function (rij) {
     if (bestaand.hasOwnProperty(rij[0])) {
       // Een lege code vullen we in met een willekeurige code.
-      if ((rij[0] === 'toegangscode_balie' || rij[0] === 'code_bestuur') && isLeeg(bestaand[rij[0]])) {
+      if (CODE_INSTELLINGEN.indexOf(rij[0]) > -1 && isLeeg(bestaand[rij[0]])) {
         zetInstelling(inst, rij[0], willekeurigeCode());
       }
       return;
     }
     var waarde = rij[1];
-    if (rij[0] === 'toegangscode_balie' || rij[0] === 'code_bestuur') waarde = willekeurigeCode();
+    if (CODE_INSTELLINGEN.indexOf(rij[0]) > -1) waarde = willekeurigeCode();
     inst.appendRow([rij[0], waarde, rij[2]]);
   });
   ordenInstellingen(ss); // per thema, met tussenkoppen (zie Ordenen.js)

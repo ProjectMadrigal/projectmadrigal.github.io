@@ -15,7 +15,7 @@
  */
 
 var INSTELLING_GROEPEN = [
-  ['Toegang', ['toegangscode_balie', 'code_bestuur']],
+  ['Toegang', ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur']],
   ['Uitlenen', ['uitleentermijn_weken', 'verlengingstermijn_weken', 'max_verlengingen', 'verlengen_niet_bij_reservatie',
     'max_boeken_per_lener', 'waarschuwing_dagen_voor_vervaldatum', 'ophaaltermijn_openingsdagen', 'zines_te_koop_uitleenbaar']],
   ['Borg en giften', ['borg_per_boek', 'borg_betaalwijzen', 'gift_mogelijk']],
