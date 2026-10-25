@@ -128,6 +128,26 @@ function heeftIaNodig(boek) {
   return isLeeg(boek.cover_url) && isLeeg(boek.ia_gezocht) && /^\d{13}$/.test(String(boek.isbn || ''));
 }
 
+/** Boeken die op deze datum bij Internet Archive opgezocht werden en geen cover kregen. */
+function iaZonderCoverOp(rijen, datum) {
+  return rijen.filter(function (b) { return isLeeg(b.cover_url) && parseerDatum(b.ia_gezocht) === datum; });
+}
+
+/**
+ * Menu: zoek de boeken van vandaag opnieuw bij Internet Archive. Raakte de daglimiet van Google op
+ * tijdens de controle van een afbeelding, dan kreeg een boek vroeger onterecht "geen cover".
+ * We weten niet welk boek, dus we wissen de stempel van alle boeken die vandaag zonder cover bleven.
+ */
+function zoekIaVanVandaagOpnieuw() {
+  var tabel = leesTabel('Catalogus');
+  var boeken = iaZonderCoverOp(tabel.rijen, vandaagTekst());
+  boeken.forEach(function (b) { wijzig(b, { ia_gezocht: '' }); });
+  if (boeken.length && !bewaarAchtergrond(tabel)) { meld('Het is even druk. Probeer het over een minuut opnieuw.'); return; }
+  logboek('menu', 'zoekIaVanVandaagOpnieuw', boeken.length + ' boeken opnieuw bij Internet Archive');
+  if (boeken.length) planTaak('zoekCoversInternetArchive', 60 * 1000);
+  meld(boeken.length ? boeken.length + ' boeken worden opnieuw opgezocht bij Internet Archive. Dat begint over een minuut, of later als de daglimiet van Google nog op is.' : 'Geen boeken van vandaag zonder cover bij Internet Archive.');
+}
+
 /** De zoekvraag voor Internet Archive: het ISBN in 13 en in 10 cijfers. */
 function iaZoekUrl(isbn) {
   var nummers = [String(isbn), isbn13Naar10(isbn)].filter(Boolean).join(' OR ');

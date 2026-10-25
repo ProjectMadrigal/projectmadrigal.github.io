@@ -116,6 +116,7 @@ function onOpen() {
       .addItem('Zoek covers bij Google Books', 'vulAanUitGoogleBooks')
       .addItem('Zoek covers van andere uitgaven', 'zoekCoversAndereUitgaven')
       .addItem('Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
+      .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
       .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')

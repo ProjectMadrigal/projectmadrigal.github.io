@@ -2619,6 +2619,11 @@ function iaZoekUrl(isbn) {
     '&fl%5B%5D=identifier&fl%5B%5D=title&rows=3&output=json';
 }
 
+/** Boeken die op deze datum bij Internet Archive opgezocht werden en geen cover kregen. */
+function iaZonderCoverOp(rijen, datum) {
+  return rijen.filter(function (b) { return isLeeg(b.cover_url) && parseerDatum(b.ia_gezocht) === datum; });
+}
+
 /** Het getal in een boek-ID: B0123 wordt 123. */
 function idNummer(id) {
   return Number(String(id).replace(/\D/g, '')) || 0;
@@ -4094,6 +4099,7 @@ function onOpen() {
       .addItem('Zoek covers bij Google Books', 'vulAanUitGoogleBooks')
       .addItem('Zoek covers van andere uitgaven', 'zoekCoversAndereUitgaven')
       .addItem('Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
+      .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
       .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
@@ -6878,6 +6884,21 @@ function zoekCoversOpnieuw() {
   bewaarTabel(tabel);
   logboek('menu', 'zoekCoversOpnieuw', n + ' boeken zonder cover of beschrijving (of met een tekst van Wikipedia) komen opnieuw aan de beurt bij Google');
   meld(n + ' boeken zonder cover of beschrijving (of met een tekst van Wikipedia) komen opnieuw aan de beurt bij Google. Gebruik daarna de knop in het bestuursscherm: Boeken > Zoek ontbrekende covers en beschrijvingen.');
+}
+
+/**
+ * Menu: zoek de boeken van vandaag opnieuw bij Internet Archive. Raakte de daglimiet van Google op
+ * tijdens de controle van een afbeelding, dan kreeg een boek vroeger onterecht "geen cover".
+ * We weten niet welk boek, dus we wissen de stempel van alle boeken die vandaag zonder cover bleven.
+ */
+function zoekIaVanVandaagOpnieuw() {
+  var tabel = leesTabel('Catalogus');
+  var boeken = iaZonderCoverOp(tabel.rijen, vandaagTekst());
+  boeken.forEach(function (b) { wijzig(b, { ia_gezocht: '' }); });
+  if (boeken.length && !bewaarAchtergrond(tabel)) { meld('Het is even druk. Probeer het over een minuut opnieuw.'); return; }
+  logboek('menu', 'zoekIaVanVandaagOpnieuw', boeken.length + ' boeken opnieuw bij Internet Archive');
+  if (boeken.length) planTaak('zoekCoversInternetArchive', 60 * 1000);
+  meld(boeken.length ? boeken.length + ' boeken worden opnieuw opgezocht bij Internet Archive. Dat begint over een minuut, of later als de daglimiet van Google nog op is.' : 'Geen boeken van vandaag zonder cover bij Internet Archive.');
 }
 
 /** Zoekt een boek op bij Wikipedia in één taal. Geeft { tekst, link }, {} of { fout }. */

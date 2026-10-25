@@ -1855,5 +1855,15 @@ test('daglimiet van Google: wachten, herkennen en het laatste rooster tonen', ()
   assert.strictEqual(r.data.vandaag, '2026-10-25');
 });
 
+test('Internet Archive: boeken van vandaag zonder cover opnieuw opzoeken', () => {
+  const rijen = [
+    { boek_id: 'B0001', cover_url: '', ia_gezocht: '2026-10-25' },
+    { boek_id: 'B0002', cover_url: 'https://archive.org/verzonnen.jpg', ia_gezocht: '2026-10-25' },
+    { boek_id: 'B0003', cover_url: '', ia_gezocht: '2026-10-24' },
+    { boek_id: 'B0004', cover_url: '', ia_gezocht: '' }
+  ];
+  gelijk(M.iaZonderCoverOp(rijen, '2026-10-25').map((b) => b.boek_id), ['B0001']);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
