@@ -38,6 +38,7 @@ var ACTIES = {
   beheerBoekOphalen: 'bestuur',
   beheerBoekBewaren: 'bestuur',
   beheerLeeslijstBoeken: 'bestuur',
+  bezoekersCijfers: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'bestuur',
@@ -220,6 +221,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'roosterOverzicht') return roosterOverzicht(); // leest enkel, geen slot nodig
   if (actie === 'beheerIsbnOpzoeken') return isbnOpzoeken(invoer); // leest enkel bij Open Library en Google Books
   if (actie === 'beheerInhoud') return beheerInhoudGegevens();
+  if (actie === 'bezoekersCijfers') return bezoekersCijfers(invoer); // leest enkel bij GoatCounter
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
 
   var lock = LockService.getScriptLock();

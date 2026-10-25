@@ -378,19 +378,92 @@
       }))));
   }
 
+  /* ---------- Bezoekers van de website (GoatCounter, zie apps-script/Bezoekers.js) ---------- */
+
+  var bezoekPeriode = '30';
+  var bezoekCijfers = {}; // per periode, tot iemand op Vernieuw klikt
+
+  var PAGINA_NAMEN = {
+    '/': 'Startpagina', '/index.html': 'Startpagina', '/boeken.html': 'Boeken (catalogus)', '/over-ons.html': 'Over ons',
+    '/doe-mee.html': 'Doe mee', '/boeken.html#/leeslijsten': 'Leeslijsten', '/boeken.html#/privacy': 'Privacy'
+  };
+
+  /** Een leesbare naam voor een pagina: een boek krijgt zijn titel. */
+  function paginaNaam(p) {
+    var m = p.pad.match(/#\/boek\/([A-Za-z0-9-]+)/);
+    if (m) {
+      var boek = (data.boeken || []).filter(function (b) { return b.id === m[1]; })[0];
+      return 'Boek: ' + (boek ? boek.t : m[1]);
+    }
+    return PAGINA_NAMEN[p.pad] || p.titel || p.pad;
+  }
+
+  function bezoekersBlok() {
+    var vak = el('div', { 'aria-live': 'polite' });
+    var knoppen = el('div', { class: 'knoppen', role: 'group', 'aria-label': 'Periode' }, [['7', '7 dagen'], ['30', '30 dagen'], ['365', '12 maanden']].map(function (p) {
+      return el('button', {
+        type: 'button', class: 'knop' + (p[0] === bezoekPeriode ? '' : ' tweede'), 'aria-pressed': p[0] === bezoekPeriode ? 'true' : 'false',
+        onclick: function () {
+          bezoekPeriode = p[0];
+          Array.prototype.forEach.call(knoppen.children, function (k, i) {
+            var aan = ['7', '30', '365'][i] === bezoekPeriode;
+            k.className = 'knop' + (aan ? '' : ' tweede');
+            k.setAttribute('aria-pressed', aan ? 'true' : 'false');
+          });
+          laadBezoekers(vak);
+        }
+      }, p[1]);
+    }));
+    laadBezoekers(vak);
+    return [el('h3', {}, 'Bezoekers van de website'), knoppen, vak];
+  }
+
+  function laadBezoekers(vak) {
+    var periode = bezoekPeriode;
+    if (bezoekCijfers[periode]) { tekenBezoekers(vak, bezoekCijfers[periode]); return; }
+    D.vervang(vak, el('p', {}, 'Laden...'));
+    B.voerUit('bezoekersCijfers', { dagen: Number(periode) }).then(function (r) {
+      if (periode !== bezoekPeriode) return; // intussen een andere periode gekozen
+      if (!r.ok) { D.vervang(vak, el('p', { class: 'melding fout' }, r.fout || 'De bezoekerscijfers konden niet laden.')); return; }
+      if (r.nietIngesteld) {
+        D.vervang(vak, el('p', {}, 'Nog niet gekoppeld. Maak in GoatCounter een API-sleutel (Settings > API, enkel "Read statistics") en zet ze in de spreadsheet bij de instelling goatcounter_api_sleutel.'));
+        return;
+      }
+      bezoekCijfers[periode] = r.cijfers;
+      tekenBezoekers(vak, r.cijfers);
+    });
+  }
+
+  function tekenBezoekers(vak, c) {
+    var tijd = function (d) { return D.korteDatum(d); };
+    var lijstOfNiets = function (titel, kolom, rijen) {
+      return [el('h4', {}, titel), rijen.length ? staafTabel(titel, kolom, rijen) : el('p', { class: 'hulptekst' }, 'Nog niets geteld.')];
+    };
+    D.vervang(vak,
+      el('p', { class: 'groot-getal' }, el('strong', {}, String(c.totaal)), ' bezoekers'),
+      el('p', { class: 'hulptekst' }, 'Wie dezelfde pagina meerdere keren op een dag bekijkt, telt één keer. Bezoekers met "niet volgen" in hun browser tellen niet mee. De cijfers vernieuwen elk half uur.'),
+      lijstOfNiets(c.perWeek ? 'Per week' : 'Per dag', c.perWeek ? 'Week van' : 'Dag', c.verloop.map(function (s) { return [tijd(s.dag), s.n]; })),
+      lijstOfNiets('Meest bekeken pagina\'s', 'Pagina', c.paginas.map(function (p) { return [paginaNaam(p), p.n]; })),
+      lijstOfNiets('Vanwaar bezoekers komen', 'Bron', c.bronnen.map(function (b) { return [b.naam === '(onbekend)' ? 'Rechtstreeks of onbekend' : b.naam, b.n]; })),
+      lijstOfNiets('Toestel', 'Schermgrootte', c.toestellen.map(function (b) { return [b.naam, b.n]; })),
+      lijstOfNiets('Land', 'Land', c.landen.map(function (b) { return [b.naam, b.n]; })));
+  }
+
   function toonCijfers(vak) {
     D.vervang(vak, kop('Cijfers'),
-      el('h3', {}, 'Uitleningen per maand'),
+      bezoekersBlok(),
+      el('h3', { style: 'margin-top:1.5rem' }, 'Uitleningen'),
+      el('h4', {}, 'Uitleningen per maand'),
       staafTabel('Uitleningen per maand', 'Maand', data.perMaand.map(function (m) { return [m.maand, m.uitleningen]; })),
-      el('h3', { style: 'margin-top:1.5rem' }, 'Meest geleende boeken'),
+      el('h4', {}, 'Meest geleende boeken'),
       data.meestGeleend.length ? staafTabel('Meest geleende boeken', 'Boek', data.meestGeleend.map(function (b) { return [b.titel + (b.auteur ? ' (' + b.auteur + ')' : ''), b.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
-      el('h3', { style: 'margin-top:1.5rem' }, 'Uitleningen per filtergroep'),
+      el('h4', {}, 'Uitleningen per filtergroep'),
       data.groepen.length ? staafTabel('Uitleningen per filtergroep', 'Filtergroep', data.groepen.map(function (g) { return [g.groep, g.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'));
   }
 
   /* ---------- Start ---------- */
 
-  $('vernieuw').addEventListener('click', function () { W.vergeet(); laad(); });
+  $('vernieuw').addEventListener('click', function () { W.vergeet(); bezoekCijfers = {}; laad(); });
   $('afmelden').addEventListener('click', B.afmelden);
 
   B.aanmelden({

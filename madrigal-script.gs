@@ -47,6 +47,7 @@ var ACTIES = {
   beheerBoekOphalen: 'bestuur',
   beheerBoekBewaren: 'bestuur',
   beheerLeeslijstBoeken: 'bestuur',
+  bezoekersCijfers: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'bestuur',
@@ -83,7 +84,7 @@ var BEHEER_INHOUD = {
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
-var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret'];
+var BEHEER_GEHEIM = ['toegangscode_balie', 'code_bestuur', 'rooster_code', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'goatcounter_api_sleutel'];
 
 /** Lange teksten: meer tekens toegelaten en regeleinden blijven staan. */
 var BEHEER_LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
@@ -106,6 +107,10 @@ var BS_USER_AGENT = 'ProjectMadrigal-catalogus/1.0 (https://projectmadrigal.gith
 
 /** Open Library gaf niets terwijl Google weigerde: Google moet het nog opzoeken. */
 var BS_ENKEL_OL = 'OL ';
+
+var GC_PERIODES = { '7': 7, '30': 30, '365': 365 };
+
+var GC_CACHE_SECONDEN = 30 * 60;
 
 var BOL_PAUZE_MS = 300;
 
@@ -286,6 +291,8 @@ var STANDAARD_INSTELLINGEN = [
   ['backup_bewaren', 8, 'Hoeveel back-ups je bewaart. De oudste gaan vanzelf naar de prullenbak. Een back-up bevat ook de gegevens van leners.'],
   ['bewaartermijn_afgesloten_uitleningen_maanden', 12, 'Na hoeveel maanden de koppeling tussen een teruggebrachte uitlening en de lener gewist wordt.'],
   ['goodreads_shelf', '', 'Naam van de Goodreads-shelf met de boeken van Madrigal, precies zoals op Goodreads. Leeg: alle boeken uit de export.'],
+  ['goatcounter_code', 'projectmadrigal', 'De code van het GoatCounter-account (projectmadrigal voor projectmadrigal.goatcounter.com). Dezelfde als statistiek in config.js.'],
+  ['goatcounter_api_sleutel', '', 'Optioneel. Een API-sleutel van GoatCounter (Settings > API, enkel "Read statistics"). Dan toont het bestuursscherm de bezoekers onder Cijfers. Deel deze sleutel met niemand.'],
   ['google_books_api_key', '', 'Optioneel. Een sleutel voor de Google Books-API, zodat covers sneller opgezocht worden. Leeg werkt ook, maar trager.'],
   ['bol_client_id', '', 'Optioneel. Client ID van een partneraccount bij bol.com (Marketing Catalog API), voor covers van Nederlandstalige boeken.'],
   ['bol_client_secret', '', 'Optioneel. Client Secret van dat partneraccount. Blijft op de server.'],
@@ -397,6 +404,7 @@ var INSTELLING_GROEPEN = [
   ['Aanraders', ['aanraders_uit_stocklijst', 'aanraders_verbergen', 'nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal']],
   ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
   ['Rooster', ['rooster_url', 'rooster_code', 'rooster_link']],
+  ['Bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
   ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden']],
   ['Back-up', ['backup_map', 'backup_bewaren']],
   ['Online reserveren', ['online_reserveren', 'aanvragen_bewaren_dagen']]
@@ -1027,6 +1035,43 @@ function bewaarTabel(tabel) {
   var weg = tabel.rijen.filter(function (r) { return r._verwijderen; }).map(function (r) { return r._rij; });
   weg.sort(function (a, b) { return b - a; }).forEach(function (rijnummer) { blad.deleteRow(rijnummer); });
   if (weg.length) tabel.rijen = tabel.rijen.filter(function (r) { return !r._verwijderen; });
+}
+
+/** Bestuur: de bezoekerscijfers voor 7, 30 of 365 dagen. invoer: { dagen } */
+function bezoekersCijfers(invoer) {
+  var dagen = GC_PERIODES[String(invoer.dagen)] || 30;
+  var inst = leesInstellingen();
+  var basis = gcBasis(inst.goatcounter_code);
+  var sleutel = String(inst.goatcounter_api_sleutel || '').trim();
+  if (!basis || !sleutel) return { ok: true, nietIngesteld: true };
+  var cache = CacheService.getScriptCache();
+  var cacheSleutel = 'gc_' + dagen + '_' + vandaagTekst();
+  var bewaard = cache.get(cacheSleutel);
+  if (bewaard) return { ok: true, cijfers: JSON.parse(bewaard) };
+
+  var vragen = gcVragen(basis, gcPeriode(vandaagTekst(), dagen));
+  var sleutels = Object.keys(vragen);
+  var antwoorden;
+  try {
+    antwoorden = UrlFetchApp.fetchAll(sleutels.map(function (k) {
+      return { url: vragen[k], headers: { Authorization: 'Bearer ' + sleutel }, muteHttpExceptions: true };
+    }));
+  } catch (e) {
+    return { ok: false, fout: 'GoatCounter is niet bereikbaar. Probeer het later opnieuw.' };
+  }
+  var data = {};
+  for (var i = 0; i < sleutels.length; i++) {
+    var code = antwoorden[i].getResponseCode();
+    if (code === 401 || code === 403) return { ok: false, fout: 'GoatCounter weigert de API-sleutel. Kijk na of ze klopt en het recht "Read statistics" heeft.' };
+    if (code === 429) return { ok: false, fout: 'GoatCounter vraagt even te wachten. Probeer het over een minuut opnieuw.' };
+    if (code === 404) return { ok: false, fout: 'GoatCounter kent de code ' + inst.goatcounter_code + ' niet. Kijk de instelling goatcounter_code na.' };
+    if (code >= 200 && code < 300) {
+      try { data[sleutels[i]] = JSON.parse(antwoorden[i].getContentText()); } catch (e) { data[sleutels[i]] = null; }
+    }
+  }
+  var cijfers = verwerkGoatcounter(data, dagen);
+  try { cache.put(cacheSleutel, JSON.stringify(cijfers), GC_CACHE_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
+  return { ok: true, cijfers: cijfers };
 }
 
 /** Bij elke wijziging met de hand in Catalogus, Onderwerpen of Instellingen: cache leegmaken. */
@@ -1706,6 +1751,30 @@ function filtergroepenVan(boek, vertaal) {
     if (standaard && uniek.indexOf(standaard) === -1) uniek.push(standaard);
   });
   return uniek;
+}
+
+/** Het adres van de API van GoatCounter voor een code. Enkel letters, cijfers en streepjes. */
+function gcBasis(code) {
+  var c = schoon(code).toLowerCase();
+  return /^[a-z0-9-]+$/.test(c) ? 'https://' + c + '.goatcounter.com/api/v0' : '';
+}
+
+/** Begin en einde van een periode van zoveel dagen, tot en met vandaag. */
+function gcPeriode(vandaag, dagen) {
+  var start = parseerDatum(telDagenOp(vandaag, -(dagen - 1)));
+  return { start: start + 'T00:00:00Z', end: vandaag + 'T23:59:59Z' };
+}
+
+/** De vragen die we stellen, als { sleutel: url }. */
+function gcVragen(basis, periode) {
+  var q = 'start=' + encodeURIComponent(periode.start) + '&end=' + encodeURIComponent(periode.end);
+  return {
+    totaal: basis + '/stats/total?' + q,
+    paginas: basis + '/stats/hits?' + q + '&limit=15',
+    bronnen: basis + '/stats/toprefs?' + q + '&limit=10',
+    toestellen: basis + '/stats/sizes?' + q + '&limit=10',
+    landen: basis + '/stats/locations?' + q + '&limit=10'
+  };
 }
 
 /** De lijsten met minstens één boek, in de volgorde van het tabblad. Lege velden laten we weg. */
@@ -4332,6 +4401,41 @@ function verversMenu() {
 }
 
 /**
+ * Zet de antwoorden van GoatCounter om naar wat het bestuursscherm toont.
+ * antwoorden: { totaal, paginas, bronnen, toestellen, landen } met het JSON-antwoord (of null).
+ * Per week bij een lange periode, anders per dag.
+ */
+function verwerkGoatcounter(antwoorden, dagen) {
+  var t = antwoorden.totaal || {};
+  var perDag = (t.stats || []).map(function (s) { return { dag: String(s.day || ''), n: Number(s.daily) || 0 }; })
+    .filter(function (s) { return /^\d{4}-\d{2}-\d{2}$/.test(s.dag); })
+    .sort(function (a, b) { return a.dag.localeCompare(b.dag); });
+  var verloop = perDag;
+  if (dagen > 60) {
+    var perWeek = [];
+    perDag.forEach(function (s, i) {
+      if (i % 7 === 0) perWeek.push({ dag: s.dag, n: 0 });
+      perWeek[perWeek.length - 1].n += s.n;
+    });
+    verloop = perWeek;
+  }
+  var lijst = function (a) {
+    return ((a && a.stats) || []).map(function (s) { return { naam: schoon(s.name) || '(onbekend)', n: Number(s.count) || 0 }; });
+  };
+  return {
+    totaal: Number(t.total) || 0,
+    perWeek: dagen > 60,
+    verloop: verloop,
+    paginas: ((antwoorden.paginas && antwoorden.paginas.hits) || []).filter(function (h) { return !h.event; }).map(function (h) {
+      return { pad: String(h.path || ''), titel: schoon(h.title), n: Number(h.count) || 0 };
+    }).sort(function (a, b) { return b.n - a.n; }),
+    bronnen: lijst(antwoorden.bronnen),
+    toestellen: lijst(antwoorden.toestellen),
+    landen: lijst(antwoorden.landen)
+  };
+}
+
+/**
  * Haalt uit het antwoord van Google Books (één "volumeInfo") de velden die nog leeg zijn.
  * Geeft een object veld -> waarde terug.
  */
@@ -4710,6 +4814,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'roosterOverzicht') return roosterOverzicht(); // leest enkel, geen slot nodig
   if (actie === 'beheerIsbnOpzoeken') return isbnOpzoeken(invoer); // leest enkel bij Open Library en Google Books
   if (actie === 'beheerInhoud') return beheerInhoudGegevens();
+  if (actie === 'bezoekersCijfers') return bezoekersCijfers(invoer); // leest enkel bij GoatCounter
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
 
   var lock = LockService.getScriptLock();

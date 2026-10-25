@@ -783,6 +783,23 @@ test('achtergrondtaak bewaart enkel haar eigen velden, wat de balie intussen wij
   M.voegVeldenSamen([oud2], vers2);
   assert.strictEqual(vers2[0].beschrijving, '');
 });
+test('bezoekers uit GoatCounter: adres, periode en omzetten', () => {
+  assert.strictEqual(M.gcBasis('ProjectMadrigal'), 'https://projectmadrigal.goatcounter.com/api/v0');
+  assert.strictEqual(M.gcBasis('evil.com/x'), '');
+  gelijk(M.gcPeriode('2026-10-25', 7), { start: '2026-10-19T00:00:00Z', end: '2026-10-25T23:59:59Z' });
+  const v = M.gcVragen('https://x.goatcounter.com/api/v0', { start: '2026-10-19T00:00:00Z', end: '2026-10-25T23:59:59Z' });
+  assert.ok(v.paginas.indexOf('/stats/hits?start=2026-10-19T00%3A00%3A00Z') > -1);
+  const c = M.verwerkGoatcounter({
+    totaal: { total: 42, stats: [{ day: '2026-10-25', daily: 5 }, { day: '2026-10-24', daily: 7 }] },
+    paginas: { hits: [{ path: '/boeken.html#/boek/B0001', title: 'X', count: 9 }, { path: 'klik', event: true, count: 3 }] },
+    bronnen: { stats: [{ name: 'instagram.com', count: 4 }, { name: '', count: 2 }] },
+    toestellen: null, landen: { stats: [{ name: 'Belgium', count: 30 }] }
+  }, 7);
+  gelijk([c.totaal, c.perWeek, c.verloop.map((d) => d.dag), c.paginas.length, c.bronnen[1].naam, c.toestellen.length, c.landen[0].n],
+    [42, false, ['2026-10-24', '2026-10-25'], 1, '(onbekend)', 0, 30]);
+  const jaar = M.verwerkGoatcounter({ totaal: { total: 1, stats: Array.from({ length: 14 }, (_, i) => ({ day: '2026-01-' + String(i + 1).padStart(2, '0'), daily: 1 })) } }, 365);
+  gelijk([jaar.perWeek, jaar.verloop.length, jaar.verloop[0].n], [true, 2, 7]);
+});
 test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
   const s = maakStaat();
   s.catalogus[0].leeslijsten = 'Andere lijst';
