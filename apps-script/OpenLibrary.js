@@ -61,7 +61,7 @@ function verwerkOpenLibrary(boek, details) {
 function vulAanUitOpenLibrary() {
   var start = Date.now();
   if (!startAchtergrond('vulAanUitOpenLibrary')) {
-    meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
+    meldAlBezig('vulAanUitOpenLibrary');
     return;
   }
   var verwerkt = 0, aangevuld = 0, rest = 0;

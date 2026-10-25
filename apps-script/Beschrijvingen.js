@@ -243,7 +243,7 @@ function beschrijvingUitOpenLibrary(isbn) {
 function vulBeschrijvingenAan() {
   var start = Date.now();
   if (!startAchtergrond('vulBeschrijvingenAan')) {
-    meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
+    meldAlBezig('vulBeschrijvingenAan');
     return;
   }
   var verwerkt = 0, gevonden = 0, rest = 0, limiet = false, gbLimiet = false, gbFout = '';
