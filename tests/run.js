@@ -1998,5 +1998,17 @@ test('films: duur in een kolom met datumopmaak blijft het aantal minuten', () =>
   assert.ok(M.GETALKOLOMMEN.indexOf('duur') > -1);
 });
 
+test('daglimiet: de films herstarten eerst, de andere taken een half uur later', () => {
+  const uur = 3600000;
+  assert.strictEqual(M.herstartNaDaglimiet('vulFilmsAan', 2 * uur), 2 * uur);
+  assert.strictEqual(M.herstartNaDaglimiet('zoekCoversInternetArchive', 2 * uur), 2.5 * uur);
+  assert.strictEqual(M.herstartNaDaglimiet('zoekBeschrijvingenWikipedia', 6 * uur), 6.5 * uur);
+  // Na 6 uur: de films meteen, de andere taken nog een half uur wachten.
+  assert.strictEqual(M.wachtVoorTaak('vulFilmsAan', 10 * uur, 16 * uur), 0);
+  assert.strictEqual(M.wachtVoorTaak('vulAanUitGoogleBooks', 10 * uur, 16 * uur), 0.5 * uur);
+  assert.strictEqual(M.wachtVoorTaak('vulAanUitGoogleBooks', 10 * uur, 17 * uur), 0);
+  assert.strictEqual(M.wachtVoorTaak('vulAanUitGoogleBooks', 0, 17 * uur), 0, 'Geen daglimiet genoteerd');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

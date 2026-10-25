@@ -579,6 +579,12 @@ var DAGLIMIET_SLEUTEL = 'daglimiet_urlfetch';
  */
 var DAGLIMIET_WACHT_MS = 6 * 60 * 60 * 1000;
 
+// Na de daglimiet krijgen de films voorrang: de andere taken herstarten een half uur later.
+// Zo raakt de limiet niet opnieuw op voor de films aan de beurt zijn (die vragen maar weinig).
+var VOORRANG_TAKEN = ['vulFilmsAan'];
+
+var VOORRANG_MS = 30 * 60 * 1000;
+
 var HUIDIGE_TAAK = ''; // de achtergrondtaak die nu loopt (zie startAchtergrond)
 
 var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'status', 'aanrader', 'startpagina', 'publiek', 'uitleenbaar', 'klassieker'];
@@ -2016,6 +2022,16 @@ function daglimietFilmTekst(wacht) {
     'Zonder wachten: exporteer de lijst als CSV (bij IMDb of Letterboxd), importeer ze in een nieuw tabblad, open dat tabblad en kies Madrigal > Films > Neem de films over uit dit tabblad.';
 }
 
+/** Sinds wanneer (ms) de daglimiet op is, of 0. Een oudere melding in de cache telt ook. */
+function daglimietSinds() {
+  var props = PropertiesService.getScriptProperties();
+  var sinds = Number(props.getProperty(DAGLIMIET_SLEUTEL)) || 0;
+  var uitCache = 0;
+  try { uitCache = Number(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL)) || 0; } catch (e) { uitCache = 0; }
+  if (uitCache > sinds) { props.setProperty(DAGLIMIET_SLEUTEL, String(uitCache)); sinds = uitCache; }
+  return sinds;
+}
+
 /** Hoeveel ms nog wachten na een daglimiet die om "sinds" (ms) genoteerd werd. 0: niet meer wachten. */
 function daglimietWachttijd(sinds, nu) {
   sinds = Number(sinds) || 0;
@@ -2546,7 +2562,7 @@ function haalExtern(url, opties) {
   } catch (e) {
     if (isDaglimietFout(e)) {
       noteerDaglimiet();
-      if (HUIDIGE_TAAK) planTaak(HUIDIGE_TAAK, DAGLIMIET_WACHT_MS);
+      if (HUIDIGE_TAAK) planTaak(HUIDIGE_TAAK, herstartNaDaglimiet(HUIDIGE_TAAK, DAGLIMIET_WACHT_MS));
     }
     throw e;
   }
@@ -2566,7 +2582,7 @@ function haalLetterboxdLijst() {
   var url = schoon(leesInstellingen().letterboxd_lijst);
   if (!isLetterboxdLijst(url)) { meld('Vul bij Instellingen letterboxd_lijst het adres van de lijst in, bv. https://letterboxd.com/naam/list/lijst/'); return; }
   var wacht = 0;
-  try { wacht = daglimietWachttijd(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL), Date.now()); } catch (e) { wacht = 0; }
+  try { wacht = daglimietWachttijd(daglimietSinds(), Date.now()); } catch (e) { wacht = 0; }
   if (wacht) { meld(daglimietFilmTekst(wacht)); return; }
   var films = [], fout = '';
   for (var n = 1; n <= LETTERBOXD_MAX_PAGINAS; n++) {
@@ -2768,6 +2784,11 @@ function hernoemLeeslijst(catalogus, oud, nieuw) {
     n++;
   });
   return n;
+}
+
+/** Na hoeveel ms een taak herstart als de daglimiet nog zo lang (wacht) duurt. */
+function herstartNaDaglimiet(naam, wacht) {
+  return wacht + (VOORRANG_TAKEN.indexOf(naam) > -1 ? 0 : VOORRANG_MS);
 }
 
 /** Menu: zoekt de afgebroken beschrijvingen opnieuw op, volledig. */
@@ -3857,7 +3878,8 @@ function logboekEnTaken() {
   var stand = takenStand(taken, leesTabel('Catalogus').rijen, gepland, bezig);
   var blad = spreadsheet().getSheetByName('Logboek');
   var regels = blad && blad.getLastRow() > 1 ? laatsteLogregels(blad.getDataRange().getValues(), LOGBOEK_REGELS) : [];
-  return { ok: true, taken: stand, logboek: regels, daglimiet: Number(cache.get(DAGLIMIET_SLEUTEL)) || 0 };
+  var sinds = daglimietSinds();
+  return { ok: true, taken: stand, logboek: regels, daglimiet: daglimietWachttijd(sinds, Date.now()) ? sinds : 0 };
 }
 
 /** Zet de bestaande regels van het Logboek eenmalig met de nieuwste bovenaan (bij Installeer tabbladen). */
@@ -4401,8 +4423,13 @@ function normaliseerUitvoering(waarde) {
 
 /* ---------- ISBN ---------- */
 
-/** Onthoudt 6 uur lang dat de daglimiet van Google voor vragen naar buiten op is. */
+/**
+ * Onthoudt wanneer de daglimiet van Google voor vragen naar buiten op was. In de eigenschappen van
+ * het script (die vervallen niet, zoals de cache na 6 uur), zodat de voorrang van de films ook na
+ * die 6 uur nog werkt.
+ */
 function noteerDaglimiet() {
+  try { PropertiesService.getScriptProperties().setProperty(DAGLIMIET_SLEUTEL, String(Date.now())); } catch (e) { /* niet erg */ }
   try { CacheService.getScriptCache().put(DAGLIMIET_SLEUTEL, String(Date.now()), 6 * 60 * 60); } catch (e) { /* niet erg */ }
 }
 
@@ -5065,7 +5092,7 @@ function roosterOverzicht() {
   var props = PropertiesService.getScriptProperties();
   var vandaag = vandaagTekst();
   // De daglimiet van Google is op: niet opnieuw proberen, meteen de laatste versie.
-  if (daglimietWachttijd(cache.get(DAGLIMIET_SLEUTEL), Date.now())) return laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, true);
+  if (daglimietWachttijd(daglimietSinds(), Date.now())) return laatsteRooster(props.getProperty(ROOSTER_LAATST_SLEUTEL), vandaag, true);
 
   var antwoorden;
   try {
@@ -6861,8 +6888,8 @@ function vulOnderwerpenAan(onderwerpRijen, catalogusRijen) {
  */
 function wachtOpDaglimiet(naam) {
   var sinds = 0;
-  try { sinds = Number(CacheService.getScriptCache().get(DAGLIMIET_SLEUTEL)) || 0; } catch (e) { return false; }
-  var wacht = daglimietWachttijd(sinds, Date.now());
+  try { sinds = daglimietSinds(); } catch (e) { return false; }
+  var wacht = wachtVoorTaak(naam, sinds, Date.now());
   if (!wacht) return false;
   planTaak(naam, wacht);
   try { spreadsheet().toast('De daglimiet van Google voor vragen naar buiten is op. Deze taak gaat vanzelf verder over ' + Math.ceil(wacht / 3600000) + ' uur.', 'Madrigal', 15); } catch (e) { /* geen spreadsheet open */ }
@@ -6872,6 +6899,12 @@ function wachtOpDaglimiet(naam) {
 /** Zocht enkel Open Library al, en moet Google dit boek nog opzoeken? */
 function wachtOpGoogle(boek) {
   return String(boek.beschrijving_gezocht || '').indexOf(BS_ENKEL_OL) === 0;
+}
+
+/** Hoe lang deze taak nog moet wachten (ms) na een daglimiet die om "sinds" genoteerd werd. 0: meteen. */
+function wachtVoorTaak(naam, sinds, nu) {
+  sinds = Number(sinds) || 0;
+  return sinds ? Math.max(0, herstartNaDaglimiet(naam, sinds + DAGLIMIET_WACHT_MS) - nu) : 0;
 }
 
 /** De maandag van de week van een datum ("JJJJ-MM-DD"). Zo wisselen de aanraders elke week. */
@@ -7219,7 +7252,7 @@ function zoekBeschrijvingenWikipedia() {
     stopAchtergrond('zoekBeschrijvingenWikipedia');
   }
   verwijderTriggers('zoekBeschrijvingenWikipedia');
-  if (rest > 0 && !vast) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((quotum ? 6 * 60 : wachten ? 15 : 1) * 60 * 1000).create();
+  if (rest > 0 && !vast) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after(quotum ? herstartNaDaglimiet('zoekBeschrijvingenWikipedia', DAGLIMIET_WACHT_MS) : (wachten ? 15 : 1) * 60 * 1000).create();
   if (gevonden) { leegCache(); planVertaling(2); }
   logboek('menu', 'zoekBeschrijvingenWikipedia', verwerkt + ' opgezocht, ' + gevonden + ' beschrijvingen gevonden, ' + rest + ' te gaan volgens de spreadsheet' +
     (fout ? ' (Wikipedia: ' + fout + ', later verder)' : '') + (nietBewaard ? ' (bewaren lukte ' + nietBewaard + ' keer niet: de spreadsheet was bezet)' : '') +
