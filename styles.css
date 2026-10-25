@@ -278,7 +278,8 @@ textarea { min-height: 6rem; }
 .boek .meta { margin: .15rem 0 0; font-size: .92rem; color: var(--kleur-tekst-zacht); }
 
 .cover {
-  width: 100%; aspect-ratio: 2 / 3; border-radius: 4px; object-fit: cover;
+  /* height: auto: de hoogte volgt uit de breedte (2:3), ook als de cover breder getoond wordt dan de width in de HTML (bv. Lees ook). */
+  width: 100%; height: auto; aspect-ratio: 2 / 3; border-radius: 4px; object-fit: cover;
   background: var(--kleur-neutraal-vlak); display: block;
 }
 /* Tijdelijke cover voor een boek zonder foto (zie plaatshouder in dom.js).
