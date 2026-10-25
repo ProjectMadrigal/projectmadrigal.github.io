@@ -1,0 +1,69 @@
+# Zet het nieuwe madrigal-script.gs automatisch in Apps Script en publiceert een nieuwe
+# versie van de web-app, telkens main verandert. Dan hoef je niets meer te plakken.
+#
+# Eenmalig nodig (zie README, D1):
+#   - geheim CLASPRC_JSON: de inhoud van .clasprc.json na "clasp login" (Google-account van Madrigal)
+#   - geheim SCRIPT_ID: de Script-ID uit Apps Script > Projectinstellingen
+# Ontbreekt een van beide, dan slaat deze stap zichzelf over.
+#
+# Het manifest (appsscript.json, met o.a. de service Drive API en de instellingen van de
+# web-app) halen we eerst op uit Apps Script, zodat het onveranderd blijft.
+name: Apps Script bijwerken
+on:
+  push:
+    branches: [main]
+    paths: ['madrigal-script.gs', '.github/workflows/apps-script.yml']
+  workflow_dispatch:
+concurrency: apps-script
+jobs:
+  bijwerken:
+    runs-on: ubuntu-latest
+    env:
+      CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+      SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instellingen nakijken
+        id: klaar
+        run: |
+          if [ -z "$CLASPRC_JSON" ] || [ -z "$SCRIPT_ID" ]; then
+            echo "::notice::CLASPRC_JSON of SCRIPT_ID ontbreekt: Apps Script wordt niet automatisch bijgewerkt. Zie README, D1."
+            echo "ok=nee" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=ja" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tests (enkel bijwerken als alles slaagt)
+        if: steps.klaar.outputs.ok == 'ja'
+        run: |
+          node tests/run.js
+          BUNDEL=1 node tests/run.js
+
+      - name: Script naar Apps Script en nieuwe versie publiceren
+        if: steps.klaar.outputs.ok == 'ja'
+        run: |
+          set -euo pipefail
+          npm install -g @google/clasp@2.4.2 >/dev/null
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          # De web-app die de website gebruikt: het ID staat in de apiUrl van config.js.
+          DEPLOYMENT_ID=$(sed -n "s#.*script.google.com/macros/s/\([^/]*\)/exec.*#\1#p" config.js | head -1)
+          if [ -z "$DEPLOYMENT_ID" ]; then echo "::error::Geen apiUrl gevonden in config.js."; exit 1; fi
+          mkdir -p gas && cd gas
+          printf '{"scriptId":"%s","rootDir":"."}' "$SCRIPT_ID" > .clasp.json
+          # Eerst ophalen: zo blijft het manifest (diensten, tijdzone, web-app) zoals het is.
+          clasp pull
+          test -f appsscript.json
+          # Alle code vervangen door het ene bestand uit deze repository.
+          find . -maxdepth 1 -type f \( -name '*.js' -o -name '*.gs' \) -delete
+          cp ../madrigal-script.gs ./Code.js
+          clasp push --force
+          clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA::7}"
+          echo "::notice::Apps Script bijgewerkt en nieuwe versie gepubliceerd (${GITHUB_SHA::7}). Voer na een grote wijziging nog Madrigal > Installeer tabbladen uit."
+
+      - name: Opruimen
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"

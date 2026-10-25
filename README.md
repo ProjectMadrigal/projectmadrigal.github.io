@@ -543,6 +543,30 @@ Uitzetten? Maak `statistiek` weer leeg. De balie en het bestuursscherm tellen no
 
 Verandert er iets in de code van Apps Script, dan ziet de web-app dat pas na een nieuwe versie.
 
+**Automatisch (aangeraden).** Na een eenmalige installatie zet GitHub het nieuwe script zelf in Apps Script en publiceert het een nieuwe versie, telkens `madrigal-script.gs` op `main` verandert en de tests slagen. Je ziet het resultaat op GitHub onder **Actions > Apps Script bijwerken**. Enkel na een grote wijziging kies je nog zelf **Madrigal > Installeer tabbladen**.
+
+Eenmalige installatie (ongeveer 20 minuten, met het Google-account van Madrigal):
+
+1. **Apps Script API aanzetten.** Ga naar https://script.google.com/home/usersettings en zet **Google Apps Script API** op **Aan**.
+2. **De Script-ID opzoeken.** Open Apps Script (vanuit de spreadsheet: **Extensies > Apps Script**), klik links op het tandwiel **Projectinstellingen** en kopieer de **Script-ID**.
+3. **Een sleutel voor GitHub maken.** Open https://shell.cloud.google.com (een terminal in je browser, gratis). Typ:
+   ```
+   npx @google/clasp@2.4.2 login --no-localhost
+   ```
+   Open de link die verschijnt, kies het Madrigal-account, klik op **Toestaan**, kopieer de code en plak die terug in de terminal. Typ daarna:
+   ```
+   cat ~/.clasprc.json
+   ```
+   Kopieer alles wat verschijnt, van `{` tot `}`.
+4. **Twee geheimen op GitHub zetten.** In de repository: **Settings > Secrets and variables > Actions > New repository secret**:
+   - naam `CLASPRC_JSON`, waarde: wat je bij stap 3 kopieerde;
+   - naam `SCRIPT_ID`, waarde: de Script-ID van stap 2.
+5. **Testen.** Ga naar **Actions > Apps Script bijwerken > Run workflow**. Na een minuut staat er een groen vinkje.
+
+Die sleutel geeft GitHub toegang tot de scripts van het Madrigal-account. Zet tweestapsverificatie aan op GitHub en geef enkel mensen die je vertrouwt schrijfrechten. Wil je het stopzetten, verwijder dan het geheim `CLASPRC_JSON`, of trek de toegang in via https://myaccount.google.com/permissions (clasp).
+
+**Met de hand (als het automatisch niet lukt).**
+
 1. Open op GitHub [`madrigal-script.gs`](madrigal-script.gs), kopieer alles (**Copy raw file**), vervang alles in `Code.gs` en klik op **Opslaan**.
 2. Kies in de spreadsheet **Madrigal > Installeer tabbladen**. Zo komen nieuwe kolommen en instellingen erbij. Wat er al staat, blijft.
 3. Klik in Apps Script op **Implementeren > Implementaties beheren**.
