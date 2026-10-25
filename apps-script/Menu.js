@@ -82,7 +82,11 @@ function installeer() {
   verwijderTriggers('bijWijziging');
   verwijderTriggers('maakBackup');
   verwijderTriggers('verwerkNieuweBoekenAutomatisch');
+  verwijderTriggers('stuurDagelijkseMail');
   ScriptApp.newTrigger('verwerkNieuweBoekenAutomatisch').timeBased().everyHours(1).create();
+  // De dagelijkse mail: doet niets zolang de instelling dagelijkse_mail leeg is (zie DagelijkseMail.js).
+  var uur = Math.min(23, Math.max(0, Math.round(leesInstellingen().dagelijkse_mail_uur)));
+  ScriptApp.newTrigger('stuurDagelijkseMail').timeBased().everyDays(1).atHour(isNaN(uur) ? 8 : uur).create();
   ScriptApp.newTrigger('ruimOp').timeBased().everyDays(1).atHour(3).create();
   ScriptApp.newTrigger('maakBackup').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(4).create();
   ScriptApp.newTrigger('bijWijziging').forSpreadsheet(ss).onEdit().create();
@@ -126,7 +130,8 @@ function onOpen() {
     .addSubMenu(ui.createMenu('Onderhoud')
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
       .addItem('Maak nu een back-up', 'maakBackupMenu')
-      .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp'))
+      .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
+      .addItem('Dagelijkse mail: stuur nu een testmail', 'stuurTestmail'))
     .addSeparator()
     .addSubMenu(ui.createMenu('Eenmalig bij de start')
       .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')

@@ -29,6 +29,7 @@ var INSTELLING_GROEPEN = [
   ['Boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
   ['Rooster', ['rooster_url', 'rooster_code', 'rooster_link']],
   ['Bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
+  ['Dagelijkse mail aan het bestuur', ['dagelijkse_mail', 'dagelijkse_mail_uur']],
   ['Privacy', ['bewaartermijn_afgesloten_uitleningen_maanden']],
   ['Back-up', ['backup_map', 'backup_bewaren']],
   ['Online reserveren', ['online_reserveren', 'aanvragen_bewaren_dagen']]

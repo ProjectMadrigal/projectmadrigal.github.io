@@ -806,6 +806,18 @@ test('bezoekers uit GoatCounter: adres, periode en omzetten', () => {
   const jaar = M.verwerkGoatcounter({ totaal: { total: 1, stats: Array.from({ length: 14 }, (_, i) => ({ day: '2026-01-' + String(i + 1).padStart(2, '0'), daily: 1 })) } }, 365);
   gelijk([jaar.perWeek, jaar.verloop.length, jaar.verloop[0].n], [true, 2, 7]);
 });
+test('dagelijkse mail: enkel als er iets wacht, met voorstellen, aanvragen en te laat', () => {
+  assert.strictEqual(M.dagelijkseMailInhoud({ vandaagTekst: 'maandag', link: 'x', voorstellen: [], aanvragen: [], telaat: [] }), null);
+  const m = M.dagelijkseMailInhoud({
+    vandaagTekst: 'maandag 26 oktober', link: 'https://voorbeeld.test/bestuur.html',
+    voorstellen: [{ tabblad: 'Nieuws', titel: 'Boekenruil', wie: 'Kim' }],
+    aanvragen: [{ titel: 'De verzonnen zee', datum: '2026-10-24' }],
+    telaat: [{ titel: 'Twee kasten vol', lenersnummer: '12', voornaam: 'Sam', vervaldatum: '2026-10-18' }]
+  });
+  assert.ok(/3 dingen wachten/.test(m.onderwerp));
+  ['Nieuws: Boekenruil (van Kim)', 'De verzonnen zee, sinds', 'Twee kasten vol, lener 12 (Sam)', 'https://voorbeeld.test/bestuur.html', 'dagelijkse_mail leeg'].forEach((t) => assert.ok(m.tekst.indexOf(t) > -1, t));
+  assert.ok(/1 ding wacht/.test(M.dagelijkseMailInhoud({ vandaagTekst: 'x', link: 'x', voorstellen: [], aanvragen: [{ titel: 'A' }], telaat: [] }).onderwerp));
+});
 test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
   const s = maakStaat();
   s.catalogus[0].leeslijsten = 'Andere lijst';

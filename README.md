@@ -286,6 +286,16 @@ Enkel wie de code van het bestuur heeft, kan dit. Wil je later vrijwilligers bv.
 - Tegen misbruik: hoogstens 30 aanvragen per uur, 3 open aanvragen per contact, en een verborgen veld dat enkel robots invullen.
 - Privacy: na `aanvragen_bewaren_dagen` (standaard 60) wist de nachtelijke opruiming de aanvraag. Vermeld online reserveren in je privacytekst voor je het aanzet.
 
+### Dagelijkse mail aan het bestuur
+
+Elke ochtend een korte mail, enkel als er iets wacht: voorstellen van vrijwilligers voor Nieuws en Agenda, aanvragen van de website en boeken die te laat zijn. Staat uit zolang de instelling `dagelijkse_mail` leeg is.
+
+1. Vul in Instellingen bij `dagelijkse_mail` een of meer mailadressen in, gescheiden door komma's. Kies bij `dagelijkse_mail_uur` het uur (standaard 8).
+2. Kies **Madrigal > Onderhoud > Dagelijkse mail: stuur nu een testmail**. De eerste keer vraagt Google toestemming om mails te versturen: geef die.
+3. Kies **Madrigal > Installeer tabbladen** als je het uur aanpaste.
+
+Uitzetten: maak `dagelijkse_mail` leeg.
+
 ### Het vrijwilligersscherm
 
 Op `vrijwilliger.html` werken vaste vrijwilligers met een eigen code: de instelling `code_vrijwilliger` (onder `── TOEGANG ──`). Die code werkt ook aan de balie. Het scherm is een eenvoudigere versie van het bestuursscherm:
