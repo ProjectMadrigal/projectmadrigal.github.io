@@ -177,7 +177,7 @@ Een leeslijst bundelt boeken rond een thema, bijvoorbeeld "Pride-maand" of "Eers
 **Het makkelijkst: in het bestuursscherm, onderdeel Leeslijsten.**
 
 1. Klik op **+ Nieuwe leeslijst**, vul een naam in (zonder komma's) en eventueel een uitleg en een Engelse versie.
-2. Open de lijst. Zoek een boek op titel, auteur of ISBN en vink het aan. Een vinkje weghalen haalt het boek uit de lijst.
+2. Open de lijst. Zoek een boek op titel, auteur of ISBN, of kies een **Onderwerp** om alle boeken van dat onderwerp te zien. Vink aan wat erin moet. **Vink alles hieronder aan** neemt in één keer alle getoonde boeken. Een vinkje weghalen haalt het boek uit de lijst.
 3. Klik op **Bewaar**. Alle wijzigingen gaan in één keer naar de spreadsheet.
 
 Hernoem je een lijst of verwijder je ze, dan past het script ook de boeken in de Catalogus aan.
