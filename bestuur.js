@@ -426,7 +426,7 @@
       if (periode !== bezoekPeriode) return; // intussen een andere periode gekozen
       if (!r.ok) { D.vervang(vak, el('p', { class: 'melding fout' }, r.fout || 'De bezoekerscijfers konden niet laden.')); return; }
       if (r.nietIngesteld) {
-        D.vervang(vak, el('p', {}, 'Nog niet gekoppeld. Maak in GoatCounter een API-sleutel (Settings > API, enkel "Read statistics") en zet ze in de spreadsheet bij de instelling goatcounter_api_sleutel.'));
+        D.vervang(vak, el('p', {}, 'Nog niet gekoppeld. Maak in GoatCounter een API-sleutel (je naam rechtsboven > Preferences > tabblad API, enkel "Read statistics") en zet ze in de spreadsheet bij de instelling goatcounter_api_sleutel.'));
         return;
       }
       bezoekCijfers[periode] = r.cijfers;

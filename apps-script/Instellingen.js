@@ -34,7 +34,7 @@ var STANDAARD_INSTELLINGEN = [
   ['bewaartermijn_afgesloten_uitleningen_maanden', 12, 'Na hoeveel maanden de koppeling tussen een teruggebrachte uitlening en de lener gewist wordt.'],
   ['goodreads_shelf', '', 'Naam van de Goodreads-shelf met de boeken van Madrigal, precies zoals op Goodreads. Leeg: alle boeken uit de export.'],
   ['goatcounter_code', 'projectmadrigal', 'De code van het GoatCounter-account (projectmadrigal voor projectmadrigal.goatcounter.com). Dezelfde als statistiek in config.js.'],
-  ['goatcounter_api_sleutel', '', 'Optioneel. Een API-sleutel van GoatCounter (Settings > API, enkel "Read statistics"). Dan toont het bestuursscherm de bezoekers onder Cijfers. Deel deze sleutel met niemand.'],
+  ['goatcounter_api_sleutel', '', 'Optioneel. Een API-sleutel van GoatCounter (je naam rechtsboven > Preferences > tabblad API, enkel "Read statistics"). Dan toont het bestuursscherm de bezoekers onder Cijfers. Deel deze sleutel met niemand.'],
   ['google_books_api_key', '', 'Optioneel. Een sleutel voor de Google Books-API, zodat covers sneller opgezocht worden. Leeg werkt ook, maar trager.'],
   ['bol_client_id', '', 'Optioneel. Client ID van een partneraccount bij bol.com (Marketing Catalog API), voor covers van Nederlandstalige boeken.'],
   ['bol_client_secret', '', 'Optioneel. Client Secret van dat partneraccount. Blijft op de server.'],

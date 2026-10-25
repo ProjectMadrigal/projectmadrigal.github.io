@@ -560,8 +560,8 @@ Uitzetten? Maak `statistiek` weer leeg. De balie en het bestuursscherm tellen no
 
 **De cijfers in het bestuursscherm (onder Cijfers).**
 
-1. Meld je aan op https://projectmadrigal.goatcounter.com en ga naar **Settings > API** (of je gebruikersmenu > **API**).
-2. Klik op **New API key**. Geef een naam, bv. `bestuursscherm`, en vink enkel **Read statistics** aan. Bewaar.
+1. Meld je aan op https://projectmadrigal.goatcounter.com. Klik rechtsboven op je naam en kies **Preferences**, dan het tabblad **API**. Rechtstreeks: https://projectmadrigal.goatcounter.com/user/api. Dat tabblad zie je enkel met beheerrechten op het account.
+2. Maak een nieuwe sleutel. Geef een naam, bv. `bestuursscherm`, en vink enkel **Read statistics** aan. Bewaar.
 3. Kopieer de sleutel en plak ze in de spreadsheet, tabblad Instellingen, bij `goatcounter_api_sleutel`. Kijk na dat `goatcounter_code` op `projectmadrigal` staat.
 
 Het bestuursscherm toont dan per 7 dagen, 30 dagen of 12 maanden: het aantal bezoekers, het verloop per dag of week, de meest bekeken pagina's (boeken met hun titel), vanwaar bezoekers komen, toestel en land. De sleutel blijft in de spreadsheet: het bestuursscherm ziet ze nooit.

@@ -5,7 +5,7 @@
  * GoatCounter telt bezoeken zonder cookies en zonder persoonsgegevens (zie config.js, statistiek).
  * Om de cijfers hier te tonen, heeft het script een API-sleutel nodig:
  *   - instelling goatcounter_code: de code van het account (projectmadrigal voor projectmadrigal.goatcounter.com);
- *   - instelling goatcounter_api_sleutel: in GoatCounter via Settings > API, met enkel "Read statistics".
+ *   - instelling goatcounter_api_sleutel: in GoatCounter via je naam rechtsboven > Preferences > tabblad API (/user/api), met enkel "Read statistics".
  * De sleutel blijft op de server: het bestuursscherm ziet ze nooit.
  *
  * GoatCounter telt bezoekers: wie dezelfde pagina meerdere keren op een dag bekijkt, telt één keer.
