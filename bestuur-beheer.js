@@ -226,6 +226,9 @@
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderBeschrijving(vak, ctx); } }, 'Boeken zonder beschrijving (' + zonderTekst + ')'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonIaControle(vak, ctx); } }, 'Controleer covers van Internet Archive')),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonReeksStart(vak, ctx); } }, 'Schenking invoeren (boek na boek)'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBulk(vak, ctx); } }, 'Meerdere boeken tegelijk aanpassen'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { downloadCsv('catalogus.csv', ctx.data.boeken || []); } }, 'Download de catalogus (CSV)')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
     teken();
   }
@@ -326,7 +329,10 @@
       : 'Kies een boek. Typ de beschrijving in het veld Beschrijving, of neem een foto van de achterkant: de site leest de tekst voor je. Met Bewaar en volgend boek ga je meteen verder. Wil je eerst Google laten zoeken? Gebruik dan de knop hieronder.';
     D.vervang(vak, ctx.kop((cover ? 'Boeken zonder cover (' : 'Boeken zonder beschrijving (') + alle.length + ')', uitleg),
       cover && !vrijwilliger ? null : zoekKnop,
-      el('div', { class: 'veld' }, el('label', { for: filterId }, 'Zoek in deze lijst'), filter), vakLijst, terug);
+      el('div', { class: 'veld' }, el('label', { for: filterId }, 'Zoek in deze lijst'), filter), vakLijst,
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { downloadCsv(cover ? 'zonder-cover.csv' : 'zonder-beschrijving.csv', lijstBoeken); } }, 'Download deze lijst (CSV)'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { drukLijstAf(cover ? 'Boeken zonder cover' : 'Boeken zonder beschrijving', lijstBoeken); } }, 'Druk deze lijst af')),
+      terug);
     teken();
     // Terug uit een boek: meteen bij dat boek (of het boek erna, als het intussen uit de lijst is).
     if (stand.laatste) {
@@ -617,6 +623,110 @@
     });
   }
 
+  /* ---------- Downloaden en afdrukken ---------- */
+
+  /** Een CSV voor Excel (puntkomma's, met een BOM zodat Excel de accenten goed leest). */
+  function downloadCsv(naam, boeken) {
+    var cel = function (w) { w = String(w === undefined || w === null ? '' : w); return /[";\n]/.test(w) ? '"' + w.replace(/"/g, '""') + '"' : w; };
+    var rijen = [['boek_id', 'titel', 'auteur', 'isbn', 'exemplaren', 'cover', 'beschrijving']].concat(boeken.map(function (b) {
+      return [b.id, b.t, b.a, b.i ? '\'' + b.i : '', b.x, b.c ? 'ja' : 'nee', b.zb ? 'nee' : 'ja'];
+    }));
+    var tekst = '\ufeff' + rijen.map(function (r) { return r.map(cel).join(';'); }).join('\r\n');
+    var link = el('a', { href: URL.createObjectURL(new Blob([tekst], { type: 'text/csv;charset=utf-8' })), download: naam });
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+  }
+
+  /** Een lijst om af te drukken: titel, auteur en boek-ID, met een vakje om af te vinken. */
+  function drukLijstAf(titel, boeken) {
+    var vak = el('div', { class: 'afdruk', id: 'afdruk' }, el('h1', {}, titel + ' (' + boeken.length + ')'),
+      el('table', {}, el('thead', {}, el('tr', {}, el('th', {}, ''), el('th', {}, 'Titel'), el('th', {}, 'Auteur'), el('th', {}, 'Boek-ID'))),
+        el('tbody', {}, boeken.map(function (b) { return el('tr', {}, el('td', {}, '☐'), el('td', {}, b.t), el('td', {}, b.a || ''), el('td', {}, b.id)); }))));
+    document.body.appendChild(vak);
+    document.body.classList.add('druk-lijst');
+    window.addEventListener('afterprint', function weg() {
+      document.body.classList.remove('druk-lijst');
+      vak.remove();
+      window.removeEventListener('afterprint', weg);
+    });
+    window.print();
+  }
+
+  /* ---------- Schenking: boek na boek invoeren ---------- */
+
+  function toonReeksStart(vak, ctx) {
+    var herkomst = el('input', { type: 'text', id: 'reeks-herkomst', maxlength: '120', placeholder: 'bv. schenking van een verzonnen naam, oktober 2026' });
+    var fout = el('div', { 'aria-live': 'assertive' });
+    D.vervang(vak, ctx.kop('Schenking invoeren', 'Vul eerst de herkomst in. Die komt bij elk boek van deze reeks. Daarna scan of typ je het ISBN, kijk je de gegevens na en klik je op Voeg toe en volgend boek. Zo gaat het boek na boek, tot je de reeks stopt.'),
+      el('div', { class: 'veld' }, el('label', { for: 'reeks-herkomst' }, 'Herkomst ', el('span', { class: 'hulptekst' }, '(niet publiek)')), herkomst), fout,
+      knoppen(el('button', { type: 'button', class: 'knop', onclick: function () {
+        if (!herkomst.value.trim()) { B.melding(fout, 'fout', 'Vul de herkomst in.'); herkomst.focus(); return; }
+        boekFormulier(vak, ctx, {}, true, { reeks: { herkomst: herkomst.value.trim(), aantal: 0 } });
+      } }, 'Start'), el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+    herkomst.focus();
+  }
+
+  /* ---------- Meerdere boeken tegelijk aanpassen ---------- */
+
+  var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'status', 'aanrader', 'startpagina', 'publiek', 'uitleenbaar', 'klassieker'];
+
+  function toonBulk(vak, ctx) {
+    var gekozen = {};
+    var index = Z.maakIndex(ctx.data.boeken || []);
+    var zoek = el('input', { type: 'search', id: 'bulk-zoek', autocomplete: 'off', placeholder: 'Titel, auteur, ISBN of boek-ID' });
+    var lijst = el('div', { 'aria-live': 'polite' });
+    var teller = el('p', { 'aria-live': 'polite' });
+    var veldKeuze = el('select', { id: 'bulk-veld' }, BULK_VELDEN.map(function (v) { return el('option', { value: v }, LABELS[v] || v); }));
+    var waardeVak = el('div', { class: 'veld' });
+    var fout = el('div', { 'aria-live': 'assertive' });
+    var gevonden = [];
+    function waardeInvoer() {
+      var v = veldKeuze.value;
+      var invoer = KEUZES[v] ? el('select', { id: 'bulk-waarde' }, KEUZES[v].map(function (k) { return el('option', { value: k[0] }, k[1]); }))
+        : el('input', { type: 'text', id: 'bulk-waarde', maxlength: '200' });
+      D.vervang(waardeVak, el('label', { for: 'bulk-waarde' }, 'Nieuwe waarde'), invoer);
+    }
+    function tel() { var n = Object.keys(gekozen).length; teller.textContent = n + (n === 1 ? ' boek gekozen.' : ' boeken gekozen.'); }
+    function teken() {
+      var q = zoek.value.trim();
+      gevonden = q ? Z.zoek(index, q).slice(0, 200).map(function (r) { return r.boek; }) : [];
+      D.vervang(lijst, gevonden.length ? [
+        knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { gevonden.forEach(function (b) { gekozen[b.id] = true; }); teken(); tel(); } }, 'Vink alle ' + gevonden.length + ' aan')),
+        el('ul', { class: 'vinklijst' }, gevonden.map(function (b) {
+          var id = 'bulk-' + b.id;
+          var vakje = el('input', { type: 'checkbox', id: id, checked: !!gekozen[b.id] });
+          vakje.addEventListener('change', function () { if (vakje.checked) gekozen[b.id] = true; else delete gekozen[b.id]; tel(); });
+          return el('li', {}, el('label', { class: 'vinkje', for: id }, vakje, miniCover(b),
+            el('span', {}, el('strong', {}, b.t), ' ', el('span', { class: 'hulptekst' }, [b.a, b.id].filter(Boolean).join(' · ')))));
+        }))] : el('p', { class: 'hulptekst' }, q ? 'Geen boek gevonden.' : 'Zoek boeken en vink ze aan. Je kan na elkaar op verschillende woorden zoeken: wat je aanvinkte, blijft gekozen.'));
+    }
+    var toepassen = el('button', { type: 'button', class: 'knop' }, 'Pas aan');
+    toepassen.addEventListener('click', function () {
+      var ids = Object.keys(gekozen);
+      if (!ids.length) { B.melding(fout, 'fout', 'Vink eerst een of meer boeken aan.'); return; }
+      var waarde = $('bulk-waarde').value;
+      var tekstWaarde = KEUZES[veldKeuze.value] ? $('bulk-waarde').selectedOptions[0].textContent : (waarde || '(leeg)');
+      if (!window.confirm('Je zet ' + (LABELS[veldKeuze.value] || veldKeuze.value) + ' op "' + tekstWaarde + '" voor ' + ids.length + (ids.length === 1 ? ' boek' : ' boeken') + '. Doorgaan?')) return;
+      var klaar = bezig(toepassen, 'Bezig met aanpassen...');
+      B.voerUit('beheerBoekenBulk', { ids: ids, veld: veldKeuze.value, waarde: waarde }).then(function (r) {
+        klaar();
+        if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+        B.melding($('melding'), 'ok', r.tekst);
+        ctx.laad();
+      });
+    });
+    zoek.addEventListener('input', teken);
+    veldKeuze.addEventListener('change', waardeInvoer);
+    D.vervang(vak, ctx.kop('Meerdere boeken tegelijk aanpassen', 'Kies de boeken, dan het veld en de nieuwe waarde. Je krijgt eerst een samenvatting. Elke aanpassing komt in het Logboek.'),
+      el('div', { class: 'veld' }, el('label', { for: 'bulk-zoek' }, 'Zoek boeken'), zoek), lijst, teller,
+      el('div', { class: 'veld' }, el('label', { for: 'bulk-veld' }, 'Veld'), veldKeuze), waardeVak, fout,
+      knoppen(toepassen, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+    waardeInvoer();
+    teken();
+    tel();
+  }
+
   /** Het formulier voor een boek. boek: bestaand boek of {} voor een nieuw. */
   function boekFormulier(vak, ctx, boek, nieuw, extra) {
     extra = extra || {};
@@ -629,7 +739,7 @@
         return v.blok;
       }));
     });
-    var herkomst = nieuw ? veld('bb', 'herkomst', '') : null;
+    var herkomst = nieuw ? veld('bb', 'herkomst', extra.reeks ? extra.reeks.herkomst : '') : null;
     var opzoekMelding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
     var zoekKnop = el('button', { type: 'button', class: 'knop tweede', onclick: zoekOp }, 'Zoek gegevens op');
     var opzoeken = nieuw ? el('div', { class: 'blok' },
@@ -658,7 +768,7 @@
       });
     }
 
-    var bewaar = el('button', { type: 'submit', class: 'knop' }, nieuw ? 'Voeg toe aan de catalogus' : 'Bewaar');
+    var bewaar = el('button', { type: 'submit', class: 'knop' }, extra.reeks ? 'Voeg toe en volgend boek' : nieuw ? 'Voeg toe aan de catalogus' : 'Bewaar');
     var coverVeld = velden.filter(function (v) { return v.naam === 'cover_url'; })[0];
     var foto = nieuw ? null : fotoBlok(boek, coverVeld, ctx);
     var cover = coverVeld ? huidigeCover(coverVeld) : null;
@@ -704,6 +814,12 @@
           return;
         }
         B.melding($('melding'), 'ok', r.tekst);
+        if (nieuw && extra.reeks) {
+          // Schenking: meteen het volgende boek. De lijsten worden pas bijgewerkt als je de reeks stopt.
+          extra.reeks.aantal++;
+          boekFormulier(vak, ctx, {}, true, { reeks: extra.reeks });
+          return;
+        }
         if (nieuw) { ctx.laad(); return; }
         // Een bestaand boek: je blijft hier (of gaat naar het volgende boek), en de lijsten kloppen meteen.
         werkLijstBij();
@@ -714,8 +830,14 @@
     formulier.addEventListener('submit', function (e) { e.preventDefault(); verstuur(false); });
 
     if (nieuw && extra.isbn) setTimeout(function () { $('bb-isbn').value = extra.isbn; zoekKnop.click(); }, 0);
+    var reeksBalk = extra.reeks ? el('div', { class: 'melding info' },
+      el('p', {}, el('strong', {}, 'Schenking: ' + extra.reeks.herkomst), ' · ' + extra.reeks.aantal + (extra.reeks.aantal === 1 ? ' boek' : ' boeken') + ' toegevoegd.'),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+        B.melding($('melding'), 'ok', 'Schenking afgesloten: ' + extra.reeks.aantal + (extra.reeks.aantal === 1 ? ' boek' : ' boeken') + ' toegevoegd.');
+        ctx.laad();
+      } }, 'Stop de reeks'))) : null;
     var titel = nieuw ? 'Nieuw boek' : (boek.titel || boek.boek_id);
-    D.vervang(vak, ctx.kop(titel, nieuw ? 'Velden met een waarde uit een lijst mag je zo laten.' : boek.boek_id + (boek.toegevoegd_op ? ' · toegevoegd op ' + D.korteDatum(boek.toegevoegd_op) : '')), formulier);
+    D.vervang(vak, ctx.kop(titel, nieuw ? 'Velden met een waarde uit een lijst mag je zo laten.' : boek.boek_id + (boek.toegevoegd_op ? ' · toegevoegd op ' + D.korteDatum(boek.toegevoegd_op) : '')), reeksBalk, formulier);
     vak.querySelector('h2').focus();
   }
 

@@ -211,6 +211,8 @@ function bestuurGegevens(staat, onderwerpRijen) {
     reservaties: alleReservaties(staat),
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
+    extraCijfers: extraCijfers(staat),
+    privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {

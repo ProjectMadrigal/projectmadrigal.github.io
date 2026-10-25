@@ -1697,5 +1697,22 @@ test('geschiedenis per boek en per lener, wijzigingen uit het Logboek', () => {
   gelijk(M.boekWijzigingen(log, 'B0001').map((r) => r.wie + ' ' + r.actie), ['Sam cover-foto', 'Kim boek aangepast']);
 });
 
+test('extra cijfers en meerdere boeken tegelijk aanpassen', () => {
+  const s = maakStaat('2026-10-23');
+  s.uitleningen = [
+    { uitlening_id: 'U1', exemplaar: 'B0001-1', boek_id: 'B0001', lenersnummer: '1', datum_uit: '2026-09-01', datum_terug: '2026-09-15' },
+    { uitlening_id: 'U2', exemplaar: 'B0002-1', boek_id: 'B0002', lenersnummer: '2', datum_uit: '2026-10-01', datum_terug: '2026-10-21' }
+  ];
+  const c = M.extraCijfers(s);
+  gelijk([c.gemiddeldeDagen, c.afgesloten, c.actieveLeners], [17, 2, 2]);
+  assert.strictEqual(c.nieuweLeners.length, 12);
+  assert.ok(c.nooitVoorbeelden.some((b) => b.boek_id === 'B0003'), 'B0003 werd nooit uitgeleend');
+  assert.ok(!c.nooitVoorbeelden.some((b) => b.boek_id === 'Z0001'), 'Niet uitleenbaar telt niet');
+  const r = M.boekenBulk(s, { ids: ['B0001', 'B0002', 'B9999'], veld: 'genre', waarde: 'Poëzie' });
+  gelijk([r.ok, r.gelukt, r.fouten.length], [true, 2, 1]);
+  gelijk([s.catalogus[0].genre, s.catalogus[1].genre], ['Poëzie', 'Poëzie']);
+  assert.strictEqual(M.boekenBulk(s, { ids: ['B0001'], veld: 'titel', waarde: 'X' }).ok, false, 'Titel mag niet in bulk');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

@@ -53,6 +53,7 @@ var ACTIES = {
   beheerLogboek: 'bestuur',
   beheerCoverLinks: 'vrijwilliger',
   beheerLenerHistoriek: 'bestuur',
+  beheerBoekenBulk: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -280,6 +281,7 @@ function voerActieUit(actie, invoer, rol) {
         }
         break;
       case 'beheerLenerHistoriek': antwoord = lenerHistoriek(staat, invoer.lenersnummer); break;
+      case 'beheerBoekenBulk': antwoord = boekenBulk(staat, invoer); break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;

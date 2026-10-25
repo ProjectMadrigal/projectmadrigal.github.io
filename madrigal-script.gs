@@ -57,6 +57,7 @@ var ACTIES = {
   beheerLogboek: 'bestuur',
   beheerCoverLinks: 'vrijwilliger',
   beheerLenerHistoriek: 'bestuur',
+  beheerBoekenBulk: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -479,6 +480,8 @@ var SITE_MAX_AANRADERS = 12;
 var LOGBOEK_REGELS = 60; // zoveel regels toont het bestuursscherm
 
 var DAGLIMIET_SLEUTEL = 'daglimiet_urlfetch';
+
+var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'status', 'aanrader', 'startpagina', 'publiek', 'uitleenbaar', 'klassieker'];
 
 var STATUS_WACHT = 'wacht';
 
@@ -1025,6 +1028,8 @@ function bestuurGegevens(staat, onderwerpRijen) {
     reservaties: alleReservaties(staat),
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
+    extraCijfers: extraCijfers(staat),
+    privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {
@@ -1205,6 +1210,24 @@ function boekAanpassen(staat, invoer) {
   return { ok: true, tekst: '"' + schoon(boek.titel) + '" is bewaard.', boek: beheerBoek(boek) };
 }
 
+/** invoer: { ids: [boek_id, ...], veld, waarde }. Past elk boek aan zoals het boekformulier. */
+function boekenBulk(staat, invoer) {
+  var veld = String(invoer.veld || '');
+  if (BULK_VELDEN.indexOf(veld) === -1) return { ok: false, fout: 'Dit veld kan je niet voor meerdere boeken tegelijk aanpassen.' };
+  var ids = (invoer.ids || []).map(String).filter(function (id, i, alle) { return id && alle.indexOf(id) === i; });
+  if (!ids.length) return { ok: false, fout: 'Kies eerst een of meer boeken.' };
+  if (ids.length > 300) return { ok: false, fout: 'Kies hoogstens 300 boeken per keer.' };
+  var gelukt = 0, fouten = [];
+  ids.forEach(function (id) {
+    var velden = {};
+    velden[veld] = invoer.waarde;
+    var r = boekAanpassen(staat, { boek_id: id, velden: velden });
+    if (r.ok) gelukt++; else fouten.push(id + ': ' + r.fout);
+  });
+  return { ok: gelukt > 0, fout: gelukt ? '' : fouten.join(' '), gelukt: gelukt, fouten: fouten,
+    tekst: gelukt + (gelukt === 1 ? ' boek' : ' boeken') + ' aangepast.' + (fouten.length ? ' Niet gelukt: ' + fouten.join(' ') : '') };
+}
+
 /** Boeken met een status, per status, voor het bestuursscherm. */
 function boekenMetStatus(staat) {
   var lijsten = { verloren: [], gevoelig_verborgen: [], gevoelig_zichtbaar: [] };
@@ -1293,6 +1316,8 @@ function boekWijzigingen(waarden, boekId) {
       (r.details === id || r.details.indexOf(id + ':') === 0 || r.details.indexOf(id + ' ') === 0);
   }).slice(0, 5);
 }
+
+/* ---------- Extra cijfers (bestuursscherm, onderdeel Cijfers) ---------- */
 
 /**
  * Zoekt in een antwoord van bol.com de beste link naar een afbeelding. We weten niet zeker hoe
@@ -1916,6 +1941,48 @@ function exemplarenVan(boek) {
   for (var i = 1; i <= aantalExemplaren(boek); i++) lijst.push(boek.boek_id + '-' + i);
   return lijst;
 }
+
+/**
+ * Nieuwe leners per maand (laatste 12 maanden), boeken die nooit uitgeleend werden,
+ * de gemiddelde uitleenduur en hoeveel leners het voorbije jaar iets leenden.
+ * Enkel wat de privacy-opruiming nog niet wiste.
+ */
+function extraCijfers(staat) {
+  var vanaf = telMaandenOp(staat.vandaag, -11).slice(0, 7);
+  var perMaand = {};
+  for (var m = 0; m < 12; m++) {
+    var sleutel = telMaandenOp(vanaf + '-01', m).slice(0, 7);
+    perMaand[sleutel] = { maand: maandTekst(sleutel), aantal: 0 };
+  }
+  staat.leners.forEach(function (l) {
+    var maand = String(parseerDatum(l.datum_inschrijving) || '').slice(0, 7);
+    if (perMaand[maand]) perMaand[maand].aantal++;
+  });
+  var geleend = {};
+  var dagen = [];
+  var jaarGeleden = telMaandenOp(staat.vandaag, -12);
+  var actief = {};
+  staat.uitleningen.forEach(function (u) {
+    geleend[String(u.boek_id)] = true;
+    var uit = parseerDatum(u.datum_uit), terug = parseerDatum(u.datum_terug);
+    if (uit && terug) dagen.push(Math.round((Date.parse(terug) - Date.parse(uit)) / 86400000));
+    if (uit && uit >= jaarGeleden) actief[String(u.lenersnummer)] = true;
+  });
+  var nooit = staat.catalogus.filter(function (b) {
+    return !isLeeg(b.boek_id) && isUitleenbaar(b) && boekStatus(b) !== 'verloren' && !geleend[String(b.boek_id)];
+  });
+  var gemiddeld = dagen.length ? Math.round(dagen.reduce(function (a, b) { return a + b; }, 0) / dagen.length) : 0;
+  return {
+    nieuweLeners: Object.keys(perMaand).sort().map(function (k) { return perMaand[k]; }),
+    nooitUitgeleend: nooit.length,
+    nooitVoorbeelden: nooit.slice(0, 15).map(function (b) { return { boek_id: String(b.boek_id), titel: schoon(b.titel), auteur: schoon(b.auteur) }; }),
+    gemiddeldeDagen: gemiddeld,
+    afgesloten: dagen.length,
+    actieveLeners: Object.keys(actief).length
+  };
+}
+
+/* ---------- Meerdere boeken tegelijk aanpassen (bestuursscherm) ---------- */
 
 /**
  * Bepaalt de filtergroepen van een boek: via de vertaaltabel, de kolom
@@ -5507,6 +5574,7 @@ function voerActieUit(actie, invoer, rol) {
         }
         break;
       case 'beheerLenerHistoriek': antwoord = lenerHistoriek(staat, invoer.lenersnummer); break;
+      case 'beheerBoekenBulk': antwoord = boekenBulk(staat, invoer); break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;

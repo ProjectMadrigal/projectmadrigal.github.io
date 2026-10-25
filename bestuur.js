@@ -136,6 +136,7 @@
     // Enkel bij een wissel door de gebruiker: anders verdwijnt een net getoonde bevestiging.
     if (focus) D.vervang($('melding'));
     var sectie = SECTIES.filter(function (s) { return s[0] === naam; })[0];
+    toonHulp(naam);
     sectie[2]($('sectie'));
     if (focus) { var kop = $('sectie').querySelector('h2'); if (kop) kop.focus(); }
   }
@@ -217,7 +218,51 @@
       el('h3', {}, u.titel),
       el('p', {}, u.exemplaar + ' · lener ' + u.lenersnummer + ' (' + u.voornaam + ') · uit sinds ' + D.korteDatum(u.datum_uit)),
       B.uitleenStatus(u),
-      u.borg ? el('p', {}, 'Borg: ' + D.euro(u.borg) + (u.betaalwijze_borg ? ' (' + u.betaalwijze_borg + ')' : '')) : null);
+      u.borg ? el('p', {}, 'Borg: ' + D.euro(u.borg) + (u.betaalwijze_borg ? ' (' + u.betaalwijze_borg + ')' : '')) : null,
+      uitleenKnoppen(u));
+  }
+
+  /**
+   * Terugbrengen en verlengen, rechtstreeks vanuit dit scherm. Dezelfde regels als aan de balie:
+   * bij een overschreden grens vraagt het scherm een reden (zie grens-dialoog).
+   */
+  function uitleenKnoppen(u) {
+    var vak = el('div');
+    var fout = el('div', { 'aria-live': 'assertive' });
+    var terug = el('button', { type: 'button', class: 'knop tweede' }, 'Teruggebracht');
+    var verleng = el('button', { type: 'button', class: 'knop tweede' }, 'Verleng');
+    terug.addEventListener('click', function () {
+      var bevestig = el('button', { type: 'button', class: 'knop' }, 'Bevestig: boek is terug');
+      var naam = 'borg-' + u.uitlening_id;
+      var vraag = u.borg > 0 ? el('fieldset', { class: 'keuzes' },
+        el('legend', {}, 'Borg van ' + D.euro(u.borg) + ' terugbetaald?'),
+        el('label', {}, el('input', { type: 'radio', name: naam, value: 'ja', checked: true }), 'Ja, teruggegeven'),
+        el('label', {}, el('input', { type: 'radio', name: naam, value: 'nee' }), 'Nee, nog niet')) : null;
+      bevestig.addEventListener('click', function () {
+        var keuze = vak.querySelector('input[name="' + naam + '"]:checked');
+        bevestig.disabled = true;
+        B.voerUit('terugbrengen', { uitlening_id: u.uitlening_id, borg_terugbetaald: !!keuze && keuze.value === 'ja' }).then(function (r) {
+          if (!r.ok) { bevestig.disabled = false; B.melding(fout, 'fout', r.fout); return; }
+          B.melding($('melding'), 'ok', r.tekst || '"' + u.titel + '" is terug.');
+          laad();
+        });
+      });
+      D.vervang(vak, vraag, fout, el('div', { class: 'knoppen' }, bevestig,
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { D.vervang(vak, rij); } }, 'Annuleer')));
+    });
+    verleng.addEventListener('click', function () {
+      verleng.disabled = true;
+      B.voerUit('verlengen', { uitlening_id: u.uitlening_id }, function () { verleng.disabled = false; }).then(function (r) {
+        verleng.disabled = false;
+        if (r.geannuleerd) return;
+        if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+        B.melding($('melding'), 'ok', r.tekst || '"' + u.titel + '" is verlengd.');
+        laad();
+      });
+    });
+    var rij = [fout, el('div', { class: 'knoppen' }, terug, verleng)];
+    D.vervang(vak, rij);
+    return vak;
   }
 
   function toonTeLaat(vak) {
@@ -436,6 +481,7 @@
     }
     zoekveld.addEventListener('input', teken);
     D.vervang(vak, kop('Leners', data.leners.length + ' leners. Zoek, pas aan of zet op inactief. Een inactieve lener zonder uitleningen wordt na de bewaartermijn gewist.'),
+      el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop', onclick: nieuweLener }, '+ Nieuwe lener')),
       el('div', { class: 'veld' }, el('label', { for: 'lener-zoek' }, 'Zoek een lener'), zoekveld), lijst);
     teken();
 
@@ -470,6 +516,40 @@
       vak.querySelector('h2').focus();
     }
 
+    /** Een nieuwe lener inschrijven, zoals aan de balie (zelfde controle en privacyverklaring). */
+    function nieuweLener() {
+      var fout = el('div', { 'aria-live': 'assertive' });
+      var knop = el('button', { type: 'submit', class: 'knop' }, 'Schrijf in');
+      var invoer = function (id, label, type, extraLabel) {
+        return el('div', { class: 'veld' }, el('label', { for: id }, label, extraLabel ? el('span', { class: 'hulptekst' }, ' ' + extraLabel) : null),
+          el('input', { type: type || 'text', id: id, autocomplete: 'off' }));
+      };
+      var formulier = el('form', { novalidate: true },
+        invoer('nl-voornaam', 'Voornaam'), invoer('nl-achternaam', 'Achternaam', 'text', '(mag leeg)'),
+        el('p', {}, 'Vul minstens een telefoonnummer of een e-mailadres in.'),
+        invoer('nl-telefoon', 'Telefoon', 'tel'), invoer('nl-email', 'E-mail', 'email'),
+        data.privacy ? el('div', { class: 'melding info' }, el('strong', {}, 'Privacyverklaring'), el('p', {}, data.privacy)) : null,
+        el('label', { class: 'vinkje', for: 'nl-toestemming' }, el('input', { type: 'checkbox', id: 'nl-toestemming' }), 'De lener heeft de privacyverklaring gelezen en geeft toestemming.'),
+        fout, el('div', { class: 'knoppen' }, knop, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonLeners(vak); } }, 'Annuleer')));
+      formulier.addEventListener('submit', function (e) {
+        e.preventDefault();
+        knop.disabled = true;
+        B.voerUit('nieuweLener', {
+          voornaam: $('nl-voornaam').value, achternaam: $('nl-achternaam').value,
+          telefoon: $('nl-telefoon').value, email: $('nl-email').value, toestemming: $('nl-toestemming').checked
+        }).then(function (r) {
+          knop.disabled = false;
+          if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+          D.vervang(vak, kop('Ingeschreven'), el('p', { class: 'groot-getal' }, el('strong', {}, r.tekst)),
+            el('div', { class: 'knoppen' },
+              el('a', { class: 'knop', href: 'balie.html#uitlenen=' + encodeURIComponent(r.lenersnummer) }, 'Meteen een boek uitlenen'),
+              el('button', { type: 'button', class: 'knop tweede', onclick: function () { laad(); } }, 'Klaar')));
+        });
+      });
+      D.vervang(vak, kop('Nieuwe lener'), formulier);
+      $('nl-voornaam').focus();
+    }
+
     /** Wat deze lener nu leent, wat er gereserveerd staat, en (op vraag) wat die vroeger leende. */
     function lenerOverzicht(l) {
       var nr = String(l.lenersnummer);
@@ -492,6 +572,7 @@
       return el('div', { class: 'blok' },
         el('h3', {}, 'Nu in huis'),
         nu.length ? el('ul', { class: 'kaartlijst' }, nu.map(uitleningKaart)) : el('p', {}, 'Geen boeken in huis.'),
+        el('div', { class: 'knoppen' }, el('a', { class: 'knop', href: 'balie.html#uitlenen=' + encodeURIComponent(nr) }, 'Leen een boek uit aan deze lener')),
         el('h3', {}, 'Reservaties'),
         res.length ? el('ul', {}, res.map(function (r) { return el('li', {}, r.titel + ': ' + r.tekst); })) : el('p', {}, 'Geen reservaties.'),
         el('h3', {}, 'Vroeger'), vroeger, el('div', { class: 'knoppen' }, knop));
@@ -592,7 +673,25 @@
       el('h4', {}, 'Meest geleende boeken'),
       data.meestGeleend.length ? staafTabel('Meest geleende boeken', 'Boek', data.meestGeleend.map(function (b) { return [b.titel + (b.auteur ? ' (' + b.auteur + ')' : ''), b.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
       el('h4', {}, 'Uitleningen per filtergroep'),
-      data.groepen.length ? staafTabel('Uitleningen per filtergroep', 'Filtergroep', data.groepen.map(function (g) { return [g.groep, g.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'));
+      data.groepen.length ? staafTabel('Uitleningen per filtergroep', 'Filtergroep', data.groepen.map(function (g) { return [g.groep, g.aantal]; })) : el('p', {}, 'Nog geen uitleningen.'),
+      extraCijfersBlok());
+  }
+
+  /** Leners en collectie: nieuwe leners, actieve leners, uitleenduur, boeken die nooit uitgeleend werden. */
+  function extraCijfersBlok() {
+    var x = data.extraCijfers;
+    if (!x) return null;
+    return [
+      el('h3', { style: 'margin-top:1.5rem' }, 'Leners en collectie'),
+      el('p', { class: 'groot-getal' }, el('strong', {}, String(x.actieveLeners)), ' leners leenden het voorbije jaar iets.'),
+      el('p', { class: 'groot-getal' }, el('strong', {}, String(x.gemiddeldeDagen)), ' dagen duurt een uitlening gemiddeld (' + x.afgesloten + ' afgesloten uitleningen).'),
+      el('h4', {}, 'Nieuwe leners per maand'),
+      staafTabel('Nieuwe leners per maand', 'Maand', x.nieuweLeners.map(function (m) { return [m.maand, m.aantal]; })),
+      el('h4', {}, 'Nooit uitgeleend'),
+      el('p', {}, x.nooitUitgeleend + ' uitleenbare boeken werden nog nooit uitgeleend' + (x.nooitVoorbeelden.length ? '. Bijvoorbeeld:' : '.')),
+      x.nooitVoorbeelden.length ? el('ul', {}, x.nooitVoorbeelden.map(function (b) { return el('li', {}, b.titel + (b.auteur ? ' (' + b.auteur + ')' : '') + ' · ' + b.boek_id); })) : null,
+      el('p', { class: 'hulptekst' }, 'Oude uitleningen verdwijnen bij de privacy-opruiming. Deze cijfers gaan dus enkel over wat er nog bewaard is.')
+    ];
   }
 
   /* ---------- Vandaag ---------- */
@@ -676,6 +775,61 @@
       teken();
     });
   }
+
+  /* ---------- Hoe werkt dit? ---------- */
+
+  /** Korte uitleg per onderdeel, uitklapbaar boven het onderdeel. */
+  var HULP = {
+    vandaag: 'Hier zie je wat vandaag aandacht vraagt. Klik op Open om naar het onderdeel te gaan. Staat er niets, dan is alles in orde.',
+    telaat: 'Deze boeken hadden al terug moeten zijn. Bestuur: open de herinnering in WhatsApp of je mail, verstuur ze, en klik daarna op Herinnering verstuurd. Met Verstuur de herinneringen een voor een ga je ze snel na elkaar af. Is het boek terug? Klik op Teruggebracht.',
+    binnenkort: 'Deze boeken moeten binnenkort terug. Een vriendelijke herinnering op tijd voorkomt dat ze te laat komen. Wil de lener langer lezen? Klik op Verleng.',
+    lopend: 'Alle boeken die nu uitgeleend zijn. Zoek op titel, exemplaar, lenersnummer of voornaam, of toon enkel wat te laat is. Teruggebracht en Verleng werken zoals aan de balie.',
+    reservaties: 'Per boek de wachtrij. Komt een gereserveerd boek terug, dan legt het uitleenscherm het apart voor de eerste in de rij.',
+    aanvragen: 'Reservaties die via de website binnenkwamen. Neem contact op met de lener en handel de aanvraag daarna af.',
+    leners: 'Zoek een lener om de gegevens aan te passen, te zien wat die leent of leende, of meteen een boek uit te lenen. Met Nieuwe lener schrijf je iemand in, met dezelfde privacyverklaring als aan de balie.',
+    borgen: 'Hoeveel borg er nu in kas zit, per betaalwijze, en welke borgen nog terugbetaald moeten worden.',
+    uitzonderingen: 'Telkens iemand een grens overschreed (bv. te veel boeken tegelijk), met de reden die toen opgegeven werd.',
+    boeken: 'Zoek een boek om het aan te passen. Je kan ook een ISBN scannen, een schenking boek na boek invoeren, meerdere boeken tegelijk aanpassen, of de catalogus downloaden als CSV voor Excel.',
+    covers: 'Boeken zonder cover. Neem een foto van de voorkant met je gsm, of laat de site zoeken op het internet.',
+    boekstatus: 'Boeken die verloren zijn of gevoelige inhoud hebben. Je past de status aan bij het boek zelf.',
+    inhoud: 'Nieuws, agenda en veelgestelde vragen voor de website. Voorstellen van vrijwilligers verschijnen pas na goedkeuring.',
+    leeslijsten: 'Stel lijsten samen voor de website, bijvoorbeeld voor een themamaand. Je kan ze plannen met een begin- en einddatum.',
+    instellingen: 'De teksten en instellingen van de website en het uitleensysteem. Codes en sleutels pas je enkel in de spreadsheet aan.',
+    cijfers: 'Uitleningen per maand, de meest geleende boeken, bezoekers van de website, en cijfers over leners en de collectie.',
+    logboek: 'De achtergrondtaken die boeken opzoeken (Wikipedia, Google, covers) en de laatste regels van het Logboek. Staat een taak stil, start ze dan in de spreadsheet via het menu Madrigal.',
+    rooster: 'Wie wanneer de bib openhoudt. Je beschikbaarheid geef je door in de roostertool.'
+  };
+
+  function toonHulp(naam) {
+    var vak = $('hulp');
+    if (!vak) return;
+    D.vervang(vak, HULP[naam] ? el('details', { class: 'hulp' }, el('summary', {}, 'Hoe werkt dit?'), el('p', {}, HULP[naam])) : null);
+  }
+
+  /* ---------- Donkere modus en grotere letters ---------- */
+
+  var THEMA = 'madrigal_thema'; // dezelfde keuze als op de publieke site (layout.js)
+  var LETTERS = 'madrigal_letters';
+
+  function leesKeuze(sleutel) { try { return localStorage.getItem(sleutel) || ''; } catch (e) { return ''; } }
+  function bewaarKeuze(sleutel, w) { try { localStorage.setItem(sleutel, w); } catch (e) { /* enkel voor deze pagina */ } }
+
+  function zetWeergave() {
+    var donker = leesKeuze(THEMA) === 'dark' || (!leesKeuze(THEMA) && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', donker ? 'dark' : 'light');
+    document.documentElement.classList.toggle('groot-lettertype', leesKeuze(LETTERS) === 'groot');
+    if ($('thema-knop')) { $('thema-knop').textContent = donker ? 'Lichte modus' : 'Donkere modus'; $('thema-knop').setAttribute('aria-pressed', donker ? 'true' : 'false'); }
+    if ($('letter-knop')) { var groot = leesKeuze(LETTERS) === 'groot'; $('letter-knop').textContent = groot ? 'Gewone letters' : 'Grotere letters'; $('letter-knop').setAttribute('aria-pressed', groot ? 'true' : 'false'); }
+  }
+  if ($('thema-knop')) $('thema-knop').addEventListener('click', function () {
+    bewaarKeuze(THEMA, document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    zetWeergave();
+  });
+  if ($('letter-knop')) $('letter-knop').addEventListener('click', function () {
+    bewaarKeuze(LETTERS, leesKeuze(LETTERS) === 'groot' ? '' : 'groot');
+    zetWeergave();
+  });
+  zetWeergave();
 
   /* ---------- Start ---------- */
 

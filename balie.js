@@ -562,7 +562,14 @@
         knop.textContent = rol === 'bestuur' ? 'Naar het bestuursscherm' : 'Naar het vrijwilligersscherm';
         $('vernieuw').parentNode.insertBefore(knop, $('vernieuw'));
       }
-      laad().then(function () { if (data) toonMenu(); });
+      laad().then(function () {
+        if (!data) return;
+        // Vanuit het bestuursscherm: balie.html#uitlenen=12 opent Uitlenen met die lener.
+        var m = /^#uitlenen=(.+)$/.exec(location.hash);
+        var lener = m ? data.leners.filter(function (l) { return String(l.n) === decodeURIComponent(m[1]); })[0] : null;
+        if (m) history.replaceState(null, '', location.pathname);
+        if (lener) toonUitlenen(lener); else toonMenu();
+      });
     }
   });
 })();
