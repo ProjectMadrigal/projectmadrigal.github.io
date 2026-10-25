@@ -285,14 +285,28 @@ function uitlenen(staat, invoer) {
  * Terugbrengen.
  * invoer: { uitlening_id, borg_terugbetaald: true/false }
  */
+var STATEN_TERUG = ['in orde', 'licht beschadigd', 'beschadigd'];
+
 function terugbrengen(staat, invoer) {
   var u = uitleningVan(staat, invoer.uitlening_id);
   if (!u) return { ok: false, fout: 'Deze uitlening bestaat niet.' };
   if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht.' };
   var velden = { datum_terug: staat.vandaag };
   if (invoer.borg_terugbetaald === true && Number(u.borg) > 0) velden.borg_terugbetaald = staat.vandaag;
+  // Staat van het boek: komt bij de uitlening, en bij schade ook in de notitie van het boek.
+  var toestand = STATEN_TERUG.indexOf(invoer.staat_boek) > -1 ? invoer.staat_boek : '';
+  var opmerking = tekstInvoer(invoer.opmerking, 200);
+  if (toestand || opmerking) velden.staat_terug = [toestand, opmerking].filter(Boolean).join(': ');
   wijzig(u, velden);
-  staat.log.push(['terugbrengen', u.uitlening_id + ' ' + u.exemplaar]);
+  staat.log.push(['terugbrengen', u.uitlening_id + ' ' + u.exemplaar + (velden.staat_terug ? ' (' + velden.staat_terug + ')' : '')]);
+  if ((toestand && toestand !== 'in orde') || (opmerking && toestand !== 'in orde')) {
+    var b = boekVan(staat, u.boek_id);
+    if (b) {
+      var regel = staat.vandaag + ' ' + u.exemplaar + ': ' + velden.staat_terug;
+      wijzig(b, { notitie: [schoonMetRegels(b.notitie), regel].filter(Boolean).join('\n') });
+      staat.catalogusGewijzigd = true;
+    }
+  }
   var melding = geefExemplaarDoor(staat, u.boek_id, u.exemplaar);
   var boek = boekVan(staat, u.boek_id);
   return {
@@ -425,10 +439,12 @@ function lenerAanpassen(staat, invoer) {
   if (!telefoon && !email) return { ok: false, fout: 'Vul een telefoonnummer of een e-mailadres in (of allebei).' };
   if (email && !geldigEmail(email)) return { ok: false, fout: 'Dit e-mailadres lijkt niet te kloppen.' };
   if (telefoon && !geldigeTelefoon(telefoon)) return { ok: false, fout: 'Dit telefoonnummer lijkt niet te kloppen.' };
-  wijzig(l, {
+  var velden = {
     voornaam: voornaam, achternaam: tekstInvoer(invoer.achternaam, 80), telefoon: telefoon, email: email,
     actief: invoer.actief === false ? 'nee' : 'ja'
-  });
+  };
+  if (invoer.hasOwnProperty('notitie')) velden.notitie = tekstInvoer(invoer.notitie, 500);
+  wijzig(l, velden);
   staat.log.push(['lener aangepast', 'lener ' + l.lenersnummer]);
   return { ok: true, tekst: 'Lener ' + l.lenersnummer + ' is bijgewerkt.' };
 }

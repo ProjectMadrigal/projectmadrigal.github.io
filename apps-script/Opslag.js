@@ -18,14 +18,19 @@ var KOLOMMEN = {
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
-    'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht'
+    'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
+    // Interne notitie van het bestuur (bv. schade, plaats in de kast). Nooit publiek.
+    'notitie'
   ],
   'Onderwerpen': ['genre', 'filtergroepen', 'aantal_boeken'],
-  'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief'],
+  // notitie: enkel voor het bestuur. Verdwijnt met de lener bij de privacy-opruiming.
+  'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief', 'notitie'],
   'Uitleningen': [
     'uitlening_id', 'exemplaar', 'boek_id', 'lenersnummer', 'datum_uit', 'oorspronkelijke_vervaldatum',
     'vervaldatum', 'datum_terug', 'aantal_verlengingen', 'datum_verlenging', 'borg', 'betaalwijze_borg',
-    'borg_terugbetaald', 'gift', 'laatste_herinnering', 'vrijwilliger', 'bron'
+    'borg_terugbetaald', 'gift', 'laatste_herinnering', 'vrijwilliger', 'bron',
+    // Hoe het boek terugkwam (in orde, licht beschadigd, beschadigd), met een opmerking.
+    'staat_terug'
   ],
   'Reservaties': [
     'reservatie_id', 'boek_id', 'lenersnummer', 'datum_reservatie', 'status', 'exemplaar',

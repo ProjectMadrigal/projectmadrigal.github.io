@@ -58,6 +58,7 @@ var ACTIES = {
   beheerCoverLinks: 'vrijwilliger',
   beheerLenerHistoriek: 'bestuur',
   beheerBoekenBulk: 'bestuur',
+  bestuurCijfers: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -79,7 +80,7 @@ var BACKUP_VOORVOEGSEL = 'Madrigal back-up ';
 var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
   'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
-  'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url'
+  'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie'
 ];
 
 /** Velden met ja/nee. Bij startpagina betekent leeg "automatisch". */
@@ -378,14 +379,19 @@ var KOLOMMEN = {
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
-    'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht'
+    'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
+    // Interne notitie van het bestuur (bv. schade, plaats in de kast). Nooit publiek.
+    'notitie'
   ],
   'Onderwerpen': ['genre', 'filtergroepen', 'aantal_boeken'],
-  'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief'],
+  // notitie: enkel voor het bestuur. Verdwijnt met de lener bij de privacy-opruiming.
+  'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief', 'notitie'],
   'Uitleningen': [
     'uitlening_id', 'exemplaar', 'boek_id', 'lenersnummer', 'datum_uit', 'oorspronkelijke_vervaldatum',
     'vervaldatum', 'datum_terug', 'aantal_verlengingen', 'datum_verlenging', 'borg', 'betaalwijze_borg',
-    'borg_terugbetaald', 'gift', 'laatste_herinnering', 'vrijwilliger', 'bron'
+    'borg_terugbetaald', 'gift', 'laatste_herinnering', 'vrijwilliger', 'bron',
+    // Hoe het boek terugkwam (in orde, licht beschadigd, beschadigd), met een opmerking.
+    'staat_terug'
   ],
   'Reservaties': [
     'reservatie_id', 'boek_id', 'lenersnummer', 'datum_reservatie', 'status', 'exemplaar',
@@ -494,6 +500,12 @@ var STATUS_VERVALLEN = 'vervallen';
 var STATUS_GEANNULEERD = 'geannuleerd';
 
 /* ---------- Opzoeken ---------- */
+
+/**
+ * Terugbrengen.
+ * invoer: { uitlening_id, borg_terugbetaald: true/false }
+ */
+var STATEN_TERUG = ['in orde', 'licht beschadigd', 'beschadigd'];
 
 var WIKI_TALEN = ['nl', 'en'];
 
@@ -948,6 +960,28 @@ function beschrijvingUitOpenLibrary(isbn) {
   return { tekst: maakBeschrijvingNetjes(olTekst(w.data && w.data.description)) };
 }
 
+/**
+ * De zwaardere cijfers (meest geleend, per filtergroep, leners en collectie). Apart van bestuurData,
+ * zodat het bestuursscherm sneller opent: deze cijfers laden pas als je Cijfers opent.
+ */
+function bestuurCijfers(staat, onderwerpRijen) {
+  var perBoek = {}, perGroep = {};
+  var vertaal = vertaalTabel(onderwerpRijen);
+  staat.uitleningen.forEach(function (u) {
+    perBoek[u.boek_id] = (perBoek[u.boek_id] || 0) + 1;
+    var boek = boekVan(staat, u.boek_id);
+    if (boek) filtergroepenVan(boek, vertaal).forEach(function (g) { perGroep[g] = (perGroep[g] || 0) + 1; });
+  });
+  var meestGeleend = Object.keys(perBoek).sort(function (a, b) { return perBoek[b] - perBoek[a]; }).slice(0, 10).map(function (id) {
+    var b = boekVan(staat, id);
+    return { boek_id: id, titel: b ? b.titel : id, auteur: b ? b.auteur : '', aantal: perBoek[id] };
+  });
+  var groepen = Object.keys(perGroep).sort(function (a, b) { return perGroep[b] - perGroep[a]; }).map(function (g) {
+    return { groep: g, aantal: perGroep[g] };
+  });
+  return { meestGeleend: meestGeleend, groepen: groepen, extraCijfers: extraCijfers(staat) };
+}
+
 /** Gegevens voor het bestuursscherm. */
 function bestuurGegevens(staat, onderwerpRijen) {
   var lopend = lopendeUitleningen(staat).map(function (u) { return uitleningInfo(staat, u, true); });
@@ -981,7 +1015,6 @@ function bestuurGegevens(staat, onderwerpRijen) {
     var sleutel = telMaandenOp(vanaf + '-01', m).slice(0, 7);
     perMaand[sleutel] = { maand: maandTekst(sleutel), uitleningen: 0, giften: 0 };
   }
-  var perBoek = {}, perGroep = {};
   var vertaal = vertaalTabel(onderwerpRijen);
   staat.uitleningen.forEach(function (u) {
     var maand = String(u.datum_uit || '').slice(0, 7);
@@ -989,16 +1022,6 @@ function bestuurGegevens(staat, onderwerpRijen) {
       perMaand[maand].uitleningen++;
       perMaand[maand].giften += Number(u.gift || 0);
     }
-    perBoek[u.boek_id] = (perBoek[u.boek_id] || 0) + 1;
-    var boek = boekVan(staat, u.boek_id);
-    if (boek) filtergroepenVan(boek, vertaal).forEach(function (g) { perGroep[g] = (perGroep[g] || 0) + 1; });
-  });
-  var meestGeleend = Object.keys(perBoek).sort(function (a, b) { return perBoek[b] - perBoek[a]; }).slice(0, 10).map(function (id) {
-    var b = boekVan(staat, id);
-    return { boek_id: id, titel: b ? b.titel : id, auteur: b ? b.auteur : '', aantal: perBoek[id] };
-  });
-  var groepen = Object.keys(perGroep).sort(function (a, b) { return perGroep[b] - perGroep[a]; }).map(function (g) {
-    return { groep: g, aantal: perGroep[g] };
   });
 
   // Uitzonderingen van de laatste 6 maanden, nieuwste eerst.
@@ -1023,19 +1046,16 @@ function bestuurGegevens(staat, onderwerpRijen) {
       terugTeBetalen: terugTeBetalen
     },
     perMaand: Object.keys(perMaand).sort().map(function (k) { return perMaand[k]; }),
-    meestGeleend: meestGeleend,
-    groepen: groepen,
     reservaties: alleReservaties(staat),
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
-    extraCijfers: extraCijfers(staat),
     privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {
         lenersnummer: l.lenersnummer, voornaam: l.voornaam, achternaam: l.achternaam, telefoon: l.telefoon,
         email: l.email, datum_inschrijving: l.datum_inschrijving, toestemming_privacy: l.toestemming_privacy,
-        actief: jaNee(l.actief) !== 'nee',
+        actief: jaNee(l.actief) !== 'nee', notitie: schoonMetRegels(l.notitie),
         lopend: lopendeUitleningenVan(staat, l.lenersnummer).length
       };
     })
@@ -2657,7 +2677,7 @@ function installeer() {
   // Niet-publieke kolommen van de Catalogus grijs markeren.
   var cat = ss.getSheetByName('Catalogus');
   var catKop = cat.getRange(1, 1, 1, cat.getLastColumn()).getValues()[0].map(schoon);
-  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht'].forEach(function (k) {
+  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht', 'notitie'].forEach(function (k) {
     var i = catKop.indexOf(k);
     if (i > -1) {
       cat.getRange(1, i + 1).setBackground('#d9d9d9').setNote('Niet publiek. Deze kolom verschijnt nooit op de website.');
@@ -3291,10 +3311,12 @@ function lenerAanpassen(staat, invoer) {
   if (!telefoon && !email) return { ok: false, fout: 'Vul een telefoonnummer of een e-mailadres in (of allebei).' };
   if (email && !geldigEmail(email)) return { ok: false, fout: 'Dit e-mailadres lijkt niet te kloppen.' };
   if (telefoon && !geldigeTelefoon(telefoon)) return { ok: false, fout: 'Dit telefoonnummer lijkt niet te kloppen.' };
-  wijzig(l, {
+  var velden = {
     voornaam: voornaam, achternaam: tekstInvoer(invoer.achternaam, 80), telefoon: telefoon, email: email,
     actief: invoer.actief === false ? 'nee' : 'ja'
-  });
+  };
+  if (invoer.hasOwnProperty('notitie')) velden.notitie = tekstInvoer(invoer.notitie, 500);
+  wijzig(l, velden);
   staat.log.push(['lener aangepast', 'lener ' + l.lenersnummer]);
   return { ok: true, tekst: 'Lener ' + l.lenersnummer + ' is bijgewerkt.' };
 }
@@ -4669,18 +4691,26 @@ function telVoorstellen() {
   }, 0);
 }
 
-/**
- * Terugbrengen.
- * invoer: { uitlening_id, borg_terugbetaald: true/false }
- */
 function terugbrengen(staat, invoer) {
   var u = uitleningVan(staat, invoer.uitlening_id);
   if (!u) return { ok: false, fout: 'Deze uitlening bestaat niet.' };
   if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht.' };
   var velden = { datum_terug: staat.vandaag };
   if (invoer.borg_terugbetaald === true && Number(u.borg) > 0) velden.borg_terugbetaald = staat.vandaag;
+  // Staat van het boek: komt bij de uitlening, en bij schade ook in de notitie van het boek.
+  var toestand = STATEN_TERUG.indexOf(invoer.staat_boek) > -1 ? invoer.staat_boek : '';
+  var opmerking = tekstInvoer(invoer.opmerking, 200);
+  if (toestand || opmerking) velden.staat_terug = [toestand, opmerking].filter(Boolean).join(': ');
   wijzig(u, velden);
-  staat.log.push(['terugbrengen', u.uitlening_id + ' ' + u.exemplaar]);
+  staat.log.push(['terugbrengen', u.uitlening_id + ' ' + u.exemplaar + (velden.staat_terug ? ' (' + velden.staat_terug + ')' : '')]);
+  if ((toestand && toestand !== 'in orde') || (opmerking && toestand !== 'in orde')) {
+    var b = boekVan(staat, u.boek_id);
+    if (b) {
+      var regel = staat.vandaag + ' ' + u.exemplaar + ': ' + velden.staat_terug;
+      wijzig(b, { notitie: [schoonMetRegels(b.notitie), regel].filter(Boolean).join('\n') });
+      staat.catalogusGewijzigd = true;
+    }
+  }
   var melding = geefExemplaarDoor(staat, u.boek_id, u.exemplaar);
   var boek = boekVan(staat, u.boek_id);
   return {
@@ -5558,7 +5588,7 @@ function voerActieUit(actie, invoer, rol) {
         break;
       case 'vrijwilligerData': antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) }; break;
       case 'uitlenen': antwoord = uitlenen(staat, invoer); break;
-      case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true }); break;
+      case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true, staat_boek: invoer.staat_boek, opmerking: invoer.opmerking }); break;
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
       case 'reserveren': antwoord = reserveren(staat, invoer); break;
       case 'annuleerReservatie': antwoord = annuleerReservatie(staat, invoer); break;
@@ -5575,6 +5605,7 @@ function voerActieUit(actie, invoer, rol) {
         break;
       case 'beheerLenerHistoriek': antwoord = lenerHistoriek(staat, invoer.lenersnummer); break;
       case 'beheerBoekenBulk': antwoord = boekenBulk(staat, invoer); break;
+      case 'bestuurCijfers': antwoord = { ok: true, cijfers: bestuurCijfers(staat, leesTabel('Onderwerpen').rijen) }; break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;
@@ -5587,7 +5618,11 @@ function voerActieUit(actie, invoer, rol) {
         antwoord = boekToevoegen(staat, invoer, ids.nieuw);
         if (antwoord.ok) ids.bewaar();
         break;
-      case 'lenerAanpassen': antwoord = lenerAanpassen(staat, { lenersnummer: invoer.lenersnummer, voornaam: invoer.voornaam, achternaam: invoer.achternaam, telefoon: invoer.telefoon, email: invoer.email, actief: invoer.actief !== false }); break;
+      case 'lenerAanpassen':
+        var lenerInvoer = { lenersnummer: invoer.lenersnummer, voornaam: invoer.voornaam, achternaam: invoer.achternaam, telefoon: invoer.telefoon, email: invoer.email, actief: invoer.actief !== false };
+        if (invoer.hasOwnProperty('notitie')) lenerInvoer.notitie = invoer.notitie;
+        antwoord = lenerAanpassen(staat, lenerInvoer);
+        break;
     }
     // Ook bij een geweigerde actie bewaren we vervallen reservaties.
     bewaarStaat(staat);

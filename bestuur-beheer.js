@@ -24,7 +24,7 @@
     aanrader: 'Aanrader van', genre: 'Genre', extra_onderwerpen: 'Extra onderwerpen', klassieker: 'Klassieker',
     aantal: 'Aantal exemplaren', uitleenbaar: 'Uitleenbaar', publiek: 'Op de website', status: 'Status',
     startpagina: 'Op de startpagina', leeslijsten: 'Leeslijsten', beschrijving: 'Beschrijving (Nederlands)', beschrijving_en: 'Beschrijving (Engels)',
-    cover_url: 'Link naar de cover', herkomst: 'Herkomst',
+    cover_url: 'Link naar de cover', herkomst: 'Herkomst', notitie: 'Notitie (enkel voor het bestuur)',
     datum: 'Datum', uur: 'Uur', titel_en: 'Titel (Engels)', tekst: 'Tekst', tekst_en: 'Tekst (Engels)',
     locatie: 'Locatie', afbeelding: 'Link naar een afbeelding', link: 'Link voor meer info',
     online_vanaf: 'Online vanaf', zichtbaar_vanaf: 'Zichtbaar vanaf', zichtbaar_tot: 'Zichtbaar tot en met',
@@ -62,7 +62,7 @@
     status: [['', 'Gewoon'], ['verloren', 'Verloren'], ['gevoelig verborgen', 'Gevoelig, verborgen'], ['gevoelig zichtbaar', 'Gevoelig, zichtbaar met label']]
   };
 
-  var LANG = ['beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
+  var LANG = ['notitie', 'beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
   var GETAL = ['jaartal', 'paginas', 'aantal', 'volgorde'];
 
   /** Eén veld van een formulier. Geeft { blok, lees } terug. */
@@ -139,7 +139,8 @@
   var GROEPEN_BOEK = [
     ['Het boek', ['titel', 'auteur', 'isbn', 'soort', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat']],
     ['Op de website', ['status', 'publiek', 'startpagina', 'aanrader', 'leeslijsten', 'genre', 'extra_onderwerpen', 'klassieker', 'cover_url', 'beschrijving', 'beschrijving_en']],
-    ['Uitlenen', ['aantal', 'uitleenbaar']]
+    ['Uitlenen', ['aantal', 'uitleenbaar']],
+    ['Intern (niet op de website)', ['notitie']]
   ];
 
   var vanLijst = ''; // kwam je van de lijst zonder cover ('cover') of zonder beschrijving ('beschrijving')? Dan gaat "Terug" daarheen.

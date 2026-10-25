@@ -355,10 +355,12 @@
         el('legend', {}, 'Borg van ' + D.euro(u.borg) + (u.betaalwijze_borg ? ' (' + u.betaalwijze_borg + ')' : '') + ' terugbetaald?'),
         el('label', {}, el('input', { type: 'radio', name: 'borgterug', value: 'ja', checked: true }), 'Ja, teruggegeven'),
         el('label', {}, el('input', { type: 'radio', name: 'borgterug', value: 'nee' }), 'Nee, nog niet')) : el('p', {}, 'Er werd geen borg betaald.');
+      var staatVraag = B.staatVraag('terug');
       knop.addEventListener('click', function () {
         var keuze = werkvlak.querySelector('input[name="borgterug"]:checked');
         var klaar = bezig(knop);
-        B.voerUit('terugbrengen', { uitlening_id: u.uitlening_id, borg_terugbetaald: !!keuze && keuze.value === 'ja' }).then(function (r) {
+        var invoer = Object.assign({ uitlening_id: u.uitlening_id, borg_terugbetaald: !!keuze && keuze.value === 'ja' }, staatVraag.lees());
+        B.voerUit('terugbrengen', invoer).then(function (r) {
           klaar();
           if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
           scherm('Teruggebracht',
@@ -373,7 +375,7 @@
       });
       scherm('Terugbrengen',
         gekozenVak(el('div', {}, el('p', {}, el('strong', {}, u.titel), el('br'), u.exemplaar + ' · lener ' + u.lenersnummer + ' (' + u.voornaam + ')'), B.uitleenStatus(u)), toonTerugbrengen),
-        el('div', { class: 'stap' }, borgVraag), fout, el('div', { class: 'knoppen' }, knop));
+        el('div', { class: 'stap' }, staatVraag.blok), el('div', { class: 'stap' }, borgVraag), fout, el('div', { class: 'knoppen' }, knop));
     }
   }
 

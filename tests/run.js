@@ -1714,5 +1714,33 @@ test('extra cijfers en meerdere boeken tegelijk aanpassen', () => {
   assert.strictEqual(M.boekenBulk(s, { ids: ['B0001'], veld: 'titel', waarde: 'X' }).ok, false, 'Titel mag niet in bulk');
 });
 
+test('notities en de staat van een boek bij terugbrengen', () => {
+  const s = maakStaat('2026-10-23');
+  const u = uitleen(s, 'B0001-1', '1');
+  const id = s.uitleningen[0].uitlening_id;
+  const r = M.terugbrengen(s, { uitlening_id: id, borg_terugbetaald: true, staat_boek: 'beschadigd', opmerking: 'koffievlek' });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(s.uitleningen[0].staat_terug, 'beschadigd: koffievlek');
+  assert.ok(/2026-10-23 B0001-1: beschadigd: koffievlek/.test(s.catalogus[0].notitie), 'Schade in de notitie van het boek');
+  // In orde: niets in de notitie van het boek.
+  uitleen(s, 'B0002-1', '2');
+  M.terugbrengen(s, { uitlening_id: s.uitleningen[1].uitlening_id, staat_boek: 'in orde' });
+  assert.ok(!s.catalogus[1].notitie, 'Geen notitie bij in orde');
+  // Een onbekende staat telt niet.
+  uitleen(s, 'B0003-1', '3');
+  M.terugbrengen(s, { uitlening_id: s.uitleningen[2].uitlening_id, staat_boek: 'verzonnen' });
+  assert.ok(!s.uitleningen[2].staat_terug);
+  // Notitie bij een lener, en in bestuurData, niet in de publieke catalogus.
+  assert.strictEqual(M.lenerAanpassen(s, { lenersnummer: '1', voornaam: 'Sam', telefoon: '0470 00 00 01', email: '', notitie: 'Verhuist in december' }).ok, true);
+  assert.strictEqual(M.bestuurGegevens(s, []).leners.find((l) => l.lenersnummer === '1').notitie, 'Verhuist in december');
+  assert.ok(JSON.stringify(M.bouwPubliekeCatalogus(s, [])).indexOf('koffievlek') === -1, 'Notitie niet publiek');
+  // Boek: notitie via het formulier, niet publiek
+  assert.strictEqual(M.boekAanpassen(s, { boek_id: 'B0002', velden: { notitie: 'Staat op de bovenste plank' } }).ok, true);
+  assert.strictEqual(s.catalogus[1].notitie, 'Staat op de bovenste plank');
+  assert.ok(JSON.stringify(M.bouwPubliekeCatalogus(s, [])).indexOf('bovenste plank') === -1, 'Boeknotitie niet publiek');
+  const c = M.bestuurCijfers(s, []);
+  assert.ok(Array.isArray(c.meestGeleend) && c.extraCijfers.afgesloten === 3);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

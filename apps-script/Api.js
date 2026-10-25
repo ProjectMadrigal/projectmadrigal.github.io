@@ -54,6 +54,7 @@ var ACTIES = {
   beheerCoverLinks: 'vrijwilliger',
   beheerLenerHistoriek: 'bestuur',
   beheerBoekenBulk: 'bestuur',
+  bestuurCijfers: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -265,7 +266,7 @@ function voerActieUit(actie, invoer, rol) {
         break;
       case 'vrijwilligerData': antwoord = { ok: true, data: vrijwilligerGegevens(staat, leesTabel('Onderwerpen').rijen) }; break;
       case 'uitlenen': antwoord = uitlenen(staat, invoer); break;
-      case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true }); break;
+      case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true, staat_boek: invoer.staat_boek, opmerking: invoer.opmerking }); break;
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
       case 'reserveren': antwoord = reserveren(staat, invoer); break;
       case 'annuleerReservatie': antwoord = annuleerReservatie(staat, invoer); break;
@@ -282,6 +283,7 @@ function voerActieUit(actie, invoer, rol) {
         break;
       case 'beheerLenerHistoriek': antwoord = lenerHistoriek(staat, invoer.lenersnummer); break;
       case 'beheerBoekenBulk': antwoord = boekenBulk(staat, invoer); break;
+      case 'bestuurCijfers': antwoord = { ok: true, cijfers: bestuurCijfers(staat, leesTabel('Onderwerpen').rijen) }; break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;
@@ -294,7 +296,11 @@ function voerActieUit(actie, invoer, rol) {
         antwoord = boekToevoegen(staat, invoer, ids.nieuw);
         if (antwoord.ok) ids.bewaar();
         break;
-      case 'lenerAanpassen': antwoord = lenerAanpassen(staat, { lenersnummer: invoer.lenersnummer, voornaam: invoer.voornaam, achternaam: invoer.achternaam, telefoon: invoer.telefoon, email: invoer.email, actief: invoer.actief !== false }); break;
+      case 'lenerAanpassen':
+        var lenerInvoer = { lenersnummer: invoer.lenersnummer, voornaam: invoer.voornaam, achternaam: invoer.achternaam, telefoon: invoer.telefoon, email: invoer.email, actief: invoer.actief !== false };
+        if (invoer.hasOwnProperty('notitie')) lenerInvoer.notitie = invoer.notitie;
+        antwoord = lenerAanpassen(staat, lenerInvoer);
+        break;
     }
     // Ook bij een geweigerde actie bewaren we vervallen reservaties.
     bewaarStaat(staat);

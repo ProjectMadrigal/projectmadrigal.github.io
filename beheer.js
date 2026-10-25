@@ -56,7 +56,11 @@
       if (!teLangInactief()) return;
       codeSleutels.forEach(function (s) { schrijf(s, ''); });
       schrijf(SLEUTEL_ACTIEF, '');
-      try { sessionStorage.setItem('madrigal_afgemeld', 'ja'); } catch (e) { /* geen opslag */ }
+      try {
+        sessionStorage.removeItem('madrigal_data_bestuur');
+        sessionStorage.removeItem('madrigal_data_vrijwilliger');
+        sessionStorage.setItem('madrigal_afgemeld', 'ja');
+      } catch (e) { /* geen opslag */ }
       location.reload();
     }, 60000);
   }
@@ -142,6 +146,7 @@
   /** Afmelden: vergeet de code op dit toestel. */
   function afmelden() {
     schrijf(sessie.codeSleutel, '');
+    try { sessionStorage.removeItem('madrigal_data_bestuur'); sessionStorage.removeItem('madrigal_data_vrijwilliger'); } catch (e) { /* geen opslag */ }
     location.reload();
   }
 
@@ -302,8 +307,31 @@
     });
   }
 
+  /**
+   * Hoe kwam het boek terug? Voor de balie en het bestuursscherm. Bij schade komt het ook
+   * in de notitie van het boek (zie terugbrengen in Uitlenen.js).
+   * Geeft { blok, lees } terug. lees() geeft { staat_boek, opmerking }.
+   */
+  function staatVraag(voorvoegsel) {
+    var naam = voorvoegsel + '-staat';
+    var opmerking = el('input', { type: 'text', id: voorvoegsel + '-opmerking', maxlength: '200', autocomplete: 'off', placeholder: 'bv. koffievlek op blz. 12' });
+    var blok = el('div', {},
+      el('fieldset', { class: 'keuzes' }, el('legend', {}, 'Staat van het boek'),
+        ['in orde', 'licht beschadigd', 'beschadigd'].map(function (s, i) {
+          return el('label', {}, el('input', { type: 'radio', name: naam, value: s, checked: i === 0 }), s.charAt(0).toUpperCase() + s.slice(1));
+        })),
+      el('div', { class: 'veld' }, el('label', { for: voorvoegsel + '-opmerking' }, 'Opmerking ', el('span', { class: 'hulptekst' }, '(mag leeg)')), opmerking));
+    return {
+      blok: blok,
+      lees: function () {
+        var gekozen = blok.querySelector('input[name="' + naam + '"]:checked');
+        return { staat_boek: gekozen ? gekozen.value : 'in orde', opmerking: opmerking.value.trim() };
+      }
+    };
+  }
+
   root.MadrigalBeheer = {
     aanmelden: aanmelden, afmelden: afmelden, wisselWie: wisselWie, voerUit: voerUit,
-    uitleenStatus: uitleenStatus, melding: melding, sessie: sessie, toonRooster: toonRooster
+    uitleenStatus: uitleenStatus, melding: melding, sessie: sessie, toonRooster: toonRooster, staatVraag: staatVraag
   };
 })(window);
