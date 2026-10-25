@@ -83,8 +83,7 @@ function zoekCoversBol() {
   var inst = leesInstellingen();
   var t = bolToken(inst);
   if (t.fout) { logboek('menu', 'zoekCoversBol', t.fout); meld(t.fout); return; }
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekCoversBol')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
@@ -103,13 +102,13 @@ function zoekCoversBol() {
       if (url) { velden.cover_url = url; velden.cover_bron = 'bol.com'; gevonden++; }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(BOL_PAUZE_MS);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftBolNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('zoekCoversBol');
   }
   verwijderTriggers('zoekCoversBol');
   if (rest > 0 && (!fout || wachten)) ScriptApp.newTrigger('zoekCoversBol').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();

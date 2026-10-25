@@ -114,8 +114,7 @@ function zoekCoversOpnieuw() {
 /** Menu: vult covers aan uit Google Books, in porties. */
 function vulAanUitGoogleBooks() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
+  if (!startAchtergrond('vulAanUitGoogleBooks')) {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
@@ -154,13 +153,13 @@ function vulAanUitGoogleBooks() {
         break;
       }
       // Om de 25 boeken bewaren: zo gaat er niets verloren als het script stopt.
-      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(GB_PAUZE_MS);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftGoogleBooksNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('vulAanUitGoogleBooks');
   }
   verwijderTriggers('vulAanUitGoogleBooks');
   if (verdacht) {

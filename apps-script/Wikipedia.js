@@ -69,8 +69,7 @@ function zoekWikipedia(boek, taal) {
 /** Menu: zoekt beschrijvingen bij Wikipedia, in porties. */
 function zoekBeschrijvingenWikipedia() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
@@ -95,13 +94,13 @@ function zoekBeschrijvingenWikipedia() {
       }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(WIKI_PAUZE_MS);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftWikiNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('zoekBeschrijvingenWikipedia');
   }
   verwijderTriggers('zoekBeschrijvingenWikipedia');
   if (rest > 0) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();

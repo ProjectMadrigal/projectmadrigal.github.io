@@ -61,8 +61,7 @@ function olZoek(parameters) {
 /** Menu: zoekt covers van andere uitgaven bij Open Library, in porties. */
 function zoekCoversAndereUitgaven() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
+  if (!startAchtergrond('zoekCoversAndereUitgaven')) {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
@@ -97,12 +96,12 @@ function zoekCoversAndereUitgaven() {
       if (cover) { velden.cover_url = olCoverUrl(cover); velden.cover_bron = bron; gevonden++; }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftAndereUitgaveNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('zoekCoversAndereUitgaven');
   }
   verwijderTriggers('zoekCoversAndereUitgaven');
   if (rest > 0) ScriptApp.newTrigger('zoekCoversAndereUitgaven').timeBased().after((limiet ? 30 : 1) * 60 * 1000).create();
@@ -197,8 +196,7 @@ function iaCoverIsEcht(url) {
 /** Menu: zoekt covers bij Internet Archive, in porties. */
 function zoekCoversInternetArchive() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekCoversInternetArchive')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
@@ -217,13 +215,13 @@ function zoekCoversInternetArchive() {
       if (url) { velden.cover_url = url; velden.cover_bron = IA_BRON; gevonden++; }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(CV_PAUZE_MS);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftIaNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('zoekCoversInternetArchive');
   }
   verwijderTriggers('zoekCoversInternetArchive');
   if (rest > 0) ScriptApp.newTrigger('zoekCoversInternetArchive').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();

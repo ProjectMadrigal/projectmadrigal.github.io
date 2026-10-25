@@ -371,6 +371,18 @@ var DATUMKOLOMMEN = [
   'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
 ];
 
+/*
+ * Achtergrondtaken (Wikipedia, vertalen, covers zoeken, ...) lopen tot 4,5 minuut. Hielden ze
+ * al die tijd het slot vast, dan kregen de balie en het bestuur "Het is even druk".
+ * Daarom:
+ *   - startAchtergrond / stopAchtergrond: dezelfde taak loopt nooit twee keer tegelijk
+ *     (een vlag in de cache, geen slot);
+ *   - bewaarAchtergrond: neemt het slot enkel om te bewaren. Het leest het tabblad opnieuw in
+ *     en schrijft enkel de velden die de taak aanpaste. Zo gaat niets verloren van wat
+ *     iemand intussen aan de balie of in het bestuursscherm wijzigde.
+ */
+var ACHTERGROND_DUUR_SECONDEN = 6 * 60;
+
 var INSTELLING_GROEPEN = [
   ['Toegang', ['toegangscode_balie', 'code_bestuur']],
   ['Uitlenen', ['uitleentermijn_weken', 'verlengingstermijn_weken', 'max_verlengingen', 'verlengen_niet_bij_reservatie',
@@ -937,6 +949,25 @@ function bestuurGegevens(staat, onderwerpRijen) {
   };
 }
 
+/**
+ * Schrijft de aangepaste velden van een tabel weg onder een kort slot. Geeft true als het lukte.
+ * Lukt het slot niet, dan blijven de rijen gemarkeerd: de volgende keer probeert de taak opnieuw.
+ */
+function bewaarAchtergrond(tabel) {
+  var gewijzigd = tabel.rijen.filter(function (r) { return r._gewijzigd && !r._nieuw && !r._verwijderen; });
+  if (!gewijzigd.length) return true;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return false;
+  try {
+    var vers = leesTabel(tabel.naam);
+    voegVeldenSamen(gewijzigd, vers.rijen);
+    bewaarTabel(vers);
+  } finally {
+    lock.releaseLock();
+  }
+  return true;
+}
+
 /** Bewaart een foto in de map voor covers op Google Drive en geeft een publieke link terug. */
 function bewaarFotoInDrive(bestandsnaam, base64, mime) {
   var naam = leesInstellingen().cover_map || 'Project Madrigal covers';
@@ -984,6 +1015,7 @@ function bewaarTabel(tabel) {
     if (rij._gewijzigd && !rij._nieuw && !rij._verwijderen) {
       blad.getRange(rij._rij, 1, 1, kop.length).setValues([rijNaarWaarden(kop, rij)]);
       rij._gewijzigd = false;
+      rij._velden = {};
     }
   });
   var nieuw = tabel.rijen.filter(function (r) { return r._nieuw; });
@@ -3859,6 +3891,13 @@ function spreadsheet() {
   return SpreadsheetApp.getActiveSpreadsheet();
 }
 
+function startAchtergrond(naam) {
+  var cache = CacheService.getScriptCache();
+  if (cache.get('taak_' + naam)) return false;
+  cache.put('taak_' + naam, 'bezig', ACHTERGROND_DUUR_SECONDEN);
+  return true;
+}
+
 /** Stelt filtergroepen voor op basis van woorden in het genre. */
 function stelFiltergroepenVoor(genre) {
   var g = normaliseerTekst(genre);
@@ -3867,6 +3906,10 @@ function stelFiltergroepenVoor(genre) {
     if (paar[0].test(g) && groepen.indexOf(paar[1]) === -1) groepen.push(paar[1]);
   });
   return groepen;
+}
+
+function stopAchtergrond(naam) {
+  try { CacheService.getScriptCache().remove('taak_' + naam); } catch (e) { /* vervalt vanzelf */ }
 }
 
 /**
@@ -4232,8 +4275,7 @@ function verlengen(staat, invoer) {
 /** Menu: vertaalt de beschrijvingen naar het Nederlands en het Engels, in porties. */
 function vertaalBeschrijvingen() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) { planVertaling(5); return; } // een andere bewerking loopt: straks opnieuw
+  if (!startAchtergrond('vertaalBeschrijvingen')) { planVertaling(5); return; } // een andere bewerking loopt: straks opnieuw
   var verwerkt = 0, rest = 0, limiet = false;
   try {
     var tabel = leesTabel('Catalogus');
@@ -4257,13 +4299,13 @@ function vertaalBeschrijvingen() {
       velden.beschrijving_vertaald = vandaag;
       wijzig(teDoen[i], velden);
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(200);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftVertalingNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('vertaalBeschrijvingen');
   }
   verwijderTriggers('vertaalBeschrijvingen');
   if (rest > 0) planVertaling(limiet ? 24 * 60 : 1);
@@ -4639,6 +4681,29 @@ function voegToe(lijst, obj) {
   return obj;
 }
 
+/**
+ * Zet de aangepaste velden van oude rijen over naar vers ingelezen rijen. Herkenning op boek_id,
+ * anders op rijnummer met dezelfde titel. Een rij die intussen weg is, slaan we over.
+ */
+function voegVeldenSamen(gewijzigd, versRijen) {
+  var perId = {}, perRij = {};
+  versRijen.forEach(function (r) {
+    if (!isLeeg(r.boek_id)) perId[String(r.boek_id)] = r;
+    perRij[r._rij] = r;
+  });
+  gewijzigd.forEach(function (oud) {
+    var doel = !isLeeg(oud.boek_id) ? perId[String(oud.boek_id)] : perRij[oud._rij];
+    if (doel && isLeeg(oud.boek_id) && schoon(doel.titel) !== schoon(oud.titel)) doel = null;
+    if (doel) {
+      var velden = {};
+      Object.keys(oud._velden || {}).forEach(function (k) { velden[k] = oud[k]; });
+      wijzig(doel, velden);
+    }
+    oud._gewijzigd = false;
+    oud._velden = {};
+  });
+}
+
 /** Voert een actie uit. Wijzigende acties gebeuren onder een slot, zodat twee balies elkaar niet storen. */
 function voerActieUit(actie, invoer, rol) {
   if (actie === 'aanmelden') return { ok: true, rol: rol };
@@ -4780,8 +4845,7 @@ function vulAanUitGoodreads(stil) {
 /** Menu: vult covers aan uit Google Books, in porties. */
 function vulAanUitGoogleBooks() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
+  if (!startAchtergrond('vulAanUitGoogleBooks')) {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
@@ -4820,13 +4884,13 @@ function vulAanUitGoogleBooks() {
         break;
       }
       // Om de 25 boeken bewaren: zo gaat er niets verloren als het script stopt.
-      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(GB_PAUZE_MS);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftGoogleBooksNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('vulAanUitGoogleBooks');
   }
   verwijderTriggers('vulAanUitGoogleBooks');
   if (verdacht) {
@@ -4857,8 +4921,7 @@ function vulAanUitGoogleBooks() {
 /** Menu: vult de Catalogus aan uit Open Library, in porties. */
 function vulAanUitOpenLibrary() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
+  if (!startAchtergrond('vulAanUitOpenLibrary')) {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
@@ -4891,12 +4954,12 @@ function vulAanUitOpenLibrary() {
         verwerkt++;
       });
       // Na elke portie bewaren: zo gaat er niets verloren als het script stopt.
-      bewaarTabel(tabel);
+      bewaarAchtergrond(tabel);
       Utilities.sleep(OL_PAUZE_MS);
     }
     rest = tabel.rijen.filter(heeftOpenLibraryNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('vulAanUitOpenLibrary');
   }
   verwijderTriggers('vulAanUitOpenLibrary');
   if (rest > 0) {
@@ -4916,8 +4979,7 @@ function vulAanUitOpenLibrary() {
 /** Menu: zoekt beschrijvingen voor boeken waar die nog ontbreekt, in porties. */
 function vulBeschrijvingenAan() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
+  if (!startAchtergrond('vulBeschrijvingenAan')) {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
@@ -4951,10 +5013,10 @@ function vulBeschrijvingenAan() {
         wijzig(boek, { beschrijving_gezocht: gbLimiet ? BS_ENKEL_OL + vandaag.replace(/-/g, '') : vandaag });
       }
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(400);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     var nog = tabel.rijen.filter(heeftBeschrijvingNodig);
     rest = nog.length;
     // Nog boeken die niemand opzocht: over een minuut verder (Open Library werkt nog).
@@ -4962,7 +5024,7 @@ function vulBeschrijvingenAan() {
     var nieuwTeDoen = nog.filter(function (b) { return !wachtOpGoogle(b); }).length;
     limiet = limiet && nieuwTeDoen === 0;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('vulBeschrijvingenAan');
   }
   verwijderTriggers('vulBeschrijvingenAan');
   if (rest > 0) {
@@ -5053,7 +5115,8 @@ function werkOnderwerpenBijMenu() {
 
 /** Past velden van een rij aan en markeert de rij als gewijzigd. */
 function wijzig(rij, velden) {
-  Object.keys(velden).forEach(function (k) { rij[k] = velden[k]; });
+  if (!rij._velden) rij._velden = {};
+  Object.keys(velden).forEach(function (k) { rij[k] = velden[k]; rij._velden[k] = true; });
   rij._gewijzigd = true;
   return rij;
 }
@@ -5221,8 +5284,7 @@ function zetTekstopmaak(blad, kolommen) {
 /** Menu: zoekt beschrijvingen bij Wikipedia, in porties. */
 function zoekBeschrijvingenWikipedia() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
@@ -5247,13 +5309,13 @@ function zoekBeschrijvingenWikipedia() {
       }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(WIKI_PAUZE_MS);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftWikiNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('zoekBeschrijvingenWikipedia');
   }
   verwijderTriggers('zoekBeschrijvingenWikipedia');
   if (rest > 0) ScriptApp.newTrigger('zoekBeschrijvingenWikipedia').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
@@ -5290,8 +5352,7 @@ function zoekBoekOpTitel(catalogus, titel, auteur) {
 /** Menu: zoekt covers van andere uitgaven bij Open Library, in porties. */
 function zoekCoversAndereUitgaven() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
+  if (!startAchtergrond('zoekCoversAndereUitgaven')) {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
@@ -5326,12 +5387,12 @@ function zoekCoversAndereUitgaven() {
       if (cover) { velden.cover_url = olCoverUrl(cover); velden.cover_bron = bron; gevonden++; }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftAndereUitgaveNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('zoekCoversAndereUitgaven');
   }
   verwijderTriggers('zoekCoversAndereUitgaven');
   if (rest > 0) ScriptApp.newTrigger('zoekCoversAndereUitgaven').timeBased().after((limiet ? 30 : 1) * 60 * 1000).create();
@@ -5356,8 +5417,7 @@ function zoekCoversBol() {
   var inst = leesInstellingen();
   var t = bolToken(inst);
   if (t.fout) { logboek('menu', 'zoekCoversBol', t.fout); meld(t.fout); return; }
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekCoversBol')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
@@ -5376,13 +5436,13 @@ function zoekCoversBol() {
       if (url) { velden.cover_url = url; velden.cover_bron = 'bol.com'; gevonden++; }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(BOL_PAUZE_MS);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftBolNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('zoekCoversBol');
   }
   verwijderTriggers('zoekCoversBol');
   if (rest > 0 && (!fout || wachten)) ScriptApp.newTrigger('zoekCoversBol').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
@@ -5394,8 +5454,7 @@ function zoekCoversBol() {
 /** Menu: zoekt covers bij Internet Archive, in porties. */
 function zoekCoversInternetArchive() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekCoversInternetArchive')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
@@ -5414,13 +5473,13 @@ function zoekCoversInternetArchive() {
       if (url) { velden.cover_url = url; velden.cover_bron = IA_BRON; gevonden++; }
       wijzig(boek, velden);
       verwerkt++;
-      if (verwerkt % 25 === 0) bewaarTabel(tabel);
+      if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(CV_PAUZE_MS);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftIaNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('zoekCoversInternetArchive');
   }
   verwijderTriggers('zoekCoversInternetArchive');
   if (rest > 0) ScriptApp.newTrigger('zoekCoversInternetArchive').timeBased().after((wachten ? 15 : 1) * 60 * 1000).create();
