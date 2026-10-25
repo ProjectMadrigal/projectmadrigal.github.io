@@ -121,7 +121,8 @@ function publiekeCatalogusJson() {
   }
   var staat = laadStaat('publiek', false);
   verwerkVervallenReservatiesStil(staat);
-  var tekst = JSON.stringify(bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen));
+  var lijsten = spreadsheet().getSheetByName('Leeslijsten') ? leesTabel('Leeslijsten').rijen : [];
+  var tekst = JSON.stringify(bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen, lijsten));
   var waarden = {};
   var n = Math.ceil(tekst.length / CACHE_STUK);
   for (var j = 0; j < n; j++) waarden[CACHE_SLEUTEL + '_' + j] = tekst.slice(j * CACHE_STUK, (j + 1) * CACHE_STUK);

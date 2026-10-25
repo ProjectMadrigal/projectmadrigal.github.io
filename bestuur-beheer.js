@@ -22,7 +22,7 @@
     taal: 'Taal', paginas: 'Pagina\'s', uitvoering: 'Uitvoering', nieuwstaat: 'Nieuw of tweedehands',
     aanrader: 'Aanrader van', genre: 'Genre', extra_onderwerpen: 'Extra onderwerpen', klassieker: 'Klassieker',
     aantal: 'Aantal exemplaren', uitleenbaar: 'Uitleenbaar', publiek: 'Op de website', status: 'Status',
-    startpagina: 'Op de startpagina', beschrijving: 'Beschrijving (Nederlands)', beschrijving_en: 'Beschrijving (Engels)',
+    startpagina: 'Op de startpagina', leeslijsten: 'Leeslijsten', beschrijving: 'Beschrijving (Nederlands)', beschrijving_en: 'Beschrijving (Engels)',
     cover_url: 'Link naar de cover', herkomst: 'Herkomst',
     datum: 'Datum', uur: 'Uur', titel_en: 'Titel (Engels)', tekst: 'Tekst', tekst_en: 'Tekst (Engels)',
     locatie: 'Locatie', afbeelding: 'Link naar een afbeelding', link: 'Link voor meer info',
@@ -32,6 +32,7 @@
   var HULP = {
     auteur: 'Achternaam eerst: Verbeek, Mira',
     aanrader: 'Voornamen, gescheiden door komma\'s. Wordt het label "Aanrader van ..."',
+    leeslijsten: 'Namen van leeslijsten, gescheiden door komma\'s. Uitleg en Engelse naam zet je in het tabblad Leeslijsten.',
     extra_onderwerpen: 'Extra filtergroepen, gescheiden door komma\'s',
     status: 'Verloren: niet op de website, niet uitleenbaar. Gevoelig verborgen: niet op de website, wel uitleenbaar. Gevoelig zichtbaar: met het label "Gevoelige inhoud".',
     startpagina: 'Automatisch: als aanrader of als het nieuw binnen is',
@@ -96,7 +97,7 @@
 
   var GROEPEN_BOEK = [
     ['Het boek', ['titel', 'auteur', 'isbn', 'soort', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat']],
-    ['Op de website', ['status', 'publiek', 'startpagina', 'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'cover_url', 'beschrijving', 'beschrijving_en']],
+    ['Op de website', ['status', 'publiek', 'startpagina', 'aanrader', 'leeslijsten', 'genre', 'extra_onderwerpen', 'klassieker', 'cover_url', 'beschrijving', 'beschrijving_en']],
     ['Uitlenen', ['aantal', 'uitleenbaar']]
   ];
 

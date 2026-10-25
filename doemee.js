@@ -47,9 +47,19 @@
     mailLink(leeg.querySelector('[data-mail]'), mail);
   }
 
+  // Zelfde bewaarde versie als de startpagina (home.js): zo staan de teksten er meteen.
+  var CACHE_SLEUTEL = 'madrigal_site_v1';
+  var bewaard = null;
+  if (CONFIG.apiUrl) { try { bewaard = localStorage.getItem(CACHE_SLEUTEL); } catch (e) { /* geen opslag */ } }
+  if (bewaard) { try { data = JSON.parse(bewaard); teken(); } catch (e) { bewaard = null; } }
   fetch(CONFIG.apiUrl ? CONFIG.apiUrl + '?actie=site' : 'voorbeeld/site.json', { cache: 'no-store' })
-    .then(function (r) { return r.json(); })
-    .then(function (d) { data = d; teken(); })
-    .catch(function () { data = { doeMee: {}, contact: {} }; teken(); });
+    .then(function (r) { if (!r.ok) throw new Error('Status ' + r.status); return r.text(); })
+    .then(function (tekst) {
+      if (tekst === bewaard) return;
+      data = JSON.parse(tekst);
+      if (CONFIG.apiUrl) { try { localStorage.setItem(CACHE_SLEUTEL, tekst); } catch (e) { /* geen opslag */ } }
+      teken();
+    })
+    .catch(function () { if (!data) { data = { doeMee: {}, contact: {} }; teken(); } });
   document.addEventListener('taalgewijzigd', teken);
 })();

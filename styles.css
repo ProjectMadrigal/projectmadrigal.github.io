@@ -50,6 +50,7 @@
   --kleur-reservatie: #57368a;    --kleur-reservatie-vlak: #ece4f7;
   --kleur-neutraal: #4d4d4d;      --kleur-neutraal-vlak: #ececec;
   --kleur-aanrader: #5e4300;      --kleur-aanrader-vlak: #fff1c2;
+  --kleur-lijst: #5a2c80;         --kleur-lijst-vlak: #efe2fa;
   --kleur-plaatshouder: linear-gradient(160deg, #e7b0ff, #c489dd);
   --kleur-plaatshouder-tekst: #2f0f52;
 
@@ -76,7 +77,7 @@
     --kleur-focus: #e7b0ff;
     --kleur-ok: #8fe0ad; --kleur-ok-vlak: #173322; --kleur-let-op: #ffd27a; --kleur-let-op-vlak: #3a2e10;
     --kleur-fout: #ffa59a; --kleur-fout-vlak: #401a16; --kleur-reservatie: #dcbcff; --kleur-reservatie-vlak: #2e2140;
-    --kleur-neutraal: #d2d2d2; --kleur-neutraal-vlak: #333335; --kleur-aanrader: #ffd76a; --kleur-aanrader-vlak: #3a3010;
+    --kleur-neutraal: #d2d2d2; --kleur-neutraal-vlak: #333335; --kleur-aanrader: #ffd76a; --kleur-aanrader-vlak: #3a3010; --kleur-lijst: #e7b0ff; --kleur-lijst-vlak: #34243f;
     --kleur-plaatshouder: linear-gradient(160deg, #443c5a, #241f31); --kleur-plaatshouder-tekst: #e7b0ff;
     color-scheme: dark;
   }
@@ -87,7 +88,7 @@
   --kleur-focus: #e7b0ff;
   --kleur-ok: #8fe0ad; --kleur-ok-vlak: #173322; --kleur-let-op: #ffd27a; --kleur-let-op-vlak: #3a2e10;
   --kleur-fout: #ffa59a; --kleur-fout-vlak: #401a16; --kleur-reservatie: #dcbcff; --kleur-reservatie-vlak: #2e2140;
-  --kleur-neutraal: #d2d2d2; --kleur-neutraal-vlak: #333335; --kleur-aanrader: #ffd76a; --kleur-aanrader-vlak: #3a3010;
+  --kleur-neutraal: #d2d2d2; --kleur-neutraal-vlak: #333335; --kleur-aanrader: #ffd76a; --kleur-aanrader-vlak: #3a3010; --kleur-lijst: #e7b0ff; --kleur-lijst-vlak: #34243f;
   --kleur-plaatshouder: linear-gradient(160deg, #443c5a, #241f31); --kleur-plaatshouder-tekst: #e7b0ff;
   color-scheme: dark;
 }
@@ -245,6 +246,8 @@ textarea { min-height: 6rem; }
 .label-gevoelig::before { content: "⚠"; }
 .status-verloren { color: var(--kleur-fout); background: var(--kleur-fout-vlak); }
 .status-verloren::before { content: "?"; }
+.label-leeslijst { color: var(--kleur-lijst); background: var(--kleur-lijst-vlak); }
+.label-leeslijst::before { content: "☰"; }
 .label-onderwerp { color: var(--kleur-tekst-zacht); background: var(--kleur-vlak); border-color: var(--kleur-rand); font-weight: normal; }
 
 /* ---------- Catalogus ---------- */
@@ -575,3 +578,13 @@ main.website { max-width: none; padding: 0; }
 
 fieldset.blok { min-width: 0; margin: 0 0 var(--ruimte); }
 fieldset.blok > legend { font-weight: 700; padding: 0 .3rem; }
+
+/* ---------- Leeslijsten en Lees ook ---------- */
+.leeslijsten { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+.leeslijst h2 { margin-top: 0; }
+.leeslijst-covers { display: flex; gap: .5rem; margin: .8rem 0; }
+.leeslijst-covers .cover, .leeslijst-covers .plaatshouder { width: 4.5rem; height: 6.75rem; object-fit: cover; flex: none; }
+.leeslijst-kop { border-left: 6px solid var(--kleur-lijst); }
+.leeslijst-kop h2 { margin: .2rem 0 .5rem; }
+.lees-ook { margin-top: 1.5rem; }
+.lees-ook h2 { margin-top: 0; }

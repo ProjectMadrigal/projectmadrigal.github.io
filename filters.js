@@ -44,21 +44,25 @@
         return labels.indexOf(a) - labels.indexOf(b);
       }
     },
-    { sleutel: 'aanrader', labelSleutel: 'fAanrader', label: 'Aanrader', waarden: function (b) { return (b.r || []).map(function (n) { return 'Aanrader van ' + n; }); }, volgorde: alfabetisch }
+    { sleutel: 'aanrader', labelSleutel: 'fAanrader', label: 'Aanrader', waarden: function (b) { return (b.r || []).map(function (n) { return 'Aanrader van ' + n; }); }, volgorde: alfabetisch },
+    { sleutel: 'lijst', labelSleutel: 'fLeeslijst', label: 'Leeslijst', waarden: function (b) { return b.ll || []; } /* volgorde: zie catalogus */ }
   ];
 
   /**
    * De keuzes per filter, met het aantal boeken.
    * groepVolgorde: de volgorde van de filtergroepen uit de catalogus.
+   * lijstVolgorde: de namen van de leeslijsten, in de volgorde van de catalogus.
    * Geeft { sleutel: [{ waarde, aantal }] } terug.
    */
-  function opties(boeken, groepVolgorde) {
+  function opties(boeken, groepVolgorde, lijstVolgorde) {
     var resultaat = {};
     FILTERS.forEach(function (f) {
       var tel = {};
       boeken.forEach(function (b) { f.waarden(b).forEach(function (w) { tel[w] = (tel[w] || 0) + 1; }); });
       var lijst = Object.keys(tel);
-      if (f.sleutel === 'groep' && groepVolgorde) {
+      if (f.sleutel === 'lijst' && lijstVolgorde) {
+        lijst.sort(function (a, b) { return lijstVolgorde.indexOf(a) - lijstVolgorde.indexOf(b); });
+      } else if (f.sleutel === 'groep' && groepVolgorde) {
         lijst.sort(function (a, b) {
           var ia = groepVolgorde.indexOf(a), ib = groepVolgorde.indexOf(b);
           return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || alfabetisch(a, b);
@@ -117,7 +121,31 @@
     return lijst;
   }
 
-  var api = { FILTERS: FILTERS, PERIODES: PERIODES, periodeVan: periodeVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
+  /**
+   * "Lees ook": boeken die op dit boek lijken. Punten voor dezelfde auteur (3), een gedeelde
+   * leeslijst (2), een gedeelde aanrader (1) en elk gedeeld onderwerp (1). Minstens 2 punten:
+   * één gedeeld breed onderwerp alleen is te weinig. Bij gelijke punten: eerst beschikbaar,
+   * daarna een vaste maar per boek andere volgorde, zodat niet altijd dezelfde boeken verschijnen.
+   */
+  function gelijkaardig(boeken, boek, aantal) {
+    var Z = root.MadrigalZoeken;
+    var auteur = boek.a ? Z.normaliseer(boek.a) : '';
+    var deel = function (x, y) { return (x || []).filter(function (w) { return (y || []).indexOf(w) > -1; }).length; };
+    var meng = function (id) {
+      var s = String(boek.id) + '|' + id, h = 0;
+      for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+      return h;
+    };
+    return boeken.map(function (b) {
+      if (b.id === boek.id) return null;
+      var punten = (auteur && b.a && Z.normaliseer(b.a) === auteur ? 3 : 0) + 2 * deel(boek.ll, b.ll) + deel(boek.r, b.r) + deel(boek.g, b.g);
+      return punten >= 2 ? { boek: b, punten: punten, vrij: b.b && b.b.c === 'beschikbaar' ? 1 : 0, meng: meng(b.id) } : null;
+    }).filter(Boolean).sort(function (a, b) {
+      return b.punten - a.punten || b.vrij - a.vrij || a.meng - b.meng;
+    }).slice(0, aantal || 6).map(function (x) { return x.boek; });
+  }
+
+  var api = { FILTERS: FILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
   root.MadrigalFilters = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

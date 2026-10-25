@@ -168,6 +168,18 @@ In het tabblad Instellingen, onder `── AANRADERS ──`:
 | `aanraders_uit_stocklijst` | namen van wie de aanraders uit de oude stocklijst overgenomen worden, bv. `Johanna`. Wil je niemand meer overnemen, typ dan `niemand`. |
 | `aanraders_verbergen` | namen van wie de aanraders tijdelijk nergens op de website staan, bv. `Nance`: niet op de startpagina, niet als label bij de boeken en niet in de filter Aanrader. De namen blijven in de Catalogus staan. Wis de naam om ze terug te tonen. |
 
+### Leeslijsten
+
+Een leeslijst bundelt boeken rond een thema, bijvoorbeeld "Pride-maand" of "Eerste keer over gender lezen". Bezoekers vinden ze via **Bekijk onze leeslijsten** bovenaan de pagina Boeken. Die link verschijnt pas zodra er minstens één lijst is.
+
+1. **Welke boeken.** Typ de naam van de lijst in de kolom `leeslijsten` van de Catalogus. Staat een boek in meerdere lijsten, scheid de namen dan met een komma. Dat kan ook in het bestuursscherm, bij een boek.
+2. **Uitleg en Engelse naam (mag leeg).** Zet de lijst in het tabblad **Leeslijsten**: `naam` (precies zoals in de Catalogus, hoofdletters maken niet uit), `naam_en`, `uitleg`, `uitleg_en` en `volgorde` (1 staat bovenaan).
+3. **Tijdelijk verbergen.** Zet `nee` in de kolom `publiek` van het tabblad Leeslijsten. De namen blijven in de Catalogus staan.
+
+Elke lijst krijgt een eigen link om te delen, en een filter **Leeslijst** in de catalogus.
+
+**Lees ook.** Onder elk boek toont de site tot 6 boeken die erop lijken: van dezelfde auteur, uit dezelfde leeslijst, met dezelfde aanrader of met minstens twee dezelfde onderwerpen. Dat gaat vanzelf.
+
 ## A4. Nieuws, agenda en veelgestelde vragen
 
 Elke rij in deze tabbladen is één bericht, event of vraag.
@@ -590,6 +602,8 @@ De tabbladen staan in een vaste volgorde met een kleur per groep (zie [A1](#a1-w
 5. Na een paar minuten staat de wijziging online. Vernieuw met **Ctrl+F5**.
 
 GitHub controleert elke wijziging automatisch (het tabblad **Actions**). Een rood kruisje betekent dat er iets misging: draai de wijziging terug of vraag hulp.
+
+**Offline en als app.** [`sw.js`](sw.js) bewaart de pagina's in de browser. Zonder internet opent de site dan toch, met de laatst geziene catalogus. Op een gsm kan je de site via het menu van de browser op je beginscherm zetten. Elke pagina wordt altijd eerst vers opgehaald, dus een wijziging is meteen zichtbaar. Een nieuw bestand dat ook offline moet werken? Zet het in `VASTE_BESTANDEN` in `sw.js` en verhoog `VERSIE`.
 
 | Wat | Bestand |
 | --- | --- |
