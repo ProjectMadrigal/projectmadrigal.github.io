@@ -399,7 +399,12 @@ td.getal, th.getal { text-align: right; }
 @media (max-width: 34rem) { .navgroep { grid-template-columns: 1fr; } .navgroep-kop { padding-top: 0; } }
 .sectienav .knop { min-height: 2.6rem; padding: .3rem .8rem; font-size: .95rem; }
 
-.bovenbalk { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: space-between; margin-bottom: var(--ruimte); }
+/* Aangemeld als ... met Vernieuw en Afmelden: een eigen balk, duidelijk los van de onderdelen eronder. */
+.bovenbalk {
+  display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: space-between;
+  margin-bottom: calc(var(--ruimte) * 1.5); padding: .6rem .9rem;
+  background: var(--kleur-vlak); border: 1px solid var(--kleur-rand); border-left: 6px solid var(--kleur-paars); border-radius: var(--hoek);
+}
 .bovenbalk p { margin: 0; }
 .knoppen.klein { margin: 0; gap: .4rem; }
 .knoppen.klein .knop { min-height: 2.6rem; padding: .3rem .8rem; font-size: .95rem; }
