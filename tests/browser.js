@@ -43,7 +43,7 @@ function startServer() {
 
 const STATUS = (code, label) => ({ code, label, tekst: label });
 const UITLENING = { uitlening_id: 'U0001', exemplaar: 'B0001-1', boek_id: 'B0001', titel: 'De verzonnen zee', lenersnummer: '12', voornaam: 'Sam', datum_uit: '2026-09-20', vervaldatum: '2026-10-18', status: STATUS('telaat', 'Te laat') };
-const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', c: false, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', c: true, g: ['Geschiedenis en maatschappij'] }];
+const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', c: true, g: ['Geschiedenis en maatschappij'] }];
 const INHOUD = {
   tabbladen: {
     Nieuws: [{ rij: 2, vingerafdruk: 'a', datum: '2026-10-20', titel: 'Voorstel boekenruil', publiek: 'nee', voorgesteld_door: 'Kim' }],
@@ -187,6 +187,16 @@ async function meldAan(page, basis, pagina) {
       await page.click('#sectienav button:has-text("' + k.replace(/ \(.*\)$/, '') + '")');
       await page.waitForTimeout(150);
     }
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('bestuursscherm: lijst van boeken zonder beschrijving', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    await meldAan(page, basis, 'bestuur.html');
+    await page.click('#sectienav button:has-text("Boeken")');
+    await page.click('button:has-text("Boeken zonder beschrijving (1)")');
+    const titels = await page.$$eval('.kaartlijst strong', (x) => x.map((e) => e.textContent));
+    verwacht(JSON.stringify(titels) === JSON.stringify(['De verzonnen zee']), 'Lijst: ' + titels.join(', '));
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });

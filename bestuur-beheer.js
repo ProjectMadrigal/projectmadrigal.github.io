@@ -110,7 +110,7 @@
     ['Uitlenen', ['aantal', 'uitleenbaar']]
   ];
 
-  var vanZonderCover = false; // kwam je van de lijst zonder cover? Dan gaat "Terug" daarheen.
+  var vanLijst = ''; // kwam je van de lijst zonder cover ('cover') of zonder beschrijving ('beschrijving')? Dan gaat "Terug" daarheen.
 
   /** Terug: in het vrijwilligersscherm naar de lijst zonder cover, anders naar Boeken. */
   function naarBoeken(vak, ctx) {
@@ -129,12 +129,18 @@
   }
 
   function terugNaarLijst(vak, ctx) {
-    if (vanZonderCover) toonZonderCover(vak, ctx); else toonBoeken(vak, ctx);
+    if (vanLijst === 'cover') toonZonderCover(vak, ctx);
+    else if (vanLijst === 'beschrijving') toonZonderBeschrijving(vak, ctx);
+    else toonBoeken(vak, ctx);
+  }
+  function terugNaarLijstTekst() {
+    return vanLijst === 'cover' ? 'Terug naar de lijst zonder cover' : vanLijst === 'beschrijving' ? 'Terug naar de lijst zonder beschrijving' : 'Terug naar de boeken';
   }
 
   function toonBoeken(vak, ctx) {
-    vanZonderCover = false;
+    vanLijst = '';
     var zonder = (ctx.data.boeken || []).filter(function (b) { return !b.c; }).length;
+    var zonderTekst = (ctx.data.boeken || []).filter(function (b) { return b.zb; }).length;
     var index = Z.maakIndex(ctx.data.boeken || []);
     var zoekveld = el('input', { type: 'search', id: 'beheer-boek-zoek', autocomplete: 'off', placeholder: 'Titel, auteur, ISBN of boek-ID' });
     var lijst = el('div', { 'aria-live': 'polite' });
@@ -153,6 +159,7 @@
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwBoek(vak, ctx); } }, '+ Nieuw boek toevoegen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers en beschrijvingen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderBeschrijving(vak, ctx); } }, 'Boeken zonder beschrijving (' + zonderTekst + ')'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonIaControle(vak, ctx); } }, 'Controleer covers van Internet Archive')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
     teken();
@@ -208,7 +215,7 @@
 
   /** Alle boeken zonder cover, alfabetisch: handig om met je gsm langs de kasten te gaan en foto's te nemen. */
   function toonZonderCover(vak, ctx) {
-    vanZonderCover = true;
+    vanLijst = 'cover';
     var lijst = (ctx.data.boeken || []).filter(function (b) { return !b.c; })
       .sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
     var filter = el('input', { type: 'search', id: 'zonder-cover-zoek', autocomplete: 'off', placeholder: 'Titel, auteur of boek-ID' });
@@ -231,6 +238,29 @@
       vrijwilliger ? onder : null,
       el('div', { class: 'veld' }, el('label', { for: 'zonder-cover-zoek' }, 'Zoek in deze lijst'), filter), vakLijst,
       vrijwilliger ? null : onder);
+    teken();
+  }
+
+  /** Alle boeken zonder beschrijving, alfabetisch. Kies een boek om de beschrijving in te vullen of de achterkant te laten lezen. */
+  function toonZonderBeschrijving(vak, ctx) {
+    vanLijst = 'beschrijving';
+    var lijst = (ctx.data.boeken || []).filter(function (b) { return b.zb; })
+      .sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
+    var filter = el('input', { type: 'search', id: 'zonder-beschrijving-zoek', autocomplete: 'off', placeholder: 'Titel, auteur of boek-ID' });
+    var vakLijst = el('div', { 'aria-live': 'polite' });
+    function teken() {
+      var q = Z.normaliseer(filter.value);
+      var zichtbaar = lijst.filter(function (b) { return !q || Z.normaliseer([b.t, b.a, b.id].join(' ')).indexOf(q) > -1; }).slice(0, 100);
+      D.vervang(vakLijst, zichtbaar.length ? el('ul', { class: 'kaartlijst' }, zichtbaar.map(function (b) {
+        return el('li', {}, el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { bewerkBoek(vak, ctx, b.id); } },
+          el('strong', {}, b.t), el('span', {}, [b.a, b.id].filter(Boolean).join(' · '))));
+      })) : el('p', {}, lijst.length ? 'Geen boek gevonden.' : 'Alle boeken hebben een beschrijving.'));
+    }
+    filter.addEventListener('input', teken);
+    D.vervang(vak, ctx.kop('Boeken zonder beschrijving (' + lijst.length + ')', 'Kies een boek. Typ de beschrijving in het veld Beschrijving, of neem een foto van de achterkant: de site leest de tekst voor je. Wil je eerst Google laten zoeken? Gebruik dan de knop hieronder.'),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek beschrijvingen automatisch op het internet')),
+      el('div', { class: 'veld' }, el('label', { for: 'zonder-beschrijving-zoek' }, 'Zoek in deze lijst'), filter), vakLijst,
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
     teken();
   }
 
@@ -362,7 +392,7 @@
     var beschrijvingVeld = velden.filter(function (v) { return v.naam === 'beschrijving'; })[0];
     var achterkant = beschrijvingVeld ? achterkantBlok(beschrijvingVeld) : null;
     var formulier = el('form', { novalidate: true }, opzoeken, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
-      fout, knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, vanZonderCover ? 'Terug naar de lijst zonder cover' : 'Terug naar de boeken')));
+      fout, knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, terugNaarLijstTekst())));
 
     function verstuur(toch) {
       var invoer = nieuw ? { velden: gewijzigd(velden, true), herkomst: herkomst.lees(), toch: toch === true } : { boek_id: boek.boek_id, velden: gewijzigd(velden, false) };
