@@ -137,9 +137,15 @@
    * Geeft een Promise met het antwoord. Bij Annuleren: { ok: false, geannuleerd: true }.
    * bijVraag: (optioneel) wordt opgeroepen net voor de vraag om een reden verschijnt.
    */
-  function voerUit(actie, gegevens, bijVraag) {
+  function voerUit(actie, gegevens, bijVraag, poging) {
     var body = Object.assign({ code: sessie.code, wie: sessie.wie }, gegevens || {});
     return root.MadrigalApi.verstuur(actie, body).then(function (r) {
+      // "Het is even druk": het script deed nog niets. Twee keer vanzelf opnieuw proberen.
+      if (r && !r.ok && /even druk/.test(r.fout || '') && (poging || 0) < 2) {
+        return new Promise(function (klaar) { setTimeout(klaar, 4000); }).then(function () {
+          return voerUit(actie, gegevens, bijVraag, (poging || 0) + 1);
+        });
+      }
       if (r && r.code === 'ongeldige_code') {
         afmelden();
         return r;

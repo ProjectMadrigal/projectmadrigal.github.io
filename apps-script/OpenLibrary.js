@@ -60,8 +60,7 @@ function verwerkOpenLibrary(boek, details) {
 /** Menu: vult de Catalogus aan uit Open Library, in porties. */
 function vulAanUitOpenLibrary() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
+  if (!startAchtergrond('vulAanUitOpenLibrary')) {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
@@ -94,12 +93,12 @@ function vulAanUitOpenLibrary() {
         verwerkt++;
       });
       // Na elke portie bewaren: zo gaat er niets verloren als het script stopt.
-      bewaarTabel(tabel);
+      bewaarAchtergrond(tabel);
       Utilities.sleep(OL_PAUZE_MS);
     }
     rest = tabel.rijen.filter(heeftOpenLibraryNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('vulAanUitOpenLibrary');
   }
   verwijderTriggers('vulAanUitOpenLibrary');
   if (rest > 0) {

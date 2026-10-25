@@ -99,9 +99,75 @@ function leesTabel(naam) {
 
 /** Past velden van een rij aan en markeert de rij als gewijzigd. */
 function wijzig(rij, velden) {
-  Object.keys(velden).forEach(function (k) { rij[k] = velden[k]; });
+  if (!rij._velden) rij._velden = {};
+  Object.keys(velden).forEach(function (k) { rij[k] = velden[k]; rij._velden[k] = true; });
   rij._gewijzigd = true;
   return rij;
+}
+
+/*
+ * Achtergrondtaken (Wikipedia, vertalen, covers zoeken, ...) lopen tot 4,5 minuut. Hielden ze
+ * al die tijd het slot vast, dan kregen de balie en het bestuur "Het is even druk".
+ * Daarom:
+ *   - startAchtergrond / stopAchtergrond: dezelfde taak loopt nooit twee keer tegelijk
+ *     (een vlag in de cache, geen slot);
+ *   - bewaarAchtergrond: neemt het slot enkel om te bewaren. Het leest het tabblad opnieuw in
+ *     en schrijft enkel de velden die de taak aanpaste. Zo gaat niets verloren van wat
+ *     iemand intussen aan de balie of in het bestuursscherm wijzigde.
+ */
+var ACHTERGROND_DUUR_SECONDEN = 6 * 60;
+
+function startAchtergrond(naam) {
+  var cache = CacheService.getScriptCache();
+  if (cache.get('taak_' + naam)) return false;
+  cache.put('taak_' + naam, 'bezig', ACHTERGROND_DUUR_SECONDEN);
+  return true;
+}
+
+function stopAchtergrond(naam) {
+  try { CacheService.getScriptCache().remove('taak_' + naam); } catch (e) { /* vervalt vanzelf */ }
+}
+
+/**
+ * Schrijft de aangepaste velden van een tabel weg onder een kort slot. Geeft true als het lukte.
+ * Lukt het slot niet, dan blijven de rijen gemarkeerd: de volgende keer probeert de taak opnieuw.
+ */
+function bewaarAchtergrond(tabel) {
+  var gewijzigd = tabel.rijen.filter(function (r) { return r._gewijzigd && !r._nieuw && !r._verwijderen; });
+  if (!gewijzigd.length) return true;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return false;
+  try {
+    var vers = leesTabel(tabel.naam);
+    voegVeldenSamen(gewijzigd, vers.rijen);
+    bewaarTabel(vers);
+  } finally {
+    lock.releaseLock();
+  }
+  return true;
+}
+
+/**
+ * Zet de aangepaste velden van oude rijen over naar vers ingelezen rijen. Herkenning op boek_id,
+ * anders op rijnummer met dezelfde titel. Een rij die intussen weg is, slaan we over.
+ */
+function voegVeldenSamen(gewijzigd, versRijen) {
+  var perId = {}, perRij = {};
+  versRijen.forEach(function (r) {
+    if (!isLeeg(r.boek_id)) perId[String(r.boek_id)] = r;
+    perRij[r._rij] = r;
+  });
+  gewijzigd.forEach(function (oud) {
+    var doel = !isLeeg(oud.boek_id) ? perId[String(oud.boek_id)] : perRij[oud._rij];
+    if (doel && isLeeg(oud.boek_id) && schoon(doel.titel) !== schoon(oud.titel)) doel = null;
+    if (doel) {
+      var velden = {};
+      Object.keys(oud._velden || {}).forEach(function (k) { velden[k] = oud[k]; });
+      wijzig(doel, velden);
+    }
+    oud._gewijzigd = false;
+    oud._velden = {};
+  });
 }
 
 /** Voegt een nieuwe rij toe aan een lijst en markeert ze als nieuw. */
@@ -143,6 +209,7 @@ function bewaarTabel(tabel) {
     if (rij._gewijzigd && !rij._nieuw && !rij._verwijderen) {
       blad.getRange(rij._rij, 1, 1, kop.length).setValues([rijNaarWaarden(kop, rij)]);
       rij._gewijzigd = false;
+      rij._velden = {};
     }
   });
   var nieuw = tabel.rijen.filter(function (r) { return r._nieuw; });

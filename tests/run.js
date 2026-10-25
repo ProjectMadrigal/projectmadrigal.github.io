@@ -749,6 +749,29 @@ test('gepland nieuws: pas zichtbaar vanaf online_vanaf', () => {
   const r = M.inhoudAanpassen([], { tabblad: 'Nieuws', velden: { titel: 'T', datum: '20/05/2027', online_vanaf: '01/06/2027' } });
   assert.strictEqual(r.ok, true);
 });
+test('achtergrondtaak bewaart enkel haar eigen velden, wat de balie intussen wijzigde blijft', () => {
+  const oud = [
+    { _rij: 2, boek_id: 'B0001', titel: 'Een', beschrijving: '', aantal: 1 },
+    { _rij: 3, boek_id: '', titel: 'Zonder ID', beschrijving: '' },
+    { _rij: 4, boek_id: 'B0003', titel: 'Intussen weg', beschrijving: '' }
+  ];
+  M.wijzig(oud[0], { beschrijving: 'Van Wikipedia', wiki_gezocht: '2026-10-25' });
+  M.wijzig(oud[1], { beschrijving: 'Ook gevonden' });
+  M.wijzig(oud[2], { beschrijving: 'Te laat' });
+  // Intussen: iemand paste het aantal aan, en een rij schoof op.
+  const vers = [
+    { _rij: 2, boek_id: 'B0001', titel: 'Een', beschrijving: '', aantal: 3 },
+    { _rij: 3, boek_id: '', titel: 'Zonder ID', beschrijving: '' }
+  ];
+  M.voegVeldenSamen(oud.filter((r) => r._gewijzigd), vers);
+  gelijk([vers[0].aantal, vers[0].beschrijving, vers[0].wiki_gezocht, vers[1].beschrijving, oud[0]._gewijzigd], [3, 'Van Wikipedia', '2026-10-25', 'Ook gevonden', false]);
+  // Een rij zonder ID op een plaats waar nu een ander boek staat: niet overschrijven.
+  const oud2 = { _rij: 3, boek_id: '', titel: 'Zonder ID', beschrijving: '' };
+  M.wijzig(oud2, { beschrijving: 'X' });
+  const vers2 = [{ _rij: 3, boek_id: '', titel: 'Ander boek', beschrijving: '' }];
+  M.voegVeldenSamen([oud2], vers2);
+  assert.strictEqual(vers2[0].beschrijving, '');
+});
 test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
   const s = maakStaat();
   s.catalogus[0].leeslijsten = 'Andere lijst';

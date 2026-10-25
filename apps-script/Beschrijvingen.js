@@ -242,8 +242,7 @@ function beschrijvingUitOpenLibrary(isbn) {
 /** Menu: zoekt beschrijvingen voor boeken waar die nog ontbreekt, in porties. */
 function vulBeschrijvingenAan() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) {
+  if (!startAchtergrond('vulBeschrijvingenAan')) {
     meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
     return;
   }
@@ -277,10 +276,10 @@ function vulBeschrijvingenAan() {
         wijzig(boek, { beschrijving_gezocht: gbLimiet ? BS_ENKEL_OL + vandaag.replace(/-/g, '') : vandaag });
       }
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(400);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     var nog = tabel.rijen.filter(heeftBeschrijvingNodig);
     rest = nog.length;
     // Nog boeken die niemand opzocht: over een minuut verder (Open Library werkt nog).
@@ -288,7 +287,7 @@ function vulBeschrijvingenAan() {
     var nieuwTeDoen = nog.filter(function (b) { return !wachtOpGoogle(b); }).length;
     limiet = limiet && nieuwTeDoen === 0;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('vulBeschrijvingenAan');
   }
   verwijderTriggers('vulBeschrijvingenAan');
   if (rest > 0) {
@@ -345,8 +344,7 @@ function planVertaling(minuten) {
 /** Menu: vertaalt de beschrijvingen naar het Nederlands en het Engels, in porties. */
 function vertaalBeschrijvingen() {
   var start = Date.now();
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) { planVertaling(5); return; } // een andere bewerking loopt: straks opnieuw
+  if (!startAchtergrond('vertaalBeschrijvingen')) { planVertaling(5); return; } // een andere bewerking loopt: straks opnieuw
   var verwerkt = 0, rest = 0, limiet = false;
   try {
     var tabel = leesTabel('Catalogus');
@@ -370,13 +368,13 @@ function vertaalBeschrijvingen() {
       velden.beschrijving_vertaald = vandaag;
       wijzig(teDoen[i], velden);
       verwerkt++;
-      if (verwerkt % 20 === 0) bewaarTabel(tabel);
+      if (verwerkt % 20 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(200);
     }
-    bewaarTabel(tabel);
+    bewaarAchtergrond(tabel);
     rest = tabel.rijen.filter(heeftVertalingNodig).length;
   } finally {
-    lock.releaseLock();
+    stopAchtergrond('vertaalBeschrijvingen');
   }
   verwijderTriggers('vertaalBeschrijvingen');
   if (rest > 0) planVertaling(limiet ? 24 * 60 : 1);
