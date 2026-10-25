@@ -288,8 +288,11 @@
     if (staat.keuzes.pagina > paginas) { staat.keuzes.pagina = paginas; bewaarAdres(); }
     var nu = staat.keuzes.pagina;
     D.vervang($('resultaten'), lijst.slice((nu - 1) * PER_PAGINA, nu * PER_PAGINA).map(boekKaart));
-    $('aantal').textContent = n === 0 ? t('gevonden0')
-      : (n === 1 ? t('gevonden1') : t('gevondenN', { n: n })) + (paginas > 1 ? t('paginaVan', { nu: nu, totaal: paginas }) : '');
+    var v = FILM ? 'Film' : ''; // gevonden0Film, gevonden1Film, gevondenNFilm
+    // Nog geen enkele film in de Catalogus (voorbeeld voor het bestuur): zeg hoe je ze toevoegt.
+    var leeg = FILM && staat.data.voorbeeld && !staat.data.boeken.length;
+    $('aantal').textContent = leeg ? t('filmsNogGeen') : n === 0 ? t('gevonden0' + v)
+      : (n === 1 ? t('gevonden1' + v) : t('gevondenN' + v, { n: n })) + (paginas > 1 ? t('paginaVan', { nu: nu, totaal: paginas }) : '');
     tekenPaginas(nu, paginas);
     toonLijstKop();
     var actief = aantalActieveFilters();
