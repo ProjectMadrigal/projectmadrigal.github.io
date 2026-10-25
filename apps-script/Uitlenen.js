@@ -490,7 +490,7 @@ function uitleningInfo(staat, u, metContact) {
 function beschikbaarheid(staat, boek) {
   var totaal = aantalExemplaren(boek);
   if (!isUitleenbaar(boek)) {
-    var teKoop = normaliseerTekst(boek.genre) === 'verkoop';
+    var teKoop = normaliseerTekst(boek.genre) === 'verkoop' || jaNee(boek.te_koop) === 'ja';
     return { code: 'niet_uitleenbaar', label: teKoop ? 'Te koop in de bib, niet uitleenbaar' : 'Niet uitleenbaar', totaal: totaal, beschikbaar: 0, terug: '' };
   }
   var uit = lopendeUitleningen(staat).filter(function (u) { return u.boek_id === boek.boek_id; });

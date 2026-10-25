@@ -62,6 +62,8 @@ var ACTIES = {
   beheerLenerHistoriek: 'bestuur',
   beheerBoekenBulk: 'bestuur',
   bestuurCijfers: 'bestuur',
+  // De verborgen filmpagina bekijken (Films.js), zolang films_tonen op nee staat.
+  filmsVoorbeeld: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -317,6 +319,10 @@ function voerActieUit(actie, invoer, rol) {
         break;
       case 'beheerLenerHistoriek': antwoord = lenerHistoriek(staat, invoer.lenersnummer); break;
       case 'beheerBoekenBulk': antwoord = boekenBulk(staat, invoer); break;
+      case 'filmsVoorbeeld':
+        var fc = bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen, [], { enkelFilms: true });
+        antwoord = { ok: true, boeken: fc.boeken, teksten: fc.teksten, filmsTonen: staat.inst.films_tonen === true };
+        break;
       case 'bestuurCijfers': antwoord = { ok: true, cijfers: bestuurCijfers(staat, leesTabel('Onderwerpen').rijen) }; break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
@@ -345,7 +351,7 @@ function voerActieUit(actie, invoer, rol) {
       bewaarTabel(staat.tabellen.Catalogus);
       werkOnderwerpenBij(); // een nieuw genre komt zo in de vertaaltabel Onderwerpen
     }
-    if (meldingen.length || (antwoord.ok && actie !== 'balieData' && actie !== 'bestuurData')) leegCache();
+    if (meldingen.length || (antwoord.ok && actie !== 'balieData' && actie !== 'bestuurData' && actie !== 'filmsVoorbeeld')) leegCache();
     if (meldingen.length && antwoord.ok) antwoord.apartLeggen = (antwoord.apartLeggen || []).concat(meldingen);
     return antwoord;
   } finally {

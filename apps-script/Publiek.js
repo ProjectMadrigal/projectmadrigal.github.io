@@ -8,7 +8,8 @@
  *   id  boek-ID          t  titel           a  auteur        i  ISBN
  *   u   uitgeverij       j  jaartal         l  taal          p  pagina's
  *   v   uitvoering       n  nieuw/tweedehands                r  aanraders (lijst)
- *   g   filtergroepen    s  soort (boek/zine)                d  beschrijving
+ *   g   filtergroepen    s  soort (boek/zine/film)           d  beschrijving
+ *   la  land (films)     du speelduur in minuten (films)    tip 1 als het een kijktip is (film niet in de bib)
  *   de  beschrijving in het Engels (enkel als die verschilt)
  *   ta  datum waarop het boek in de catalogus kwam (om te sorteren op laatst toegevoegd)
  *   db  link naar de bron van de beschrijving (enkel Wikipedia: die licentie vraagt een bronvermelding)
@@ -18,8 +19,14 @@
  *                                           d: verwacht terug (datum), k: 1 als te koop }
  */
 
-/** Bouwt het object dat het publieke eindpunt teruggeeft. */
-function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
+/**
+ * Bouwt het object dat het publieke eindpunt teruggeeft.
+ * Films staan er enkel in als de instelling films_tonen op ja staat. opties.enkelFilms: alleen de
+ * films, ook als ze nog verborgen zijn (voor het voorbeeld van het bestuur, actie filmsVoorbeeld).
+ */
+function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
+  opties = opties || {};
+  var filmsTonen = (staat.inst || {}).films_tonen === true;
   var vertaal = vertaalTabel(onderwerpRijen);
   // Leeslijsten: zie leeslijstZichtbaar. Een geplande lijst volgt haar data, de rest de instelling leeslijsten_tonen.
   var schakelaar = (staat.inst || {}).leeslijsten_tonen === true;
@@ -31,23 +38,27 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
   staat.catalogus.forEach(function (rij) {
     if (isLeeg(rij.boek_id) || isLeeg(rij.titel)) return;
     if (!opWebsite(rij)) return;
+    var film = isFilm(rij);
+    if (opties.enkelFilms ? !film : (film && !filmsTonen)) return;
     var b = beschikbaarheid(staat, rij);
     var boek = {
       id: String(rij.boek_id),
       t: schoon(rij.titel),
       a: schoon(rij.auteur),
-      g: filtergroepenVan(rij, vertaal),
-      s: normaliseerTekst(rij.soort) === 'zine' ? 'zine' : 'boek',
+      g: film ? filmGroepen(rij) : filtergroepenVan(rij, vertaal),
+      s: soortVan(rij),
       b: { c: b.code, l: b.label, t: b.totaal, v: b.beschikbaar }
     };
+    if (isFilmTip(rij)) { boek.tip = 1; boek.b = { c: 'tip', l: 'Kijktip', t: 0, v: 0 }; }
     // Datum van verwachte terugkeer en "te koop": zo maakt de website het label in elke taal op.
     if (b.code === 'uitgeleend' && b.terug && b.terug >= staat.vandaag) boek.b.d = b.terug;
-    if (b.code === 'niet_uitleenbaar' && normaliseerTekst(rij.genre) === 'verkoop') boek.b.k = 1;
+    if (b.code === 'niet_uitleenbaar' && !boek.tip && (normaliseerTekst(rij.genre) === 'verkoop' || jaNee(rij.te_koop) === 'ja')) boek.b.k = 1;
     if (boekStatus(rij) === 'gevoelig_zichtbaar') boek.w = 1;
     // Lege velden laten we weg: dat maakt de lijst kleiner.
     var extra = {
       i: schoon(rij.isbn), u: schoon(rij.uitgeverij), j: parseerGetal(rij.jaartal) || '',
       l: schoon(rij.taal), p: parseerGetal(rij.paginas) || '', v: schoon(rij.uitvoering),
+      la: film ? filmLijst(rij.land).join(', ') : '', du: film ? parseerGetal(rij.duur) || '' : '',
       n: jaNee(rij.nieuwstaat) === 'ja' ? 'nieuw' : (jaNee(rij.nieuwstaat) === 'nee' ? 'tweedehands' : ''),
       d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
       db: /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(schoon(rij.beschrijving_bron)) && schoonMetRegels(rij.beschrijving) ? schoon(rij.beschrijving_bron) : ''
@@ -72,6 +83,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
     filtergroepen: groepen,
     boeken: boeken
   };
+  // Zo weet de website of het menu-item Films mag verschijnen.
+  if (filmsTonen) uit.filmsTonen = true;
   // Enkel als ze getoond worden: zo weet de website of het menu-item Leeslijsten mag verschijnen.
   if (toonLijsten) uit.leeslijsten = gebruikteLeeslijsten(lijsten, boeken);
   return uit;

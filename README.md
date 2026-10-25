@@ -324,6 +324,16 @@ Op `vrijwilliger.html` werken vaste vrijwilligers met een eigen code: de instell
 
 Een nieuwe code maken? Maak de cel `code_vrijwilliger` leeg en kies **Madrigal > Installeer tabbladen**. Dan komt er een nieuwe willekeurige code.
 
+### Films
+
+Films (dvd's) staan in de Catalogus, net als de boeken, met soort `film` en een nummer F0001. Je leent ze uit, reserveert ze en brengt ze terug aan de balie zoals een boek. Op de website hebben ze een eigen pagina, `films.html`, met filters op genre, land en periode.
+
+- **Verborgen tot je klaar bent.** Zolang de instelling `films_tonen` op nee staat, zien bezoekers geen menu-item en geen films. Op een toestel waar je met de bestuurscode aangemeld bent, staat in het menu **Films (verborgen)**, en in het bestuursscherm de knop **Filmpagina bekijken**. Klaar? Zet `films_tonen` op ja.
+- **De lijst van Letterboxd ophalen:** kies **Madrigal > Films > Haal de Letterboxd-lijst op**. Het adres van de lijst staat in de instelling `letterboxd_lijst`. Films die al in de Catalogus staan, komen er niet nog eens bij. Lukt het niet (Letterboxd laat scripts soms niet binnen), typ dan de titel en het jaartal in een nieuwe rij met soort `film`.
+- **Gegevens aanvullen:** het script zoekt daarna vanzelf de regie, het land, het jaartal, de genres, de duur en de taal op bij Wikidata, en de omschrijving bij Wikipedia (met bronvermelding). Het vult enkel lege velden aan. Opnieuw laten zoeken? Maak de cel `film_gezocht` leeg en kies **Madrigal > Films > Vul de films aan**.
+- **Kolommen voor films:** `auteur` is de regie, `land`, `duur` (minuten) en `genre` (gescheiden door komma's). `film_tip` op ja maakt er een kijktip van: een film die niet in de bib is, en die je dus niet kan lenen. `te_koop` op ja: te koop in de bib, niet uitleenbaar (dat werkt ook voor boeken).
+- **Covers** zoekt het script niet: filmaffiches vallen onder het auteursrecht. Neem een foto van het doosje in het bestuursscherm, of vul een link in bij `cover_url`.
+
 ## A8. Wat te doen als iets niet werkt
 
 | Wat je ziet | Wat je doet |
@@ -697,6 +707,7 @@ GitHub opent bij elke wijziging ook de site in een browser, met verzonnen gegeve
 | --- | --- |
 | `index.html`, `home.js` | de startpagina |
 | `boeken.html`, `app.js` | de publieke catalogus |
+| `films.html` | de pagina Films (hetzelfde `app.js`, met `data-soort="film"`) |
 | `over-ons.html`, `overons.js` | de pagina Over ons, met het blok over de bookclub |
 | `doe-mee.html`, `doemee.js` | de pagina Doe mee: vrijwilliger worden, schenken, steunen |
 | `peperfabriek.html`, `peperfabriek.js` | de pagina De Peperfabriek, met hun programma |
@@ -749,6 +760,7 @@ GitHub opent bij elke wijziging ook de site in een browser, met verzonnen gegeve
 | `Vrijwilligers.js` | voorgestelde beschrijvingen, meldingen, briefjes en de checklist van vrijwilligers |
 | `Bezoekers.js` | bezoekerscijfers uit GoatCounter |
 | `Bookclub.js`, `Peperfabriek.js` | de bookclub in de agenda, het programma van De Peperfabriek |
+| `Films.js` | films: de lijst van Letterboxd ophalen, aanvullen uit Wikidata en Wikipedia |
 | `Backup.js` | de wekelijkse back-up van de spreadsheet |
 | `Privacy.js` | de nachtelijke opruiming |
 | `Overzetten.js` | eenmalig: lopende uitleningen uit het oude blad |

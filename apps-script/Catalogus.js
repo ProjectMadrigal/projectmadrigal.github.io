@@ -138,9 +138,15 @@ function opWebsite(boek) {
   return jaNee(boek.publiek) !== 'nee' && s !== 'verloren' && s !== 'gevoelig_verborgen';
 }
 
-/** Mag het boek uitgeleend worden? Niet bij uitleenbaar = nee of verloren. */
+/** Mag het boek uitgeleend worden? Niet bij uitleenbaar = nee, verloren, te koop, of een kijktip (film die niet in de bib is). */
 function isUitleenbaar(boek) {
-  return jaNee(boek.uitleenbaar) !== 'nee' && boekStatus(boek) !== 'verloren';
+  return jaNee(boek.uitleenbaar) !== 'nee' && boekStatus(boek) !== 'verloren' && jaNee(boek.te_koop) !== 'ja' && !isFilmTip(boek);
+}
+
+/** De soort van een rij in de Catalogus: boek, zine of film. */
+function soortVan(rij) {
+  var s = normaliseerTekst(rij && rij.soort);
+  return s === 'zine' || s === 'film' ? s : 'boek';
 }
 
 /** De foutmelding aan de balie voor een boek dat niet uitleenbaar is. */
@@ -238,7 +244,7 @@ function voegBronSamen(bestaand, bron, nieuwId, inst, vandaag) {
 function maakIdGenerator(catalogusRijen) {
   var props = PropertiesService.getScriptProperties();
   var tellers = {};
-  ['B', 'Z'].forEach(function (prefix) {
+  ['B', 'Z', 'F'].forEach(function (prefix) {
     var laatste = Number(props.getProperty('teller_boek_' + prefix) || 0);
     catalogusRijen.forEach(function (r) {
       var id = String(r.boek_id || '');
@@ -248,13 +254,14 @@ function maakIdGenerator(catalogusRijen) {
   });
   return {
     nieuw: function (soort) {
-      var prefix = soort === 'zine' ? 'Z' : 'B';
+      var prefix = soort === 'zine' ? 'Z' : soort === 'film' ? 'F' : 'B';
       tellers[prefix] += 1;
       return prefix + metNullen(tellers[prefix], 4);
     },
     bewaar: function () {
       props.setProperty('teller_boek_B', String(tellers.B));
       props.setProperty('teller_boek_Z', String(tellers.Z));
+      props.setProperty('teller_boek_F', String(tellers.F));
     }
   };
 }
@@ -378,7 +385,7 @@ function geefNieuweBoekenEenId() {
     var ids = maakIdGenerator(tabel.rijen);
     tabel.rijen.forEach(function (rij) {
       if (!isLeeg(rij.boek_id) || isLeeg(rij.titel)) return;
-      var soort = normaliseerTekst(rij.soort) === 'zine' ? 'zine' : 'boek';
+      var soort = soortVan(rij);
       var isbn = normaliseerIsbn(rij.isbn);
       var velden = {
         boek_id: ids.nieuw(soort),
@@ -452,7 +459,7 @@ function vulOnderwerpenAan(onderwerpRijen, catalogusRijen) {
   var schrijfwijzen = {};
   catalogusRijen.forEach(function (b) {
     var g = normaliseerTekst(b.genre);
-    if (!g) return;
+    if (!g || isFilm(b)) return; // filmgenres staan los van de onderwerpen van de boeken
     tellingen[g] = (tellingen[g] || 0) + 1;
     schrijfwijzen[g] = schrijfwijzen[g] || {};
     var s = schoon(b.genre);

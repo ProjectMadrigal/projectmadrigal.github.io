@@ -21,7 +21,7 @@ var CV_TITEL_AUTEUR = 'titel en auteur (Open Library)';
 
 /** Heeft dit boek nog een cover nodig van een andere uitgave? */
 function heeftAndereUitgaveNodig(boek) {
-  if (!isLeeg(boek.cover_url) || !isLeeg(boek.cover_gezocht)) return false;
+  if (!isLeeg(boek.cover_url) || !isLeeg(boek.cover_gezocht) || isFilm(boek)) return false;
   return /^\d{13}$/.test(String(boek.isbn || '')) || !isLeeg(boek.titel);
 }
 

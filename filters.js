@@ -48,15 +48,31 @@
     { sleutel: 'lijst', labelSleutel: 'fLeeslijst', label: 'Leeslijst', waarden: function (b) { return b.ll || []; } /* volgorde: zie catalogus */ }
   ];
 
+  /** De filters van de pagina Films (films.html): genre, land, periode, taal en aanrader. */
+  var FILMFILTERS = [
+    { sleutel: 'genre', labelSleutel: 'fGenre', label: 'Genre', waarden: function (b) { return b.g || []; }, volgorde: alfabetisch },
+    { sleutel: 'land', labelSleutel: 'fLand', label: 'Land', waarden: function (b) { return b.la ? String(b.la).split(/\s*,\s*/).filter(Boolean) : []; }, volgorde: alfabetisch },
+    {
+      sleutel: 'periode', labelSleutel: 'fPeriodeFilm', label: 'Periode',
+      waarden: function (b) { var p = periodeVan(b.j); return p ? [p] : []; },
+      volgorde: function (a, b) {
+        var labels = PERIODES.map(function (p) { return p.label; });
+        return labels.indexOf(a) - labels.indexOf(b);
+      }
+    },
+    { sleutel: 'taal', labelSleutel: 'fTaal', label: 'Taal', waarden: function (b) { return b.l ? [b.l] : []; }, volgorde: alfabetisch },
+    { sleutel: 'aanrader', labelSleutel: 'fAanrader', label: 'Aanrader', waarden: function (b) { return (b.r || []).map(function (n) { return 'Aanrader van ' + n; }); }, volgorde: alfabetisch }
+  ];
+
   /**
    * De keuzes per filter, met het aantal boeken.
    * groepVolgorde: de volgorde van de filtergroepen uit de catalogus.
    * lijstVolgorde: de namen van de leeslijsten, in de volgorde van de catalogus.
    * Geeft { sleutel: [{ waarde, aantal }] } terug.
    */
-  function opties(boeken, groepVolgorde, lijstVolgorde) {
+  function opties(boeken, groepVolgorde, lijstVolgorde, filters) {
     var resultaat = {};
-    FILTERS.forEach(function (f) {
+    (filters || FILTERS).forEach(function (f) {
       var tel = {};
       boeken.forEach(function (b) { f.waarden(b).forEach(function (w) { tel[w] = (tel[w] || 0) + 1; }); });
       var lijst = Object.keys(tel);
@@ -79,10 +95,11 @@
    * Past de gekozen filters toe.
    * keuzes: { groep: 'Gender', taal: 'Engels', ..., beschikbaar: true }
    */
-  function pasToe(boeken, keuzes) {
+  function pasToe(boeken, keuzes, filters) {
+    var lijst = filters || FILTERS;
     return boeken.filter(function (b) {
-      for (var i = 0; i < FILTERS.length; i++) {
-        var f = FILTERS[i];
+      for (var i = 0; i < lijst.length; i++) {
+        var f = lijst[i];
         var gekozen = keuzes[f.sleutel];
         if (gekozen && f.waarden(b).indexOf(gekozen) === -1) return false;
       }
@@ -152,7 +169,7 @@
     }).slice(0, aantal || 6).map(function (x) { return x.boek; });
   }
 
-  var api = { FILTERS: FILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
+  var api = { FILTERS: FILTERS, FILMFILTERS: FILMFILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
   root.MadrigalFilters = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

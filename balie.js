@@ -60,7 +60,7 @@
     var q = vraag.trim();
     if (!q) return [];
     // Een exemplaarnummer (B0012-2) of boek-ID rechtstreeks.
-    var m = q.toUpperCase().match(/^([BZ]\d{1,})(?:-\d+)?$/);
+    var m = q.toUpperCase().match(/^([BZF]\d{1,})(?:-\d+)?$/);
     if (m) {
       var b = boekVan(m[1].charAt(0) + ('0000' + m[1].slice(1)).slice(-4));
       if (b) return [b];

@@ -17,6 +17,8 @@
   var MENU = [
     { pagina: 'home', href: 'index.html', tekst: 'menuHome' },
     { pagina: 'boeken', href: 'boeken.html', tekst: 'menuBoeken' },
+    // Verborgen tot de instelling films_tonen op ja staat, behalve voor het bestuur (zie filmsTonen hieronder).
+    { pagina: 'films', href: 'films.html', tekst: 'menuFilms', verborgen: true },
     // Verborgen tot de instelling leeslijsten_tonen op ja staat (zie leeslijstenTonen hieronder).
     { pagina: 'leeslijsten', href: 'boeken.html#/leeslijsten', tekst: 'menuLeeslijsten', verborgen: true },
     { pagina: 'over', href: 'over-ons.html', tekst: 'menuOver' },
@@ -72,8 +74,9 @@
       '  <button type="button" class="menuknop" id="menuknop" aria-expanded="false" aria-controls="hoofdmenu" data-i18n-aria-label="menu">' + ICOON.menu + '</button>' +
       '  <nav class="hoofdmenu" id="hoofdmenu" data-i18n-aria-label="menu"><ul>' +
       MENU.map(function (m) {
-        var weg = m.verborgen && leesLeeslijsten() !== 'ja';
-        return '<li' + (weg ? ' hidden' : '') + ' data-menu="' + m.pagina + '"><a href="' + m.href + '" data-i18n="' + m.tekst + '"' + (m.pagina === pagina ? ' aria-current="page"' : '') + '></a></li>';
+        var weg = m.pagina === 'films' ? !filmsZichtbaar() : m.verborgen && leesLeeslijsten() !== 'ja';
+        var tekst = m.pagina === 'films' && leesFilms() !== 'ja' ? 'menuFilmsVoorbeeld' : m.tekst;
+        return '<li' + (weg ? ' hidden' : '') + ' data-menu="' + m.pagina + '"><a href="' + m.href + '" data-i18n="' + tekst + '"' + (m.pagina === pagina ? ' aria-current="page"' : '') + '></a></li>';
       }).join('') +
       '  </ul>' +
       '  <div class="kopknoppen"><button type="button" class="ikoonknop" id="taalknop"></button><button type="button" class="ikoonknop" id="themaknop"></button></div>' +
@@ -127,7 +130,7 @@
   function tel() {
     if (!window.goatcounter || !window.goatcounter.count) return;
     var hash = location.hash.split('?')[0];
-    window.goatcounter.count({ path: location.pathname + (/^#\/(boek|privacy|leeslijsten)/.test(hash) ? hash : '') });
+    window.goatcounter.count({ path: location.pathname + (/^#\/(boek|film|privacy|leeslijsten)/.test(hash) ? hash : '') });
   }
 
   /*
@@ -143,6 +146,31 @@
     var li = document.querySelector('[data-menu="leeslijsten"]');
     if (li) li.hidden = !aan;
   }
+  /*
+   * Het menu-item Films. Bezoekers zien het pas als de instelling films_tonen op ja staat (de catalogus
+   * vertelt dat, de browser onthoudt het). Op een toestel met de bestuurscode staat het er altijd,
+   * als "Films (verborgen)" zolang bezoekers het nog niet zien.
+   */
+  var FILMS = 'madrigal_films';
+  function leesFilms() {
+    try { return localStorage.getItem(FILMS); } catch (e) { return null; }
+  }
+  function isBestuur() {
+    try { return !!localStorage.getItem('madrigal_code_bestuur'); } catch (e) { return false; }
+  }
+  function filmsZichtbaar() {
+    return leesFilms() === 'ja' || isBestuur();
+  }
+  function filmsTonen(aan) {
+    try { localStorage.setItem(FILMS, aan ? 'ja' : 'nee'); } catch (e) { /* enkel voor deze pagina */ }
+    var li = document.querySelector('[data-menu="films"]');
+    if (!li) return;
+    li.hidden = !filmsZichtbaar();
+    var a = li.querySelector('a');
+    a.setAttribute('data-i18n', aan ? 'menuFilms' : 'menuFilmsVoorbeeld');
+    a.textContent = T.t(aan ? 'menuFilms' : 'menuFilmsVoorbeeld');
+  }
+
   /** Welk menu-item de huidige pagina is (op boeken.html: Boeken of Leeslijsten). */
   function huidig(pagina) {
     Array.prototype.forEach.call(document.querySelectorAll('[data-menu]'), function (li) {
@@ -150,7 +178,7 @@
       if (li.getAttribute('data-menu') === pagina) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
   }
-  window.MadrigalLayout = { leeslijstenTonen: leeslijstenTonen, huidig: huidig };
+  window.MadrigalLayout = { leeslijstenTonen: leeslijstenTonen, filmsTonen: filmsTonen, huidig: huidig };
 
   /** Offline werken en installeren als app (zie sw.js). Niet in het voorbeeld op je eigen computer. */
   function offline() {

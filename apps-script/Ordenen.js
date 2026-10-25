@@ -32,10 +32,11 @@ var INSTELLING_GROEPEN = [
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
   ['Website: Antwerp Queer Bookclub', ['bookclub_naam', 'bookclub_week', 'bookclub_dag', 'bookclub_uur', 'tekst_bookclub', 'tekst_bookclub_en', 'bookclub_link']],
   ['Website: De Peperfabriek', ['peperfabriek_url', 'tekst_peperfabriek', 'tekst_peperfabriek_en', 'peperfabriek_aantal']],
+  ['Website: films', ['films_tonen', 'tekst_films', 'tekst_films_en']],
   ['Privacy: bewaartermijnen', ['bewaartermijn_afgesloten_uitleningen_maanden', 'aanvragen_bewaren_dagen', 'meldingen_bewaren_dagen', 'briefjes_bewaren_dagen']],
   ['Techniek: toegang (codes)', ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur']],
   ['Techniek: koppeling met het rooster', ['rooster_url', 'rooster_code']],
-  ['Techniek: boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
+  ['Techniek: boek- en filmgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map', 'letterboxd_lijst']],
   ['Techniek: bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
   ['Techniek: back-up', ['backup_map', 'backup_bewaren']]
 ];

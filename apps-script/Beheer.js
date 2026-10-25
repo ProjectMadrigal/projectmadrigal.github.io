@@ -14,11 +14,12 @@
 var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
   'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
-  'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie'
+  'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie',
+  'land', 'duur', 'film_tip', 'te_koop'
 ];
 
 /** Velden met ja/nee. Bij startpagina betekent leeg "automatisch". */
-var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'startpagina'];
+var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'startpagina', 'film_tip', 'te_koop'];
 
 /** Tabbladen met inhoud van de website, en de kolommen die je via de website kan aanpassen. */
 var BEHEER_INHOUD = {
@@ -39,7 +40,7 @@ function beheerVeld(veld, ruw) {
   if (BEHEER_LANG.indexOf(veld) > -1) return { waarde: String(ruw === undefined || ruw === null ? '' : ruw).trim().slice(0, 5000) };
   var w = tekstInvoer(ruw, 300);
   if (BEHEER_JANEE.indexOf(veld) > -1) return { waarde: jaNee(w) };
-  if (veld === 'soort') return { waarde: normaliseerTekst(w) === 'zine' ? 'zine' : 'boek' };
+  if (veld === 'soort') return { waarde: soortVan({ soort: w }) };
   if (veld === 'status') {
     var s = boekStatus({ status: w });
     if (w && !s) return { fout: 'Kies als status: leeg, ' + BOEKSTATUSSEN.join(', ') + '.' };
@@ -54,7 +55,7 @@ function beheerVeld(veld, ruw) {
     if (w && !veiligeCoverUrl(w)) return { fout: 'Een link moet beginnen met https://' };
     return { waarde: w };
   }
-  if (veld === 'jaartal' || veld === 'paginas' || veld === 'aantal' || veld === 'volgorde') {
+  if (veld === 'jaartal' || veld === 'paginas' || veld === 'aantal' || veld === 'volgorde' || veld === 'duur') {
     if (!w) return { waarde: '' };
     var n = parseerGetal(w);
     if (n === null || n < 0 || n !== Math.round(n)) return { fout: 'Vul bij ' + veld + ' een geheel getal in.' };

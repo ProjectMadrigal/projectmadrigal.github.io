@@ -82,7 +82,7 @@ function bouwSiteInhoud(staat, tabellen) {
     return dagen >= 0 && dagen < dagenNieuw;
   };
   var kandidaten = staat.catalogus.filter(function (b) {
-    return !isLeeg(b.boek_id) && opWebsite(b) && jaNee(b.startpagina) !== 'nee';
+    return !isLeeg(b.boek_id) && opWebsite(b) && jaNee(b.startpagina) !== 'nee' && !isFilm(b);
   });
   var startpaginaBoek = function (b) {
     var bs = beschikbaarheid(staat, b);

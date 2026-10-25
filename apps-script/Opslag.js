@@ -16,9 +16,12 @@ var KOLOMMEN = {
     'boek_id', 'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas',
     'uitvoering', 'nieuwstaat', 'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal',
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
+    // Films (zie Films.js): land, speelduur, kijktip. te_koop werkt voor elk boek of elke film.
+    'land', 'duur', 'film_tip', 'te_koop',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
+    'letterboxd', 'wikidata', 'film_gezocht',
     // Interne notitie van het bestuur (bv. schade, plaats in de kast). Nooit publiek.
     'notitie'
   ],

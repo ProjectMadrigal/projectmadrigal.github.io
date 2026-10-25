@@ -3,7 +3,9 @@
  "teksten": {
   "welkom": "Welkom in de catalogus van Project Madrigal, de queer bib van Antwerpen. Zoek, snuister en kom langs om te lenen.",
   "uitleg": "Je leent gratis, je betaalt enkel 5 euro borg per boek. Die krijg je terug als je het boek terugbrengt. Je mag 2 boeken tegelijk lenen, voor 4 weken. Kom langs op vrijdag tijdens de openingsuren.",
-  "privacy": "Dit is een voorbeeldtekst. De echte privacyverklaring staat in het tabblad Instellingen."
+  "privacy": "Dit is een voorbeeldtekst. De echte privacyverklaring staat in het tabblad Instellingen.",
+  "films": "Films over queer leven, liefde en geschiedenis. Dit zijn verzonnen voorbeeldfilms.",
+  "films_en": "Films about queer life, love and history. These are made-up example films."
  },
  "filtergroepen": [
   "Gender",
@@ -590,6 +592,95 @@
     "t": 1,
     "v": 0
    }
+  },
+  {
+   "id": "F0001",
+   "t": "Glitter op de dijk",
+   "a": "Noor Aerts",
+   "g": [
+    "Drama",
+    "Romantiek"
+   ],
+   "s": "film",
+   "j": 2019,
+   "la": "België",
+   "du": 96,
+   "l": "Nederlands",
+   "v": "dvd",
+   "b": {
+    "c": "beschikbaar",
+    "l": "Beschikbaar",
+    "t": 1,
+    "v": 1
+   },
+   "d": "Een verzonnen film over twee vrouwen die samen een strandbar openhouden in een stormachtige zomer. Dit is een voorbeeldfilm."
+  },
+  {
+   "id": "F0002",
+   "t": "Het lange weekend",
+   "a": "Ilo Claes",
+   "g": [
+    "Drama"
+   ],
+   "s": "film",
+   "j": 1987,
+   "la": "Nederland, België",
+   "du": 104,
+   "l": "Nederlands",
+   "v": "dvd",
+   "b": {
+    "c": "uitgeleend",
+    "l": "Uitgeleend",
+    "t": 1,
+    "v": 0,
+    "d": "2026-11-20"
+   },
+   "d": "Een verzonnen film over vrienden die elkaar na twintig jaar terugzien. Dit is een voorbeeldfilm."
+  },
+  {
+   "id": "F0003",
+   "t": "Stemmen in de nacht",
+   "a": "Sam Verbeek",
+   "g": [
+    "Documentaire"
+   ],
+   "s": "film",
+   "j": 2023,
+   "la": "Frankrijk",
+   "du": 82,
+   "l": "Frans",
+   "v": "dvd",
+   "b": {
+    "c": "niet_uitleenbaar",
+    "l": "Te koop",
+    "t": 1,
+    "v": 0,
+    "k": 1
+   },
+   "d": "Een verzonnen documentaire over een queer radiostation. Dit is een voorbeeldfilm."
+  },
+  {
+   "id": "F0004",
+   "t": "Zomer zonder einde",
+   "a": "Jo Dewit",
+   "g": [
+    "Komedie",
+    "Romantiek"
+   ],
+   "s": "film",
+   "j": 2005,
+   "la": "Verenigde Staten",
+   "du": 110,
+   "l": "Engels",
+   "tip": 1,
+   "b": {
+    "c": "tip",
+    "l": "Kijktip",
+    "t": 0,
+    "v": 0
+   },
+   "d": "Een verzonnen komedie over een zomerkamp. Dit is een voorbeeldfilm."
   }
- ]
+ ],
+ "filmsTonen": true
 }

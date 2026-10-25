@@ -96,6 +96,8 @@ function antwoord(rol, actie, vraag) {
       logboek: [{ tijd: Date.UTC(2026, 9, 25, 10, 0), wie: 'menu', actie: 'zoekBeschrijvingenWikipedia', details: '20 opgezocht' }, { tijd: Date.UTC(2026, 9, 25, 9, 0), wie: 'Kim', actie: 'uitlenen', details: 'B0001-1' }] },
     beheerBoekOphalen: { ok: true, historiek: { keer: 3, laatst: '2026-09-20' }, wijzigingen: [{ tijd: Date.UTC(2026, 9, 24, 9), wie: 'Kim', actie: 'boek aangepast', details: 'B0001: beschrijving' }], boek: { boek_id: (vraag || {}).boek_id, titel: (BOEKEN.concat(VEEL).find((b) => b.id === (vraag || {}).boek_id) || {}).t, auteur: '', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
     bezoekersCijfers: { ok: true, nietIngesteld: true },
+    filmsVoorbeeld: { ok: true, filmsTonen: false, teksten: { films: 'Verzonnen tekst over films.' },
+      boeken: JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/catalogus.json'))).boeken.filter((x) => x.s === 'film') },
     roosterOverzicht: { ok: true, data: { gekoppeld: true, vandaag: '2026-10-25', link: 'https://voorbeeld.test/rooster', nietGepubliceerd: [], avonden: [
       { datum: '2026-10-30', status: '', event: '', vrijwilligers: ['Ilo', 'Kim V.'], backups: [], afgemeld: [], gepubliceerd: true },
       { datum: '2026-11-06', status: 'gesloten', event: '', vrijwilligers: [], backups: [], afgemeld: [], gepubliceerd: true }],
@@ -115,6 +117,14 @@ async function nieuweContext(browser, opties) {
   await ctx.route('**/config.js', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.MADRIGAL_CONFIG={apiUrl:' + JSON.stringify(apiUrl) + ",naam:'Project Madrigal',statistiek:''};" }));
   if (opties.rol) {
     await ctx.route('https://web-app.test/**', (r) => {
+      // De publieke catalogus (GET): het voorbeeld, met de films nog verborgen.
+      if (r.request().method() === 'GET') {
+        const d = JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/catalogus.json')));
+        delete d.filmsTonen;
+        d.boeken = d.boeken.filter((x) => x.s !== 'film');
+        r.fulfill({ contentType: 'application/json', body: JSON.stringify(d) });
+        return;
+      }
       const b = JSON.parse(r.request().postData() || '{}');
       r.fulfill({ contentType: 'application/json', body: JSON.stringify(antwoord(opties.rol, b.actie, b)) });
     });
@@ -155,7 +165,7 @@ async function meldAan(page, basis, pagina) {
 
   console.log('\nPublieke pagina\'s');
   for (const thema of ['light', 'dark']) {
-    for (const pagina of ['index.html', 'boeken.html', 'boeken.html#/boek/B0008', 'boeken.html#/leeslijsten', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html']) {
+    for (const pagina of ['index.html', 'boeken.html', 'boeken.html#/boek/B0008', 'boeken.html#/leeslijsten', 'films.html', 'films.html#/film/F0002', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html']) {
       await test(pagina + ' (' + (thema === 'light' ? 'licht' : 'donker') + '): laadt zonder fouten, geen ernstige toegankelijkheidsfouten', async () => {
         const { ctx, page, fouten } = await nieuweContext(browser, { context: { colorScheme: thema } });
         await page.goto(basis + '/' + pagina);
@@ -203,7 +213,7 @@ async function meldAan(page, basis, pagina) {
   });
   await test('elk boek heeft Lees ook', async () => {
     const { ctx, page } = await nieuweContext(browser, {});
-    const ids = JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/catalogus.json'))).boeken.map((b) => b.id);
+    const ids = JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/catalogus.json'))).boeken.filter((b) => b.s !== 'film').map((b) => b.id);
     await page.goto(basis + '/boeken.html');
     await page.waitForSelector('#resultaten li');
     const zonder = [];
@@ -214,6 +224,56 @@ async function meldAan(page, basis, pagina) {
     }
     await ctx.close();
     verwacht(!zonder.length, 'Zonder Lees ook: ' + zonder.join(', '));
+  });
+
+  await test('films: eigen pagina met filters en detail, niet tussen de boeken', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, {});
+    await page.goto(basis + '/films.html');
+    await page.waitForSelector('#resultaten li');
+    const titels = await page.$$eval('#resultaten .boek-titel a', (x) => x.map((e) => e.textContent));
+    verwacht(titels.length === 4 && titels.indexOf('Glitter op de dijk') > -1, 'Films: ' + titels.join(', '));
+    verwacht(/Regie: Noor Aerts/.test(await page.textContent('#resultaten')), 'Regie ontbreekt in de lijst');
+    verwacht(/Kijktip/.test(await page.textContent('#resultaten')), 'Label Kijktip ontbreekt');
+    await page.click('#filters summary');
+    await page.selectOption('#filter-genre', 'Romantiek');
+    verwacht((await page.$$('#resultaten > li')).length === 2, 'Filter op genre');
+    await page.selectOption('#filter-genre', '');
+    await page.selectOption('#filter-land', 'België');
+    verwacht((await page.$$('#resultaten > li')).length === 2, 'Filter op land (ook bij twee landen)');
+    await page.evaluate(() => { location.hash = '#/film/F0002'; });
+    await page.waitForSelector('.detail h1');
+    const detail = await page.textContent('.detail');
+    verwacht(/Regie: Ilo Claes/.test(detail) && /Nederland, België/.test(detail) && /104 min/.test(detail) && /1987/.test(detail), 'Detail: ' + detail.slice(0, 300));
+    verwacht(/Kijk ook/.test(await page.textContent('#detail-scherm')), 'Kijk ook ontbreekt');
+    verwacht(!!(await page.$('#hoofdmenu [data-menu="films"]:not([hidden])')), 'Menu-item Films ontbreekt');
+    // Op de pagina Boeken staan geen films.
+    await page.goto(basis + '/boeken.html#/?q=glitter op de dijk');
+    await page.waitForSelector('#aantal');
+    await page.waitForTimeout(300);
+    verwacht(!(await page.$('#resultaten a[data-id^="F"]')), 'Een film tussen de boeken');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('films: verborgen voor bezoekers, wel zichtbaar voor het bestuur', async () => {
+    let r = await nieuweContext(browser, { rol: 'bestuur' });
+    await r.page.goto(basis + '/films.html');
+    await r.page.waitForSelector('text=Deze pagina is nog niet beschikbaar.');
+    verwacht(!(await r.page.$('#hoofdmenu [data-menu="films"]:not([hidden])')), 'Menu-item Films zichtbaar voor een bezoeker');
+    verwacht(!(await r.page.$('#resultaten li')), 'Films zichtbaar voor een bezoeker');
+    await r.ctx.close();
+    // Op een toestel met de bestuurscode: de films, met een melding en "Films (verborgen)" in het menu.
+    r = await nieuweContext(browser, { rol: 'bestuur' });
+    await r.ctx.addInitScript(() => { localStorage.setItem('madrigal_code_bestuur', 'verzonnen-code'); localStorage.setItem('madrigal_wie', 'Kim'); });
+    const vragen = [];
+    r.page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await r.page.goto(basis + '/films.html');
+    await r.page.waitForSelector('#resultaten li');
+    verwacht(!(await r.page.$('#films-voorbeeld[hidden]')), 'Melding voorbeeld ontbreekt');
+    verwacht(vragen.some((v) => v.actie === 'filmsVoorbeeld' && v.code === 'verzonnen-code'), 'Geen vraag om het voorbeeld');
+    verwacht(/Films \(verborgen\)/.test(await r.page.textContent('#hoofdmenu')), 'Menu toont Films (verborgen) niet');
+    verwacht(!(await axe(r.page)).length, 'Toegankelijkheid: ' + (await axe(r.page)).join(' | '));
+    await r.ctx.close();
+    verwacht(!r.fouten.length, r.fouten.join(' | '));
   });
 
   console.log('\nAfgeschermde schermen (nagebootste web-app)');

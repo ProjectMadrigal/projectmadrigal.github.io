@@ -26,6 +26,7 @@ const SCRIPTS = [
   'apps-script/Covers.js',
   'apps-script/Bol.js',
   'apps-script/Wikipedia.js',
+  'apps-script/Films.js',
   'apps-script/Taken.js',
   'apps-script/Rooster.js',
   'apps-script/Ordenen.js',

@@ -30,7 +30,7 @@ function maakAanvraag(omgeving, invoer, nieuwId) {
   // Een robot vult elk veld in, ook het verborgen. We doen alsof het lukte.
   if (!isLeeg(invoer.website)) return { ok: true, stil: true, tekst: 'Je aanvraag is verstuurd.' };
   var boek = omgeving.catalogus.filter(function (b) { return String(b.boek_id) === String(invoer.boek_id); })[0];
-  if (!boek || !opWebsite(boek)) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  if (!boek || !opWebsite(boek) || (isFilm(boek) && omgeving.inst.films_tonen !== true)) return { ok: false, fout: 'Dit boek bestaat niet.' };
   if (!isUitleenbaar(boek)) return { ok: false, fout: 'Dit boek is niet uitleenbaar.' };
   var voornaam = tekstInvoer(invoer.voornaam, 40);
   if (!voornaam) return { ok: false, fout: 'Vul je voornaam in.' };
