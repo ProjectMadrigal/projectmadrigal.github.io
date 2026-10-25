@@ -98,7 +98,9 @@ var BS_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 // de laatste volledige zin, nooit midden in een zin.
 var BS_MAX_LENGTE = 2500;
 
-var BS_USER_AGENT = 'ProjectMadrigal-catalogus (Google Apps Script; queer bibliotheek Antwerpen)';
+// Herkenbare naam met een link naar de website: Wikipedia en Open Library vragen dat van elk script,
+// en remmen naamloze scripts sneller af.
+var BS_USER_AGENT = 'ProjectMadrigal-catalogus/1.0 (https://projectmadrigal.github.io; queer bibliotheek Antwerpen; Google Apps Script)';
 
 /** Open Library gaf niets terwijl Google weigerde: Google moet het nog opzoeken. */
 var BS_ENKEL_OL = 'OL ';
@@ -413,7 +415,7 @@ var STATUS_GEANNULEERD = 'geannuleerd';
 
 var WIKI_TALEN = ['nl', 'en'];
 
-var WIKI_PAUZE_MS = 300;
+var WIKI_PAUZE_MS = 500; // rustig zoeken: Wikipedia remt anders sneller af
 
 var WIKI_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
@@ -1761,7 +1763,8 @@ function googleItemsMetIsbn(items, isbn) {
 
 /** Haalt JSON op. Geeft { code, data } terug. */
 function haalJson(url) {
-  var antwoord = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
+  // Api-User-Agent: de manier die Wikipedia aanraadt om je script te herkennen.
+  var antwoord = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT, 'Api-User-Agent': BS_USER_AGENT } });
   var data = null;
   try { data = JSON.parse(antwoord.getContentText()); } catch (e) { data = null; }
   return { code: antwoord.getResponseCode(), data: data };
@@ -4660,7 +4663,7 @@ function vulAanUitOpenLibrary() {
       var url = 'https://openlibrary.org/api/books?format=json&jscmd=details&bibkeys=' + encodeURIComponent(sleutels);
       var antwoord = UrlFetchApp.fetch(url, {
         muteHttpExceptions: true,
-        headers: { 'User-Agent': 'ProjectMadrigal-catalogus (Google Apps Script; queer bibliotheek Antwerpen)' }
+        headers: { 'User-Agent': BS_USER_AGENT } // zie Beschrijvingen.js
       });
       if (antwoord.getResponseCode() === 429 || antwoord.getResponseCode() >= 500) {
         // Open Library vraagt om trager te gaan of heeft een storing: later verder.

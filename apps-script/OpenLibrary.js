@@ -77,7 +77,7 @@ function vulAanUitOpenLibrary() {
       var url = 'https://openlibrary.org/api/books?format=json&jscmd=details&bibkeys=' + encodeURIComponent(sleutels);
       var antwoord = UrlFetchApp.fetch(url, {
         muteHttpExceptions: true,
-        headers: { 'User-Agent': 'ProjectMadrigal-catalogus (Google Apps Script; queer bibliotheek Antwerpen)' }
+        headers: { 'User-Agent': BS_USER_AGENT } // zie Beschrijvingen.js
       });
       if (antwoord.getResponseCode() === 429 || antwoord.getResponseCode() >= 500) {
         // Open Library vraagt om trager te gaan of heeft een storing: later verder.

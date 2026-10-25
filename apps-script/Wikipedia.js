@@ -12,7 +12,7 @@
  */
 
 var WIKI_TALEN = ['nl', 'en'];
-var WIKI_PAUZE_MS = 300;
+var WIKI_PAUZE_MS = 500; // rustig zoeken: Wikipedia remt anders sneller af
 var WIKI_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
 /** Heeft dit boek nog een beschrijving van Wikipedia nodig? */

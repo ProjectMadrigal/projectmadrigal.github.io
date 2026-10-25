@@ -28,7 +28,9 @@ var BS_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 // Een beschrijving blijft volledig tot deze lengte. Is ze langer, dan stopt ze na
 // de laatste volledige zin, nooit midden in een zin.
 var BS_MAX_LENGTE = 2500;
-var BS_USER_AGENT = 'ProjectMadrigal-catalogus (Google Apps Script; queer bibliotheek Antwerpen)';
+// Herkenbare naam met een link naar de website: Wikipedia en Open Library vragen dat van elk script,
+// en remmen naamloze scripts sneller af.
+var BS_USER_AGENT = 'ProjectMadrigal-catalogus/1.0 (https://projectmadrigal.github.io; queer bibliotheek Antwerpen; Google Apps Script)';
 
 /** Open Library gaf niets terwijl Google weigerde: Google moet het nog opzoeken. */
 var BS_ENKEL_OL = 'OL ';
@@ -203,7 +205,8 @@ function olTekst(description) {
 
 /** Haalt JSON op. Geeft { code, data } terug. */
 function haalJson(url) {
-  var antwoord = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
+  // Api-User-Agent: de manier die Wikipedia aanraadt om je script te herkennen.
+  var antwoord = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT, 'Api-User-Agent': BS_USER_AGENT } });
   var data = null;
   try { data = JSON.parse(antwoord.getContentText()); } catch (e) { data = null; }
   return { code: antwoord.getResponseCode(), data: data };
