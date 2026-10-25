@@ -13,9 +13,9 @@
  */
 'use strict';
 
-var VERSIE = 'madrigal-v3';
+var VERSIE = 'madrigal-v4';
 var VASTE_BESTANDEN = [
-  './', 'index.html', 'boeken.html', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html',
+  './', 'index.html', 'boeken.html', 'films.html', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html',
   'styles.css', 'config.js', 'i18n.js', 'layout.js', 'api.js', 'dom.js', 'zoeken.js', 'filters.js',
   'app.js', 'home.js', 'agenda.js', 'doemee.js', 'peperfabriek.js', 'overons.js',
   'assets/logo.svg', 'assets/fonts/Geist-Variable.woff2', 'assets/fonts/GeistMono-Variable.ttf',

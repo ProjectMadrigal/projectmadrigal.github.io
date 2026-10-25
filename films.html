@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Films · Project Madrigal</title>
+  <meta name="description" content="Films op dvd bij Project Madrigal, de queer bibliotheek van Antwerpen: leen ze zoals je een boek leent.">
+  <link rel="canonical" href="https://projectmadrigal.github.io/films.html">
+  <!-- Voorbeeldweergave als je een link deelt (WhatsApp, Instagram, Facebook, ...) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Project Madrigal">
+  <meta property="og:locale" content="nl_BE">
+  <meta property="og:locale:alternate" content="en_GB">
+  <meta property="og:title" content="Films · Project Madrigal">
+  <meta property="og:description" content="Films op dvd bij Project Madrigal, de queer bibliotheek van Antwerpen: leen ze zoals je een boek leent.">
+  <meta property="og:url" content="https://projectmadrigal.github.io/films.html">
+  <meta property="og:image" content="https://projectmadrigal.github.io/assets/deelbeeld.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Logo van Project Madrigal met de tekst: queer bib in Antwerpen, leen gratis boeken.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#1b1b1c">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icoon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <script>try { var t = localStorage.getItem('madrigal_thema'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+</head>
+<body data-pagina="films" data-soort="film">
+  <header id="site-kop"></header>
+
+  <main id="inhoud" tabindex="-1">
+    <div id="voorbeeld-melding" class="melding let-op" hidden data-i18n="voorbeeld"></div>
+    <div id="films-voorbeeld" class="melding let-op" hidden data-i18n="filmsVoorbeeld"></div>
+
+    <!-- Lijst met zoeken en filters -->
+    <section id="lijst-scherm" aria-labelledby="lijst-titel">
+      <h1 id="lijst-titel" data-i18n="filmsTitel">Films</h1>
+      <div class="blok" id="intro">
+        <p id="welkom"></p>
+        <details>
+          <summary data-i18n="hoeLenen">Hoe werkt lenen?</summary>
+          <p id="uitleg-lenen"></p>
+          <p><a href="#/privacy" data-i18n="privacyLink">Wat doen we met je gegevens?</a></p>
+        </details>
+      </div>
+
+      <form class="zoekbalk" role="search" id="zoekformulier">
+        <div class="zoekveld">
+          <label for="zoek" data-i18n="zoekLabelFilm">Zoek een film</label>
+          <input type="search" id="zoek" name="q" autocomplete="off" data-i18n-placeholder="zoekPlaatshouderFilm" aria-describedby="zoek-hulp">
+          <p id="zoek-hulp" class="hulptekst" data-i18n="zoekHulpFilm">Tikfouten zijn geen probleem.</p>
+        </div>
+        <details class="blok" id="filters">
+          <summary><span data-i18n="filters">Filters</span>&nbsp;<span id="filter-teller" class="hulptekst"></span></summary>
+          <div class="filterraster" id="filterraster"></div>
+          <label class="vinkje" for="filter-beschikbaar">
+            <input type="checkbox" id="filter-beschikbaar"> <span data-i18n="enkelBeschikbaarFilm">Toon enkel films die nu beschikbaar zijn</span>
+          </label>
+          <div class="knoppen">
+            <button type="button" class="knop tweede" id="wis-filters" data-i18n="wisFilters">Wis alle filters</button>
+          </div>
+        </details>
+      </form>
+
+      <div id="leeslijst-kop" class="blok leeslijst-kop" hidden></div>
+
+      <div class="lijstkop">
+        <p id="aantal" aria-live="polite" aria-atomic="true" tabindex="-1" data-i18n="laden">Even laden...</p>
+        <div class="veld">
+          <label for="sorteer" data-i18n="sorteerOp">Sorteer op</label>
+          <select id="sorteer">
+            <option value="relevantie" data-i18n="sortRelevantie">Beste overeenkomst, anders titel</option>
+            <option value="titel" data-i18n="sortTitel">Titel</option>
+            <option value="auteur" data-i18n="sortRegie">Regie</option>
+            <option value="jaar-nieuw" data-i18n="sortJaarNieuw">Jaartal, nieuwste eerst</option>
+            <option value="jaar-oud" data-i18n="sortJaarOud">Jaartal, oudste eerst</option>
+            <option value="toegevoegd" data-i18n="sortToegevoegd">Laatst toegevoegd</option>
+          </select>
+        </div>
+      </div>
+
+      <ul class="boekenlijst" id="resultaten"></ul>
+      <p class="laden" id="laden" data-i18n="laden">Even laden...</p>
+      <nav class="paginas" id="paginas" hidden data-i18n-aria-label="paginas"></nav>
+    </section>
+
+    <!-- Detailpagina van één film -->
+    <section id="detail-scherm" hidden aria-live="polite"></section>
+
+    <section id="leeslijsten-scherm" hidden></section>
+
+    <!-- Privacy -->
+    <section id="privacy-scherm" hidden>
+      <a class="terug" href="#/" data-i18n="terugFilms">← Terug naar de films</a>
+      <div class="blok">
+        <h1 tabindex="-1" data-i18n="privacy">Privacy</h1>
+        <p id="privacy-tekst"></p>
+        <p id="privacy-statistiek" data-i18n="privacyStatistiek" hidden></p>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-voet"></footer>
+
+  <script src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script src="layout.js"></script>
+  <script src="api.js"></script>
+  <script src="dom.js"></script>
+  <script src="zoeken.js"></script>
+  <script src="filters.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

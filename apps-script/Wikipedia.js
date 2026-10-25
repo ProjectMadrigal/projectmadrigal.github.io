@@ -17,6 +17,7 @@ var WIKI_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
 /** Heeft dit boek nog een beschrijving van Wikipedia nodig? */
 function heeftWikiNodig(boek) {
+  if (isFilm(boek)) return false; // films: zie Films.js
   return isLeeg(boek.beschrijving) && isLeeg(boek.wiki_gezocht) && !isLeeg(boek.titel) && !isLeeg(boek.auteur);
 }
 

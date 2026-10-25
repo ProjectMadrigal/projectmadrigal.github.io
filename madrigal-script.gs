@@ -66,6 +66,8 @@ var ACTIES = {
   beheerLenerHistoriek: 'bestuur',
   beheerBoekenBulk: 'bestuur',
   bestuurCijfers: 'bestuur',
+  // De verborgen filmpagina bekijken (Films.js), zolang films_tonen op nee staat.
+  filmsVoorbeeld: 'bestuur',
   beheerBoekToevoegen: 'bestuur',
   beheerIsbnOpzoeken: 'bestuur',
   beheerInhoud: 'vrijwilliger',
@@ -87,11 +89,12 @@ var BACKUP_VOORVOEGSEL = 'Madrigal back-up ';
 var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
   'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
-  'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie'
+  'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie',
+  'land', 'duur', 'film_tip', 'te_koop'
 ];
 
 /** Velden met ja/nee. Bij startpagina betekent leeg "automatisch". */
-var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'startpagina'];
+var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'startpagina', 'film_tip', 'te_koop'];
 
 /** Tabbladen met inhoud van de website, en de kolommen die je via de website kan aanpassen. */
 var BEHEER_INHOUD = {
@@ -203,6 +206,31 @@ var IA_BRON = 'Internet Archive';
 var WEEKDAGEN = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
 
 var MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+
+var FILM_PAUZE_MS = 400;
+
+var FILM_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
+
+var FILM_PORTIE = 20;         // zoveel films per vraag aan Wikidata
+
+var FILM_MAX_GENRES = 4;
+
+var LETTERBOXD_MAX_PAGINAS = 30;
+
+/** Het deel van de vraag dat voor elke film dezelfde gegevens ophaalt. ?film moet al gekend zijn. */
+var FILM_SPARQL_VELDEN =
+  '  OPTIONAL { ?film wdt:P577 ?datum . }\n' +
+  '  OPTIONAL { ?film wdt:P2047 ?duur . }\n' +
+  '  OPTIONAL { ?film wdt:P57 ?r . ?r rdfs:label ?regieL . FILTER(LANG(?regieL) = "nl" || LANG(?regieL) = "en") }\n' +
+  '  OPTIONAL { ?film wdt:P495 ?l . ?l rdfs:label ?landL . FILTER(LANG(?landL) = "nl") }\n' +
+  '  OPTIONAL { ?film wdt:P136 ?g . ?g rdfs:label ?genreL . FILTER(LANG(?genreL) = "nl") }\n' +
+  '  OPTIONAL { ?film wdt:P364 ?t . ?t rdfs:label ?taalL . FILTER(LANG(?taalL) = "nl") }\n' +
+  '  OPTIONAL { ?nlA schema:about ?film ; schema:isPartOf <https://nl.wikipedia.org/> ; schema:name ?nl . }\n' +
+  '  OPTIONAL { ?enA schema:about ?film ; schema:isPartOf <https://en.wikipedia.org/> ; schema:name ?en . }\n';
+
+var FILM_SPARQL_KOP = 'SELECT ?film ?lb (MIN(YEAR(?datum)) AS ?jaar) (SAMPLE(?duur) AS ?minuten) ' +
+  '(GROUP_CONCAT(DISTINCT ?regieL; separator="|") AS ?regie) (GROUP_CONCAT(DISTINCT ?landL; separator="|") AS ?land) ' +
+  '(GROUP_CONCAT(DISTINCT ?genreL; separator="|") AS ?genre) (SAMPLE(?taalL) AS ?taal) (SAMPLE(?nl) AS ?nlTitel) (SAMPLE(?en) AS ?enTitel) WHERE {\n';
 
 /** Welke kolom van de Goodreads-export welk veld van de Catalogus aanvult. */
 var GOODREADS_VELDEN = {
@@ -348,6 +376,10 @@ var STANDAARD_INSTELLINGEN = [
   ['bookclub_week', 2, 'De hoeveelste week van de maand: 1 tot 4, of 5 voor de laatste.'],
   ['bookclub_dag', 'zondag', 'Op welke weekdag de bookclub samenkomt.'],
   ['bookclub_uur', '', 'Het uur, bv. 14:00 of 14:00 - 16:00. Leeg: enkel de datum.'],
+  ['films_tonen', 'nee', 'Ja: de pagina Films staat in het menu van de website. Nee: enkel het bestuur ziet ze, op een toestel waar het aangemeld is.'],
+  ['tekst_films', 'Films over queer leven, liefde en geschiedenis. Leen een dvd zoals je een boek leent.', 'Pagina Films: de tekst bovenaan.'],
+  ['tekst_films_en', 'Films about queer life, love and history. Borrow a DVD the way you borrow a book.', 'Pagina Films: de tekst bovenaan, in het Engels.'],
+  ['letterboxd_lijst', 'https://letterboxd.com/dragonflyk/list/lovertits/', 'Adres van een lijst bij Letterboxd. Madrigal > Films > Haal de Letterboxd-lijst op zet de films ervan in de Catalogus.'],
   ['tekst_bookclub', 'De Antwerp Queer Bookclub komt samen in de bib van Project Madrigal. Hun programma en andere activiteiten vind je op hun Instagram.', 'De tekst bij de bookclub, in de agenda en op Over ons.'],
   ['tekst_bookclub_en', 'The Antwerp Queer Bookclub meets in the Project Madrigal library. You will find their programme and other activities on their Instagram.', 'De tekst bij de bookclub, in het Engels.'],
   ['bookclub_link', '', 'Het adres van hun Instagram, bv. https://www.instagram.com/... Komt bij Meer info.'],
@@ -388,9 +420,12 @@ var KOLOMMEN = {
     'boek_id', 'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas',
     'uitvoering', 'nieuwstaat', 'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal',
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
+    // Films (zie Films.js): land, speelduur, kijktip. te_koop werkt voor elk boek of elke film.
+    'land', 'duur', 'film_tip', 'te_koop',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
+    'letterboxd', 'wikidata', 'film_gezocht',
     // Interne notitie van het bestuur (bv. schade, plaats in de kast). Nooit publiek.
     'notitie'
   ],
@@ -469,10 +504,11 @@ var INSTELLING_GROEPEN = [
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
   ['Website: Antwerp Queer Bookclub', ['bookclub_naam', 'bookclub_week', 'bookclub_dag', 'bookclub_uur', 'tekst_bookclub', 'tekst_bookclub_en', 'bookclub_link']],
   ['Website: De Peperfabriek', ['peperfabriek_url', 'tekst_peperfabriek', 'tekst_peperfabriek_en', 'peperfabriek_aantal']],
+  ['Website: films', ['films_tonen', 'tekst_films', 'tekst_films_en']],
   ['Privacy: bewaartermijnen', ['bewaartermijn_afgesloten_uitleningen_maanden', 'aanvragen_bewaren_dagen', 'meldingen_bewaren_dagen', 'briefjes_bewaren_dagen']],
   ['Techniek: toegang (codes)', ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur']],
   ['Techniek: koppeling met het rooster', ['rooster_url', 'rooster_code']],
-  ['Techniek: boekgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map']],
+  ['Techniek: boek- en filmgegevens aanvullen', ['goodreads_shelf', 'google_books_api_key', 'bol_client_id', 'bol_client_secret', 'cover_map', 'letterboxd_lijst']],
   ['Techniek: bezoekers van de website', ['goatcounter_code', 'goatcounter_api_sleutel']],
   ['Techniek: back-up', ['backup_map', 'backup_bewaren']]
 ];
@@ -589,7 +625,8 @@ function achtergrondTaken() {
     ['vulAanUitOpenLibrary', 'Gegevens bij Open Library', heeftOpenLibraryNodig],
     ['zoekCoversAndereUitgaven', 'Covers van een andere uitgave', heeftAndereUitgaveNodig],
     ['zoekCoversInternetArchive', 'Covers bij Internet Archive', heeftIaNodig],
-    ['zoekCoversBol', 'Covers bij Bol', heeftBolNodig]
+    ['zoekCoversBol', 'Covers bij Bol', heeftBolNodig],
+    ['vulFilmsAan', 'Films aanvullen (Wikidata en Wikipedia)', heeftFilmGegevensNodig]
   ];
 }
 
@@ -881,7 +918,7 @@ function beheerVeld(veld, ruw) {
   if (BEHEER_LANG.indexOf(veld) > -1) return { waarde: String(ruw === undefined || ruw === null ? '' : ruw).trim().slice(0, 5000) };
   var w = tekstInvoer(ruw, 300);
   if (BEHEER_JANEE.indexOf(veld) > -1) return { waarde: jaNee(w) };
-  if (veld === 'soort') return { waarde: normaliseerTekst(w) === 'zine' ? 'zine' : 'boek' };
+  if (veld === 'soort') return { waarde: soortVan({ soort: w }) };
   if (veld === 'status') {
     var s = boekStatus({ status: w });
     if (w && !s) return { fout: 'Kies als status: leeg, ' + BOEKSTATUSSEN.join(', ') + '.' };
@@ -896,7 +933,7 @@ function beheerVeld(veld, ruw) {
     if (w && !veiligeCoverUrl(w)) return { fout: 'Een link moet beginnen met https://' };
     return { waarde: w };
   }
-  if (veld === 'jaartal' || veld === 'paginas' || veld === 'aantal' || veld === 'volgorde') {
+  if (veld === 'jaartal' || veld === 'paginas' || veld === 'aantal' || veld === 'volgorde' || veld === 'duur') {
     if (!w) return { waarde: '' };
     var n = parseerGetal(w);
     if (n === null || n < 0 || n !== Math.round(n)) return { fout: 'Vul bij ' + veld + ' een geheel getal in.' };
@@ -962,7 +999,7 @@ function berekenVervaldatum(datumUit, inst) {
 function beschikbaarheid(staat, boek) {
   var totaal = aantalExemplaren(boek);
   if (!isUitleenbaar(boek)) {
-    var teKoop = normaliseerTekst(boek.genre) === 'verkoop';
+    var teKoop = normaliseerTekst(boek.genre) === 'verkoop' || jaNee(boek.te_koop) === 'ja';
     return { code: 'niet_uitleenbaar', label: teKoop ? 'Te koop in de bib, niet uitleenbaar' : 'Niet uitleenbaar', totaal: totaal, beschikbaar: 0, terug: '' };
   }
   var uit = lopendeUitleningen(staat).filter(function (u) { return u.boek_id === boek.boek_id; });
@@ -1503,8 +1540,14 @@ function borgTerugbetaald(staat, invoer) {
   return { ok: true, tekst: 'Borg genoteerd als terugbetaald.' };
 }
 
-/** Bouwt het object dat het publieke eindpunt teruggeeft. */
-function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
+/**
+ * Bouwt het object dat het publieke eindpunt teruggeeft.
+ * Films staan er enkel in als de instelling films_tonen op ja staat. opties.enkelFilms: alleen de
+ * films, ook als ze nog verborgen zijn (voor het voorbeeld van het bestuur, actie filmsVoorbeeld).
+ */
+function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
+  opties = opties || {};
+  var filmsTonen = (staat.inst || {}).films_tonen === true;
   var vertaal = vertaalTabel(onderwerpRijen);
   // Leeslijsten: zie leeslijstZichtbaar. Een geplande lijst volgt haar data, de rest de instelling leeslijsten_tonen.
   var schakelaar = (staat.inst || {}).leeslijsten_tonen === true;
@@ -1516,23 +1559,27 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
   staat.catalogus.forEach(function (rij) {
     if (isLeeg(rij.boek_id) || isLeeg(rij.titel)) return;
     if (!opWebsite(rij)) return;
+    var film = isFilm(rij);
+    if (opties.enkelFilms ? !film : (film && !filmsTonen)) return;
     var b = beschikbaarheid(staat, rij);
     var boek = {
       id: String(rij.boek_id),
       t: schoon(rij.titel),
       a: schoon(rij.auteur),
-      g: filtergroepenVan(rij, vertaal),
-      s: normaliseerTekst(rij.soort) === 'zine' ? 'zine' : 'boek',
+      g: film ? filmGroepen(rij) : filtergroepenVan(rij, vertaal),
+      s: soortVan(rij),
       b: { c: b.code, l: b.label, t: b.totaal, v: b.beschikbaar }
     };
+    if (isFilmTip(rij)) { boek.tip = 1; boek.b = { c: 'tip', l: 'Kijktip', t: 0, v: 0 }; }
     // Datum van verwachte terugkeer en "te koop": zo maakt de website het label in elke taal op.
     if (b.code === 'uitgeleend' && b.terug && b.terug >= staat.vandaag) boek.b.d = b.terug;
-    if (b.code === 'niet_uitleenbaar' && normaliseerTekst(rij.genre) === 'verkoop') boek.b.k = 1;
+    if (b.code === 'niet_uitleenbaar' && !boek.tip && (normaliseerTekst(rij.genre) === 'verkoop' || jaNee(rij.te_koop) === 'ja')) boek.b.k = 1;
     if (boekStatus(rij) === 'gevoelig_zichtbaar') boek.w = 1;
     // Lege velden laten we weg: dat maakt de lijst kleiner.
     var extra = {
       i: schoon(rij.isbn), u: schoon(rij.uitgeverij), j: parseerGetal(rij.jaartal) || '',
       l: schoon(rij.taal), p: parseerGetal(rij.paginas) || '', v: schoon(rij.uitvoering),
+      la: film ? filmLijst(rij.land).join(', ') : '', du: film ? parseerGetal(rij.duur) || '' : '',
       n: jaNee(rij.nieuwstaat) === 'ja' ? 'nieuw' : (jaNee(rij.nieuwstaat) === 'nee' ? 'tweedehands' : ''),
       d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
       db: /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(schoon(rij.beschrijving_bron)) && schoonMetRegels(rij.beschrijving) ? schoon(rij.beschrijving_bron) : ''
@@ -1557,6 +1604,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
     filtergroepen: groepen,
     boeken: boeken
   };
+  // Zo weet de website of het menu-item Films mag verschijnen.
+  if (filmsTonen) uit.filmsTonen = true;
   // Enkel als ze getoond worden: zo weet de website of het menu-item Leeslijsten mag verschijnen.
   if (toonLijsten) uit.leeslijsten = gebruikteLeeslijsten(lijsten, boeken);
   return uit;
@@ -1653,7 +1702,7 @@ function bouwSiteInhoud(staat, tabellen) {
     return dagen >= 0 && dagen < dagenNieuw;
   };
   var kandidaten = staat.catalogus.filter(function (b) {
-    return !isLeeg(b.boek_id) && opWebsite(b) && jaNee(b.startpagina) !== 'nee';
+    return !isLeeg(b.boek_id) && opWebsite(b) && jaNee(b.startpagina) !== 'nee' && !isFilm(b);
   });
   var startpaginaBoek = function (b) {
     var bs = beschikbaarheid(staat, b);
@@ -2092,6 +2141,87 @@ function extraCijfers(staat) {
 
 /* ---------- Meerdere boeken tegelijk aanpassen (bestuursscherm) ---------- */
 
+/** De filtergroepen van een film: de genres en de extra onderwerpen. */
+function filmGroepen(rij) {
+  var uit = [];
+  filmLijst(rij.genre).concat(filmLijst(rij.extra_onderwerpen)).forEach(function (g) {
+    var mooi = g.charAt(0).toUpperCase() + g.slice(1);
+    if (uit.indexOf(mooi) === -1) uit.push(mooi);
+  });
+  return uit;
+}
+
+/* ---------- Letterboxd ---------- */
+
+/** Een lijst uit een cel: "Drama, Romantiek" wordt ["Drama", "Romantiek"]. */
+function filmLijst(waarde) {
+  return splitsLijst(waarde).map(schoon).filter(Boolean);
+}
+
+/** Zet het antwoord van Wikidata om. Geeft [{ qid, lb, jaar, duur, regie, land, genre, taal, nl, en }]. */
+function filmUitWikidata(data) {
+  var w = function (b, k) { return b[k] ? String(b[k].value || '') : ''; };
+  var lijst = function (b, k) { return w(b, k).split('|').map(schoon).filter(Boolean); };
+  return (((data || {}).results || {}).bindings || []).map(function (b) {
+    var qid = (w(b, 'film').match(/(Q\d+)$/) || [])[1] || '';
+    return {
+      qid: qid, lb: w(b, 'lb'), jaar: Number(w(b, 'jaar')) || '', duur: Math.round(Number(w(b, 'minuten'))) || '',
+      regie: lijst(b, 'regie').filter(function (n, i, alle) { return alle.indexOf(n) === i; }),
+      land: lijst(b, 'land'), genre: lijst(b, 'genre').slice(0, FILM_MAX_GENRES),
+      taal: w(b, 'taal'), nl: w(b, 'nlTitel'), en: w(b, 'enTitel')
+    };
+  }).filter(function (f) { return f.qid; });
+}
+
+/**
+ * Vult de lege velden van een film aan met wat Wikidata vond. Wat er al staat, blijft.
+ * Geeft de velden voor wijzig().
+ */
+function filmVelden(rij, f) {
+  var v = {};
+  var leeg = function (k) { return isLeeg(rij[k]); };
+  if (f.qid && leeg('wikidata')) v.wikidata = f.qid;
+  if (f.regie.length && leeg('auteur')) v.auteur = uniekeNamen(f.regie).slice(0, 3).join(', ');
+  if (f.jaar && leeg('jaartal')) v.jaartal = f.jaar;
+  if (f.land.length && leeg('land')) v.land = f.land.slice(0, 3).join(', ');
+  if (f.genre.length && leeg('genre')) v.genre = f.genre.map(function (g) { return g.charAt(0).toUpperCase() + g.slice(1); }).join(', ');
+  if (f.duur && leeg('duur')) v.duur = f.duur;
+  if (f.taal && leeg('taal')) v.taal = normaliseerTaal(f.taal) || f.taal;
+  return v;
+}
+
+/** De vraag voor films met een Letterboxd-adres (eigenschap P6127 van Wikidata). */
+function filmVraagLetterboxd(slugs) {
+  return FILM_SPARQL_KOP + '  VALUES ?lb { ' + slugs.map(sparqlTekst).join(' ') + ' }\n  ?film wdt:P6127 ?lb .\n' + FILM_SPARQL_VELDEN + '} GROUP BY ?film ?lb';
+}
+
+/** De vraag voor één film zonder Letterboxd-adres: op de titel (Engels of Nederlands), en het jaartal als dat gekend is. */
+function filmVraagTitel(titel, jaar) {
+  var t = schoon(titel);
+  return FILM_SPARQL_KOP +
+    '  VALUES ?soort { wd:Q11424 wd:Q24869 wd:Q506240 wd:Q93204 }\n' +
+    '  { ?film rdfs:label ' + sparqlTekst(t) + '@en . } UNION { ?film rdfs:label ' + sparqlTekst(t) + '@nl . }\n' +
+    '  ?film wdt:P31 ?soort .\n' + FILM_SPARQL_VELDEN +
+    (jaar ? '  FILTER(!BOUND(?datum) || ABS(YEAR(?datum) - ' + Number(jaar) + ') <= 1)\n' : '') +
+    '} GROUP BY ?film ?lb LIMIT 3';
+}
+
+/** De eerste alinea uit het antwoord van Wikipedia. Geeft { tekst, link } of {}. */
+function filmWikiTekst(data) {
+  var p = (((data || {}).query || {}).pages || [])[0];
+  if (!p || p.missing || !p.extract || String(p.extract).length < 80) return {};
+  var link = /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(String(p.fullurl || '')) ? p.fullurl : '';
+  return link ? { tekst: maakBeschrijvingNetjes(p.extract), link: link } : {};
+}
+
+/* ---------- Menu en achtergrondtaak (enkel in Apps Script) ---------- */
+
+/** De vraag aan Wikipedia: de eerste alinea van één artikel. */
+function filmWikiUrl(taal, titel) {
+  return 'https://' + taal + '.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&redirects=1' +
+    '&prop=extracts%7Cinfo&exintro=1&explaintext=1&inprop=url&titles=' + encodeURIComponent(titel);
+}
+
 /**
  * Bepaalt de filtergroepen van een boek: via de vertaaltabel, de kolom
  * extra_onderwerpen, het vinkje klassieker en de soort (zines).
@@ -2206,7 +2336,7 @@ function geefNieuweBoekenEenId() {
     var ids = maakIdGenerator(tabel.rijen);
     tabel.rijen.forEach(function (rij) {
       if (!isLeeg(rij.boek_id) || isLeeg(rij.titel)) return;
-      var soort = normaliseerTekst(rij.soort) === 'zine' ? 'zine' : 'boek';
+      var soort = soortVan(rij);
       var isbn = normaliseerIsbn(rij.isbn);
       var velden = {
         boek_id: ids.nieuw(soort),
@@ -2348,6 +2478,49 @@ function haalJson(url) {
   return { code: antwoord.getResponseCode(), data: data };
 }
 
+/** Menu: haalt de films van de lijst bij Letterboxd (instelling letterboxd_lijst) en zet nieuwe films in de Catalogus. */
+function haalLetterboxdLijst() {
+  var url = schoon(leesInstellingen().letterboxd_lijst);
+  if (!isLetterboxdLijst(url)) { meld('Vul bij Instellingen letterboxd_lijst het adres van de lijst in, bv. https://letterboxd.com/naam/list/lijst/'); return; }
+  var films = [], fout = '';
+  for (var n = 1; n <= LETTERBOXD_MAX_PAGINAS; n++) {
+    var r;
+    try {
+      r = haalExtern(letterboxdPaginaUrl(url, n), { muteHttpExceptions: true, followRedirects: true,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ' + BS_USER_AGENT + ')', 'Accept-Language': 'en' } });
+    } catch (e) { fout = String(e.message || e); break; }
+    if (r.getResponseCode() === 404 && n > 1) break; // geen pagina meer
+    if (r.getResponseCode() !== 200) { fout = 'Letterboxd gaf code ' + r.getResponseCode(); break; }
+    var opPagina = letterboxdFilms(r.getContentText());
+    var nieuw = opPagina.filter(function (f) { return !films.some(function (x) { return x.slug === f.slug; }); });
+    if (!nieuw.length) break;
+    films = films.concat(nieuw);
+    Utilities.sleep(800);
+  }
+  if (!films.length) {
+    logboek('menu', 'haalLetterboxdLijst', 'niets gevonden' + (fout ? ': ' + fout : ''));
+    meld('Het script kon de lijst niet lezen' + (fout ? ' (' + fout + ')' : '') + '. Letterboxd laat scripts soms niet binnen. ' +
+      'Typ dan de titels en jaartallen in de Catalogus, met soort "film" en zonder boek_id. Kies daarna Madrigal > Films > Vul de films aan.');
+    return;
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var aantal = 0;
+  try {
+    var tabel = leesTabel('Catalogus');
+    if (tabel.kop.indexOf('letterboxd') === -1) { meld('De kolommen voor films ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
+    var ids = maakIdGenerator(tabel.rijen);
+    aantal = voegFilmsToe(tabel.rijen, films, vandaagTekst(), ids.nieuw);
+    if (aantal) { bewaarTabel(tabel); ids.bewaar(); }
+  } finally {
+    lock.releaseLock();
+  }
+  logboek('menu', 'haalLetterboxdLijst', films.length + ' films op de lijst, ' + aantal + ' nieuw in de Catalogus' + (fout ? ' (gestopt: ' + fout + ')' : ''));
+  if (aantal) planTaak('vulFilmsAan', 60 * 1000);
+  meld(films.length + ' films op de lijst gevonden, ' + aantal + ' nieuw in de Catalogus.' + (aantal ? ' Over een minuut zoekt het script regie, land, genre en omschrijving op.' : '') +
+    (fout ? ' Let op: het script stopte bij een pagina (' + fout + '). Probeer later opnieuw voor de rest.' : ''));
+}
+
 /** Haalt een tabel op uit de oude databank. Geeft [] als die niet bestaat. */
 function haalOudeTabel(db, tabel) {
   var antwoord = UrlFetchApp.fetch(db.url + '/rest/v1/' + tabel + '?select=*', {
@@ -2389,7 +2562,7 @@ function haalRoosterMaand(url, code, maand) {
 
 /** Heeft dit boek nog een cover nodig van een andere uitgave? */
 function heeftAndereUitgaveNodig(boek) {
-  if (!isLeeg(boek.cover_url) || !isLeeg(boek.cover_gezocht)) return false;
+  if (!isLeeg(boek.cover_url) || !isLeeg(boek.cover_gezocht) || isFilm(boek)) return false;
   return /^\d{13}$/.test(String(boek.isbn || '')) || !isLeeg(boek.titel);
 }
 
@@ -2403,6 +2576,11 @@ function heeftBeschrijvingNodig(boek) {
 /** Heeft dit boek nog een cover van bol.com nodig? */
 function heeftBolNodig(boek) {
   return isLeeg(boek.cover_url) && isLeeg(boek.bol_gezocht) && /^\d{13}$/.test(String(boek.isbn || ''));
+}
+
+/** Heeft deze film nog gegevens van Wikidata of Wikipedia nodig? */
+function heeftFilmGegevensNodig(rij) {
+  return isFilm(rij) && !isLeeg(rij.titel) && isLeeg(rij.film_gezocht);
 }
 
 /** Heeft dit boek nog een cover nodig van Google Books? */
@@ -2437,6 +2615,7 @@ function heeftWikiBeschrijving(boek) {
 
 /** Heeft dit boek nog een beschrijving van Wikipedia nodig? */
 function heeftWikiNodig(boek) {
+  if (isFilm(boek)) return false; // films: zie Films.js
   return isLeeg(boek.beschrijving) && isLeeg(boek.wiki_gezocht) && !isLeeg(boek.titel) && !isLeeg(boek.auteur);
 }
 
@@ -2556,6 +2735,11 @@ function htmlNaarTekst(html) {
     .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
     .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function htmlTekst(t) {
+  return String(t || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(Number(n)); }).trim();
 }
 
 /** Haalt een afbeelding op en kijkt of het een staande cover is (en niet het logo van Internet Archive). */
@@ -2950,6 +3134,14 @@ function isDatumObject(waarde) {
   return Object.prototype.toString.call(waarde) === '[object Date]' && !isNaN(waarde.getTime());
 }
 
+function isFilm(rij) {
+  return normaliseerTekst(rij && rij.soort) === 'film';
+}
+
+function isFilmTip(rij) {
+  return isFilm(rij) && jaNee(rij.film_tip) === 'ja';
+}
+
 function isGoogleCover(url) {
   return /^https:\/\/(books\.google\.[a-z.]+|books\.googleusercontent\.com|[a-z0-9-]+\.googleusercontent\.com)\//.test(String(url || ''));
 }
@@ -2967,6 +3159,10 @@ function isInstellingKop(sleutel) {
 /** Geeft true als een waarde leeg is (niets, lege tekst of enkel spaties). */
 function isLeeg(waarde) {
   return waarde === null || waarde === undefined || String(waarde).trim() === '';
+}
+
+function isLetterboxdLijst(url) {
+  return /^https:\/\/(www\.)?letterboxd\.com\/[^\/\s]+\/list\/[^\/\s]+\/?/.test(String(url || '').trim());
 }
 
 /** Enkel covers van Open Library zelf, in het vaste formaat. */
@@ -2988,9 +3184,9 @@ function isStaandeCover(afm) {
   return !!afm && afm.breedte > 0 && afm.hoogte >= afm.breedte * 1.15;
 }
 
-/** Mag het boek uitgeleend worden? Niet bij uitleenbaar = nee of verloren. */
+/** Mag het boek uitgeleend worden? Niet bij uitleenbaar = nee, verloren, te koop, of een kijktip (film die niet in de bib is). */
 function isUitleenbaar(boek) {
-  return jaNee(boek.uitleenbaar) !== 'nee' && boekStatus(boek) !== 'verloren';
+  return jaNee(boek.uitleenbaar) !== 'nee' && boekStatus(boek) !== 'verloren' && jaNee(boek.te_koop) !== 'ja' && !isFilmTip(boek);
 }
 
 /** Maakt ja/nee eenvormig. Geeft 'ja', 'nee' of '' terug. */
@@ -3010,6 +3206,14 @@ function json(tekst) {
 }
 
 /* ---------- Afgeschermde eindpunten ---------- */
+
+/** Kiest uit de antwoorden van Wikidata de film die past (op het jaartal als er meerdere zijn). */
+function kiesFilm(rij, kandidaten) {
+  if (!kandidaten.length) return null;
+  var jaar = parseerGetal(rij.jaartal);
+  if (!jaar) return kandidaten.length === 1 ? kandidaten[0] : null;
+  return kandidaten.filter(function (f) { return !f.jaar || Math.abs(f.jaar - jaar) <= 1; })[0] || null;
+}
 
 /**
  * Kiest uit de zoekresultaten van Open Library (search.json) het werk dat bij het boek past.
@@ -3477,6 +3681,43 @@ function lenerVan(staat, lenersnummer) {
   return null;
 }
 
+/**
+ * Leest de films uit één pagina van een lijst bij Letterboxd. Geeft [{ slug, titel, jaar }].
+ * Letterboxd verandert soms de opmaak. Daarom zoeken we breed: elk element met data-film-slug
+ * of data-item-slug, en daarbij de naam (data-item-name, data-film-name of de alt van de afbeelding).
+ */
+function letterboxdFilms(html) {
+  var tekst = String(html || '');
+  var re = /data-(?:film|item)-slug="([^"]+)"/g, m, plekken = [];
+  while ((m = re.exec(tekst))) {
+    // Hetzelfde adres twee keer na elkaar (bv. in de afbeelding en de link) is één film.
+    if (!plekken.length || plekken[plekken.length - 1].slug !== m[1]) plekken.push({ slug: m[1], plek: m.index });
+  }
+  var uit = [], gezien = {};
+  plekken.forEach(function (p, i) {
+    if (gezien[p.slug]) return;
+    var begin = tekst.lastIndexOf('<', p.plek);
+    // Tot het begin van het element van de volgende film: anders lezen we de naam van die film.
+    var einde = i + 1 < plekken.length ? tekst.lastIndexOf('<', plekken[i + 1].plek) : Math.min(tekst.length, p.plek + 2000);
+    var stuk = tekst.slice(begin, Math.max(einde, p.plek + 1));
+    var naam = (stuk.match(/data-(?:item|film)-name="([^"]+)"/) || stuk.match(/alt="([^"]+)"/) || [])[1] || '';
+    naam = htmlTekst(naam).replace(/^Poster for /i, '');
+    var jaar = Number((stuk.match(/data-film-release-year="(\d{4})"/) || [])[1]) || 0;
+    var mj = naam.match(/^(.*\S)\s*\((\d{4})\)$/);
+    if (mj) { naam = mj[1]; jaar = jaar || Number(mj[2]); }
+    if (!naam) naam = p.slug.replace(/-\d{4}$/, '').replace(/-/g, ' ');
+    gezien[p.slug] = true;
+    uit.push({ slug: p.slug, titel: naam, jaar: jaar || '' });
+  });
+  return uit;
+}
+
+/** Het adres van pagina n van een lijst: https://letterboxd.com/naam/list/lijst/page/2/ */
+function letterboxdPaginaUrl(lijst, n) {
+  var basis = String(lijst || '').trim().replace(/\/page\/\d+\/?$/, '').replace(/\/?$/, '/');
+  return n > 1 ? basis + 'page/' + n + '/' : basis;
+}
+
 /** Levenshtein-afstand: het aantal tikfouten tussen twee woorden. */
 function levenshtein(a, b) {
   if (a === b) return 0;
@@ -3550,7 +3791,7 @@ function maakAanvraag(omgeving, invoer, nieuwId) {
   // Een robot vult elk veld in, ook het verborgen. We doen alsof het lukte.
   if (!isLeeg(invoer.website)) return { ok: true, stil: true, tekst: 'Je aanvraag is verstuurd.' };
   var boek = omgeving.catalogus.filter(function (b) { return String(b.boek_id) === String(invoer.boek_id); })[0];
-  if (!boek || !opWebsite(boek)) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  if (!boek || !opWebsite(boek) || (isFilm(boek) && omgeving.inst.films_tonen !== true)) return { ok: false, fout: 'Dit boek bestaat niet.' };
   if (!isUitleenbaar(boek)) return { ok: false, fout: 'Dit boek is niet uitleenbaar.' };
   var voornaam = tekstInvoer(invoer.voornaam, 40);
   if (!voornaam) return { ok: false, fout: 'Vul je voornaam in.' };
@@ -3701,7 +3942,7 @@ function maakCatalogus() {
 function maakIdGenerator(catalogusRijen) {
   var props = PropertiesService.getScriptProperties();
   var tellers = {};
-  ['B', 'Z'].forEach(function (prefix) {
+  ['B', 'Z', 'F'].forEach(function (prefix) {
     var laatste = Number(props.getProperty('teller_boek_' + prefix) || 0);
     catalogusRijen.forEach(function (r) {
       var id = String(r.boek_id || '');
@@ -3711,13 +3952,14 @@ function maakIdGenerator(catalogusRijen) {
   });
   return {
     nieuw: function (soort) {
-      var prefix = soort === 'zine' ? 'Z' : 'B';
+      var prefix = soort === 'zine' ? 'Z' : soort === 'film' ? 'F' : 'B';
       tellers[prefix] += 1;
       return prefix + metNullen(tellers[prefix], 4);
     },
     bewaar: function () {
       props.setProperty('teller_boek_B', String(tellers.B));
       props.setProperty('teller_boek_Z', String(tellers.Z));
+      props.setProperty('teller_boek_F', String(tellers.F));
     }
   };
 }
@@ -4112,6 +4354,9 @@ function onOpen() {
       .addItem('Zoek beschrijvingen bij Wikipedia', 'zoekBeschrijvingenWikipedia')
       .addItem('Vertaal de beschrijvingen', 'vertaalBeschrijvingen')
       .addItem('Zoek afgebroken beschrijvingen opnieuw', 'herstelAfgebrokenBeschrijvingen'))
+    .addSubMenu(ui.createMenu('Films')
+      .addItem('Haal de Letterboxd-lijst op', 'haalLetterboxdLijst')
+      .addItem('Vul de films aan (Wikidata en Wikipedia)', 'vulFilmsAan'))
     .addSubMenu(ui.createMenu('Onderhoud')
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
       .addItem('Maak nu een back-up', 'maakBackupMenu')
@@ -4605,6 +4850,8 @@ function publiekeTeksten(inst) {
     welkom_en: inst.tekst_welkom_en,
     uitleg_en: inst.tekst_uitleg_lenen_en,
     privacy_en: inst.tekst_privacy_en,
+    films: inst.tekst_films,
+    films_en: inst.tekst_films_en,
     online_reserveren: inst.online_reserveren === true
   };
 }
@@ -4897,6 +5144,16 @@ function siteInhoudJson() {
   var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten'), peperfabriek: peperfabriekBewaard() }));
   try { cache.put(dagSleutel(SITE_CACHE_SLEUTEL), tekst, CACHE_DUUR_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
   return tekst;
+}
+
+/** De soort van een rij in de Catalogus: boek, zine of film. */
+function soortVan(rij) {
+  var s = normaliseerTekst(rij && rij.soort);
+  return s === 'zine' || s === 'film' ? s : 'boek';
+}
+
+function sparqlTekst(t) {
+  return '"' + String(t).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
 /** Splitst een lijst in een cel ("a, b; c") in losse, opgeschoonde waarden. */
@@ -5367,6 +5624,12 @@ function uitleningVanExemplaar(staat, exemplaar) {
   return lopendeUitleningen(staat).filter(function (u) { return u.exemplaar === exemplaar; })[0] || null;
 }
 
+/** Een regisseur staat bij Wikidata soms in het Nederlands en het Engels: één keer per naam. */
+function uniekeNamen(namen) {
+  var gezien = {};
+  return namen.filter(function (n) { var k = normaliseerTekst(n); if (gezien[k]) return false; gezien[k] = true; return true; });
+}
+
 /** De datum van vandaag als "JJJJ-MM-DD". */
 function vandaagTekst() {
   return Utilities.formatDate(new Date(), tijdzone(), 'yyyy-MM-dd');
@@ -5826,6 +6089,38 @@ function voegBronSamen(bestaand, bron, nieuwId, inst, vandaag) {
 }
 
 /**
+ * Zet nieuwe films in de Catalogus. Een film die er al staat (zelfde letterboxd, of zelfde titel
+ * en jaartal), komt er niet nog eens bij. nieuwId(soort) geeft een nieuw nummer.
+ * Geeft het aantal nieuwe films.
+ */
+function voegFilmsToe(rijen, films, vandaag, nieuwId) {
+  var sleutels = {};
+  var sleutel = function (titel, jaar) { return normaliseerTekst(titel) + '|' + (jaar || ''); };
+  rijen.forEach(function (r) {
+    if (!isFilm(r)) return;
+    if (!isLeeg(r.letterboxd)) sleutels['lb:' + schoon(r.letterboxd)] = true;
+    sleutels[sleutel(r.titel, parseerGetal(r.jaartal))] = true;
+  });
+  var n = 0;
+  films.forEach(function (f) {
+    if (!f.slug && !f.titel) return;
+    if ((f.slug && sleutels['lb:' + f.slug]) || sleutels[sleutel(f.titel, f.jaar)]) return;
+    var rij = {
+      boek_id: nieuwId('film'), soort: 'film', titel: schoon(f.titel), jaartal: f.jaar || '',
+      letterboxd: f.slug || '', aantal: 1, uitleenbaar: 'ja', publiek: 'ja', uitvoering: 'dvd', toegevoegd_op: vandaag
+    };
+    rij.bron_sleutel = bronSleutel(rij);
+    voegToe(rijen, rij);
+    sleutels['lb:' + f.slug] = true;
+    sleutels[sleutel(f.titel, f.jaar)] = true;
+    n++;
+  });
+  return n;
+}
+
+/* ---------- Wikidata en Wikipedia ---------- */
+
+/**
  * Voegt twijfelgevallen toe aan het tabblad "Na te kijken", zonder dubbels.
  * rijen: rijen van "Na te kijken"; items: [{boek, veld, waarde_catalogus, waarde_bron, opmerking}]
  */
@@ -5962,6 +6257,10 @@ function voerActieUit(actie, invoer, rol) {
         break;
       case 'beheerLenerHistoriek': antwoord = lenerHistoriek(staat, invoer.lenersnummer); break;
       case 'beheerBoekenBulk': antwoord = boekenBulk(staat, invoer); break;
+      case 'filmsVoorbeeld':
+        var fc = bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen, [], { enkelFilms: true });
+        antwoord = { ok: true, boeken: fc.boeken, teksten: fc.teksten, filmsTonen: staat.inst.films_tonen === true };
+        break;
       case 'bestuurCijfers': antwoord = { ok: true, cijfers: bestuurCijfers(staat, leesTabel('Onderwerpen').rijen) }; break;
       case 'beheerCoversLijst': antwoord = coversTeZoeken(staat, rol === 'bestuur'); break;
       case 'beheerCoversBewaren': antwoord = coversBewaren(staat, invoer); break;
@@ -5990,7 +6289,7 @@ function voerActieUit(actie, invoer, rol) {
       bewaarTabel(staat.tabellen.Catalogus);
       werkOnderwerpenBij(); // een nieuw genre komt zo in de vertaaltabel Onderwerpen
     }
-    if (meldingen.length || (antwoord.ok && actie !== 'balieData' && actie !== 'bestuurData')) leegCache();
+    if (meldingen.length || (antwoord.ok && actie !== 'balieData' && actie !== 'bestuurData' && actie !== 'filmsVoorbeeld')) leegCache();
     if (meldingen.length && antwoord.ok) antwoord.apartLeggen = (antwoord.apartLeggen || []).concat(meldingen);
     return antwoord;
   } finally {
@@ -6332,13 +6631,80 @@ function vulBeschrijvingenAan() {
 
 /* ---------- Vertalen ---------- */
 
+/** Menu en achtergrondtaak: vult films aan uit Wikidata en Wikipedia, in porties. */
+function vulFilmsAan() {
+  var start = Date.now();
+  if (wachtOpDaglimiet('vulFilmsAan')) return;
+  if (!startAchtergrond('vulFilmsAan')) { meldAlBezig('vulFilmsAan'); return; }
+  var verwerkt = 0, gevonden = 0, teksten = 0, rest = 0, fout = '';
+  try {
+    var tabel = leesTabel('Catalogus');
+    if (tabel.kop.indexOf('film_gezocht') === -1) { meld('De kolommen voor films ontbreken nog. Voer eerst Madrigal > Installeer tabbladen uit.'); return; }
+    var vandaag = vandaagTekst();
+    var teDoen = tabel.rijen.filter(heeftFilmGegevensNodig);
+    while (teDoen.length && Date.now() - start < FILM_MAX_LOOPTIJD_MS && !fout) {
+      var portie = teDoen.splice(0, FILM_PORTIE);
+      var metSlug = portie.filter(function (r) { return !isLeeg(r.letterboxd); });
+      var perSlug = {};
+      if (metSlug.length) {
+        var a = wikidataVraag(filmVraagLetterboxd(metSlug.map(function (r) { return schoon(r.letterboxd); })));
+        if (a.fout) { fout = a.fout; break; }
+        a.films.forEach(function (f) { perSlug[f.lb] = f; });
+      }
+      for (var i = 0; i < portie.length; i++) {
+        var rij = portie[i];
+        var f = perSlug[schoon(rij.letterboxd)] || null;
+        if (!f) {
+          Utilities.sleep(FILM_PAUZE_MS);
+          var b = wikidataVraag(filmVraagTitel(rij.titel, parseerGetal(rij.jaartal)));
+          if (b.fout) { fout = b.fout; break; }
+          f = kiesFilm(rij, b.films);
+        }
+        var velden = { film_gezocht: vandaag };
+        if (f) {
+          Object.assign(velden, filmVelden(rij, f));
+          gevonden++;
+          if (isLeeg(rij.beschrijving)) {
+            var w = {};
+            [['nl', f.nl], ['en', f.en]].forEach(function (x) {
+              if (w.tekst || !x[1]) return;
+              Utilities.sleep(FILM_PAUZE_MS);
+              var ant = haalJson(filmWikiUrl(x[0], x[1]));
+              if (ant.code === 200) w = filmWikiTekst(ant.data);
+            });
+            if (w.tekst) {
+              velden.beschrijving = w.tekst;
+              velden.beschrijving_bron = w.link;
+              velden.beschrijving_vertaald = '';
+              teksten++;
+            }
+          }
+        }
+        wijzig(rij, velden);
+        verwerkt++;
+      }
+      bewaarAchtergrond(tabel);
+    }
+    bewaarAchtergrond(tabel);
+    rest = tabel.rijen.filter(heeftFilmGegevensNodig).length;
+  } finally {
+    stopAchtergrond('vulFilmsAan');
+  }
+  verwijderTriggers('vulFilmsAan');
+  if (rest > 0) ScriptApp.newTrigger('vulFilmsAan').timeBased().after((fout ? 15 : 1) * 60 * 1000).create();
+  if (verwerkt) leegCache();
+  if (teksten) planVertaling(2);
+  logboek('menu', 'vulFilmsAan', verwerkt + ' films opgezocht, ' + gevonden + ' gevonden bij Wikidata, ' + teksten + ' omschrijvingen, ' + rest + ' te gaan' + (fout ? ' (' + fout + ', later verder)' : ''));
+  try { spreadsheet().toast(verwerkt + ' films opgezocht, ' + gevonden + ' gevonden, ' + teksten + ' omschrijvingen.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
+}
+
 /** Pure versie van werkOnderwerpenBij, voor de tests. */
 function vulOnderwerpenAan(onderwerpRijen, catalogusRijen) {
   var tellingen = {};
   var schrijfwijzen = {};
   catalogusRijen.forEach(function (b) {
     var g = normaliseerTekst(b.genre);
-    if (!g) return;
+    if (!g || isFilm(b)) return; // filmgenres staan los van de onderwerpen van de boeken
     tellingen[g] = (tellingen[g] || 0) + 1;
     schrijfwijzen[g] = schrijfwijzen[g] || {};
     var s = schoon(b.genre);
@@ -6438,6 +6804,14 @@ function wikiCelWaarde(tabel, boek) {
 function wikiControle(tabel, boek) {
   return 'controle rij ' + boek._rij + ' (' + (boek.boek_id || 'zonder boek_id') + '): wiki_gezocht is "' + wikiCelWaarde(tabel, boek) + '"' +
     wikiDubbels(tabel.kop, tabel.rijen);
+}
+
+function wikidataVraag(sparql) {
+  var r = haalExtern('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql), {
+    muteHttpExceptions: true, headers: { 'User-Agent': BS_USER_AGENT, Accept: 'application/sparql-results+json' }
+  });
+  if (r.getResponseCode() !== 200) return { fout: 'Wikidata gaf code ' + r.getResponseCode() };
+  try { return { films: filmUitWikidata(JSON.parse(r.getContentText())) }; } catch (e) { return { fout: 'Wikidata gaf een onverwacht antwoord' }; }
 }
 
 /** Tekst over dubbele kolommen wiki_gezocht en dubbele boek_id's, of ''. */

@@ -18,7 +18,8 @@ function achtergrondTaken() {
     ['vulAanUitOpenLibrary', 'Gegevens bij Open Library', heeftOpenLibraryNodig],
     ['zoekCoversAndereUitgaven', 'Covers van een andere uitgave', heeftAndereUitgaveNodig],
     ['zoekCoversInternetArchive', 'Covers bij Internet Archive', heeftIaNodig],
-    ['zoekCoversBol', 'Covers bij Bol', heeftBolNodig]
+    ['zoekCoversBol', 'Covers bij Bol', heeftBolNodig],
+    ['vulFilmsAan', 'Films aanvullen (Wikidata en Wikipedia)', heeftFilmGegevensNodig]
   ];
 }
 

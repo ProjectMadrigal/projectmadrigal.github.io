@@ -1875,5 +1875,85 @@ test('instellingen: vijf blokken in vaste volgorde, codes onderaan, elke instell
   ['bewaartermijn_afgesloten_uitleningen_maanden', 'aanvragen_bewaren_dagen', 'meldingen_bewaren_dagen'].forEach((k) => assert.ok(privacy.indexOf(k) > -1, k));
 });
 
+console.log('\nFilms');
+test('films: Letterboxd-lijst lezen (oude en nieuwe opmaak)', () => {
+  const html = '<li class="poster-container"><div class="film-poster" data-film-id="1" data-film-slug="verzonnen-zee-1999" data-target-link="/film/verzonnen-zee-1999/">' +
+    '<img alt="De verzonnen zee" class="image"></div></li>' +
+    '<li><div class="react-component" data-component-class="LazyPoster" data-item-name="Stille &amp; lichten (2021)" data-item-slug="stille-lichten" data-item-link="/film/stille-lichten/"></div></li>' +
+    '<li><div data-film-slug="verzonnen-zee-1999"></div></li>';
+  gelijk(M.letterboxdFilms(html), [
+    { slug: 'verzonnen-zee-1999', titel: 'De verzonnen zee', jaar: '' },
+    { slug: 'stille-lichten', titel: 'Stille & lichten', jaar: 2021 }
+  ]);
+  assert.strictEqual(M.letterboxdPaginaUrl('https://letterboxd.com/iemand/list/lijst', 2), 'https://letterboxd.com/iemand/list/lijst/page/2/');
+  assert.strictEqual(M.letterboxdPaginaUrl('https://letterboxd.com/iemand/list/lijst/', 1), 'https://letterboxd.com/iemand/list/lijst/');
+  assert.ok(M.isLetterboxdLijst('https://letterboxd.com/iemand/list/lijst/') && !M.isLetterboxdLijst('https://voorbeeld.test/lijst'));
+});
+
+test('films: in de Catalogus als soort film, zonder dubbels', () => {
+  const rijen = [{ boek_id: 'F0001', soort: 'film', titel: 'De verzonnen zee', jaartal: 1999, letterboxd: 'verzonnen-zee-1999' }];
+  let n = 1;
+  const id = (soort) => (soort === 'film' ? 'F' : 'B') + String(++n).padStart(4, '0');
+  const nieuw = M.voegFilmsToe(rijen, [
+    { slug: 'verzonnen-zee-1999', titel: 'De verzonnen zee', jaar: 1999 },
+    { slug: 'stille-lichten', titel: 'Stille lichten', jaar: 2021 },
+    { slug: 'stille-lichten', titel: 'Stille lichten', jaar: 2021 }
+  ], '2026-10-25', id);
+  assert.strictEqual(nieuw, 1);
+  const f = rijen[1];
+  gelijk([f.boek_id, f.soort, f.uitleenbaar, f.letterboxd, f.toegevoegd_op], ['F0002', 'film', 'ja', 'stille-lichten', '2026-10-25']);
+  assert.ok(M.heeftFilmGegevensNodig(f) && !M.heeftWikiNodig(Object.assign({ auteur: 'Iemand' }, f)), 'Films niet bij de boekentaken');
+  assert.ok(!M.heeftAndereUitgaveNodig(f), 'Geen boekcover voor een film');
+});
+
+test('films: Wikidata lezen en enkel lege velden aanvullen', () => {
+  const data = { results: { bindings: [{
+    film: { value: 'http://www.wikidata.org/entity/Q123' }, lb: { value: 'stille-lichten' }, jaar: { value: '2021' }, minuten: { value: '104.0' },
+    regie: { value: 'Noor Aerts|Noor Aerts|Ilo Claes' }, land: { value: 'België|Nederland' }, genre: { value: 'dramafilm|LGBT-gerelateerde film|komedie|thriller|western' },
+    taal: { value: 'Nederlands' }, nlTitel: { value: 'Stille lichten' }
+  }] } };
+  const [f] = M.filmUitWikidata(data);
+  gelijk([f.qid, f.jaar, f.duur, f.regie, f.land, f.genre.length, f.nl, f.en], ['Q123', 2021, 104, ['Noor Aerts', 'Ilo Claes'], ['België', 'Nederland'], 4, 'Stille lichten', '']);
+  const v = M.filmVelden({ titel: 'Stille lichten', land: 'Frankrijk' }, f);
+  gelijk([v.auteur, v.jaartal, v.land, v.genre, v.duur, v.wikidata], ['Noor Aerts, Ilo Claes', 2021, undefined, 'Dramafilm, LGBT-gerelateerde film, Komedie, Thriller', 104, 'Q123']);
+  assert.strictEqual(M.kiesFilm({ jaartal: 2010 }, [f]), null, 'Ander jaartal: niet deze film');
+  assert.strictEqual(M.kiesFilm({}, [f, f]), null, 'Twee kandidaten zonder jaartal: geen keuze');
+  assert.ok(/P6127/.test(M.filmVraagLetterboxd(['a"b'])) && /"a\\"b"/.test(M.filmVraagLetterboxd(['a"b'])), 'Aanhalingstekens ontsnapt');
+  assert.ok(/ABS\(YEAR\(\?datum\) - 2021\)/.test(M.filmVraagTitel('Stille lichten', 2021)));
+  const w = M.filmWikiTekst({ query: { pages: [{ title: 'Stille lichten', extract: 'Stille lichten is een verzonnen Belgische film uit 2021 over twee vrienden die samen een vuurtoren opknappen.', fullurl: 'https://nl.wikipedia.org/wiki/Stille_lichten' }] } });
+  assert.ok(w.tekst && w.link === 'https://nl.wikipedia.org/wiki/Stille_lichten');
+  gelijk(M.filmWikiTekst({ query: { pages: [{ missing: true }] } }), {});
+});
+
+test('films: verborgen tot films_tonen, kijktip en te koop, uitlenen aan de balie', () => {
+  const s = maakStaat('2026-10-25');
+  s.catalogus.push(
+    { boek_id: 'F0001', soort: 'film', titel: 'De verzonnen zee', auteur: 'Noor Aerts', jaartal: 1999, land: 'België, Nederland', duur: 98, genre: 'Drama, Romantiek', aantal: 1, uitleenbaar: 'ja', publiek: 'ja' },
+    { boek_id: 'F0002', soort: 'film', titel: 'Stille lichten', film_tip: 'ja', publiek: 'ja' },
+    { boek_id: 'F0003', soort: 'film', titel: 'Glitterfilm', te_koop: 'ja', publiek: 'ja' });
+  const ids = (c) => c.boeken.map((b) => b.id).filter((x) => x[0] === 'F');
+  gelijk(ids(M.bouwPubliekeCatalogus(s, [])), [], 'Verborgen voor bezoekers');
+  assert.ok(!M.bouwPubliekeCatalogus(s, []).filmsTonen);
+  const voorbeeld = M.bouwPubliekeCatalogus(s, [], [], { enkelFilms: true });
+  gelijk(voorbeeld.boeken.map((b) => b.id), ['F0001', 'F0002', 'F0003'], 'Voorbeeld voor het bestuur: enkel films');
+  const [f1, f2, f3] = voorbeeld.boeken;
+  gelijk([f1.s, f1.a, f1.la, f1.du, f1.g, f1.b.c], ['film', 'Noor Aerts', 'België, Nederland', 98, ['Drama', 'Romantiek'], 'beschikbaar']);
+  gelijk([f2.tip, f2.b.c], [1, 'tip']);
+  gelijk([f3.b.c, f3.b.k], ['niet_uitleenbaar', 1]);
+  const zichtbaar = M.bouwPubliekeCatalogus(maakStaat('2026-10-25', { films_tonen: 'ja' }), []);
+  assert.ok(zichtbaar.filmsTonen === true);
+  // Uitlenen: een film als een boek, een kijktip niet.
+  assert.strictEqual(uitleen(s, 'F0001-1', '1').ok, true);
+  assert.strictEqual(uitleen(s, 'F0002-1', '2').ok, false);
+  // Filmgenres komen niet in de vertaaltabel Onderwerpen.
+  const onderwerpen = [];
+  M.vulOnderwerpenAan(onderwerpen, s.catalogus);
+  assert.ok(!onderwerpen.some((o) => /drama/i.test(o.genre)), 'Filmgenre in Onderwerpen');
+  // Een verborgen film kan je niet via de website aanvragen.
+  const a = M.maakAanvraag({ inst: instellingen({ online_reserveren: 'ja' }), vandaag: '2026-10-25', catalogus: s.catalogus, aanvragen: [] },
+    { boek_id: 'F0001', voornaam: 'Kim', contact: 'kim@voorbeeld.test', toestemming: true }, () => 'A0001');
+  assert.strictEqual(a.ok, false);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

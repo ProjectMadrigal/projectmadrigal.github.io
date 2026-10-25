@@ -9,6 +9,10 @@
  *   #/boek/B0012           de detailpagina van een boek (vaste link om te delen)
  *   #/privacy              de privacyverklaring
  *   #/leeslijsten          alle leeslijsten (thema's), elk met een link naar #/?lijst=...
+ *
+ * Hetzelfde script maakt de pagina Films (films.html, <body data-soort="film">): enkel de films,
+ * met hun eigen filters (genre, land, periode) en #/film/F0001 voor de detailpagina.
+ * Zolang de instelling films_tonen op nee staat, ziet enkel het bestuur de films (actie filmsVoorbeeld).
  */
 (function () {
   'use strict';
@@ -20,6 +24,9 @@
   var T = window.MadrigalTaal;
   var t = T.t;
 
+  var FILM = document.body.getAttribute('data-soort') === 'film';
+  var PAD = FILM ? 'film' : 'boek'; // #/boek/B0012 of #/film/F0001
+  var FILTERS = FILM ? F.FILMFILTERS : F.FILTERS;
   var PER_PAGINA = 30; // zoveel boeken staan er op één pagina (deelbaar door 2 en 3, voor het raster)
 
   var staat = {
@@ -38,7 +45,7 @@
 
   function leesAdres() {
     var hash = location.hash.replace(/^#\/?/, '');
-    var m = hash.match(/^boek\/([A-Za-z0-9\-]+)/);
+    var m = hash.match(/^(?:boek|film)\/([A-Za-z0-9\-]+)/);
     if (m) return { scherm: 'boek', id: decodeURIComponent(m[1]) };
     if (hash.indexOf('privacy') === 0) return { scherm: 'privacy' };
     if (hash.indexOf('leeslijsten') === 0) return { scherm: 'leeslijsten' };
@@ -47,14 +54,14 @@
       q: params.get('q') || '', beschikbaar: params.get('beschikbaar') === 'ja', sorteer: params.get('sorteer') || 'relevantie',
       pagina: Math.max(1, parseInt(params.get('pagina'), 10) || 1)
     };
-    F.FILTERS.forEach(function (f) { if (params.get(f.sleutel)) keuzes[f.sleutel] = params.get(f.sleutel); });
+    FILTERS.forEach(function (f) { if (params.get(f.sleutel)) keuzes[f.sleutel] = params.get(f.sleutel); });
     return { scherm: 'lijst', keuzes: keuzes };
   }
 
   function lijstAdres(pagina) {
     var params = new URLSearchParams();
     if (staat.keuzes.q) params.set('q', staat.keuzes.q);
-    F.FILTERS.forEach(function (f) { if (staat.keuzes[f.sleutel]) params.set(f.sleutel, staat.keuzes[f.sleutel]); });
+    FILTERS.forEach(function (f) { if (staat.keuzes[f.sleutel]) params.set(f.sleutel, staat.keuzes[f.sleutel]); });
     if (staat.keuzes.beschikbaar) params.set('beschikbaar', 'ja');
     if (staat.keuzes.sorteer !== 'relevantie') params.set('sorteer', staat.keuzes.sorteer);
     var nr = pagina || staat.keuzes.pagina;
@@ -81,7 +88,8 @@
   /** Beschikbaarheid in de gekozen taal. Code, aantallen en datum komen van de server. */
   function status(b) {
     var s = b.b || {};
-    if (s.c === 'niet_uitleenbaar') return t(s.k ? 'stTeKoop' : 'stNietUitleenbaar');
+    if (s.c === 'tip') return t('stTip');
+    if (s.c === 'niet_uitleenbaar') return t(s.k ? (FILM ? 'stTeKoopFilm' : 'stTeKoop') : 'stNietUitleenbaar');
     if (s.c === 'beschikbaar') return s.t > 1 ? t('stVanBeschikbaar', { v: s.v, t: s.t }) : t('stBeschikbaar');
     if (s.c === 'gereserveerd') return t('stGereserveerd');
     if (s.c === 'uitgeleend') return s.d ? t('stUitgeleendTot', { datum: T.datum(s.d) }) : t('stUitgeleend');
@@ -152,18 +160,51 @@
   }
 
   function zetTeksten() {
-    $('welkom').textContent = tekst('welkom');
+    $('welkom').textContent = tekst(FILM ? 'films' : 'welkom');
     $('uitleg-lenen').textContent = tekst('uitleg');
     $('privacy-tekst').textContent = tekst('privacy');
     // Leeslijsten staan enkel in de catalogus als de instelling leeslijsten_tonen op ja staat.
     var tonen = !!(staat.data && Array.isArray(staat.data.leeslijsten));
     if (window.MadrigalLayout) window.MadrigalLayout.leeslijstenTonen(tonen);
-    $('naar-leeslijsten').hidden = !leeslijsten().length;
+    if (window.MadrigalLayout && staat.data && !staat.data.voorbeeld) window.MadrigalLayout.filmsTonen(!!staat.data.filmsTonen);
+    if ($('naar-leeslijsten')) $('naar-leeslijsten').hidden = FILM || !leeslijsten().length;
     var stat = $('privacy-statistiek');
     if (stat) stat.hidden = !(window.MADRIGAL_CONFIG || {}).statistiek;
   }
 
+  /*
+   * Films verborgen (films_tonen op nee)? Dan vraagt de pagina de films aan de web-app met de
+   * bestuurscode die op dit toestel bewaard is. Zonder die code blijft de pagina leeg.
+   */
+  var voorbeeldGevraagd = false;
+  function lees(sleutel) { try { return localStorage.getItem(sleutel) || ''; } catch (e) { return ''; } }
+
+  function vraagVoorbeeld(data) {
+    var code = lees('madrigal_code_bestuur');
+    if (!code || !window.MadrigalApi.isGekoppeld()) { toonNietBeschikbaar(); return; }
+    if (voorbeeldGevraagd) return;
+    voorbeeldGevraagd = true;
+    window.MadrigalApi.verstuur('filmsVoorbeeld', { code: code, wie: lees('madrigal_wie') || 'bestuur' }).then(function (r) {
+      if (!r || !r.ok) { toonNietBeschikbaar(); return; }
+      ontvang(Object.assign({}, data, { boeken: r.boeken, teksten: Object.assign({}, data.teksten, r.teksten), voorbeeld: true }));
+    }, toonNietBeschikbaar);
+  }
+
+  function toonNietBeschikbaar() {
+    $('laden').hidden = true;
+    $('aantal').textContent = t('filmsNietBeschikbaar');
+    D.vervang($('resultaten'));
+  }
+
   function ontvang(data) {
+    // Enkel de films op de pagina Films, en geen films op de pagina Boeken.
+    data = Object.assign({}, data, { boeken: (data.boeken || []).filter(function (b) { return (b.s === 'film') === FILM; }) });
+    if (FILM && !data.voorbeeld && !data.filmsTonen) {
+      if (window.MadrigalLayout) window.MadrigalLayout.filmsTonen(false);
+      vraagVoorbeeld(data);
+      return;
+    }
+    if (FILM) $('films-voorbeeld').hidden = !data.voorbeeld;
     staat.data = data;
     staat.index = Z.maakIndex(data.boeken);
     staat.perId = {};
@@ -190,9 +231,9 @@
   /* ---------- Filters ---------- */
 
   function bouwFilters() {
-    var opties = F.opties(staat.data.boeken, staat.data.filtergroepen, leeslijsten().map(function (l) { return l.n; }));
+    var opties = F.opties(staat.data.boeken, staat.data.filtergroepen, leeslijsten().map(function (l) { return l.n; }), FILTERS);
     var raster = $('filterraster');
-    D.vervang(raster, F.FILTERS.map(function (f) {
+    D.vervang(raster, FILTERS.map(function (f) {
       if (f.sleutel === 'lijst' && !opties.lijst.length) return null;
       var id = 'filter-' + f.sleutel;
       var select = el('select', { id: id, onchange: function () { staat.keuzes[f.sleutel] = this.value; nieuweLijst(); } },
@@ -210,7 +251,7 @@
     $('zoek').value = staat.keuzes.q;
     $('sorteer').value = staat.keuzes.sorteer;
     $('filter-beschikbaar').checked = staat.keuzes.beschikbaar;
-    F.FILTERS.forEach(function (f) {
+    FILTERS.forEach(function (f) {
       var s = $('filter-' + f.sleutel);
       if (s) s.value = staat.keuzes[f.sleutel] || '';
     });
@@ -218,7 +259,7 @@
 
   function aantalActieveFilters() {
     var n = staat.keuzes.beschikbaar ? 1 : 0;
-    F.FILTERS.forEach(function (f) { if (staat.keuzes[f.sleutel]) n++; });
+    FILTERS.forEach(function (f) { if (staat.keuzes[f.sleutel]) n++; });
     return n;
   }
 
@@ -226,7 +267,7 @@
 
   function resultaten() {
     var gevonden = Z.zoek(staat.index, staat.keuzes.q).map(function (r) { return r.boek; });
-    var gefilterd = F.pasToe(gevonden, staat.keuzes);
+    var gefilterd = F.pasToe(gevonden, staat.keuzes, FILTERS);
     var wijze = staat.keuzes.sorteer;
     if (wijze === 'relevantie' && !staat.keuzes.q.trim()) wijze = 'titel';
     return F.sorteer(gefilterd, wijze);
@@ -302,7 +343,13 @@
   }
 
   function meta(b) {
+    if (FILM) return [b.j, b.la, b.du ? t('minuten', { n: b.du }) : ''].filter(Boolean).join(' · ');
     return [b.j, T.waarde(b.l), b.u].filter(Boolean).join(' · ');
+  }
+
+  /** Onder de titel: de auteur, of bij een film de regie. */
+  function maker(b) {
+    return b.a ? el('p', { class: 'auteur' }, FILM ? t('regieDoor', { naam: b.a }) : b.a) : null;
   }
 
   function labels(b) {
@@ -316,8 +363,8 @@
     return el('li', { class: 'boek' },
       cover(b, false),
       el('div', {},
-        el('h2', { class: 'boek-titel' }, el('a', { href: '#/boek/' + encodeURIComponent(b.id), 'data-id': b.id }, b.t)),
-        b.a ? el('p', { class: 'auteur' }, b.a) : null,
+        el('h2', { class: 'boek-titel' }, el('a', { href: '#/' + PAD + '/' + encodeURIComponent(b.id), 'data-id': b.id }, b.t)),
+        maker(b),
         meta(b) ? el('p', { class: 'meta' }, meta(b)) : null,
         labels(b)));
   }
@@ -330,7 +377,7 @@
    */
   function reservatieBlok(b) {
     var teksten = (staat.data && staat.data.teksten) || {};
-    if (!teksten.online_reserveren || b.b.c === 'niet_uitleenbaar' || !window.MadrigalApi.isGekoppeld()) return null;
+    if (!teksten.online_reserveren || b.b.c === 'niet_uitleenbaar' || b.b.c === 'tip' || (staat.data && staat.data.voorbeeld) || !window.MadrigalApi.isGekoppeld()) return null;
     var vak = el('div', { class: 'blok reservatie', hidden: true });
     var knop = el('button', { type: 'button', class: 'knop', 'aria-expanded': 'false', 'aria-controls': 'reservatie-vak',
       onclick: function () {
@@ -378,38 +425,42 @@
   function toonDetail(id) {
     var b = staat.perId[id];
     var scherm = $('detail-scherm');
-    var terug = el('a', { class: 'terug', href: staat.laatsteLijstAdres }, t('terugCatalogus'));
+    var terug = el('a', { class: 'terug', href: staat.laatsteLijstAdres }, t(FILM ? 'terugFilms' : 'terugCatalogus'));
     if (!b) {
       D.vervang(scherm, terug, el('div', { class: 'blok' },
-        el('h1', { tabindex: '-1' }, t('nietGevonden')),
-        el('p', {}, t('nietGevondenTekst'))));
-      document.title = t('nietGevonden') + ' · Project Madrigal';
+        el('h1', { tabindex: '-1' }, t(FILM ? 'filmNietGevonden' : 'nietGevonden')),
+        el('p', {}, t(FILM ? 'filmNietGevondenTekst' : 'nietGevondenTekst'))));
+      document.title = t(FILM ? 'filmNietGevonden' : 'nietGevonden') + ' · Project Madrigal';
       return;
     }
-    var rijen = [
+    var rijen = FILM ? [
+      [t('vJaar'), b.j], [t('vLand'), b.la], [t('vRegie'), b.a], [t('vDuur'), b.du ? t('minuten', { n: b.du }) : ''],
+      [t('vTaal'), T.waarde(b.l)], [t('vUitvoering'), T.waarde(b.v)]
+    ].filter(function (r) { return r[1]; }) : [
       [t('vJaartal'), b.j], [t('vTaal'), T.waarde(b.l)], [t('vUitgeverij'), b.u], [t('vPaginas'), b.p], [t('vUitvoering'), T.waarde(b.v)],
       [t('vStaat'), b.n === 'nieuw' ? t('nieuw') : (b.n === 'tweedehands' ? t('tweedehands') : '')], [t('vIsbn'), b.i],
       [t('vSoort'), b.s === 'zine' ? t('zine') : '']
     ].filter(function (r) { return r[1]; });
 
     var onderwerpen = (b.g || []).map(function (g) {
-      return el('li', {}, el('a', { class: 'label label-onderwerp', href: '#/?groep=' + encodeURIComponent(g) }, T.waarde(g)));
+      return el('li', {}, el('a', { class: 'label label-onderwerp', href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
     });
     var uitlegStatus = {
-      beschikbaar: t('uitlegBeschikbaar'),
+      beschikbaar: t(FILM ? 'uitlegBeschikbaarFilm' : 'uitlegBeschikbaar'),
       uitgeleend: t('uitlegUitgeleend'),
       gereserveerd: t('uitlegGereserveerd'),
+      tip: t('uitlegTip'),
       niet_uitleenbaar: ''
     }[b.b.c] || '';
 
-    var deelKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { deel(b); } }, t('deelBoek'));
+    var deelKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { deel(b); } }, t(FILM ? 'deelFilm' : 'deelBoek'));
     var reservatie = reservatieBlok(b);
 
     D.vervang($('detail-scherm'), terug, el('article', { class: 'blok detail' },
       el('div', {}, cover(b, true)),
       el('div', {},
         el('h1', { tabindex: '-1' }, b.t),
-        b.a ? el('p', { class: 'auteur' }, b.a) : null,
+        maker(b),
         el('p', { class: 'beschikbaarheid' }, D.statusLabel(b.b.c, status(b))),
         uitlegStatus ? el('p', {}, uitlegStatus) : null,
         b.w ? el('p', {}, el('span', { class: 'label label-gevoelig' }, t('gevoelig')), ' ', t('gevoeligUitleg')) : null,
@@ -423,7 +474,7 @@
         b.d && b.db ? el('p', { class: 'hulptekst' }, t('bronWikipedia') + ' ', el('a', { href: b.db, target: '_blank', rel: 'noopener' }, 'Wikipedia'),
           ' (', el('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/deed.nl', target: '_blank', rel: 'noopener' }, 'CC BY-SA 4.0'), ')' + (T.taal() === 'en' ? '' : t('bronVertaald'))) : null,
         el('dl', { class: 'gegevens' }, rijen.map(function (r) { return [el('dt', {}, r[0]), el('dd', {}, String(r[1]))]; })),
-        onderwerpen.length ? el('div', {}, el('h2', { class: 'klein' }, t('onderwerpen')), el('ul', { class: 'labels' }, onderwerpen)) : null,
+        onderwerpen.length ? el('div', {}, el('h2', { class: 'klein' }, t(FILM ? 'genres' : 'onderwerpen')), el('ul', { class: 'labels' }, onderwerpen)) : null,
         el('div', { class: 'knoppen' }, reservatie ? reservatie.knop : null, deelKnop),
         reservatie ? reservatie.vak : null,
         el('p', { class: 'hulptekst', id: 'deel-melding', 'aria-live': 'polite' }))),
@@ -436,9 +487,9 @@
     var lijst = F.gelijkaardig(staat.data.boeken, b, 6);
     if (!lijst.length) return null;
     return el('section', { class: 'blok lees-ook', 'aria-labelledby': 'lees-ook-titel' },
-      el('h2', { id: 'lees-ook-titel' }, t('leesOok')),
+      el('h2', { id: 'lees-ook-titel' }, t(FILM ? 'kijkOok' : 'leesOok')),
       el('ul', { class: 'aanraders' }, lijst.map(function (x) {
-        return el('li', { class: 'aanrader' }, el('a', { href: '#/boek/' + encodeURIComponent(x.id) },
+        return el('li', { class: 'aanrader' }, el('a', { href: '#/' + PAD + '/' + encodeURIComponent(x.id) },
           cover(x, false),
           el('span', { class: 'aanrader-titel' }, x.t),
           x.a ? el('span', { class: 'aanrader-auteur' }, x.a) : null));
@@ -446,7 +497,7 @@
   }
 
   function deel(b) {
-    var url = location.href.split('#')[0] + '#/boek/' + encodeURIComponent(b.id);
+    var url = location.href.split('#')[0] + '#/' + PAD + '/' + encodeURIComponent(b.id);
     deelLink(b.t + (b.a ? ' · ' + b.a : '') + ' · Project Madrigal', url, $('deel-melding'), b.t);
   }
 
@@ -473,10 +524,10 @@
     detail.hidden = adres.scherm !== 'boek';
     privacy.hidden = adres.scherm !== 'privacy';
     lijsten.hidden = adres.scherm !== 'leeslijsten';
-    if (window.MadrigalLayout) window.MadrigalLayout.huidig(adres.scherm === 'leeslijsten' || (adres.keuzes && adres.keuzes.lijst) ? 'leeslijsten' : 'boeken');
+    if (window.MadrigalLayout) window.MadrigalLayout.huidig(FILM ? 'films' : adres.scherm === 'leeslijsten' || (adres.keuzes && adres.keuzes.lijst) ? 'leeslijsten' : 'boeken');
 
     if (adres.scherm === 'lijst') {
-      document.title = t('catalogusTitel') + ' · Project Madrigal';
+      document.title = t(FILM ? 'filmsTitel' : 'catalogusTitel') + ' · Project Madrigal';
       var anderePagina = staat.data && adres.keuzes.pagina !== staat.keuzes.pagina;
       staat.keuzes = adres.keuzes;
       staat.laatsteLijstAdres = lijstAdres();
@@ -542,7 +593,7 @@
     $('sorteer').addEventListener('change', function () { staat.keuzes.sorteer = this.value; nieuweLijst(); });
     $('filter-beschikbaar').addEventListener('change', function () { staat.keuzes.beschikbaar = this.checked; nieuweLijst(); });
     $('wis-filters').addEventListener('click', function () {
-      F.FILTERS.forEach(function (f) { delete staat.keuzes[f.sleutel]; });
+      FILTERS.forEach(function (f) { delete staat.keuzes[f.sleutel]; });
       staat.keuzes.beschikbaar = false;
       zetFormulier();
       nieuweLijst();

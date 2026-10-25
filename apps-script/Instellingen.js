@@ -61,6 +61,10 @@ var STANDAARD_INSTELLINGEN = [
   ['bookclub_week', 2, 'De hoeveelste week van de maand: 1 tot 4, of 5 voor de laatste.'],
   ['bookclub_dag', 'zondag', 'Op welke weekdag de bookclub samenkomt.'],
   ['bookclub_uur', '', 'Het uur, bv. 14:00 of 14:00 - 16:00. Leeg: enkel de datum.'],
+  ['films_tonen', 'nee', 'Ja: de pagina Films staat in het menu van de website. Nee: enkel het bestuur ziet ze, op een toestel waar het aangemeld is.'],
+  ['tekst_films', 'Films over queer leven, liefde en geschiedenis. Leen een dvd zoals je een boek leent.', 'Pagina Films: de tekst bovenaan.'],
+  ['tekst_films_en', 'Films about queer life, love and history. Borrow a DVD the way you borrow a book.', 'Pagina Films: de tekst bovenaan, in het Engels.'],
+  ['letterboxd_lijst', 'https://letterboxd.com/dragonflyk/list/lovertits/', 'Adres van een lijst bij Letterboxd. Madrigal > Films > Haal de Letterboxd-lijst op zet de films ervan in de Catalogus.'],
   ['tekst_bookclub', 'De Antwerp Queer Bookclub komt samen in de bib van Project Madrigal. Hun programma en andere activiteiten vind je op hun Instagram.', 'De tekst bij de bookclub, in de agenda en op Over ons.'],
   ['tekst_bookclub_en', 'The Antwerp Queer Bookclub meets in the Project Madrigal library. You will find their programme and other activities on their Instagram.', 'De tekst bij de bookclub, in het Engels.'],
   ['bookclub_link', '', 'Het adres van hun Instagram, bv. https://www.instagram.com/... Komt bij Meer info.'],
@@ -140,6 +144,8 @@ function publiekeTeksten(inst) {
     welkom_en: inst.tekst_welkom_en,
     uitleg_en: inst.tekst_uitleg_lenen_en,
     privacy_en: inst.tekst_privacy_en,
+    films: inst.tekst_films,
+    films_en: inst.tekst_films_en,
     online_reserveren: inst.online_reserveren === true
   };
 }
