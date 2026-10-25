@@ -550,7 +550,7 @@ main.website { max-width: none; padding: 0; }
   .menu-raster { grid-template-columns: repeat(3, 1fr); }
   .detail { grid-template-columns: 12rem 1fr; }
 }
-@media (min-width: 60rem) {
+@media (min-width: 66rem) {
   .menuknop { display: none; }
   /* Logo links, menu in het midden van de pagina, taal en donkere modus rechts. */
   .site-kop-binnen { display: grid; grid-template-columns: 1fr auto 1fr; }
@@ -599,3 +599,4 @@ fieldset.blok > legend { font-weight: 700; padding: 0 .3rem; }
 .knoppen.plakkend { position: sticky; bottom: 0; background: var(--kleur-vlak); padding: .6rem 0; margin: 0; z-index: 2; }
 .groot-getal { margin: .5rem 0 0; }
 .groot-getal strong { font-size: 2rem; }
+.pf-volledig { text-align: center; margin-top: 1.5rem; }

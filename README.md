@@ -286,6 +286,14 @@ Enkel wie de code van het bestuur heeft, kan dit. Wil je later vrijwilligers bv.
 - Tegen misbruik: hoogstens 30 aanvragen per uur, 3 open aanvragen per contact, en een verborgen veld dat enkel robots invullen.
 - Privacy: na `aanvragen_bewaren_dagen` (standaard 60) wist de nachtelijke opruiming de aanvraag. Vermeld online reserveren in je privacytekst voor je het aanzet.
 
+### De Peperfabriek
+
+De pagina **Peperfabriek** (in het menu, naast Doe mee) toont het programma van De Peperfabriek, het huis waar de bib zit. Met hun toestemming: titel, datum, korte tekst en afbeelding, telkens met een link naar hun site en een knop "Zet in mijn agenda".
+
+- Het script haalt hun programma elke nacht op van het adres in de instelling `peperfabriek_url`. Vindt het niets (bijvoorbeeld omdat hun website veranderde), dan blijft het vorige programma staan.
+- De tekst bovenaan pas je aan bij `tekst_peperfabriek` en `tekst_peperfabriek_en`. Hoeveel activiteiten: `peperfabriek_aantal`.
+- **Madrigal > Onderhoud > Peperfabriek: test het ophalen** toont wat het script op hun pagina vindt, en bewaart het programma meteen. Gebruik dit na het installeren, en als de pagina leeg blijft.
+
 ### Het vrijwilligersscherm
 
 Op `vrijwilliger.html` werken vaste vrijwilligers met een eigen code: de instelling `code_vrijwilliger` (onder `── TOEGANG ──`). Die code werkt ook aan de balie. Het scherm is een eenvoudigere versie van het bestuursscherm:
