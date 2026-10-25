@@ -271,7 +271,20 @@ async function meldAan(page, basis, pagina) {
     verwacht(!(await r.page.$('#films-voorbeeld[hidden]')), 'Melding voorbeeld ontbreekt');
     verwacht(vragen.some((v) => v.actie === 'filmsVoorbeeld' && v.code === 'verzonnen-code'), 'Geen vraag om het voorbeeld');
     verwacht(/Films \(verborgen\)/.test(await r.page.textContent('#hoofdmenu')), 'Menu toont Films (verborgen) niet');
+    verwacht(/4 films gevonden/.test(await r.page.textContent('#aantal')), 'Teller zegt geen films: ' + await r.page.textContent('#aantal'));
     verwacht(!(await axe(r.page)).length, 'Toegankelijkheid: ' + (await axe(r.page)).join(' | '));
+    await r.ctx.close();
+    verwacht(!r.fouten.length, r.fouten.join(' | '));
+  });
+  await test('films: voorbeeld zonder films zegt hoe je ze toevoegt', async () => {
+    const r = await nieuweContext(browser, { rol: 'bestuur' });
+    await r.ctx.addInitScript(() => { localStorage.setItem('madrigal_code_bestuur', 'verzonnen-code'); localStorage.setItem('madrigal_wie', 'Kim'); });
+    await r.ctx.route('https://web-app.test/**', (q) => {
+      if (q.request().method() === 'GET') { q.fallback(); return; }
+      q.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, boeken: [], teksten: {}, filmsTonen: false }) });
+    });
+    await r.page.goto(basis + '/films.html');
+    await r.page.waitForSelector('text=Er staan nog geen films in de Catalogus');
     await r.ctx.close();
     verwacht(!r.fouten.length, r.fouten.join(' | '));
   });
