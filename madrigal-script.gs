@@ -90,7 +90,7 @@ var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
   'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
   'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie',
-  'land', 'duur', 'film_tip', 'te_koop'
+  'land', 'duur', 'film_tip', 'te_koop', 'originele_titel'
 ];
 
 /** Velden met ja/nee. Bij startpagina betekent leeg "automatisch". */
@@ -228,6 +228,7 @@ var FILM_GENRES_NL = {
 /** De kolommen die we herkennen, met de namen bij IMDb en Letterboxd. */
 var FILM_KOLOMMEN = {
   titel: ['title', 'name', 'titel'],
+  origineel: ['original title', 'originele titel'],
   jaar: ['year', 'jaar', 'jaartal'],
   regie: ['directors', 'director', 'regie'],
   genres: ['genres', 'genre'],
@@ -240,6 +241,7 @@ var FILM_KOLOMMEN = {
 var FILM_SPARQL_VELDEN =
   '  OPTIONAL { ?film wdt:P577 ?datum . }\n' +
   '  OPTIONAL { ?film wdt:P2047 ?duur . }\n' +
+  '  OPTIONAL { ?film wdt:P1476 ?origineel . }\n' +
   '  OPTIONAL { ?film wdt:P57 ?r . ?r rdfs:label ?regieL . FILTER(LANG(?regieL) = "nl" || LANG(?regieL) = "en") }\n' +
   '  OPTIONAL { ?film wdt:P495 ?l . ?l rdfs:label ?landL . FILTER(LANG(?landL) = "nl") }\n' +
   '  OPTIONAL { ?film wdt:P136 ?g . ?g rdfs:label ?genreL . FILTER(LANG(?genreL) = "nl") }\n' +
@@ -249,7 +251,7 @@ var FILM_SPARQL_VELDEN =
 
 var FILM_SPARQL_KOP = 'SELECT ?film ?lb (MIN(YEAR(?datum)) AS ?jaar) (SAMPLE(?duur) AS ?minuten) ' +
   '(GROUP_CONCAT(DISTINCT ?regieL; separator="|") AS ?regie) (GROUP_CONCAT(DISTINCT ?landL; separator="|") AS ?land) ' +
-  '(GROUP_CONCAT(DISTINCT ?genreL; separator="|") AS ?genre) (SAMPLE(?taalL) AS ?taal) (SAMPLE(?nl) AS ?nlTitel) (SAMPLE(?en) AS ?enTitel) WHERE {\n';
+  '(GROUP_CONCAT(DISTINCT ?genreL; separator="|") AS ?genre) (SAMPLE(?taalL) AS ?taal) (SAMPLE(?origineel) AS ?ot) (SAMPLE(?nl) AS ?nlTitel) (SAMPLE(?en) AS ?enTitel) WHERE {\n';
 
 /** Welke kolom van de Goodreads-export welk veld van de Catalogus aanvult. */
 var GOODREADS_VELDEN = {
@@ -441,6 +443,8 @@ var KOLOMMEN = {
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
     // Films (zie Films.js): land, speelduur, kijktip. te_koop werkt voor elk boek of elke film.
     'land', 'duur', 'film_tip', 'te_koop',
+    // De titel in de oorspronkelijke taal, als die verschilt (vooral films en vertaalde boeken).
+    'originele_titel',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
@@ -712,6 +716,12 @@ function alleReservaties(staat) {
     actieveReservaties(staat, boekId).forEach(function (r, i) { lijst.push(reservatieInfo(staat, r, i + 1)); });
   });
   return lijst;
+}
+
+/** De originele titel, of '' als die dezelfde is als de titel (zonder hoofdletters, accenten en leestekens). */
+function andereTitel(titel, origineel) {
+  var o = schoon(origineel);
+  return o && normaliseerTekst(o) !== normaliseerTekst(titel) ? o : '';
 }
 
 /** Een reservatie annuleren. Lag het boek al klaar, dan gaat het naar de volgende. */
@@ -1598,6 +1608,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     var extra = {
       i: schoon(rij.isbn), u: schoon(rij.uitgeverij), j: parseerGetal(rij.jaartal) || '',
       l: schoon(rij.taal), p: parseerGetal(rij.paginas) || '', v: schoon(rij.uitvoering),
+      ot: andereTitel(rij.titel, rij.originele_titel),
       la: film ? filmLijst(rij.land).join(', ') : '', du: film ? parseerGetal(rij.duur) || '' : '',
       n: jaNee(rij.nieuwstaat) === 'ja' ? 'nieuw' : (jaNee(rij.nieuwstaat) === 'nee' ? 'tweedehands' : ''),
       d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
@@ -2208,7 +2219,7 @@ function filmsUitTabel(waarden) {
     if (!titel || /episode/i.test(String(w(rij, 'soort')))) return null;
     var imdb = (String(w(rij, 'imdb')).match(/tt\d{6,10}/) || [])[0] || '';
     return {
-      titel: titel, jaar: parseerGetal(w(rij, 'jaar')) || '', imdb: imdb, slug: '',
+      titel: titel, jaar: parseerGetal(w(rij, 'jaar')) || '', imdb: imdb, slug: '', origineel: andereTitel(titel, w(rij, 'origineel')),
       regie: filmLijst(w(rij, 'regie')).slice(0, 3).join(', '),
       genre: filmLijst(w(rij, 'genres')).map(filmGenreNl).slice(0, FILM_MAX_GENRES).join(', '),
       duur: parseerGetal(w(rij, 'duur')) || ''
@@ -2226,7 +2237,7 @@ function filmUitWikidata(data) {
       qid: qid, lb: w(b, 'lb'), jaar: Number(w(b, 'jaar')) || '', duur: Math.round(Number(w(b, 'minuten'))) || '',
       regie: lijst(b, 'regie').filter(function (n, i, alle) { return alle.indexOf(n) === i; }),
       land: lijst(b, 'land'), genre: lijst(b, 'genre').slice(0, FILM_MAX_GENRES),
-      taal: w(b, 'taal'), nl: w(b, 'nlTitel'), en: w(b, 'enTitel')
+      taal: w(b, 'taal'), nl: w(b, 'nlTitel'), en: w(b, 'enTitel'), origineel: w(b, 'ot')
     };
   }).filter(function (f) { return f.qid; });
 }
@@ -2244,6 +2255,7 @@ function filmVelden(rij, f) {
   if (f.land.length && leeg('land')) v.land = f.land.slice(0, 3).join(', ');
   if (f.genre.length && leeg('genre')) v.genre = f.genre.map(function (g) { return g.charAt(0).toUpperCase() + g.slice(1); }).join(', ');
   if (f.duur && leeg('duur')) v.duur = f.duur;
+  if (f.origineel && leeg('originele_titel') && andereTitel(rij.titel, f.origineel)) v.originele_titel = andereTitel(rij.titel, f.origineel);
   if (f.taal && leeg('taal')) v.taal = normaliseerTaal(f.taal) || f.taal;
   return v;
 }
@@ -6206,7 +6218,7 @@ function voegFilmsToe(rijen, films, vandaag, nieuwId) {
     if ((f.slug && sleutels['lb:' + f.slug]) || (f.imdb && sleutels['im:' + f.imdb]) || sleutels[sleutel(f.titel, f.jaar)]) return;
     var rij = {
       boek_id: nieuwId('film'), soort: 'film', titel: schoon(f.titel), jaartal: f.jaar || '',
-      letterboxd: f.slug || '', imdb: f.imdb || '', auteur: f.regie || '', genre: f.genre || '', duur: f.duur || '',
+      letterboxd: f.slug || '', imdb: f.imdb || '', auteur: f.regie || '', genre: f.genre || '', duur: f.duur || '', originele_titel: f.origineel || '',
       aantal: 1, uitleenbaar: 'ja', publiek: 'ja', uitvoering: 'dvd', toegevoegd_op: vandaag
     };
     rij.bron_sleutel = bronSleutel(rij);

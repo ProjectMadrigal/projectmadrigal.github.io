@@ -25,7 +25,7 @@
     aantal: 'Aantal exemplaren', uitleenbaar: 'Uitleenbaar', publiek: 'Op de website', status: 'Status',
     startpagina: 'Op de startpagina', leeslijsten: 'Leeslijsten', beschrijving: 'Beschrijving (Nederlands)', beschrijving_en: 'Beschrijving (Engels)',
     cover_url: 'Link naar de cover', herkomst: 'Herkomst', notitie: 'Notitie (enkel voor het bestuur)',
-    land: 'Land (films)', duur: 'Duur in minuten (films)', film_tip: 'Kijktip (film niet in de bib)', te_koop: 'Te koop',
+    land: 'Land (films)', originele_titel: 'Originele titel', duur: 'Duur in minuten (films)', film_tip: 'Kijktip (film niet in de bib)', te_koop: 'Te koop',
     datum: 'Datum', uur: 'Uur', titel_en: 'Titel (Engels)', tekst: 'Tekst', tekst_en: 'Tekst (Engels)',
     locatie: 'Locatie', afbeelding: 'Link naar een afbeelding', link: 'Link voor meer info',
     online_vanaf: 'Online vanaf', zichtbaar_vanaf: 'Zichtbaar vanaf', zichtbaar_tot: 'Zichtbaar tot en met',
@@ -36,6 +36,7 @@
   var HULP = {
     auteur: 'Achternaam eerst: Verbeek, Mira. Bij een film: de regie.',
     land: 'Bij een film: het land of de landen, gescheiden door komma\'s',
+    originele_titel: 'Enkel als die verschilt van de titel, bv. de titel in de taal van de film of van het oorspronkelijke boek.',
     film_tip: 'Ja: deze film is niet in de bib, maar we raden hem aan. Niet uitleenbaar.',
     aanrader: 'Voornamen, gescheiden door komma\'s. Wordt het label "Aanrader van ..."',
     leeslijsten: 'Namen van leeslijsten, gescheiden door komma\'s. Uitleg en Engelse naam zet je in het tabblad Leeslijsten.',
@@ -146,7 +147,7 @@
     ['Het boek', ['titel', 'auteur', 'isbn', 'soort', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat']],
     ['Op de website', ['status', 'publiek', 'startpagina', 'aanrader', 'leeslijsten', 'genre', 'extra_onderwerpen', 'klassieker', 'cover_url', 'beschrijving', 'beschrijving_en']],
     ['Uitlenen', ['aantal', 'uitleenbaar', 'te_koop']],
-    ['Film', ['land', 'duur', 'film_tip']],
+    ['Film', ['originele_titel', 'land', 'duur', 'film_tip']],
     ['Intern (niet op de website)', ['notitie']]
   ];
 

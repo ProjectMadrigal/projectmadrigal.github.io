@@ -75,6 +75,7 @@
         boek: b,
         velden: [
           { gewicht: 3, woorden: woorden(b.t) },
+          { gewicht: 2, woorden: woorden(b.ot) },
           { gewicht: 2, woorden: woorden(b.a) },
           { gewicht: 1, woorden: woorden(b.u) }
         ],

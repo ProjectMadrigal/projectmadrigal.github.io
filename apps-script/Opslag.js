@@ -18,6 +18,8 @@ var KOLOMMEN = {
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
     // Films (zie Films.js): land, speelduur, kijktip. te_koop werkt voor elk boek of elke film.
     'land', 'duur', 'film_tip', 'te_koop',
+    // De titel in de oorspronkelijke taal, als die verschilt (vooral films en vertaalde boeken).
+    'originele_titel',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',

@@ -9,6 +9,7 @@
  *   u   uitgeverij       j  jaartal         l  taal          p  pagina's
  *   v   uitvoering       n  nieuw/tweedehands                r  aanraders (lijst)
  *   g   filtergroepen    s  soort (boek/zine/film)           d  beschrijving
+ *   ot  originele titel (enkel als die verschilt van de titel)
  *   la  land (films)     du speelduur in minuten (films)    tip 1 als het een kijktip is (film niet in de bib)
  *   de  beschrijving in het Engels (enkel als die verschilt)
  *   ta  datum waarop het boek in de catalogus kwam (om te sorteren op laatst toegevoegd)
@@ -58,6 +59,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     var extra = {
       i: schoon(rij.isbn), u: schoon(rij.uitgeverij), j: parseerGetal(rij.jaartal) || '',
       l: schoon(rij.taal), p: parseerGetal(rij.paginas) || '', v: schoon(rij.uitvoering),
+      ot: andereTitel(rij.titel, rij.originele_titel),
       la: film ? filmLijst(rij.land).join(', ') : '', du: film ? parseerGetal(rij.duur) || '' : '',
       n: jaNee(rij.nieuwstaat) === 'ja' ? 'nieuw' : (jaNee(rij.nieuwstaat) === 'nee' ? 'tweedehands' : ''),
       d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
@@ -155,6 +157,12 @@ function gebruikteLeeslijsten(info, boeken) {
     ['ne', 'u', 'ue'].forEach(function (k) { if (l[k]) uit[k] = l[k]; });
     return uit;
   });
+}
+
+/** De originele titel, of '' als die dezelfde is als de titel (zonder hoofdletters, accenten en leestekens). */
+function andereTitel(titel, origineel) {
+  var o = schoon(origineel);
+  return o && normaliseerTekst(o) !== normaliseerTekst(titel) ? o : '';
 }
 
 /** Enkel https-links naar afbeeldingen. Zo kan er geen vreemde code via een cover binnensluipen. */
