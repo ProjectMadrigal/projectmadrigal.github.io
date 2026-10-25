@@ -121,8 +121,21 @@ var ACHTERGROND_DUUR_SECONDEN = 6 * 60;
 function startAchtergrond(naam) {
   var cache = CacheService.getScriptCache();
   if (cache.get('taak_' + naam)) return false;
-  cache.put('taak_' + naam, 'bezig', ACHTERGROND_DUUR_SECONDEN);
+  cache.put('taak_' + naam, String(Date.now()), ACHTERGROND_DUUR_SECONDEN);
   return true;
+}
+
+/** De tekst als iemand een taak start die al loopt. Zegt sinds wanneer en dat je niets hoeft te doen. */
+function bezigTekst(waarde, tijdzone) {
+  var sinds = Number(waarde);
+  var uur = sinds ? ' (gestart om ' + Utilities.formatDate(new Date(sinds), tijdzone || 'Europe/Brussels', 'HH:mm') + ')' : '';
+  return 'Deze bewerking loopt al op de achtergrond' + uur + '. Je hoeft niets te doen: ze gaat vanzelf verder en schrijft na elke ronde een regel in het Logboek.';
+}
+
+function meldAlBezig(naam) {
+  var waarde = null;
+  try { waarde = CacheService.getScriptCache().get('taak_' + naam); } catch (e) { /* geen cache */ }
+  meld(bezigTekst(waarde, Session.getScriptTimeZone()));
 }
 
 function stopAchtergrond(naam) {

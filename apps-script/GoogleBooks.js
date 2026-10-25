@@ -115,7 +115,7 @@ function zoekCoversOpnieuw() {
 function vulAanUitGoogleBooks() {
   var start = Date.now();
   if (!startAchtergrond('vulAanUitGoogleBooks')) {
-    meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
+    meldAlBezig('vulAanUitGoogleBooks');
     return;
   }
   var verwerkt = 0, aangevuld = 0, rest = 0, limiet = false, fout = '', gekend = 0, storing = false, verdacht = false;

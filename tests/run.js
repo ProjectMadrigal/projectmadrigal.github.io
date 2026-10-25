@@ -1617,5 +1617,12 @@ test('aanvraag afhandelen en privacy-opruiming', () => {
   gelijk([rijen[0]._verwijderen, rijen[1]._verwijderen], [undefined, true]);
 });
 
+test('bezig-melding zegt dat je niets hoeft te doen', () => {
+  const tekst = M.bezigTekst(null);
+  assert.ok(tekst.indexOf('loopt al op de achtergrond') !== -1);
+  assert.ok(tekst.indexOf('Logboek') !== -1);
+  assert.ok(tekst.indexOf('gestart om') === -1);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

@@ -72,7 +72,7 @@ function zoekWikipedia(boek, taal) {
 /** Menu: zoekt beschrijvingen bij Wikipedia, in porties. */
 function zoekBeschrijvingenWikipedia() {
   var start = Date.now();
-  if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meldAlBezig('zoekBeschrijvingenWikipedia'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '', nietBewaard = 0;
   try {
     var tabel = leesTabel('Catalogus');

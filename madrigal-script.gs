@@ -1092,6 +1092,13 @@ function bewaarTabel(tabel) {
   if (weg.length) tabel.rijen = tabel.rijen.filter(function (r) { return !r._verwijderen; });
 }
 
+/** De tekst als iemand een taak start die al loopt. Zegt sinds wanneer en dat je niets hoeft te doen. */
+function bezigTekst(waarde, tijdzone) {
+  var sinds = Number(waarde);
+  var uur = sinds ? ' (gestart om ' + Utilities.formatDate(new Date(sinds), tijdzone || 'Europe/Brussels', 'HH:mm') + ')' : '';
+  return 'Deze bewerking loopt al op de achtergrond' + uur + '. Je hoeft niets te doen: ze gaat vanzelf verder en schrijft na elke ronde een regel in het Logboek.';
+}
+
 /** Bestuur: de bezoekerscijfers voor 7, 30 of 365 dagen. invoer: { dagen } */
 function bezoekersCijfers(invoer) {
   var dagen = GC_PERIODES[String(invoer.dagen)] || 30;
@@ -3407,6 +3414,12 @@ function meld(tekst) {
   }
 }
 
+function meldAlBezig(naam) {
+  var waarde = null;
+  try { waarde = CacheService.getScriptCache().get('taak_' + naam); } catch (e) { /* geen cache */ }
+  meld(bezigTekst(waarde, Session.getScriptTimeZone()));
+}
+
 /** Vult een nummer aan met nullen: 7 wordt "0007". */
 function metNullen(n, breedte) {
   var s = String(n);
@@ -4365,7 +4378,7 @@ function spreadsheet() {
 function startAchtergrond(naam) {
   var cache = CacheService.getScriptCache();
   if (cache.get('taak_' + naam)) return false;
-  cache.put('taak_' + naam, 'bezig', ACHTERGROND_DUUR_SECONDEN);
+  cache.put('taak_' + naam, String(Date.now()), ACHTERGROND_DUUR_SECONDEN);
   return true;
 }
 
@@ -5429,7 +5442,7 @@ function vulAanUitGoodreads(stil) {
 function vulAanUitGoogleBooks() {
   var start = Date.now();
   if (!startAchtergrond('vulAanUitGoogleBooks')) {
-    meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
+    meldAlBezig('vulAanUitGoogleBooks');
     return;
   }
   var verwerkt = 0, aangevuld = 0, rest = 0, limiet = false, fout = '', gekend = 0, storing = false, verdacht = false;
@@ -5505,7 +5518,7 @@ function vulAanUitGoogleBooks() {
 function vulAanUitOpenLibrary() {
   var start = Date.now();
   if (!startAchtergrond('vulAanUitOpenLibrary')) {
-    meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
+    meldAlBezig('vulAanUitOpenLibrary');
     return;
   }
   var verwerkt = 0, aangevuld = 0, rest = 0;
@@ -5563,7 +5576,7 @@ function vulAanUitOpenLibrary() {
 function vulBeschrijvingenAan() {
   var start = Date.now();
   if (!startAchtergrond('vulBeschrijvingenAan')) {
-    meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
+    meldAlBezig('vulBeschrijvingenAan');
     return;
   }
   var verwerkt = 0, gevonden = 0, rest = 0, limiet = false, gbLimiet = false, gbFout = '';
@@ -5867,7 +5880,7 @@ function zetTekstopmaak(blad, kolommen) {
 /** Menu: zoekt beschrijvingen bij Wikipedia, in porties. */
 function zoekBeschrijvingenWikipedia() {
   var start = Date.now();
-  if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekBeschrijvingenWikipedia')) { meldAlBezig('zoekBeschrijvingenWikipedia'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '', nietBewaard = 0;
   try {
     var tabel = leesTabel('Catalogus');
@@ -5938,7 +5951,7 @@ function zoekBoekOpTitel(catalogus, titel, auteur) {
 function zoekCoversAndereUitgaven() {
   var start = Date.now();
   if (!startAchtergrond('zoekCoversAndereUitgaven')) {
-    meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
+    meldAlBezig('zoekCoversAndereUitgaven');
     return;
   }
   var verwerkt = 0, gevonden = 0, rest = 0, limiet = false, code = 0;
@@ -6002,7 +6015,7 @@ function zoekCoversBol() {
   var inst = leesInstellingen();
   var t = bolToken(inst);
   if (t.fout) { logboek('menu', 'zoekCoversBol', t.fout); meld(t.fout); return; }
-  if (!startAchtergrond('zoekCoversBol')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekCoversBol')) { meldAlBezig('zoekCoversBol'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
@@ -6039,7 +6052,7 @@ function zoekCoversBol() {
 /** Menu: zoekt covers bij Internet Archive, in porties. */
 function zoekCoversInternetArchive() {
   var start = Date.now();
-  if (!startAchtergrond('zoekCoversInternetArchive')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekCoversInternetArchive')) { meldAlBezig('zoekCoversInternetArchive'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');

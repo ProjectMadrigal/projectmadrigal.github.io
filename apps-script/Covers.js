@@ -62,7 +62,7 @@ function olZoek(parameters) {
 function zoekCoversAndereUitgaven() {
   var start = Date.now();
   if (!startAchtergrond('zoekCoversAndereUitgaven')) {
-    meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.');
+    meldAlBezig('zoekCoversAndereUitgaven');
     return;
   }
   var verwerkt = 0, gevonden = 0, rest = 0, limiet = false, code = 0;
@@ -196,7 +196,7 @@ function iaCoverIsEcht(url) {
 /** Menu: zoekt covers bij Internet Archive, in porties. */
 function zoekCoversInternetArchive() {
   var start = Date.now();
-  if (!startAchtergrond('zoekCoversInternetArchive')) { meld('Er loopt al een andere bewerking. Probeer het zo meteen opnieuw.'); return; }
+  if (!startAchtergrond('zoekCoversInternetArchive')) { meldAlBezig('zoekCoversInternetArchive'); return; }
   var verwerkt = 0, gevonden = 0, rest = 0, wachten = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
