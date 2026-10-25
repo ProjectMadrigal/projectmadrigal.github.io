@@ -67,7 +67,7 @@ var BACKUP_VOORVOEGSEL = 'Madrigal back-up ';
 var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
   'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
-  'startpagina', 'beschrijving', 'beschrijving_en', 'cover_url'
+  'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url'
 ];
 
 /** Velden met ja/nee. Bij startpagina betekent leeg "automatisch". */
@@ -329,7 +329,7 @@ var KOLOMMEN = {
   'Catalogus': [
     'boek_id', 'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas',
     'uitvoering', 'nieuwstaat', 'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal',
-    'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'toegevoegd_op',
+    'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht'
@@ -353,7 +353,9 @@ var KOLOMMEN = {
   // Inhoud van de website. Kolommen op _en zijn de Engelse versie (mag leeg: dan toont de site het Nederlands).
   'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'bron_id'],
   'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek', 'bron_id'],
-  'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek', 'bron_id']
+  'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek', 'bron_id'],
+  // Leeslijsten (thema's). Welke boeken erin staan, zet je in de kolom leeslijsten van de Catalogus.
+  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek']
 };
 
 /** Kolommen met een datum. Die schrijven we als echte datum in de spreadsheet. */
@@ -384,7 +386,7 @@ var INSTELLING_GROEPEN = [
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen']],      // uitlenen
   ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Na te kijken']],                     // collectie
-  ['#2a6f73', ['Nieuws', 'Agenda', 'Veelgestelde vragen']],                      // website
+  ['#2a6f73', ['Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#1b1b1c', ['Instellingen', 'Logboek']],                                      // beheer
   ['#bdbdbd', ['Stock', 'Zines', 'Goodreads-export']]                            // bronnen, zelden nodig
 ];
@@ -970,7 +972,7 @@ function bewaarTabel(tabel) {
 /** Bij elke wijziging met de hand in Catalogus, Onderwerpen of Instellingen: cache leegmaken. */
 function bijWijziging(e) {
   var naam = e && e.range ? e.range.getSheet().getName() : '';
-  if (['Catalogus', 'Onderwerpen', 'Instellingen', 'Uitleningen', 'Reservaties', 'Nieuws', 'Agenda', 'Veelgestelde vragen'].indexOf(naam) > -1) leegCache();
+  if (['Catalogus', 'Onderwerpen', 'Instellingen', 'Uitleningen', 'Reservaties', 'Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten'].indexOf(naam) > -1) leegCache();
 }
 
 /** Een boek aanpassen. invoer: { boek_id, velden: { ... } } */
@@ -1146,8 +1148,9 @@ function borgTerugbetaald(staat, invoer) {
 }
 
 /** Bouwt het object dat het publieke eindpunt teruggeeft. */
-function bouwPubliekeCatalogus(staat, onderwerpRijen) {
+function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen) {
   var vertaal = vertaalTabel(onderwerpRijen);
+  var lijsten = leeslijstInfo(lijstRijen);
   // Namen in de instelling aanraders_verbergen verschijnen nergens op de website.
   var verborgen = splitsLijst((staat.inst || {}).aanraders_verbergen).map(normaliseerTekst);
   var boeken = [];
@@ -1182,6 +1185,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen) {
       return verborgen.indexOf(normaliseerTekst(naam)) === -1;
     });
     if (aanraders.length) boek.r = aanraders;
+    var ll = leeslijstenVan(rij, lijsten);
+    if (ll.length) boek.ll = ll;
     boeken.push(boek);
   });
   // Filtergroepen: eerst de standaardvolgorde, dan eventuele eigen groepen.
@@ -1191,6 +1196,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen) {
     bijgewerkt: staat.vandaag,
     teksten: publiekeTeksten(staat.inst),
     filtergroepen: groepen,
+    leeslijsten: gebruikteLeeslijsten(lijsten, boeken),
     boeken: boeken
   };
 }
@@ -1611,6 +1617,23 @@ function filtergroepenVan(boek, vertaal) {
     if (standaard && uniek.indexOf(standaard) === -1) uniek.push(standaard);
   });
   return uniek;
+}
+
+/** De lijsten met minstens één boek, in de volgorde van het tabblad. Lege velden laten we weg. */
+function gebruikteLeeslijsten(info, boeken) {
+  var gezien = {};
+  boeken.forEach(function (b) { (b.ll || []).forEach(function (n) { gezien[n] = true; }); });
+  var lijst = Object.keys(gezien).map(function (n) {
+    return info.perSleutel[normaliseerTekst(n)] || { n: n, volgorde: 0, rij: 9999 };
+  });
+  lijst.sort(function (a, b) {
+    return (a.volgorde || 9999) - (b.volgorde || 9999) || a.rij - b.rij || a.n.localeCompare(b.n);
+  });
+  return lijst.map(function (l) {
+    var uit = { n: l.n };
+    ['ne', 'u', 'ue'].forEach(function (k) { if (l[k]) uit[k] = l[k]; });
+    return uit;
+  });
 }
 
 /**
@@ -2606,6 +2629,39 @@ function leesInstellingen() {
   return verwerkInstellingen(ruw);
 }
 
+/** De publieke leeslijsten van een boek, met de naam zoals in het tabblad. */
+function leeslijstenVan(rij, info) {
+  var namen = [];
+  splitsLijst(rij.leeslijsten).forEach(function (naam) {
+    var l = info.perSleutel[normaliseerTekst(naam)];
+    if (l && l.verborgen) return;
+    var echt = l ? l.n : schoon(naam);
+    if (echt && namen.indexOf(echt) === -1) namen.push(echt);
+  });
+  return namen;
+}
+
+/*
+ * Leeslijsten: een thema, zoals "Pride-maand" of "Eerste keer over gender lezen".
+ *   - Tabblad Leeslijsten: naam, Engelse naam, uitleg, volgorde. publiek "nee" verbergt een lijst.
+ *   - Catalogus, kolom leeslijsten: de namen van de lijsten waarin het boek staat, gescheiden door komma's.
+ * Een naam die niet in het tabblad staat, verschijnt toch, zonder uitleg.
+ */
+function leeslijstInfo(rijen) {
+  var info = { perSleutel: {}, volgorde: [] };
+  (rijen || []).forEach(function (r, i) {
+    var naam = schoon(r.naam);
+    if (!naam) return;
+    var sleutel = normaliseerTekst(naam);
+    if (info.perSleutel[sleutel]) return;
+    info.perSleutel[sleutel] = {
+      n: naam, ne: schoon(r.naam_en), u: schoonMetRegels(r.uitleg), ue: schoonMetRegels(r.uitleg_en),
+      verborgen: jaNee(r.publiek) === 'nee', volgorde: parseerGetal(r.volgorde) || 0, rij: i
+    };
+  });
+  return info;
+}
+
 /** Zet de waarden van het oude blad om naar objecten met vaste namen. */
 function leesOudeUitleningen(waarden) {
   var kopIndex = -1;
@@ -3418,7 +3474,8 @@ function publiekeCatalogusJson() {
   }
   var staat = laadStaat('publiek', false);
   verwerkVervallenReservatiesStil(staat);
-  var tekst = JSON.stringify(bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen));
+  var lijsten = spreadsheet().getSheetByName('Leeslijsten') ? leesTabel('Leeslijsten').rijen : [];
+  var tekst = JSON.stringify(bouwPubliekeCatalogus(staat, leesTabel('Onderwerpen').rijen, lijsten));
   var waarden = {};
   var n = Math.ceil(tekst.length / CACHE_STUK);
   for (var j = 0; j < n; j++) waarden[CACHE_SLEUTEL + '_' + j] = tekst.slice(j * CACHE_STUK, (j + 1) * CACHE_STUK);

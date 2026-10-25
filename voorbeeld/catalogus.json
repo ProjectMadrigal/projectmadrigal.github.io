@@ -20,6 +20,18 @@
   "Erotica en BDSM",
   "Zines"
  ],
+ "leeslijsten": [
+  {
+   "n": "Eerste keer over gender lezen",
+   "ne": "Reading about gender for the first time",
+   "u": "Een zachte start: verhalen en uitleg voor wie net begint.",
+   "ue": "A gentle start: stories and explanations for beginners."
+  },
+  {
+   "n": "Feministische klassiekers",
+   "ne": "Feminist classics"
+  }
+ ],
  "boeken": [
   {
    "id": "B0001",
@@ -135,6 +147,9 @@
    },
    "r": [
     "Kai"
+   ],
+   "ll": [
+    "Eerste keer over gender lezen"
    ]
   },
   {
@@ -200,7 +215,10 @@
     "l": "Gereserveerd",
     "t": 1,
     "v": 0
-   }
+   },
+   "ll": [
+    "Eerste keer over gender lezen"
+   ]
   },
   {
    "id": "B0009",
@@ -225,6 +243,9 @@
    },
    "r": [
     "Robin"
+   ],
+   "ll": [
+    "Feministische klassiekers"
    ]
   },
   {
@@ -294,6 +315,9 @@
    },
    "r": [
     "Kai"
+   ],
+   "ll": [
+    "Eerste keer over gender lezen"
    ]
   },
   {
@@ -337,7 +361,10 @@
     "l": "Beschikbaar",
     "t": 1,
     "v": 1
-   }
+   },
+   "ll": [
+    "Eerste keer over gender lezen"
+   ]
   },
   {
    "id": "B0015",
@@ -362,6 +389,9 @@
    },
    "r": [
     "Robin"
+   ],
+   "ll": [
+    "Feministische klassiekers"
    ]
   },
   {
@@ -489,7 +519,10 @@
     "l": "Beschikbaar",
     "t": 1,
     "v": 1
-   }
+   },
+   "ll": [
+    "Feministische klassiekers"
+   ]
   },
   {
    "id": "B0022",

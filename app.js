@@ -8,6 +8,7 @@
  *   #/?q=baldwin&taal=Engels   de lijst met een zoekopdracht en filters
  *   #/boek/B0012           de detailpagina van een boek (vaste link om te delen)
  *   #/privacy              de privacyverklaring
+ *   #/leeslijsten          alle leeslijsten (thema's), elk met een link naar #/?lijst=...
  */
 (function () {
   'use strict';
@@ -40,6 +41,7 @@
     var m = hash.match(/^boek\/([A-Za-z0-9\-]+)/);
     if (m) return { scherm: 'boek', id: decodeURIComponent(m[1]) };
     if (hash.indexOf('privacy') === 0) return { scherm: 'privacy' };
+    if (hash.indexOf('leeslijsten') === 0) return { scherm: 'leeslijsten' };
     var params = new URLSearchParams(hash.replace(/^\?/, ''));
     var keuzes = {
       q: params.get('q') || '', beschikbaar: params.get('beschikbaar') === 'ja', sorteer: params.get('sorteer') || 'relevantie',
@@ -86,10 +88,74 @@
     return s.l || '';
   }
 
+  /* ---------- Leeslijsten ---------- */
+
+  function leeslijsten() {
+    return (staat.data && staat.data.leeslijsten) || [];
+  }
+
+  function leeslijst(naam) {
+    return leeslijsten().filter(function (l) { return l.n === naam; })[0] || { n: naam };
+  }
+
+  /** Naam van een leeslijst in de gekozen taal. */
+  function lijstNaam(naam) {
+    var l = leeslijst(naam);
+    return (T.taal() === 'en' && l.ne) || l.n;
+  }
+
+  function lijstUitleg(l) {
+    return (T.taal() === 'en' && l.ue) || l.u || '';
+  }
+
+  function lijstLink(naam) {
+    return '#/?' + new URLSearchParams({ lijst: naam }).toString();
+  }
+
+  /** Boven de lijst: titel en uitleg van de gekozen leeslijst. */
+  function toonLijstKop() {
+    var vak = $('leeslijst-kop');
+    var naam = staat.keuzes.lijst;
+    vak.hidden = !naam;
+    if (!naam) { D.vervang(vak); return; }
+    var l = leeslijst(naam);
+    var melding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
+    D.vervang(vak,
+      el('p', { class: 'hulptekst' }, el('a', { href: '#/leeslijsten' }, t('alleLeeslijsten'))),
+      el('h2', {}, t('leeslijst') + ': ' + lijstNaam(naam)),
+      lijstUitleg(l) ? el('p', {}, lijstUitleg(l)) : null,
+      el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+        deelLink(lijstNaam(naam) + ' · Project Madrigal', location.href.split('#')[0] + lijstLink(naam), melding);
+      } }, t('deelLijst'))),
+      melding);
+  }
+
+  /** Het overzicht van alle leeslijsten. */
+  function toonLeeslijsten() {
+    var scherm = $('leeslijsten-scherm');
+    var lijsten = leeslijsten();
+    var boeken = (staat.data && staat.data.boeken) || [];
+    var inhoud = lijsten.map(function (l) {
+      var erin = boeken.filter(function (b) { return (b.ll || []).indexOf(l.n) > -1; });
+      var voorbeeld = erin.filter(function (b) { return b.c; }).concat(erin.filter(function (b) { return !b.c; })).slice(0, 4);
+      return el('li', { class: 'blok leeslijst' },
+        el('h2', {}, el('a', { href: lijstLink(l.n) }, lijstNaam(l.n))),
+        lijstUitleg(l) ? el('p', {}, lijstUitleg(l)) : null,
+        voorbeeld.length ? el('div', { class: 'leeslijst-covers', 'aria-hidden': 'true' }, voorbeeld.map(function (b) { return cover(b, false); })) : null,
+        el('p', { class: 'hulptekst' }, erin.length === 1 ? t('lijstAantal1') : t('lijstAantalN', { n: erin.length })));
+    });
+    D.vervang(scherm,
+      el('a', { class: 'terug', href: '#/' }, t('terugCatalogus')),
+      el('h1', { tabindex: '-1' }, t('leeslijsten')),
+      el('p', {}, t('leeslijstenIntro')),
+      inhoud.length ? el('ul', { class: 'leeslijsten' }, inhoud) : el('p', { class: 'blok' }, staat.data ? t('geenLeeslijsten') : t('laden')));
+  }
+
   function zetTeksten() {
     $('welkom').textContent = tekst('welkom');
     $('uitleg-lenen').textContent = tekst('uitleg');
     $('privacy-tekst').textContent = tekst('privacy');
+    $('naar-leeslijsten').hidden = !leeslijsten().length;
     var stat = $('privacy-statistiek');
     if (stat) stat.hidden = !(window.MADRIGAL_CONFIG || {}).statistiek;
   }
@@ -110,6 +176,7 @@
     var adres = leesAdres();
     if (adres.scherm === 'lijst') toonLijst();
     else if (adres.scherm === 'boek') toonDetail(adres.id);
+    else if (adres.scherm === 'leeslijsten') toonLeeslijsten();
   }
 
   function fout() {
@@ -120,14 +187,16 @@
   /* ---------- Filters ---------- */
 
   function bouwFilters() {
-    var opties = F.opties(staat.data.boeken, staat.data.filtergroepen);
+    var opties = F.opties(staat.data.boeken, staat.data.filtergroepen, leeslijsten().map(function (l) { return l.n; }));
     var raster = $('filterraster');
     D.vervang(raster, F.FILTERS.map(function (f) {
+      if (f.sleutel === 'lijst' && !opties.lijst.length) return null;
       var id = 'filter-' + f.sleutel;
       var select = el('select', { id: id, onchange: function () { staat.keuzes[f.sleutel] = this.value; nieuweLijst(); } },
         el('option', { value: '' }, t('alle')),
         opties[f.sleutel].map(function (o) {
-          return el('option', { value: o.waarde, selected: staat.keuzes[f.sleutel] === o.waarde }, T.waarde(o.waarde) + ' (' + o.aantal + ')');
+          var naam = f.sleutel === 'lijst' ? lijstNaam(o.waarde) : T.waarde(o.waarde);
+          return el('option', { value: o.waarde, selected: staat.keuzes[f.sleutel] === o.waarde }, naam + ' (' + o.aantal + ')');
         }));
       return el('div', { class: 'veld' }, el('label', { for: id }, t(f.labelSleutel) || f.label), select);
     }));
@@ -178,6 +247,7 @@
     $('aantal').textContent = n === 0 ? t('gevonden0')
       : (n === 1 ? t('gevonden1') : t('gevondenN', { n: n })) + (paginas > 1 ? t('paginaVan', { nu: nu, totaal: paginas }) : '');
     tekenPaginas(nu, paginas);
+    toonLijstKop();
     var actief = aantalActieveFilters();
     $('filter-teller').textContent = actief ? t('filtersActief', { n: actief }) : '';
   }
@@ -343,6 +413,9 @@
         (b.r || []).length ? el('ul', { class: 'labels' }, b.r.map(function (n) {
           return el('li', {}, el('a', { class: 'label label-aanrader', href: '#/?aanrader=' + encodeURIComponent('Aanrader van ' + n) }, t('aanraderVan', { naam: n })));
         })) : null,
+        (b.ll || []).length ? el('ul', { class: 'labels', 'aria-label': t('leeslijsten') }, b.ll.map(function (n) {
+          return el('li', {}, el('a', { class: 'label label-leeslijst', href: lijstLink(n) }, t('leeslijst') + ': ' + lijstNaam(n)));
+        })) : null,
         b.d ? el('p', { class: 'beschrijving' }, (T.taal() === 'en' && b.de) || b.d) : null,
         b.d && b.db ? el('p', { class: 'hulptekst' }, t('bronWikipedia') + ' ', el('a', { href: b.db, target: '_blank', rel: 'noopener' }, 'Wikipedia'),
           ' (', el('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/deed.nl', target: '_blank', rel: 'noopener' }, 'CC BY-SA 4.0'), ')' + (T.taal() === 'en' ? '' : t('bronVertaald'))) : null,
@@ -350,17 +423,36 @@
         onderwerpen.length ? el('div', {}, el('h2', { class: 'klein' }, t('onderwerpen')), el('ul', { class: 'labels' }, onderwerpen)) : null,
         el('div', { class: 'knoppen' }, reservatie ? reservatie.knop : null, deelKnop),
         reservatie ? reservatie.vak : null,
-        el('p', { class: 'hulptekst', id: 'deel-melding', 'aria-live': 'polite' }))));
+        el('p', { class: 'hulptekst', id: 'deel-melding', 'aria-live': 'polite' }))),
+      leesOok(b));
     document.title = b.t + ' · Project Madrigal';
+  }
+
+  /** "Lees ook": boeken die op dit boek lijken (zie filters.js). */
+  function leesOok(b) {
+    var lijst = F.gelijkaardig(staat.data.boeken, b, 6);
+    if (!lijst.length) return null;
+    return el('section', { class: 'blok lees-ook', 'aria-labelledby': 'lees-ook-titel' },
+      el('h2', { id: 'lees-ook-titel' }, t('leesOok')),
+      el('ul', { class: 'aanraders' }, lijst.map(function (x) {
+        return el('li', { class: 'aanrader' }, el('a', { href: '#/boek/' + encodeURIComponent(x.id) },
+          cover(x, false),
+          el('span', { class: 'aanrader-titel' }, x.t),
+          x.a ? el('span', { class: 'aanrader-auteur' }, x.a) : null));
+      })));
   }
 
   function deel(b) {
     var url = location.href.split('#')[0] + '#/boek/' + encodeURIComponent(b.id);
+    deelLink(b.t + (b.a ? ' · ' + b.a : '') + ' · Project Madrigal', url, $('deel-melding'), b.t);
+  }
+
+  /** Delen via de deelknop van de gsm, anders de link kopiëren. */
+  function deelLink(tekst, url, melding, titel) {
     if (navigator.share) {
-      navigator.share({ title: b.t, text: b.t + (b.a ? ' · ' + b.a : '') + ' · Project Madrigal', url: url }).catch(function () {});
+      navigator.share({ title: titel || tekst, text: tekst, url: url }).catch(function () {});
       return;
     }
-    var melding = $('deel-melding');
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(function () { melding.textContent = t('linkGekopieerd'); },
         function () { melding.textContent = t('kopieerLink', { url: url }); });
@@ -373,10 +465,11 @@
 
   function toonScherm() {
     var adres = leesAdres();
-    var lijst = $('lijst-scherm'), detail = $('detail-scherm'), privacy = $('privacy-scherm');
+    var lijst = $('lijst-scherm'), detail = $('detail-scherm'), privacy = $('privacy-scherm'), lijsten = $('leeslijsten-scherm');
     lijst.hidden = adres.scherm !== 'lijst';
     detail.hidden = adres.scherm !== 'boek';
     privacy.hidden = adres.scherm !== 'privacy';
+    lijsten.hidden = adres.scherm !== 'leeslijsten';
 
     if (adres.scherm === 'lijst') {
       document.title = t('catalogusTitel') + ' · Project Madrigal';
@@ -403,6 +496,11 @@
       window.scrollTo(0, 0);
       var kop = detail.querySelector('h1');
       if (kop) kop.focus({ preventScroll: true });
+    } else if (adres.scherm === 'leeslijsten') {
+      document.title = t('leeslijsten') + ' · Project Madrigal';
+      toonLeeslijsten();
+      window.scrollTo(0, 0);
+      lijsten.querySelector('h1').focus({ preventScroll: true });
     } else {
       document.title = 'Privacy · Project Madrigal';
       window.scrollTo(0, 0);
@@ -459,6 +557,7 @@
       var adres = leesAdres();
       if (adres.scherm === 'lijst') toonLijst();
       else if (adres.scherm === 'boek') toonDetail(adres.id);
+      else if (adres.scherm === 'leeslijsten') { toonLeeslijsten(); document.title = t('leeslijsten') + ' · Project Madrigal'; }
     });
 
     window.MadrigalApi.haalCatalogus(ontvang, fout);

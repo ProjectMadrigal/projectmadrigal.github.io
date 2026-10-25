@@ -43,6 +43,7 @@
           <p id="uitleg-lenen"></p>
           <p><a href="#/privacy" data-i18n="privacyLink">Wat doen we met je gegevens?</a></p>
         </details>
+        <p id="naar-leeslijsten" hidden><a href="#/leeslijsten" data-i18n="bekijkLeeslijsten">Bekijk onze leeslijsten</a></p>
       </div>
 
       <form class="zoekbalk" role="search" id="zoekformulier">
@@ -62,6 +63,8 @@
           </div>
         </details>
       </form>
+
+      <div id="leeslijst-kop" class="blok leeslijst-kop" hidden></div>
 
       <div class="lijstkop">
         <p id="aantal" aria-live="polite" aria-atomic="true" tabindex="-1" data-i18n="laden">Even laden...</p>
@@ -85,6 +88,9 @@
 
     <!-- Detailpagina van één boek -->
     <section id="detail-scherm" hidden aria-live="polite"></section>
+
+    <!-- Leeslijsten -->
+    <section id="leeslijsten-scherm" hidden></section>
 
     <!-- Privacy -->
     <section id="privacy-scherm" hidden>

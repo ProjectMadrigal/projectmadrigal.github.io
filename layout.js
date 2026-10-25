@@ -124,10 +124,17 @@
   function tel() {
     if (!window.goatcounter || !window.goatcounter.count) return;
     var hash = location.hash.split('?')[0];
-    window.goatcounter.count({ path: location.pathname + (/^#\/(boek|privacy)/.test(hash) ? hash : '') });
+    window.goatcounter.count({ path: location.pathname + (/^#\/(boek|privacy|leeslijsten)/.test(hash) ? hash : '') });
+  }
+
+  /** Offline werken en installeren als app (zie sw.js). Niet in het voorbeeld op je eigen computer. */
+  function offline() {
+    if (!('serviceWorker' in navigator) || (location.protocol !== 'https:' && location.hostname !== 'localhost')) return;
+    navigator.serviceWorker.register('sw.js').catch(function () { /* geen probleem: de site werkt ook zonder */ });
   }
 
   var pagina = document.body.getAttribute('data-pagina');
+  offline();
   kop(pagina);
   statistiek();
   voet();

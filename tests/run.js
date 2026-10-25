@@ -402,6 +402,24 @@ const voorbeeldBoeken = [
 ];
 const index = Z.maakIndex(voorbeeldBoeken);
 
+test('lees ook: zelfde auteur en leeslijst eerst, één gedeeld onderwerp is te weinig', () => {
+  const boeken = [
+    { id: 'A', t: 'Start', a: 'Baldwin, Jamie', g: ['Fictie', 'Klassiekers'], ll: ['Thema'], b: { c: 'beschikbaar' } },
+    { id: 'B', t: 'Zelfde auteur', a: 'baldwin, jamie', g: ['Poëzie'], b: { c: 'uitgeleend' } },
+    { id: 'C', t: 'Zelfde lijst', a: 'Ander', g: [], ll: ['Thema'], b: { c: 'beschikbaar' } },
+    { id: 'D', t: 'Twee onderwerpen', a: 'X', g: ['Fictie', 'Klassiekers'], b: { c: 'uitgeleend' } },
+    { id: 'E', t: 'Twee onderwerpen, vrij', a: 'Y', g: ['Klassiekers', 'Fictie'], b: { c: 'beschikbaar' } },
+    { id: 'F', t: 'Eén onderwerp', a: 'Z', g: ['Fictie'], b: { c: 'beschikbaar' } }
+  ];
+  gelijk(F.gelijkaardig(boeken, boeken[0], 6).map((b) => b.id), ['B', 'C', 'E', 'D']);
+  gelijk(F.gelijkaardig(boeken, boeken[0], 2).map((b) => b.id), ['B', 'C']);
+  gelijk(F.gelijkaardig(boeken, boeken[5], 6).map((b) => b.id), []);
+});
+test('filter leeslijst: in de volgorde van de catalogus', () => {
+  const boeken = [{ id: '1', ll: ['Z-lijst', 'A-lijst'] }, { id: '2', ll: ['A-lijst'] }, { id: '3' }];
+  gelijk(F.opties(boeken, [], ['Z-lijst', 'A-lijst']).lijst, [{ waarde: 'Z-lijst', aantal: 1 }, { waarde: 'A-lijst', aantal: 2 }]);
+  gelijk(F.pasToe(boeken, { lijst: 'A-lijst' }).map((b) => b.id), ['1', '2']);
+});
 test('zoeken negeert hoofdletters, accenten en lidwoorden', () => {
   gelijk(Z.zoek(index, 'emile').map((r) => r.boek.id), ['B2']);
   gelijk(Z.zoek(index, 'DESIR').map((r) => r.boek.id), ['B3']);
@@ -658,6 +676,22 @@ test('publieke catalogus toont geen herkomst, geen niet-publieke boeken en geen 
   const zine = p.boeken.find((b) => b.id === 'Z0001');
   assert.strictEqual(zine.b.l, 'Te koop in de bib, niet uitleenbaar');
   gelijk(Array.from(zine.g), ['Zines']);
+});
+test('publieke catalogus: leeslijsten met naam en uitleg uit het tabblad, verborgen lijsten weg', () => {
+  const s = maakStaat();
+  s.catalogus[0].leeslijsten = 'eerste keer, Verborgen lijst';
+  s.catalogus[1].leeslijsten = 'Zonder uitleg; Eerste keer';
+  const p = M.bouwPubliekeCatalogus(s, [], [
+    { volgorde: 2, naam: 'Eerste keer', naam_en: 'First time', uitleg: 'Voor wie begint.', publiek: '' },
+    { volgorde: 1, naam: 'Verborgen lijst', publiek: 'nee' },
+    { volgorde: '', naam: 'Leeg thema' }
+  ]);
+  gelijk(Array.from(p.boeken.find((b) => b.id === 'B0001').ll), ['Eerste keer']);
+  gelijk(Array.from(p.boeken.find((b) => b.id === 'B0002').ll), ['Zonder uitleg', 'Eerste keer']);
+  gelijk(JSON.parse(JSON.stringify(p.leeslijsten)), [{ n: 'Eerste keer', ne: 'First time', u: 'Voor wie begint.' }, { n: 'Zonder uitleg' }]);
+  assert.ok(JSON.stringify(p).indexOf('Verborgen lijst') === -1);
+  assert.ok(!p.boeken.find((b) => b.id === 'B0003').ll);
+  gelijk(JSON.parse(JSON.stringify(M.bouwPubliekeCatalogus(maakStaat(), []).leeslijsten)), []);
 });
 test('publieke catalogus: aanraders_verbergen haalt de naam weg bij de boeken', () => {
   const s = maakStaat();
