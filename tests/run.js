@@ -1232,7 +1232,7 @@ test('instellingen: per groep, codes nooit zichtbaar of aanpasbaar', () => {
   assert.strictEqual(rijen[3].waarde, 'vrijdag 18-22');
 });
 test('beheeracties: bestuur, behalve de lijst voor het vrijwilligersscherm', () => {
-  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload'];
+  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload', 'beheerCoverLinks'];
   Object.keys(M.ACTIES).filter((a) => /^beheer/.test(a)).forEach((a) => assert.strictEqual(M.ACTIES[a], vrijwilliger.indexOf(a) > -1 ? 'vrijwilliger' : 'bestuur', a));
 });
 test('rollen: drie codes, elke rol mag wat de rol ervoor mag', () => {
@@ -1662,6 +1662,20 @@ test('bestuursscherm: boeken zonder beschrijving krijgen zb, de balie niet', () 
   assert.strictEqual(bestuur.find((b) => b.id === s.catalogus[0].boek_id).zb, true);
   assert.strictEqual(bestuur.find((b) => b.id === s.catalogus[1].boek_id).zb, undefined);
   assert.strictEqual(M.baliecatalogus(s).find((b) => b.id === s.catalogus[0].boek_id).zb, undefined);
+});
+
+test('Logboek en taken: stand per taak en nieuwste regels eerst', () => {
+  const taken = [['taakA', 'Taak A', (r) => !r.klaar], ['taakB', 'Taak B', (r) => !r.klaar], ['taakC', 'Taak C', () => false], ['taakD', 'Taak D', (r) => !r.klaar]];
+  const rijen = [{ klaar: true }, { klaar: false }, { klaar: false }];
+  const stand = M.takenStand(taken, rijen, ['taakB'], { taakA: 1000 });
+  gelijk(stand.map((t) => [t.functie, t.teGaan, t.status]), [['taakA', 2, 'loopt'], ['taakB', 2, 'gepland'], ['taakC', 0, 'klaar'], ['taakD', 2, 'stil']]);
+  const waarden = [['tijdstip', 'wie', 'actie', 'details'],
+    [new Date(2026, 9, 25, 9, 0), 'menu', 'oud', 'a'],
+    [new Date(2026, 9, 25, 12, 0), 'menu', 'nieuw', 'b'],
+    ['', '', '', ''],
+    [new Date(2026, 9, 25, 10, 0), 'Kim', 'midden', 'c']];
+  gelijk(M.laatsteLogregels(waarden, 2).map((r) => r.actie), ['nieuw', 'midden']);
+  assert.ok(M.achtergrondTaken().every((t) => typeof t[2] === 'function'), 'Elke taak heeft een selectie');
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');

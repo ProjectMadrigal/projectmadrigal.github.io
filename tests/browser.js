@@ -69,6 +69,10 @@ function antwoord(rol, actie, vraag) {
     balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'] }, leners: [] }) },
     beheerInhoud: { ok: true, data: INHOUD },
     beheerBoekBewaren: { ok: true, tekst: 'Bewaard.' },
+    beheerCoverLinks: { ok: true, links: { B0002: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' } },
+    beheerLogboek: { ok: true, daglimiet: 0,
+      taken: [{ functie: 'zoekBeschrijvingenWikipedia', naam: 'Beschrijvingen bij Wikipedia', teGaan: 12, status: 'gepland', sinds: 0 }],
+      logboek: [{ tijd: Date.UTC(2026, 9, 25, 10, 0), wie: 'menu', actie: 'zoekBeschrijvingenWikipedia', details: '20 opgezocht' }, { tijd: Date.UTC(2026, 9, 25, 9, 0), wie: 'Kim', actie: 'uitlenen', details: 'B0001-1' }] },
     beheerBoekOphalen: { ok: true, boek: { boek_id: (vraag || {}).boek_id, titel: (BOEKEN.concat(VEEL).find((b) => b.id === (vraag || {}).boek_id) || {}).t, auteur: '', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
     bezoekersCijfers: { ok: true, nietIngesteld: true },
     roosterOverzicht: { ok: true, data: { avonden: [] } }
@@ -233,11 +237,56 @@ async function meldAan(page, basis, pagina) {
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });
+  await test('bestuursscherm: Vandaag, Logboek, adres, kleine covers en zoeken op het internet', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    // Google Books nagebootst: één verzonnen uitgave met beschrijving en cover.
+    await ctx.route('https://www.googleapis.com/**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [{ volumeInfo: {
+      title: 'De verzonnen zee', description: 'Een verzonnen beschrijving uit Google.', publisher: 'Uitgeverij Fictief', publishedDate: '2001-05-01', pageCount: 210,
+      industryIdentifiers: [{ type: 'ISBN_13', identifier: '9780306406157' }] } }] }) }));
+    await ctx.route('https://openlibrary.org/**', (r) => r.fulfill({ contentType: 'application/json', body: '{"docs":[]}' }));
+    await meldAan(page, basis, 'bestuur.html');
+    // Vandaag
+    const vandaag = await page.textContent('#sectie');
+    verwacht(/1\s*uitlening is te laat/.test(vandaag) && /te keuren|wacht op goedkeuring/.test(vandaag), 'Vandaag: ' + vandaag.slice(0, 200));
+    // Logboek en taken
+    await page.click('#sectie button:has-text("Logboek en achtergrondtaken bekijken")');
+    await page.waitForSelector('#logboek-filter');
+    verwacht(/Beschrijvingen bij Wikipedia/.test(await page.textContent('#sectie')), 'Taak ontbreekt');
+    await page.selectOption('#logboek-filter', 'uitlenen');
+    const regels = await page.$$eval('.logboek li', (x) => x.length);
+    verwacht(regels === 1, 'Filter op actie: ' + regels);
+    verwacht(/#logboek$/.test(page.url()), 'Adres: ' + page.url());
+    // Herladen: je blijft bij hetzelfde onderdeel. Terug brengt je naar Vandaag.
+    await page.reload();
+    await page.waitForSelector('#logboek-filter');
+    await page.goBack();
+    await page.waitForFunction(() => /Vandaag/.test(document.querySelector('#sectie h2').textContent));
+    // Kleine cover bij een boek met cover
+    await page.click('#sectienav button:has-text("Boeken")');
+    await page.fill('#beheer-boek-zoek', 'kasten');
+    await page.waitForSelector('.mini-cover img');
+    // Zoek dit boek op het internet: vult de lege beschrijving in
+    await page.fill('#beheer-boek-zoek', 'zee');
+    await page.click('.kaartlijst button');
+    await page.waitForSelector('#bb-isbn');
+    await page.fill('#bb-isbn', '9780306406157');
+    await page.click('button:has-text("Zoek dit boek op het internet")');
+    await page.waitForFunction(() => document.querySelector('#bb-beschrijving').value === 'Een verzonnen beschrijving uit Google.');
+    // Gsm: een keuzelijst in plaats van de knoppen
+    await page.setViewportSize({ width: 375, height: 800 });
+    verwacht(await page.isVisible('#sectiekeuze') && !(await page.isVisible('#sectienav .navgroep')), 'Keuzelijst op de gsm');
+    await page.selectOption('#sectiekeuze', 'telaat');
+    await page.waitForFunction(() => /Te laat/.test(document.querySelector('#sectie h2').textContent));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
   await test('vrijwilligersscherm: enkel de eigen onderdelen, geen contactgegevens', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
     await meldAan(page, basis, 'vrijwilliger.html');
     const knoppen = await page.$$eval('#sectienav button', (x) => x.map((e) => e.textContent.replace(/ \(.*\)$/, '')));
-    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Boeken zonder cover', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Boeken zonder cover', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(!/Logboek/.test(await page.textContent('#sectie')), 'Vandaag toont het Logboek aan een vrijwilliger');
+    await page.click('#sectienav button:has-text("Te laat")');
     verwacht(!/0400000000|Kopieer herinnering/.test(await page.textContent('#sectie')), 'Contactgegevens zichtbaar');
     await page.click('#sectienav button:has-text("Nieuws en agenda")');
     await page.click('button:has-text("+ Nieuw bericht")');

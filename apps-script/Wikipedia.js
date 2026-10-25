@@ -88,7 +88,7 @@ function zoekWikipedia(boek, taal) {
     z = haalJson(wikiVraagUrl(taal, vraag));
   } catch (e) {
     // Google laat per dag maar een beperkt aantal vragen naar buiten toe. Op is op, tot morgen.
-    if (/te vaak|too many times/i.test(e.message)) return { fout: 'dagelijkse limiet van Google voor vragen naar buiten bereikt', quotum: true };
+    if (/te vaak|too many times/i.test(e.message)) { noteerDaglimiet(); return { fout: 'dagelijkse limiet van Google voor vragen naar buiten bereikt', quotum: true }; }
     return { fout: e.message };
   }
   // Elk ander antwoord dan 200 (geweigerd, te druk, storing) is geen "niet gevonden": later opnieuw proberen.
