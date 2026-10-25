@@ -22,10 +22,10 @@ var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'start
 
 /** Tabbladen met inhoud van de website, en de kolommen die je via de website kan aanpassen. */
 var BEHEER_INHOUD = {
-  'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek'],
+  'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'online_vanaf'],
   'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek'],
   'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek'],
-  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek']
+  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek', 'zichtbaar_vanaf', 'zichtbaar_tot']
 };
 
 /** Instellingen die nooit via de website zichtbaar of aanpasbaar zijn. Pas die aan in de spreadsheet. */
@@ -60,7 +60,7 @@ function beheerVeld(veld, ruw) {
     if (n === null || n < 0 || n !== Math.round(n)) return { fout: 'Vul bij ' + veld + ' een geheel getal in.' };
     return { waarde: n };
   }
-  if (veld === 'datum') {
+  if (veld === 'datum' || veld === 'online_vanaf' || veld === 'zichtbaar_vanaf' || veld === 'zichtbaar_tot') {
     if (!w) return { waarde: '' };
     var d = parseerDatum(w);
     if (!d) return { fout: 'Deze datum klopt niet. Schrijf ze als 20/11/2026.' };
@@ -279,6 +279,9 @@ function inhoudAanpassen(rijen, invoer) {
     if (/[,;]/.test(nieuweWaarde)) return { ok: false, fout: 'Een naam van een leeslijst mag geen komma of puntkomma bevatten.' };
     var dubbel = rijen.some(function (r) { return r !== rij && !r._verwijderen && normaliseerTekst(r.naam) === normaliseerTekst(nieuweWaarde); });
     if (dubbel) return { ok: false, fout: 'Er bestaat al een leeslijst met die naam.' };
+    var van = v.hasOwnProperty('zichtbaar_vanaf') ? v.zichtbaar_vanaf : (rij ? parseerDatum(rij.zichtbaar_vanaf) : '');
+    var tot = v.hasOwnProperty('zichtbaar_tot') ? v.zichtbaar_tot : (rij ? parseerDatum(rij.zichtbaar_tot) : '');
+    if (van && tot && tot < van) return { ok: false, fout: 'De einddatum ligt voor de startdatum.' };
   }
   if (tabblad === 'Agenda' && isLeeg(v.hasOwnProperty('datum') ? v.datum : (rij ? rij.datum : ''))) {
     return { ok: false, fout: 'Een event heeft een datum nodig.' };

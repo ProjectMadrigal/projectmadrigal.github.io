@@ -37,7 +37,11 @@ function isPubliek(rij) {
 function bouwSiteInhoud(staat, tabellen) {
   var inst = staat.inst;
 
-  var nieuws = (tabellen.nieuws || []).filter(function (r) { return isPubliek(r) && (r.titel || r.tekst); })
+  // online_vanaf: gepland bericht, pas zichtbaar vanaf die dag.
+  var nieuws = (tabellen.nieuws || []).filter(function (r) {
+    var vanaf = parseerDatum(r.online_vanaf);
+    return isPubliek(r) && (r.titel || r.tekst) && (!vanaf || vanaf <= staat.vandaag);
+  })
     .sort(function (a, b) { return String(b.datum || '').localeCompare(String(a.datum || '')); })
     .slice(0, SITE_MAX_NIEUWS)
     .map(function (r) {
@@ -130,7 +134,10 @@ function bouwSiteInhoud(staat, tabellen) {
     aanraders: aanraders,
     nieuw: nieuwBinnen,
     // Het menu-item Leeslijsten: enkel als de instelling leeslijsten_tonen op ja staat.
-    leeslijsten: inst.leeslijsten_tonen === true,
+    leeslijsten: inst.leeslijsten_tonen === true || (tabellen.leeslijsten || []).some(function (r) {
+      var z = leeslijstZichtbaar(r, staat.vandaag, false);
+      return z.gepland && z.zichtbaar;
+    }),
     // Pagina Doe mee. Een leeg blok toont de website niet.
     doeMee: {
       vrijwilliger: { nl: String(inst.tekst_vrijwilliger || ''), en: String(inst.tekst_vrijwilliger_en || '') || String(inst.tekst_vrijwilliger || '') },
@@ -169,13 +176,13 @@ function dagVolgorde(id, dag) {
 /** De inhoud van de startpagina als JSON-tekst, uit de cache als die er is. */
 function siteInhoudJson() {
   var cache = CacheService.getScriptCache();
-  var bewaard = cache.get(SITE_CACHE_SLEUTEL);
+  var bewaard = cache.get(dagSleutel(SITE_CACHE_SLEUTEL));
   if (bewaard) return bewaard;
   var staat = laadStaat('publiek', false);
   var lees = function (naam) {
     return spreadsheet().getSheetByName(naam) ? leesTabel(naam).rijen : [];
   };
-  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen') }));
-  try { cache.put(SITE_CACHE_SLEUTEL, tekst, CACHE_DUUR_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
+  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten') }));
+  try { cache.put(dagSleutel(SITE_CACHE_SLEUTEL), tekst, CACHE_DUUR_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
   return tekst;
 }
