@@ -2567,6 +2567,7 @@ function installeer() {
   ScriptApp.newTrigger('bijWijziging').forSpreadsheet(ss).onEdit().create();
 
   ordenTabbladen(ss);
+  logboekNieuwsteBoven(ss.getSheetByName('Logboek'));
   logboek('menu', 'installeer', 'tabbladen klaar');
   meld('De tabbladen staan klaar. Kijk in Instellingen de codes en teksten na.');
 }
@@ -3207,11 +3208,21 @@ function levenshtein(a, b) {
 /**
  * Schrijft een regel in het Logboek. Zet hier nooit contactgegevens in,
  * enkel nummers (boek-ID, lenersnummer, uitlening-ID).
+ * De nieuwste regel komt bovenaan, net onder de kop: zo hoef je niet te scrollen.
  */
 function logboek(wie, actie, details) {
   var blad = spreadsheet().getSheetByName('Logboek');
   if (!blad) return;
-  blad.appendRow([new Date(), veiligeCel(schoon(wie) || 'systeem'), actie, veiligeCel(details || '')]);
+  var rij = [new Date(), veiligeCel(schoon(wie) || 'systeem'), actie, veiligeCel(details || '')];
+  if (blad.getLastRow() < 2) { blad.appendRow(rij); return; }
+  blad.insertRowBefore(2); // neemt de opmaak van een gewone rij over, niet die van de kop
+  blad.getRange(2, 1, 1, rij.length).setValues([rij]);
+}
+
+/** Zet de bestaande regels van het Logboek eenmalig met de nieuwste bovenaan (bij Installeer tabbladen). */
+function logboekNieuwsteBoven(blad) {
+  if (!blad || blad.getLastRow() < 3) return;
+  blad.getRange(2, 1, blad.getLastRow() - 1, Math.max(4, blad.getLastColumn())).sort({ column: 1, ascending: false });
 }
 
 function lopendeUitleningen(staat) {

@@ -90,6 +90,7 @@ function installeer() {
   ScriptApp.newTrigger('bijWijziging').forSpreadsheet(ss).onEdit().create();
 
   ordenTabbladen(ss);
+  logboekNieuwsteBoven(ss.getSheetByName('Logboek'));
   logboek('menu', 'installeer', 'tabbladen klaar');
   meld('De tabbladen staan klaar. Kijk in Instellingen de codes en teksten na.');
 }
