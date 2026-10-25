@@ -806,6 +806,46 @@ test('bezoekers uit GoatCounter: adres, periode en omzetten', () => {
   const jaar = M.verwerkGoatcounter({ totaal: { total: 1, stats: Array.from({ length: 14 }, (_, i) => ({ day: '2026-01-' + String(i + 1).padStart(2, '0'), daily: 1 })) } }, 365);
   gelijk([jaar.perWeek, jaar.verloop.length, jaar.verloop[0].n], [true, 2, 7]);
 });
+test('peperfabriek: programma uit schema.org, iCal of links, enkel komende activiteiten', () => {
+  const basis = 'https://www.voorbeeldhuis.test/nl/programma';
+  // 1. Gestructureerde gegevens (JSON-LD)
+  const jsonld = '<html><script type="application/ld+json">' + JSON.stringify({ '@graph': [
+    { '@type': 'Event', name: 'Verzonnen workshop', startDate: '2026-11-07T19:30:00+01:00', url: '/nl/programma/verzonnen-workshop', image: { url: '/img/a.jpg' }, description: '<p>Een <b>verzonnen</b> avond.</p>' },
+    { '@type': ['Event', 'Thing'], name: 'Oude activiteit', startDate: '2026-01-02' },
+    { '@type': 'Organization', name: 'Geen activiteit' }
+  ] }) + '</script></html>';
+  let p = M.pfLeesProgramma(jsonld, basis, '2026-10-25', '');
+  gelijk([p.manier, p.activiteiten.length, p.activiteiten[1].titel, p.activiteiten[1].uur, p.activiteiten[1].link, p.activiteiten[1].afbeelding, p.activiteiten[1].tekst],
+    ['schema.org', 2, 'Verzonnen workshop', '19:30', 'https://www.voorbeeldhuis.test/nl/programma/verzonnen-workshop', 'https://www.voorbeeldhuis.test/img/a.jpg', 'Een verzonnen avond.']);
+  gelijk(M.pfVoorSite(p.activiteiten, '2026-10-25', 12).map((a) => a.titel), ['Verzonnen workshop']);
+  // 2. iCal
+  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Verzonnen concert\r\nDTSTART;TZID=Europe/Brussels:20261120T200000\r\nURL:https://www.voorbeeldhuis.test/nl/programma/concert\r\nDESCRIPTION:Lange tekst\\, met komma\r\n  die verder gaat\r\nEND:VEVENT\r\nEND:VCALENDAR';
+  const metIcal = '<a href="/agenda/?ical=1">Agenda</a>';
+  assert.strictEqual(M.pfIcalLink(metIcal, basis), 'https://www.voorbeeldhuis.test/agenda/?ical=1');
+  p = M.pfLeesProgramma(metIcal, basis, '2026-10-25', ics);
+  gelijk([p.manier, p.activiteiten[0].titel, p.activiteiten[0].datum, p.activiteiten[0].uur, p.activiteiten[0].tekst], ['iCal', 'Verzonnen concert', '2026-11-20', '20:00', 'Lange tekst, met komma die verder gaat']);
+  // 3. Links met een datum in de buurt (zonder jaar: het eerstvolgende)
+  const html = '<main><div class="kaart"><span>za 14 nov</span><a href="/nl/programma/verzonnen-lezing"><img src="/img/l.jpg"><h3>Verzonnen lezing</h3></a></div>' +
+    '<div class="kaart"><time datetime="2027-01-09T14:00">9 januari</time><a href="https://www.voorbeeldhuis.test/nl/programma/verzonnen-markt">Verzonnen markt</a></div>' +
+    '<a href="/nl/programma">Programma</a><a href="/nl/over-ons">Over ons</a><a href="/nl/programma/zonder-datum">Zonder datum</a></main>';
+  p = M.pfLeesProgramma(html, basis, '2026-10-25', '');
+  gelijk([p.manier, p.activiteiten.map((a) => a.titel + ' ' + a.datum + ' ' + a.uur)], ['links', ['Verzonnen lezing 2026-11-14 ', 'Verzonnen markt 2027-01-09 14:00']]);
+  assert.strictEqual(p.activiteiten[0].afbeelding, 'https://www.voorbeeldhuis.test/img/l.jpg');
+  // Datum zonder jaar in januari, gelezen in december: volgend jaar
+  gelijk(M.pfDatumInTekst('vr 8 jan om 20u00', '2026-12-10'), { datum: '2027-01-08', uur: '20:00' });
+  gelijk(M.pfDatumInTekst('12/11/2026', '2026-10-25'), { datum: '2026-11-12', uur: '' });
+  // Niets gevonden, en onveilige links worden geweigerd
+  assert.strictEqual(M.pfLeesProgramma('<p>Leeg</p>', basis, '2026-10-25', '').activiteiten.length, 0);
+  assert.strictEqual(M.pfAbsoluut('javascript:alert(1)', basis), '');
+});
+test('peperfabriek: de startpagina-gegevens geven tekst, adres en komende activiteiten mee', () => {
+  const s = maakStaat('2026-10-25');
+  const d = M.bouwSiteInhoud(s, { peperfabriek: { opgehaald: '2026-10-25', activiteiten: [
+    { titel: 'Voorbij', datum: '2026-10-20' }, { titel: 'Nog bezig', datum: '2026-10-20', einde: '2026-10-30' }, { titel: 'Komt eraan', datum: '2026-11-02' }] } });
+  gelijk([d.peperfabriek.url, d.peperfabriek.activiteiten.map((a) => a.titel), /Peperfabriek/.test(d.peperfabriek.tekst.nl)],
+    ['https://www.peperfabriek.be/nl/programma', ['Nog bezig', 'Komt eraan'], true]);
+  gelijk(M.bouwSiteInhoud(s, {}).peperfabriek.activiteiten, []);
+});
 test('leeslijsten in het bestuursscherm: boeken kiezen, hernoemen, dubbele naam geweigerd', () => {
   const s = maakStaat();
   s.catalogus[0].leeslijsten = 'Andere lijst';

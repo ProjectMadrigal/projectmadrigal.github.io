@@ -116,7 +116,7 @@ async function meldAan(page, basis, pagina) {
 
   console.log('\nPublieke pagina\'s');
   for (const thema of ['light', 'dark']) {
-    for (const pagina of ['index.html', 'boeken.html', 'boeken.html#/boek/B0008', 'boeken.html#/leeslijsten', 'over-ons.html', 'doe-mee.html']) {
+    for (const pagina of ['index.html', 'boeken.html', 'boeken.html#/boek/B0008', 'boeken.html#/leeslijsten', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html']) {
       await test(pagina + ' (' + (thema === 'light' ? 'licht' : 'donker') + '): laadt zonder fouten, geen ernstige toegankelijkheidsfouten', async () => {
         const { ctx, page, fouten } = await nieuweContext(browser, { context: { colorScheme: thema } });
         await page.goto(basis + '/' + pagina);

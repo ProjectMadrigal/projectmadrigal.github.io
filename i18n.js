@@ -19,7 +19,10 @@
   var TEKSTEN = {
     nl: {
       overslaan: 'Ga naar de inhoud',
-      menuHome: 'Home', menuBoeken: 'Boeken', menuOver: 'Over ons', menuDoeMee: 'Doe mee', menuLeeslijsten: 'Leeslijsten', menu: 'Menu',
+      menuHome: 'Home', menuBoeken: 'Boeken', menuOver: 'Over ons', menuDoeMee: 'Doe mee', menuLeeslijsten: 'Leeslijsten', menuPeperfabriek: 'Peperfabriek', menu: 'Menu',
+      pfTitel: 'De Peperfabriek', pfProgramma: 'Programma', pfTot: 'tot', pfMeerInfo: 'Meer info bij De Peperfabriek',
+      pfLeeg: 'Het programma van De Peperfabriek verschijnt hier binnenkort. Bekijk intussen hun website.', pfVolledig: 'Bekijk het volledige programma',
+      pfStandaard: 'De bib van Project Madrigal vind je in De Peperfabriek. Dit staat er de komende weken nog op het programma.',
       doeMeeTitel: 'Doe mee', doeMeeIntro: 'Project Madrigal draait volledig op vrijwilligers en op boeken die mensen ons toevertrouwen. Zo kan jij helpen.',
       dmVrijwilliger: 'Word vrijwilliger', dmSchenken: 'Schenk boeken', dmSteunen: 'Steun ons',
       dmLeeg: 'Wil je meehelpen, boeken schenken of ons steunen? Stuur ons een mailtje, we horen graag van je.', dmMail: 'Mail ons',
@@ -87,7 +90,10 @@
     },
     en: {
       overslaan: 'Skip to content',
-      menuHome: 'Home', menuBoeken: 'Books', menuOver: 'About us', menuDoeMee: 'Get involved', menuLeeslijsten: 'Reading lists', menu: 'Menu',
+      menuHome: 'Home', menuBoeken: 'Books', menuOver: 'About us', menuDoeMee: 'Get involved', menuLeeslijsten: 'Reading lists', menuPeperfabriek: 'Peperfabriek', menu: 'Menu',
+      pfTitel: 'De Peperfabriek', pfProgramma: 'Programme', pfTot: 'until', pfMeerInfo: 'More info at De Peperfabriek',
+      pfLeeg: 'The programme of De Peperfabriek will appear here soon. In the meantime, have a look at their website.', pfVolledig: 'See the full programme',
+      pfStandaard: 'You will find the Project Madrigal library in De Peperfabriek. This is what is coming up there.',
       doeMeeTitel: 'Get involved', doeMeeIntro: 'Project Madrigal runs entirely on volunteers and on books people entrust to us. This is how you can help.',
       dmVrijwilliger: 'Become a volunteer', dmSchenken: 'Donate books', dmSteunen: 'Support us',
       dmLeeg: 'Want to help out, donate books or support us? Send us an email, we would love to hear from you.', dmMail: 'Email us',

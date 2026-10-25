@@ -20,7 +20,8 @@
     // Verborgen tot de instelling leeslijsten_tonen op ja staat (zie leeslijstenTonen hieronder).
     { pagina: 'leeslijsten', href: 'boeken.html#/leeslijsten', tekst: 'menuLeeslijsten', verborgen: true },
     { pagina: 'over', href: 'over-ons.html', tekst: 'menuOver' },
-    { pagina: 'doemee', href: 'doe-mee.html', tekst: 'menuDoeMee' }
+    { pagina: 'doemee', href: 'doe-mee.html', tekst: 'menuDoeMee' },
+    { pagina: 'peperfabriek', href: 'peperfabriek.html', tekst: 'menuPeperfabriek' }
   ];
 
   /* Iconen (Feather, MIT-licentie). De kleur volgt de tekstkleur. */

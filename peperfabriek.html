@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>De Peperfabriek · Project Madrigal</title>
+  <meta name="description" content="Project Madrigal, de queer bibliotheek van Antwerpen, zit in De Peperfabriek. Bekijk wat er de komende weken in het huis te doen is.">
+  <link rel="canonical" href="https://projectmadrigal.github.io/peperfabriek.html">
+  <!-- Voorbeeldweergave als je een link deelt (WhatsApp, Instagram, Facebook, ...) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Project Madrigal">
+  <meta property="og:locale" content="nl_BE">
+  <meta property="og:locale:alternate" content="en_GB">
+  <meta property="og:title" content="Project Madrigal in De Peperfabriek">
+  <meta property="og:description" content="Project Madrigal, de queer bibliotheek van Antwerpen, zit in De Peperfabriek. Bekijk wat er de komende weken in het huis te doen is.">
+  <meta property="og:url" content="https://projectmadrigal.github.io/peperfabriek.html">
+  <meta property="og:image" content="https://projectmadrigal.github.io/assets/deelbeeld.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Logo van Project Madrigal met de tekst: queer bib in Antwerpen, leen gratis boeken.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#1b1b1c">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icoon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <script>try { var t = localStorage.getItem('madrigal_thema'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+</head>
+<body data-pagina="peperfabriek">
+  <header id="site-kop"></header>
+
+  <main id="inhoud" tabindex="-1">
+    <section class="sectie sectie-paars">
+      <div class="binnen">
+        <h1 data-i18n="pfTitel">De Peperfabriek</h1>
+        <p class="lees" id="pf-tekst"></p>
+      </div>
+    </section>
+
+    <section class="sectie sectie-licht" aria-labelledby="pf-programma-titel">
+      <div class="binnen">
+        <h2 id="pf-programma-titel" data-i18n="pfProgramma">Programma</h2>
+        <div class="kaarten" id="pf-programma" aria-live="polite"><p class="laden" data-i18n="laden">Even laden...</p></div>
+        <div class="pf-volledig" id="pf-volledig" hidden></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-voet"></footer>
+
+  <script src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script src="layout.js"></script>
+  <script src="dom.js"></script>
+  <script src="agenda.js"></script>
+  <script src="peperfabriek.js"></script>
+</body>
+</html>

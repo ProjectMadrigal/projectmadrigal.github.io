@@ -9,7 +9,7 @@
  * De kolommen op _en zijn de Engelse versie. Leeg? Dan toont de site het Nederlands.
  */
 
-var SITE_CACHE_SLEUTEL = 'site_v3'; // v3: met de teksten van de pagina Doe mee
+var SITE_CACHE_SLEUTEL = 'site_v4'; // v4: met het programma van De Peperfabriek
 var SITE_MAX_NIEUWS = 3;
 var SITE_MAX_AANRADERS = 12;
 
@@ -143,6 +143,13 @@ function bouwSiteInhoud(staat, tabellen) {
       vrijwilliger: { nl: String(inst.tekst_vrijwilliger || ''), en: String(inst.tekst_vrijwilliger_en || '') || String(inst.tekst_vrijwilliger || '') },
       schenken: { nl: String(inst.tekst_schenken || ''), en: String(inst.tekst_schenken_en || '') || String(inst.tekst_schenken || '') },
       steunen: { nl: String(inst.tekst_steunen || ''), en: String(inst.tekst_steunen_en || '') || String(inst.tekst_steunen || '') }
+    },
+    // Pagina Peperfabriek: de tekst, het adres van hun programma en de komende activiteiten (zie Peperfabriek.js).
+    peperfabriek: {
+      tekst: { nl: String(inst.tekst_peperfabriek || ''), en: String(inst.tekst_peperfabriek_en || '') || String(inst.tekst_peperfabriek || '') },
+      url: veiligeCoverUrl(inst.peperfabriek_url),
+      opgehaald: (tabellen.peperfabriek || {}).opgehaald || '',
+      activiteiten: pfVoorSite((tabellen.peperfabriek || {}).activiteiten, staat.vandaag, inst.peperfabriek_aantal)
     }
   };
 }
@@ -182,7 +189,7 @@ function siteInhoudJson() {
   var lees = function (naam) {
     return spreadsheet().getSheetByName(naam) ? leesTabel(naam).rijen : [];
   };
-  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten') }));
+  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten'), peperfabriek: peperfabriekBewaard() }));
   try { cache.put(dagSleutel(SITE_CACHE_SLEUTEL), tekst, CACHE_DUUR_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
   return tekst;
 }
