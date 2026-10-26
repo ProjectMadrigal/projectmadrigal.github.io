@@ -108,7 +108,7 @@ function leesOudeUitleningen(waarden, formules) {
       rijnummer: i + 1,
       boek: schoon(lees('boek')), auteur: schoon(lees('auteur')),
       voornaam: schoon(lees('voornaam')), achternaam: schoon(lees('achternaam')),
-      telefoon: schoon(lees('telefoon')), email: schoon(lees('email')).toLowerCase(),
+      telefoon: opmaakGsm(lees('telefoon')), email: schoon(lees('email')).toLowerCase(),
       datum_uit: parseerDatum(lees('datum_uit')), datum_terug_afgesproken: parseerDatum(lees('datum_terug_afgesproken')),
       borg: lees('borg'), gift: lees('gift'),
       herinnering: parseerDatum(herinnering) || (normaliseerTekst(herinnering) === 'ok' ? parseerDatum(lees('datum_terug_afgesproken')) : ''),

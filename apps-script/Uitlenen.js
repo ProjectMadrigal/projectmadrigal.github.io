@@ -151,6 +151,27 @@ function telefoonSleutel(t) {
   return c;
 }
 
+/**
+ * Een Belgisch gsm-nummer in één vorm: 0495/64.48.48 (ook vanuit +32 495 64 48 48 of 0495644848).
+ * Andere nummers (vast, buitenland) blijven zoals ze zijn.
+ */
+function opmaakGsm(t) {
+  var c = telefoonSleutel(t);
+  if (!/^04\d{8}$/.test(c)) return schoon(t);
+  return c.slice(0, 4) + '/' + c.slice(4, 6) + '.' + c.slice(6, 8) + '.' + c.slice(8);
+}
+
+/** Zet de gsm-nummers van de leners in één vorm. Geeft het aantal aangepaste leners. */
+function gsmNummersOpmaken(leners) {
+  var n = 0;
+  leners.forEach(function (l) {
+    if (isLeeg(l.telefoon)) return;
+    var nieuw = opmaakGsm(l.telefoon);
+    if (nieuw !== String(l.telefoon)) { wijzig(l, { telefoon: nieuw }); n++; }
+  });
+  return n;
+}
+
 /* ---------- Grenzen ---------- */
 
 /**
@@ -463,7 +484,7 @@ function annuleerReservatie(staat, invoer) {
 function nieuweLener(staat, invoer) {
   var voornaam = tekstInvoer(invoer.voornaam, 50);
   var achternaamWaarde = tekstInvoer(invoer.achternaam, 80);
-  var telefoon = tekstInvoer(invoer.telefoon, 25);
+  var telefoon = opmaakGsm(tekstInvoer(invoer.telefoon, 25));
   var email = tekstInvoer(invoer.email, 100).toLowerCase();
   if (!voornaam) return { ok: false, fout: 'Vul een voornaam in.' };
   if (!telefoon && !email) return { ok: false, fout: 'Vul een telefoonnummer of een e-mailadres in (of allebei).' };
@@ -510,7 +531,7 @@ function lenerAanpassen(staat, invoer) {
   var l = lenerVan(staat, invoer.lenersnummer);
   if (!l) return { ok: false, fout: 'Deze lener bestaat niet.' };
   var voornaam = tekstInvoer(invoer.voornaam, 50);
-  var telefoon = tekstInvoer(invoer.telefoon, 25);
+  var telefoon = opmaakGsm(tekstInvoer(invoer.telefoon, 25));
   var email = tekstInvoer(invoer.email, 100).toLowerCase();
   if (!voornaam) return { ok: false, fout: 'Vul een voornaam in.' };
   if (!telefoon && !email) return { ok: false, fout: 'Vul een telefoonnummer of een e-mailadres in (of allebei).' };
