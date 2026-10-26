@@ -19,6 +19,12 @@
  *     met de lener, ouder zonder lener (enkel het boek en de datums). Een boek dat het script niet
  *     zeker vindt, slaat het voor de historiek over.
  *
+ *   - Datums zonder jaar: in het oude blad staan veel datums als "26/11". Google koos daar zelf een jaar
+ *     bij, soms het verkeerde. De kolom "datum terug" is een formule (=DATEVALUE(I12+28+28)) die bij het
+ *     importeren het jaar van vandaag kreeg. Het script rekent die datum zelf uit de formule uit, en zet
+ *     een datum ontlening die later valt dan de rijen eronder (de lijst is chronologisch) een jaar terug.
+ *     Wat al overgenomen is, krijgt bij een nieuwe run de herstelde datums.
+ *
  * Dit script past het oude blad niet aan.
  */
 
@@ -28,8 +34,52 @@ function oudeKolom(kop, begin) {
   return -1;
 }
 
-/** Zet de waarden van het oude blad om naar objecten met vaste namen. */
-function leesOudeUitleningen(waarden) {
+/**
+ * Het aantal dagen uit een formule als =DATEVALUE(I12+28+28) of =I12+28, als die naar de eigen rij
+ * verwijst. Geeft null als het geen zo'n formule is.
+ */
+function dagenUitFormule(formule, rijnummer) {
+  var m = String(formule || '').replace(/\s+/g, '').match(/^=(?:DATEVALUE\()?[A-Z]+(\d+)((?:\+\d+)+)\)?$/i);
+  if (!m || Number(m[1]) !== rijnummer) return null;
+  return m[2].split('+').filter(Boolean).reduce(function (som, n) { return som + Number(n); }, 0);
+}
+
+/** Schuift een datum per jaar op tot ze op of na "vanaf" valt en minder dan een jaar later. */
+function binnenJaarNa(datum, vanaf) {
+  if (!datum || !vanaf) return datum;
+  for (var i = 0; i < 5 && dagenTussen(vanaf, datum) < 0; i++) datum = telMaandenOp(datum, 12);
+  for (var j = 0; j < 5 && dagenTussen(vanaf, datum) > 365; j++) datum = telMaandenOp(datum, -12);
+  return datum;
+}
+
+/**
+ * Herstelt de jaartallen van het oude blad (zie bovenaan). Van onder naar boven, zodat elke rij
+ * vergelijkt met rijen eronder die al hersteld zijn.
+ */
+function herstelOudeDatums(rijen) {
+  for (var i = rijen.length - 1; i >= 0; i--) {
+    var o = rijen[i];
+    if (!o.datum_uit) continue;
+    // 1. Later dan de volgende rijen? Dan een jaar te laat ingevuld.
+    var volgende = rijen.slice(i + 1, i + 11).map(function (x) { return x.datum_uit; }).filter(Boolean).sort()[0];
+    for (var n = 0; n < 3 && volgende && dagenTussen(volgende, o.datum_uit) > 90; n++) o.datum_uit = telMaandenOp(o.datum_uit, -12);
+    // 2. Terug vóór de ontlening? Dan de ontlening een jaar vroeger als dat past, anders de terugdatum later.
+    var terug = o.terug_op === 'ok' ? '' : parseerDatum(o.terug_op);
+    if (terug && terug < o.datum_uit && telMaandenOp(o.datum_uit, -12) <= terug) o.datum_uit = telMaandenOp(o.datum_uit, -12);
+    if (terug) o.terug_op = binnenJaarNa(terug, o.datum_uit);
+    // 3. De afgesproken datum: uit de formule, anders binnen het jaar na de ontlening.
+    o.datum_terug_afgesproken = o.dagen_formule !== null ? telDagenOp(o.datum_uit, o.dagen_formule) : binnenJaarNa(o.datum_terug_afgesproken, o.datum_uit);
+    if (o.herinnering_ok) o.herinnering = o.datum_terug_afgesproken;
+  }
+  rijen.forEach(function (o) { delete o.dagen_formule; delete o.herinnering_ok; });
+  return rijen;
+}
+
+/**
+ * Zet de waarden van het oude blad om naar objecten met vaste namen.
+ * formules (getFormulas van hetzelfde bereik) mag ontbreken.
+ */
+function leesOudeUitleningen(waarden, formules) {
   var kopIndex = -1;
   for (var r = 0; r < Math.min(10, waarden.length); r++) {
     if (waarden[r].some(function (c) { return normaliseerTekst(c) === 'boek'; })) { kopIndex = r; break; }
@@ -53,6 +103,7 @@ function leesOudeUitleningen(waarden) {
     var status = normaliseerTekst(lees('status'));
     if (/^vb/.test(status)) continue; // de voorbeeldrij bovenaan
     var herinnering = lees('herinnering');
+    var formule = formules && formules[i] && k.datum_terug_afgesproken > -1 ? formules[i][k.datum_terug_afgesproken] : '';
     rijen.push({
       rijnummer: i + 1,
       boek: schoon(lees('boek')), auteur: schoon(lees('auteur')),
@@ -61,10 +112,12 @@ function leesOudeUitleningen(waarden) {
       datum_uit: parseerDatum(lees('datum_uit')), datum_terug_afgesproken: parseerDatum(lees('datum_terug_afgesproken')),
       borg: lees('borg'), gift: lees('gift'),
       herinnering: parseerDatum(herinnering) || (normaliseerTekst(herinnering) === 'ok' ? parseerDatum(lees('datum_terug_afgesproken')) : ''),
-      terug_op: isLeeg(lees('terug_op')) && status === 'ok' ? 'ok' : lees('terug_op')
+      herinnering_ok: !parseerDatum(herinnering) && normaliseerTekst(herinnering) === 'ok',
+      terug_op: isLeeg(lees('terug_op')) && status === 'ok' ? 'ok' : lees('terug_op'),
+      dagen_formule: dagenUitFormule(formule, i + 1)
     });
   }
-  return rijen;
+  return herstelOudeDatums(rijen);
 }
 
 /** Leest de borg uit tekst als "5 cash", "€5 QR" of "QR". */
@@ -144,6 +197,28 @@ function oudeLener(staat, o, teller) {
   return lener;
 }
 
+/** De datum terug en de afgesproken datum van een teruggebrachte rij uit het oude blad. */
+function oudeTerugDatums(o, inst) {
+  var terug = parseerDatum(o.terug_op) || o.datum_terug_afgesproken || o.datum_uit;
+  if (terug < o.datum_uit) terug = o.datum_uit;
+  return { terug: terug, verval: o.datum_terug_afgesproken || berekenVervaldatum(o.datum_uit, inst) };
+}
+
+/**
+ * Een teruggebrachte uitlening die al overgenomen is: zet de herstelde datums erin (zie bovenaan).
+ * Enkel bij wat het script zelf overzette. Geeft true als er iets veranderde.
+ */
+function herstelOudeTerug(u, o, inst) {
+  if (u.vrijwilliger !== 'overgezet' || isLeeg(u.datum_terug) || !o.datum_uit) return false;
+  var d = oudeTerugDatums(o, inst);
+  var nieuw = { datum_uit: o.datum_uit, oorspronkelijke_vervaldatum: d.verval, vervaldatum: d.verval, datum_terug: d.terug };
+  if (!isLeeg(u.borg_terugbetaald)) nieuw.borg_terugbetaald = d.terug;
+  if (o.herinnering && !isLeeg(u.laatste_herinnering)) nieuw.laatste_herinnering = o.herinnering;
+  var anders = Object.keys(nieuw).some(function (k) { return parseerDatum(u[k]) !== nieuw[k]; });
+  if (anders) wijzig(u, nieuw);
+  return anders;
+}
+
 /**
  * Een teruggebrachte uitlening uit het oude blad, voor de cijfers. Met de lener als ze binnen de
  * bewaartermijn terugkwam, anders zonder (zoals de privacy-opruiming het ook zou doen).
@@ -165,12 +240,11 @@ function verwerkOudeTerug(staat, o, bron, teller, naTeKijken, gekozen) {
     });
     return;
   }
-  var terug = parseerDatum(o.terug_op) || o.datum_terug_afgesproken || o.datum_uit;
-  if (terug < o.datum_uit) terug = o.datum_uit;
+  var d = oudeTerugDatums(o, staat.inst);
+  var terug = d.terug, verval = d.verval;
   var grens = telMaandenOp(staat.vandaag, -staat.inst.bewaartermijn_afgesloten_uitleningen_maanden);
   var lener = terug >= grens && (o.email || o.telefoon || o.voornaam) ? oudeLener(staat, o, teller) : null;
   var borg = leesBorg(o.borg, staat.inst);
-  var verval = o.datum_terug_afgesproken || berekenVervaldatum(o.datum_uit, staat.inst);
   voegToe(staat.uitleningen, {
     uitlening_id: 'U' + metNullen(nieuwNummer(staat, 'uitlening', staat.uitleningen.map(function (x) { return x.uitlening_id; })), 5),
     exemplaar: boek.boek_id + '-1', boek_id: boek.boek_id, lenersnummer: lener ? lener.lenersnummer : '',
@@ -187,14 +261,17 @@ function verwerkOudeTerug(staat, o, bron, teller, naTeKijken, gekozen) {
  * Geeft { uitleningen, historiek, nietGevonden, leners, naTeKijken } terug.
  */
 function verwerkOudeUitleningen(staat, oudeRijen, gekozen) {
-  var teller = { uitleningen: 0, historiek: 0, nietGevonden: 0, leners: 0 };
+  var teller = { uitleningen: 0, historiek: 0, nietGevonden: 0, leners: 0, hersteld: 0 };
   var naTeKijken = [];
   var bekend = {};
-  staat.uitleningen.forEach(function (u) { if (u.bron) bekend[u.bron] = true; });
+  staat.uitleningen.forEach(function (u) { if (u.bron) bekend[u.bron] = u; });
 
   oudeRijen.forEach(function (o) {
     var bron = 'oud blad rij ' + o.rijnummer;
-    if (bekend[bron]) return;
+    if (bekend[bron]) {
+      if (bekend[bron] !== true && herstelOudeTerug(bekend[bron], o, staat.inst)) teller.hersteld++;
+      return;
+    }
     if (!isLeeg(o.terug_op)) { verwerkOudeTerug(staat, o, bron, teller, naTeKijken, gekozen); bekend[bron] = true; return; }
 
     // 1. De lener: bestaat die al (zelfde e-mail of telefoon)?
@@ -239,7 +316,7 @@ function verwerkOudeUitleningen(staat, oudeRijen, gekozen) {
     bekend[bron] = true;
     teller.uitleningen++;
   });
-  return { uitleningen: teller.uitleningen, historiek: teller.historiek, nietGevonden: teller.nietGevonden, leners: teller.leners, naTeKijken: naTeKijken };
+  return { uitleningen: teller.uitleningen, historiek: teller.historiek, nietGevonden: teller.nietGevonden, leners: teller.leners, hersteld: teller.hersteld, naTeKijken: naTeKijken };
 }
 
 /** Menu: vraagt de link naar het oude blad en neemt de lopende uitleningen over. */
@@ -260,7 +337,8 @@ function neemUitleningenOver() {
   // Het eerste tabblad met een kolom "Boek".
   var rijen = [];
   oud.getSheets().some(function (blad) {
-    rijen = leesOudeUitleningen(blad.getDataRange().getValues());
+    var bereik = blad.getDataRange();
+    rijen = leesOudeUitleningen(bereik.getValues(), bereik.getFormulas());
     return rijen.length > 0;
   });
   if (!rijen.length) {
@@ -288,8 +366,9 @@ function neemUitleningenOver() {
     bewaarStaat(staat);
     bewaarTabel(naTeKijken);
     leegCache();
-    logboek('menu', 'neemUitleningenOver', resultaat.uitleningen + ' lopend, ' + resultaat.historiek + ' historiek, ' + resultaat.nietGevonden + ' boeken niet gevonden, ' + resultaat.leners + ' leners, ' + nieuw + ' na te kijken');
+    logboek('menu', 'neemUitleningenOver', resultaat.uitleningen + ' lopend, ' + resultaat.historiek + ' historiek, ' + resultaat.nietGevonden + ' boeken niet gevonden, ' + resultaat.leners + ' leners, ' + resultaat.hersteld + ' hersteld, ' + nieuw + ' na te kijken');
     meld(resultaat.uitleningen + ' lopende uitleningen en ' + resultaat.historiek + ' teruggebrachte uitleningen overgenomen, ' + resultaat.leners + ' nieuwe leners aangemaakt. ' +
+      (resultaat.hersteld ? 'Bij ' + resultaat.hersteld + ' al overgenomen uitleningen zijn de datums hersteld. ' : '') +
       (resultaat.nietGevonden ? resultaat.nietGevonden + ' teruggebrachte boeken vond het script niet in de Catalogus. Ze staan in "Na te kijken" (veld historiek): zet daar het juiste boek-ID en kies dit menu-item opnieuw. ' : '') +
       nieuw + ' twijfelgevallen staan in "Na te kijken". Vraag nieuwe leners bij hun volgende bezoek om toestemming voor de privacyverklaring (kolom toestemming_privacy staat op "onbekend").');
   } finally {
