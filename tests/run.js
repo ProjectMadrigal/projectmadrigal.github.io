@@ -1788,10 +1788,14 @@ test('extra cijfers en meerdere boeken tegelijk aanpassen', () => {
     { uitlening_id: 'U2', exemplaar: 'B0002-1', boek_id: 'B0002', lenersnummer: '2', datum_uit: '2026-10-01', datum_terug: '2026-10-21' }
   ];
   const c = M.extraCijfers(s);
-  gelijk([c.gemiddeldeDagen, c.afgesloten, c.actieveLeners], [17, 2, 2]);
+  gelijk([c.mediaanDagen, c.afgesloten, c.actieveLeners, c.langerDanHalfJaar], [17, 2, 2, 0]);
   assert.strictEqual(c.nieuweLeners.length, 12);
-  assert.ok(c.nooitVoorbeelden.some((b) => b.boek_id === 'B0003'), 'B0003 werd nooit uitgeleend');
-  assert.ok(!c.nooitVoorbeelden.some((b) => b.boek_id === 'Z0001'), 'Niet uitleenbaar telt niet');
+  assert.strictEqual(c.nooitUitgeleend, s.catalogus.filter((b) => M.isUitleenbaar(b) && b.boek_id !== 'B0001' && b.boek_id !== 'B0002').length, 'Enkel uitleenbare boeken die nooit weg waren');
+  assert.ok(!('nooitVoorbeelden' in c), 'Geen lijst met voorbeelden meer');
+  // Een foute datum (een jaar te laat) trekt de mediaan niet scheef, maar wordt wel gemeld.
+  s.uitleningen.push({ uitlening_id: 'U3', exemplaar: 'B0003-1', boek_id: 'B0003', lenersnummer: '1', datum_uit: '2024-11-26', datum_terug: '2026-01-21' });
+  const c2 = M.extraCijfers(s);
+  gelijk([c2.mediaanDagen, c2.langerDanHalfJaar], [20, 1]);
   const r = M.boekenBulk(s, { ids: ['B0001', 'B0002', 'B9999'], veld: 'genre', waarde: 'Poëzie' });
   gelijk([r.ok, r.gelukt, r.fouten.length], [true, 2, 1]);
   gelijk([s.catalogus[0].genre, s.catalogus[1].genre], ['Poëzie', 'Poëzie']);
