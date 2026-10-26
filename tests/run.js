@@ -1016,6 +1016,27 @@ test('oud uitleenblad: historiek met lener binnen de bewaartermijn, zonder lener
   assert.strictEqual(c.extraCijfers.actieveLeners, 2);
 });
 
+test('oud uitleenblad: zelf het boek kiezen voor een lopende uitlening', () => {
+  const s = maakStaat('2026-10-25');
+  s.leners = [];
+  s.uitleningen = [];
+  const waarden = [
+    ['', 'Boek', '', 'Auteur', 'Voornaam', 'Achternaam', 'Telefoon', 'E-mail', 'datum ontlening', 'datum terug', 'Borg (cash/QR)', 'Gift', 'reminder mail', 'boek terug op...'],
+    ['', 'Een andere titel', '', 'Niemand', 'Sasha', '', '', 'sasha@voorbeeld.test', '11/09/2026', '09/10/2026', 'cash', '', '', '']
+  ];
+  const r = M.verwerkOudeUitleningen(s, M.leesOudeUitleningen(waarden));
+  gelijk([r.uitleningen, r.naTeKijken.length, r.naTeKijken[0].veld], [0, 1, 'uitlening']);
+  assert.ok(/boek_id/.test(r.naTeKijken[0].opmerking), 'De uitleg noemt de kolom boek_id');
+  const gekozen = M.gekozenOudeBoeken([
+    { bron: 'Overzetten', veld: 'uitlening', boek_id: 'B0002', waarde_bron: 'Een andere titel / Niemand [oud blad rij 2]', afgehandeld: 'nee' }
+  ]);
+  gelijk(gekozen, { 'oud blad rij 2': 'B0002' });
+  const r2 = M.verwerkOudeUitleningen(s, M.leesOudeUitleningen(waarden), gekozen);
+  gelijk([r2.uitleningen, r2.naTeKijken.length], [1, 0], 'Met het gekozen boek komt de uitlening mee');
+  const u = s.uitleningen[0];
+  gelijk([u.boek_id, u.datum_uit, u.vervaldatum, u.datum_terug, u.bron], ['B0002', '2026-09-11', '2026-10-09', '', 'oud blad rij 2']);
+});
+
 console.log('\nWebsite');
 
 test('startpagina: enkel publieke rijen, nieuwste nieuws, komend en vorig event, vragen op volgorde', () => {
