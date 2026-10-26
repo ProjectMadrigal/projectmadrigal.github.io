@@ -34,6 +34,7 @@ var ACTIES = {
   // Een uitlening aanpassen of annuleren (Uitlenen.js). Annuleren kan ook in het vrijwilligersscherm.
   vervaldatumAanpassen: 'bestuur',
   boekVerloren: 'bestuur',
+  boekVervangen: 'bestuur',
   annuleerUitlening: 'vrijwilliger',
   annuleerVerlenging: 'vrijwilliger',
   reserveren: 'balie',
@@ -298,6 +299,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.handleiding = handleiding(staat.inst);
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(leesTabel('Onderwerpen').rijen));
+        antwoord.data.teVervangen = teVervangen(staat, true);
         break;
       case 'vrijwilligerData':
         var onderwerpRijen = leesTabel('Onderwerpen').rijen;
@@ -308,6 +310,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.handleiding = handleiding(staat.inst);
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(onderwerpRijen));
+        antwoord.data.teVervangen = teVervangen(staat, false);
         antwoord.data.mijn = mijnBijdragen(voorstelRijen, tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : [], staat.wie, staat.vandaag);
         break;
       case 'voorstelBeschrijving':
@@ -317,6 +320,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
       case 'vervaldatumAanpassen': antwoord = vervaldatumAanpassen(staat, invoer); break;
       case 'boekVerloren': antwoord = boekVerloren(staat, invoer); break;
+      case 'boekVervangen': antwoord = boekVervangen(staat, invoer); break;
       case 'annuleerUitlening': antwoord = annuleerUitlening(staat, invoer, rol === 'bestuur'); break;
       case 'annuleerVerlenging': antwoord = annuleerVerlenging(staat, invoer); break;
       case 'reserveren': antwoord = reserveren(staat, invoer); break;

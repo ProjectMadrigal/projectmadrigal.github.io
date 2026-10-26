@@ -38,6 +38,7 @@ var ACTIES = {
   // Een uitlening aanpassen of annuleren (Uitlenen.js). Annuleren kan ook in het vrijwilligersscherm.
   vervaldatumAanpassen: 'bestuur',
   boekVerloren: 'bestuur',
+  boekVervangen: 'bestuur',
   annuleerUitlening: 'vrijwilliger',
   annuleerVerlenging: 'vrijwilliger',
   reserveren: 'balie',
@@ -1597,6 +1598,32 @@ function boekVerloren(staat, invoer) {
       (Number(u.borg) > 0 ? (terugbetaald ? ' en de borg is terugbetaald.' : ', de borg van ' + bedragTekst(u.borg) + ' is ingehouden.') : '.') +
       (boek && !enkel ? ' Het boek heeft meer exemplaren: verlaag het aantal in de Catalogus als dit exemplaar niet terugkomt.' : '')
   };
+}
+
+/**
+ * Bestuur: beslist wat er met een verloren boek gebeurt.
+ * invoer: { sleutel: 'U:U00012' of 'B:B0034', keuze: 'vervangen' | 'niet' }
+ *   vervangen: er staat een nieuw exemplaar in de kast. De status verloren gaat weg.
+ *   niet:      het boek wordt niet vervangen. Het blijft verloren (op de website: niet meer beschikbaar).
+ */
+function boekVervangen(staat, invoer) {
+  var m = String(invoer.sleutel || '').match(/^([UB]):(.+)$/);
+  var keuze = invoer.keuze === 'vervangen' ? 'vervangen' : invoer.keuze === 'niet' ? 'niet' : '';
+  if (!m || !keuze) return { ok: false, fout: 'Kies of het boek vervangen is of niet.' };
+  var u = m[1] === 'U' ? uitleningVan(staat, m[2]) : null;
+  var boek = boekVan(staat, u ? u.boek_id : m[2]);
+  if (m[1] === 'U' && (!u || !isVerlorenUitlening(u))) return { ok: false, fout: 'Deze uitlening staat niet als verloren.' };
+  if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  var stempel = keuze === 'vervangen' ? 'vervangen op ' + korteDatum(staat.vandaag) : 'niet vervangen';
+  if (u) wijzig(u, { staat_terug: schoon(u.staat_terug) + ' · ' + stempel });
+  var nieuw = { notitie: [schoonMetRegels(boek.notitie), staat.vandaag + ' ' + (u ? u.exemplaar + ': ' : '') + stempel].filter(Boolean).join('\n') };
+  if (keuze === 'vervangen' && boekStatus(boek) === 'verloren') nieuw.status = '';
+  wijzig(boek, nieuw);
+  staat.catalogusGewijzigd = true;
+  staat.log.push(['vervangen', (u ? u.exemplaar : boek.boek_id) + ': ' + stempel]);
+  var meer = aantalExemplaren(boek) > 1;
+  return { ok: true, tekst: '"' + schoon(boek.titel) + '": ' + (keuze === 'vervangen' ? 'vervangen. Het staat weer gewoon in de catalogus.'
+    : meer ? 'niet vervangen. Verlaag het aantal exemplaren in de Catalogus.' : 'niet vervangen. Het blijft op de website als niet meer beschikbaar.') };
 }
 
 /** De laatste wijzigingen aan een boek volgens het Logboek (waarden: het tabblad Logboek). */
@@ -3469,6 +3496,11 @@ function instellingKop(titel) {
 /** Werd deze beschrijving vroeger afgebroken (eindigt ze op "...")? */
 function isAfgebroken(tekst) {
   return /(\.\.\.|…)\s*$/.test(String(tekst || ''));
+}
+
+/** Is er al beslist wat er met een verloren boek gebeurt (vervangen of niet)? */
+function isAfgehandeldVerloren(tekst) {
+  return /vervangen/i.test(String(tekst || ''));
 }
 
 /** Controleert het controlecijfer van een ISBN-10 (10 tekens, laatste mag X zijn). */
@@ -6098,6 +6130,39 @@ function testWikipediaBewaren() {
 }
 
 /**
+ * Te vervangen: verloren exemplaren waarover nog niet beslist is. Uit de uitleningen die als verloren
+ * afgesloten zijn, en uit boeken met de status verloren zonder zo'n uitlening.
+ * metBorg: true voor het bestuur (borg ingehouden of terugbetaald).
+ */
+function teVervangen(staat, metBorg) {
+  var lijst = [];
+  var gehad = {};
+  staat.uitleningen.forEach(function (u) {
+    if (!isVerlorenUitlening(u)) return;
+    gehad[String(u.boek_id)] = true;
+    if (isAfgehandeldVerloren(u.staat_terug)) return;
+    var b = boekVan(staat, u.boek_id);
+    var item = {
+      sleutel: 'U:' + u.uitlening_id, boek_id: String(u.boek_id), exemplaar: String(u.exemplaar || ''),
+      titel: b ? schoon(b.titel) : String(u.boek_id), auteur: b ? schoon(b.auteur) : '', isbn: b ? schoon(b.isbn) : '',
+      datum: parseerDatum(u.datum_terug), lenersnummer: String(u.lenersnummer || ''),
+      opmerking: schoon(String(u.staat_terug).replace(/^verloren:?\s*/i, ''))
+    };
+    if (metBorg && Number(u.borg) > 0) item.borg = isLeeg(u.borg_terugbetaald) ? 'ingehouden' : 'terugbetaald';
+    lijst.push(item);
+  });
+  staat.catalogus.forEach(function (b) {
+    if (boekStatus(b) !== 'verloren' || gehad[String(b.boek_id)]) return;
+    // Al beslist: de laatste regel van de notitie zegt "niet vervangen".
+    var regels = schoonMetRegels(b.notitie).split('\n');
+    if (/niet vervangen$/.test(regels[regels.length - 1])) return;
+    lijst.push({ sleutel: 'B:' + b.boek_id, boek_id: String(b.boek_id), exemplaar: '', titel: schoon(b.titel), auteur: schoon(b.auteur),
+      isbn: schoon(b.isbn), datum: '', lenersnummer: '', opmerking: '' });
+  });
+  return lijst.sort(function (a, b) { return a.titel.localeCompare(b.titel); });
+}
+
+/**
  * Welke back-ups mogen weg? bestanden: [{ id, naam, datum }] (datum als getal of tekst).
  * Geeft de id's van alles buiten de nieuwste "bewaren" back-ups. Enkel bestanden
  * waarvan de naam met BACKUP_VOORVOEGSEL begint, tellen mee.
@@ -6306,7 +6371,8 @@ function vandaagTekst() {
 
 /** De boeken die vandaag terugkwamen, met hun onderwerp: zo weet je in welke kast ze horen. Zonder gegevens van leners. */
 function vandaagTerug(staat, vertaal) {
-  return staat.uitleningen.filter(function (u) { return parseerDatum(u.datum_terug) === staat.vandaag; }).map(function (u) {
+  // Een verloren boek kwam niet terug: dat staat bij Te vervangen.
+  return staat.uitleningen.filter(function (u) { return parseerDatum(u.datum_terug) === staat.vandaag && !isVerlorenUitlening(u); }).map(function (u) {
     var boek = boekVan(staat, u.boek_id);
     var groepen = boek && vertaal ? filtergroepenVan(boek, vertaal) : [];
     return { uitlening_id: String(u.uitlening_id), exemplaar: String(u.exemplaar || ''), boek_id: String(u.boek_id),
@@ -7010,6 +7076,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.handleiding = handleiding(staat.inst);
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(leesTabel('Onderwerpen').rijen));
+        antwoord.data.teVervangen = teVervangen(staat, true);
         break;
       case 'vrijwilligerData':
         var onderwerpRijen = leesTabel('Onderwerpen').rijen;
@@ -7020,6 +7087,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.handleiding = handleiding(staat.inst);
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(onderwerpRijen));
+        antwoord.data.teVervangen = teVervangen(staat, false);
         antwoord.data.mijn = mijnBijdragen(voorstelRijen, tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : [], staat.wie, staat.vandaag);
         break;
       case 'voorstelBeschrijving':
@@ -7029,6 +7097,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
       case 'vervaldatumAanpassen': antwoord = vervaldatumAanpassen(staat, invoer); break;
       case 'boekVerloren': antwoord = boekVerloren(staat, invoer); break;
+      case 'boekVervangen': antwoord = boekVervangen(staat, invoer); break;
       case 'annuleerUitlening': antwoord = annuleerUitlening(staat, invoer, rol === 'bestuur'); break;
       case 'annuleerVerlenging': antwoord = annuleerVerlenging(staat, invoer); break;
       case 'reserveren': antwoord = reserveren(staat, invoer); break;

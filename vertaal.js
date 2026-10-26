@@ -18,6 +18,13 @@
   var HANDLEIDING = 'madrigal_handleiding_taal';
 
   var TEKST = {
+   "Te vervangen": "To replace",
+   "Boeken die verloren zijn. Zie je er een tweedehands, of brengt iemand er een binnen? Meld het via Iets melden": "Books that are lost. Do you see a second-hand copy, or does someone bring one in? Report it via Report something",
+   "Boeken die verloren zijn. Staat er een nieuw exemplaar in de kast, klik dan op Vervangen. Koop je het niet opnieuw, klik op Niet vervangen: dan blijft het op de website als niet meer beschikbaar": "Books that are lost. Is there a new copy on the shelf, click Replaced. If you will not buy it again, click Not replacing: it stays on the website as no longer available",
+   "Boeken die verloren zijn en een nieuw exemplaar nodig hebben. Het bestuur beslist: vervangen of niet": "Books that are lost and need a new copy. The board decides: replace or not",
+   "Vervangen": "Replaced",
+   "Niet vervangen": "Not replacing",
+   "Er is niets te vervangen": "There is nothing to replace",
    "titel, auteur, ISBN of nummer op het etiket": "title, author, ISBN or number on the label",
    "titel, nummer op het etiket, lenersnummer of voornaam": "title, number on the label, borrower number or first name",
    "Sleutel op zak: geen sleutel? Vraag het op tijd in de vrijwilligersgroep": "Key in your pocket: no key? Ask in the volunteers' group in good time",
@@ -854,6 +861,9 @@
     [/^Aangemeld als (.+)$/, 'Signed in as $1'],
     [/^(\d+) boeke?n? uitgeleend, gesorteerd op vervaldatum\.$/, function (m, n) { return n + (n === '1' ? ' book' : ' books') + ' on loan, sorted by due date.'; }],
     [/^(\d+) leners\. Zoek, pas aan of zet op inactief\. Een inactieve lener zonder uitleningen wordt na de bewaartermijn gewist\.$/, '$1 borrowers. Search, change or set to inactive. An inactive borrower without loans is deleted after the retention period.'],
+    [/^(\S+)((?: · ISBN \S+)?) · verloren op (\S+)((?: · lener \d+)?)((?: · borg (?:ingehouden|terugbetaald))?)$/, function (m, ex, isbn, d, l, b) {
+      return ex + isbn + ' · lost on ' + d + l.replace('lener', 'borrower') + b.replace('borg ingehouden', 'deposit kept').replace('borg terugbetaald', 'deposit paid back');
+    }],
     // Uitleenscherm.
     [/^Aan de balie: (.+)$/, 'At the desk: $1'],
     [/^Te laat sinds (.+) \((\d+) dagen?\)$/, function (m, d, n) { return 'Overdue since ' + d + ' (' + n + (n === '1' ? ' day' : ' days') + ')'; }],
