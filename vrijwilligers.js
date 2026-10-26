@@ -126,12 +126,44 @@
       } }, 'Alles uitvinken')));
   }
 
+  /* ---------- Handleiding ---------- */
+
+  var TAAL = 'madrigal_handleiding_taal';
+
+  /** De handleiding (draaiboek), in het Nederlands of het Engels. De keuze blijft op dit toestel bewaard. */
+  function toonHandleiding(vak, ctx) {
+    var h = ctx.data.handleiding || { nl: [], en: [] };
+    var taal = lees(TAAL) === 'en' ? 'en' : 'nl';
+    var blokken = h[taal] || [];
+    var keuze = el('div', { class: 'knoppen', role: 'group', 'aria-label': 'Taal / Language' }, [['nl', 'Nederlands'], ['en', 'English']].map(function (t) {
+      return el('button', {
+        type: 'button', lang: t[0], class: 'knop' + (t[0] === taal ? '' : ' tweede'), 'aria-pressed': t[0] === taal ? 'true' : 'false',
+        onclick: function () { bewaar(TAAL, t[0] === 'en' ? 'en' : ''); toonHandleiding(vak, ctx); }
+      }, t[1]);
+    }));
+    var inhoud = el('div', { lang: taal }, blokken.length ? blokken.map(function (b) {
+      var delen = [];
+      var punten = null;
+      b.regels.forEach(function (r) {
+        if (r.punt) {
+          if (!punten) { punten = el('ul', {}); delen.push(punten); }
+          punten.appendChild(el('li', {}, r.tekst));
+        } else {
+          punten = null;
+          delen.push(el('p', {}, r.tekst));
+        }
+      });
+      return el('section', { class: 'blok' }, b.titel ? el('h3', {}, b.titel) : null, delen);
+    }) : el('p', {}, taal === 'en' ? 'No manual yet. The board fills it in under tekst_handleiding_en.' : 'Nog geen handleiding. Het bestuur vult ze in bij de instelling tekst_handleiding.'));
+    D.vervang(vak, ctx.kop(taal === 'en' ? 'Volunteer manual' : 'Handleiding', taal === 'en' ? 'How the library works, for your shift.' : 'Hoe de bib werkt, voor je shift.'), keuze, inhoud);
+  }
+
   /* ---------- Rondleiding ---------- */
 
   var GEZIEN = 'madrigal_rondleiding_gezien';
 
   var STAPPEN = [
-    ['Welkom', 'Fijn dat je meehelpt! In dit scherm vind je alles wat je als vrijwilliger nodig hebt. Deze korte rondleiding toont de onderdelen. Je kan ze altijd opnieuw openen onderaan Vandaag.'],
+    ['Welkom', 'Fijn dat je meehelpt! In dit scherm vind je alles wat je als vrijwilliger nodig hebt. Deze korte rondleiding toont de onderdelen. Je kan ze altijd opnieuw openen onderaan Vandaag. De afspraken van de bib lees je bij Handleiding, ook in het Engels.'],
     ['Vandaag', 'Vandaag toont wat aandacht vraagt: boeken die te laat zijn, reservaties die klaarliggen, wanneer jij op het rooster staat en briefjes van de vorige shift. Laat zelf een briefje achter als de volgende shift iets moet weten.'],
     ['Aan de balie', 'Bij elke uitlening toont het uitleenscherm een korte checklist. Een boek met een rode bol leen je niet uit: dat lees je enkel in de bib. Steek een bladwijzer van Madrigal in het boek, met de terugbrengdatum. Vraag de borg per boek, cash in de kassa of via de QR-code. Wil iemand iets kopen? Gebruik Iets melden, dan neemt het bestuur contact op.'],
     ['Uitlenen', 'Uitlenen en terugbrengen doe je in het uitleenscherm (knop bovenaan). Hier zie je de lopende uitleningen, de reservaties en wat te laat is. Met Boek opzoeken beantwoord je vragen van leners. Terug te zetten toont welke boeken vandaag terugkwamen en in welke kast ze horen.'],
@@ -537,7 +569,7 @@
 
   root.MadrigalVrijwilligers = {
     briefjes: briefjesBlok, mijn: toonMijn, terugzetten: toonTerugzetten, opzoeken: toonOpzoeken, boekStand: boekStand,
-    shiftBlok: shiftBlok, checklist: toonChecklist, welkomBlok: welkomBlok, rondleidingKnop: rondleidingKnop,
+    shiftBlok: shiftBlok, checklist: toonChecklist, handleiding: toonHandleiding, welkomBlok: welkomBlok, rondleidingKnop: rondleidingKnop,
     kast: toonKast, melden: toonMelden, meldingen: toonMeldingen, voorstellen: toonVoorstellen,
     /** Voor de tests. */
     shiftUitRooster: shiftUitRooster, kastResultaat: kastResultaat, boekenVoorKast: boekenVoorKast

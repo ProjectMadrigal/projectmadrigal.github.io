@@ -381,9 +381,11 @@ var STANDAARD_INSTELLINGEN = [
   ['bewaartermijn_afgesloten_uitleningen_maanden', 12, 'Na hoeveel maanden de koppeling tussen een teruggebrachte uitlening en de lener gewist wordt.'],
   ['briefjes_bewaren_dagen', 60, 'Na hoeveel dagen een briefje voor de volgende shift gewist wordt, ook als niemand het weghaalde. Op Vandaag staat een briefje hoogstens 14 dagen.'],
   ['meldingen_bewaren_dagen', 90, 'Na hoeveel dagen een afgehandelde melding van een vrijwilliger gewist wordt. Open meldingen blijven staan.'],
-  ['tekst_checklist_openen', 'Licht en verwarming aan\nKassa en borgdoos klaarzetten\nBalie openen op de laptop\nTerugbrengbak leegmaken en boeken terugbrengen in het systeem', 'Checklist voor de vrijwilliger die de bib opent. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
+  ['tekst_checklist_openen', 'Sleutel op zak: geen sleutel? Vraag het op tijd in de vrijwilligersgroep\nLicht en verwarming aan\nKassa en borgdoos klaarzetten\nBalie openen op de laptop\nTerugbrengbak leegmaken en boeken terugbrengen in het systeem', 'Checklist voor de vrijwilliger die de bib opent. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
   ['tekst_checklist_uitlenen', 'Geen rode bol op het boek: een boek met een rode bol lees je enkel in de bib\nBladwijzer van Madrigal in het boek, met de terugbrengdatum\nBorg van 5 euro per boek, cash in de kassa of via de QR-code', 'Checklist aan de balie, bij elke uitlening. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
-  ['tekst_checklist_sluiten', 'Alle boeken terug in de kast\nBorgen tellen en in de borgdoos\nLaptop afmelden en uitzetten\nLicht en verwarming uit, ramen dicht', 'Checklist voor de vrijwilliger die de bib sluit. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
+  ['tekst_checklist_sluiten', 'Alle boeken terug in de kast\nBorgen tellen en in de borgdoos\nKassa met de borgen onder de witte kast, uit het zicht\nVuilbakken leeg: restafval in de containers buiten, de pmd-zak in de keuken\nLaptop afmelden en uitzetten\nLicht uit, verwarming terug op 1, ramen dicht\nLokaal goed afgesloten', 'Checklist voor de vrijwilliger die de bib sluit. Een punt per regel (nieuwe regel met Ctrl+Enter).'],
+  ['tekst_handleiding', '# Wat is Project Madrigal\nProject Madrigal is de queer bib van Antwerpen. Alle informatie die bewustwording en identiteitsvorming verhoogt, hoort vrij beschikbaar te zijn voor queer personen en hun allies. Daarom werkt de bib zo drempelverlagend mogelijk.\nNa de sluiting van Kartonnen Dozen, de oudste nog overblijvende LGBTQIA+ boekhandel van de Benelux, verdween een culturele pilaar uit Antwerpen. Dankzij Johanna Pas kon Project Madrigal een deel van de tweedehands en nieuwe stock overnemen. Samen kozen ze meer dan 1000 boeken die binnen de community moesten blijven.\nDe focus ligt op gender en seksualiteit, met extra aandacht voor diversiteit. Je vindt er ook de klassiekers uit de gay en lesbische literatuur en veel feministische uitgaven.\n# Wat doe je als vrijwilliger\nJe bent op een afgesproken moment in de bib. Je ontvangt lezers, helpt hen verder waar je kan en registreert uitleningen en teruggebrachte boeken in het uitleenscherm.\n# De sleutel\nEr zijn enkele sleutels in omloop bij de vrijwilligers. Heb je zelf geen sleutel? Vraag dan op tijd in de vrijwilligersgroep op WhatsApp hoe je er een krijgt. Jij zorgt ervoor dat je de sleutel hebt voor je shift begint.\nIs er een workshop, praatavond of infomoment? Dan spreekt het bestuur af hoe de mensen binnen raken.\n# De bollen op de rug\n- Rode bol: dit boek leen je niet uit. Lezers mogen het wel lezen in de bib.\n- Gele bol: dit boek komt van Uitgeverij \'t Verschil of Kartonnen Dozen, of is een persoonlijke aanrader van Johanna Pas.\n# De borg\nBrengt de lezer de boeken in goede staat en op tijd terug, dan krijgt die de borg terug. Vraagt de lezer geen verlenging en reageert die niet op de herinnering? Dan houdt de bib de borg in.\nBetaalt de lezer met de QR-code? De afspraken daarover vind je in de vrijwilligersgroep.\n# Verlies of schade\nRaakt een boek kwijt? Dan vraagt de bib enkel de huidige waarde van het boek terug, tenzij de lezer zelf een vervangend exemplaar brengt. Meld het via Iets melden.\n# Werkt het uitleenscherm niet?\nNoteer de gegevens van het boek en de lezer op het blad in de bib, en laat het weten in de vrijwilligersgroep. Het bestuur verwerkt ze daarna.\n# Iemand wil iets kopen\nMeld het via Iets melden, met de soort Iemand wil iets kopen. Het bestuur neemt contact op als het boek te koop is.\n# Orde en netheid\nDe bib is een plek voor iedereen. Daarom houden we ze samen proper.\n- Kijk of de vloer niet te vuil is. Een borstel of stofzuiger kan je vragen in het gebouw.\n- Neem wat stof af van de boekenrekken. Stofdoeken en natte doekjes liggen op de vensterbank.\n- Zet de boeken netjes in de kast.\n- Maak de vuilbakken op tijd leeg. Restafval gaat in de containers buiten, de pmd-zak in de keuken.\n- Kijk of de posters nog goed hangen. Nieuwe Pritt-gom ligt op het bureau.\n# Vragen?\nStel je vraag in de vrijwilligersgroep op WhatsApp. Wie wanneer in de bib staat, zie je bij Rooster in dit scherm.', 'Handleiding in het vrijwilligersscherm. Een regel met # vooraan is een titel, een regel met - vooraan een opsommingspunt. De afspraken voor lenen (weken, boeken, borg) zet het scherm er zelf bij, uit de instellingen hierboven.'],
+  ['tekst_handleiding_en', '# What is Project Madrigal\nProject Madrigal is Antwerp\'s queer library. All information that raises awareness and supports identity formation should be freely available to queer people and their allies. That is why the library strives to be as accessible as possible.\nFollowing the closure of Kartonnen Dozen, the oldest remaining LGBTQIA+ bookshop in the Benelux, a cultural mainstay disappeared from Antwerp. Thanks to Johanna Pas, Project Madrigal was able to take over part of the second-hand and new stock. Together, they selected more than 1,000 books that needed to remain within the community.\nThe focus is on gender and sexuality, with a particular emphasis on diversity. You\'ll also find classics from gay and lesbian literature and many feminist publications.\n# What do you do as a volunteer?\nYou come to the library at an agreed time. You welcome readers, help them where you can, and record loans and returned books on the lending screen.\n# The key\nThere are a few keys in circulation amongst the volunteers. If you don\'t have a key yourself, ask in good time in the volunteers\' WhatsApp group how to get one. Make sure you have the key before your shift starts.\nIs there a workshop, discussion evening or information session? In that case, the board will arrange how people can get in.\n# The dots on the spine\n- Red dot: this book cannot be borrowed. Readers are welcome to read it in the library.\n- Yellow dot: this book comes from \'t Verschil or Kartonnen Dozen, or is a personal recommendation from Johanna Pas.\n# The deposit\nIf the reader returns the books in good condition and on time, they get their deposit back. If the reader does not ask for an extension and does not respond to the reminder, the library keeps the deposit.\nDoes the reader pay with the QR code? You can find the arrangements for this in the volunteers\' group.\n# Loss or damage\nHas a book gone missing? Then the library only asks for the current value of the book, unless the reader brings a replacement copy. Report it via Iets melden (Report something).\n# Is the lending screen not working?\nWrite down the details of the book and the reader on the sheet in the library, and let the volunteers\' group know. The board will process them afterwards.\n# Someone wants to buy something\nReport it via Iets melden (Report something), with the type Iemand wil iets kopen (someone wants to buy something). The board will get in touch if the book is for sale.\n# Keeping the library tidy\nThe library is a place for everyone. That\'s why we keep it clean together.\n- Check that the floor isn\'t too dirty. You can ask for a brush or vacuum cleaner in the building.\n- Dust the bookshelves. Dust cloths and wet wipes are on the windowsill.\n- Put the books back neatly on the shelves.\n- Empty the bins in good time. General waste goes in the containers outside, the PMD bag in the kitchen.\n- Check that the posters are still hanging properly. There\'s new Pritt glue on the desk.\n# Any questions?\nAsk your question in the volunteers\' WhatsApp group. You can see who is in the library and when under Rooster (schedule) on this screen.', 'De handleiding in het Engels, voor vrijwilligers die geen Nederlands lezen. Zelfde opmaak.'],
   ['goodreads_shelf', '', 'Naam van de Goodreads-shelf met de boeken van Madrigal, precies zoals op Goodreads. Leeg: alle boeken uit de export.'],
   ['goatcounter_code', 'projectmadrigal', 'De code van het GoatCounter-account (projectmadrigal voor projectmadrigal.goatcounter.com). Dezelfde als statistiek in config.js.'],
   ['goatcounter_api_sleutel', '', 'Optioneel. Een API-sleutel van GoatCounter (je naam rechtsboven > Preferences > tabblad API, enkel "Read statistics"). Dan toont het bestuursscherm de bezoekers onder Cijfers. Deel deze sleutel met niemand.'],
@@ -536,6 +538,7 @@ var INSTELLING_GROEPEN = [
   ['Uitlenen: herinneringen', ['tekst_herinnering', 'tekst_herinnering_binnenkort']],
   ['Uitlenen: online reserveren', ['online_reserveren']],
   ['Vrijwilligers: shift', ['tekst_checklist_openen', 'tekst_checklist_sluiten', 'tekst_checklist_uitlenen']],
+  ['Vrijwilligers: handleiding', ['tekst_handleiding', 'tekst_handleiding_en']],
   ['Vrijwilligers: rooster', ['rooster_link', 'tekst_vaste_events']],
   ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
   ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],
@@ -638,6 +641,33 @@ var MELDING_SOORTEN = ['boek kapot', 'iets kwijt', 'vraag van een lener', 'wil i
 var VOORSTEL_MIN_TEKENS = 40;
 
 /* ---------- Beschrijvingen voorstellen ---------- */
+
+/**
+ * Wat het draaiboek voor vrijwilligers toevoegt aan de checklists. Een punt komt er enkel bij als
+ * geen bestaand punt het trefwoord al bevat.
+ */
+var DRAAIBOEK_CHECKLIST = {
+  openen: [['sleutel', 'Sleutel op zak: geen sleutel? Vraag het op tijd in de vrijwilligersgroep', 'begin']],
+  sluiten: [
+    ['witte kast', 'Kassa met de borgen onder de witte kast, uit het zicht'],
+    ['vuilbak', 'Vuilbakken leeg: restafval in de containers buiten, de pmd-zak in de keuken'],
+    ['op 1', 'Verwarming terug op 1'],
+    ['afgesloten', 'Lokaal goed afgesloten']
+  ]
+};
+
+/** De veelgestelde vragen uit het draaiboek. bron_id voorkomt dubbels. */
+var DRAAIBOEK_VRAGEN = [
+  ['draaiboek-verlies', 'Wat als ik een boek verlies of beschadig?', 'What if I lose or damage a book?',
+    'Dan vraagt de bib enkel de huidige waarde van het boek terug. Je mag ook zelf een vervangend exemplaar brengen.',
+    'Then the library only asks you to pay the current value of the book. You are also welcome to bring a replacement copy yourself.'],
+  ['draaiboek-borg', 'Wanneer krijg ik mijn borg niet terug?', 'When will I not get my deposit back?',
+    'Je krijgt je borg terug als je de boeken in goede staat en op tijd terugbrengt. Vraag je geen verlenging en reageer je niet op de herinnering? Dan houdt de bib de borg in.',
+    'You get your deposit back if you return the books in good condition and on time. If you do not ask for an extension and do not respond to the reminder, the library keeps your deposit.'],
+  ['draaiboek-bollen', 'Wat betekent de rode of gele bol op een boek?', 'What does the red or yellow dot on a book mean?',
+    'Een rode bol betekent dat je het boek niet kan lenen. Je mag het wel lezen in de bib tijdens de openingsuren. Een gele bol betekent dat het boek van Uitgeverij \'t Verschil of Kartonnen Dozen komt, of een persoonlijke aanrader is van Johanna Pas.',
+    'A red dot means you cannot borrow the book. You are welcome to read it in the library during opening hours. A yellow dot means the book comes from \'t Verschil or Kartonnen Dozen, or is a personal recommendation from Johanna Pas.']
+];
 
 var BRIEFJE_ZICHTBAAR_DAGEN = 14; // daarna verdwijnt een briefje vanzelf van Vandaag
 
@@ -2226,6 +2256,39 @@ function doPost(e) {
   }
 }
 
+/**
+ * Vult de checklists en de veelgestelde vragen aan met het draaiboek, zonder iets te wissen.
+ * Geeft { openen, sluiten (nieuwe teksten), punten (aantal nieuwe punten), vragen (aantal nieuwe vragen) }.
+ */
+function draaiboekAanvullen(inst, faqRijen) {
+  var punten = 0;
+  var vul = function (tekst, extra) {
+    var regels = String(tekst || '').split('\n').map(function (r) { return r.trim(); }).filter(Boolean);
+    extra.forEach(function (e) {
+      if (regels.some(function (r) { return normaliseerTekst(r).indexOf(e[0]) > -1; })) return;
+      if (e[2] === 'begin') regels.unshift(e[1]); else regels.push(e[1]);
+      punten++;
+    });
+    return regels.join('\n');
+  };
+  var openen = vul(inst.tekst_checklist_openen, DRAAIBOEK_CHECKLIST.openen);
+  var sluiten = vul(inst.tekst_checklist_sluiten, DRAAIBOEK_CHECKLIST.sluiten);
+  var bekend = {};
+  var volgorde = 0;
+  faqRijen.forEach(function (r) {
+    if (r.bron_id) bekend[String(r.bron_id)] = true;
+    bekend[normaliseerTekst(r.vraag)] = true;
+    volgorde = Math.max(volgorde, parseerGetal(r.volgorde) || 0);
+  });
+  var vragen = 0;
+  DRAAIBOEK_VRAGEN.forEach(function (v) {
+    if (bekend[v[0]] || bekend[normaliseerTekst(v[1])]) return;
+    voegToe(faqRijen, { volgorde: ++volgorde, vraag: v[1], vraag_en: v[2], antwoord: v[3], antwoord_en: v[4], publiek: 'ja', bron_id: v[0] });
+    vragen++;
+  });
+  return { openen: openen, sluiten: sluiten, punten: punten, vragen: vragen };
+}
+
 /** De eerste niet-lege waarde uit een lijst mogelijke veldnamen. */
 function eersteVeld(rij, namen) {
   for (var i = 0; i < namen.length; i++) {
@@ -2778,6 +2841,34 @@ function haalRoosterMaand(url, code, maand) {
     followRedirects: true
   });
   try { return JSON.parse(antwoord.getContentText()); } catch (e) { return { ok: false, fout: 'Het rooster gaf een onverwacht antwoord.' }; }
+}
+
+/** Voor het vrijwilligersscherm: de handleiding in het Nederlands en het Engels, met de afspraken voor lenen. */
+function handleiding(inst) {
+  var maak = function (tekst, taal) {
+    var blokken = handleidingBlokken(tekst);
+    // De afspraken na het eerste blok (wat Madrigal is), anders bovenaan.
+    blokken.splice(blokken.length > 1 ? 2 : 0, 0, uitleenAfspraken(inst, taal));
+    return blokken;
+  };
+  return { nl: maak(inst.tekst_handleiding, 'nl'), en: maak(inst.tekst_handleiding_en, 'en') };
+}
+
+/**
+ * Een tekst met titels (# vooraan) en opsommingen (- vooraan) wordt een lijst blokken:
+ * [{ titel, regels: [{ punt: true/false, tekst }] }]. Tekst voor de eerste titel komt in een blok zonder titel.
+ */
+function handleidingBlokken(tekst) {
+  var blokken = [];
+  String(tekst || '').split('\n').forEach(function (r) {
+    var regel = String(r).trim();
+    if (!regel) return;
+    if (/^#/.test(regel)) { blokken.push({ titel: schoon(regel.replace(/^#+/, '')), regels: [] }); return; }
+    if (!blokken.length) blokken.push({ titel: '', regels: [] });
+    var punt = /^[-*•]\s*/.test(regel);
+    blokken[blokken.length - 1].regels.push({ punt: punt, tekst: schoon(regel.replace(/^[-*•]\s*/, '')) });
+  });
+  return blokken.filter(function (b) { return b.titel || b.regels.length; }).slice(0, 40);
 }
 
 /** Heeft dit boek nog een cover nodig van een andere uitgave? */
@@ -4407,6 +4498,23 @@ function nDeWeekdag(jaar, maand, dag, n) {
   return d.slice(0, 7) === eerste.slice(0, 7) ? d : '';
 }
 
+/** Menu: neemt het draaiboek over in de checklists en de veelgestelde vragen. */
+function neemDraaiboekOver() {
+  installeer(); // zorgt dat de tabbladen en de nieuwe instellingen bestaan
+  var inst = leesInstellingen();
+  var faq = leesTabel('Veelgestelde vragen');
+  var r = draaiboekAanvullen(inst, faq.rijen);
+  var blad = spreadsheet().getSheetByName('Instellingen');
+  if (r.openen !== inst.tekst_checklist_openen) zetInstelling(blad, 'tekst_checklist_openen', r.openen);
+  if (r.sluiten !== inst.tekst_checklist_sluiten) zetInstelling(blad, 'tekst_checklist_sluiten', r.sluiten);
+  if (r.vragen) bewaarTabel(faq);
+  leegCache();
+  logboek('menu', 'neemDraaiboekOver', r.punten + ' punten in de checklists, ' + r.vragen + ' vragen');
+  meld(r.punten + ' nieuwe punten in de checklists en ' + r.vragen + ' nieuwe veelgestelde vragen. Kijk de checklist bij het sluiten na: staat er nog "verwarming uit"? Dat moet nu "verwarming terug op 1" zijn. De handleiding voor vrijwilligers staat in de instellingen tekst_handleiding en tekst_handleiding_en.');
+}
+
+/* ---------- Tabbladen lezen en bewaren (enkel in Apps Script) ---------- */
+
 /** Menu: neemt de films over uit het tabblad dat open staat (een import van IMDb of Letterboxd). */
 function neemFilmsOverUitTabblad() {
   var blad = SpreadsheetApp.getActiveSheet();
@@ -4733,6 +4841,7 @@ function onOpen() {
       .addItem('Neem de uitleningen over (lopend en historiek)', 'neemUitleningenOver')
       .addItem('Neem nieuws, agenda en vragen over', 'importeerOudeSite')
       .addItem('Neem een oud rooster over uit de tabbladen (een tabblad per maand)', 'neemRoosterOverUitTabbladen')
+      .addItem('Neem het draaiboek voor vrijwilligers over (checklists en vragen)', 'neemDraaiboekOver')
       .addSeparator()
       .addItem('Catalogus wissen en opnieuw opbouwen', 'herbouwCatalogus'))
     .addToUi();
@@ -5522,7 +5631,7 @@ function shiftChecklist(inst) {
   return { openen: checklistPunten(inst.tekst_checklist_openen), sluiten: checklistPunten(inst.tekst_checklist_sluiten) };
 }
 
-/* ---------- Tabbladen lezen en bewaren (enkel in Apps Script) ---------- */
+/* ---------- Handleiding (draaiboek voor vrijwilligers) ---------- */
 
 /**
  * Voor Cijfers: per vrijwilliger hoeveel avonden in de bib en als back-up, per jaar,
@@ -5962,6 +6071,25 @@ function tweetalig(rij, veld) {
 function tweetaligLang(rij, veld) {
   var nl = String(rij[veld] || '').trim();
   return { nl: nl, en: String(rij[veld + '_en'] || '').trim() || nl };
+}
+
+/** De afspraken voor lenen, uit de instellingen, zodat ze altijd kloppen met het uitleenscherm. */
+function uitleenAfspraken(inst, taal) {
+  var en = taal === 'en';
+  var meervoud = function (n, een, meer) { return n + ' ' + (n === 1 ? een : meer); };
+  var betalen = inst.borg_betaalwijzen.join(en ? ' or ' : ' of ');
+  var regels = en ? [
+    'Opening hours: ' + schoon(String(inst.openingsuren_en || '').replace(/\n/g, ', ')) + '.',
+    'A reader borrows at most ' + meervoud(inst.max_boeken_per_lener, 'book', 'books') + ' at a time, for ' + meervoud(inst.uitleentermijn_weken, 'week', 'weeks') + '.',
+    inst.max_verlengingen ? 'Extending is possible ' + (inst.max_verlengingen === 1 ? 'once' : inst.max_verlengingen + ' times') + ', for ' + meervoud(inst.verlengingstermijn_weken, 'week', 'weeks') + (inst.verlengen_niet_bij_reservatie ? ', unless someone else has reserved the book' : '') + '.' : 'Extending is not possible.',
+    'The deposit is ' + inst.borg_per_boek + ' euro per book' + (betalen ? ', paid ' + betalen : '') + '.'
+  ] : [
+    'Openingsuren: ' + schoon(String(inst.openingsuren || '').replace(/\n/g, ', ')) + '.',
+    'Een lezer leent maximaal ' + meervoud(inst.max_boeken_per_lener, 'boek', 'boeken') + ' tegelijk, voor ' + meervoud(inst.uitleentermijn_weken, 'week', 'weken') + '.',
+    inst.max_verlengingen ? 'Verlengen kan ' + (inst.max_verlengingen === 1 ? 'één keer' : inst.max_verlengingen + ' keer') + ', voor ' + meervoud(inst.verlengingstermijn_weken, 'week', 'weken') + (inst.verlengen_niet_bij_reservatie ? ', tenzij iemand anders het boek reserveerde' : '') + '.' : 'Verlengen kan niet.',
+    'De borg is ' + inst.borg_per_boek + ' euro per boek' + (betalen ? ', ' + betalen : '') + '.'
+  ];
+  return { titel: en ? 'Borrowing rules' : 'Afspraken voor lenen', regels: regels.map(function (t) { return { punt: true, tekst: t }; }) };
 }
 
 /**
@@ -6794,6 +6922,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.beschrijvingVoorstellen = openVoorstellen(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
         antwoord.data.meldingen = openMeldingen(tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : []);
         antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.handleiding = handleiding(staat.inst);
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(leesTabel('Onderwerpen').rijen));
         break;
@@ -6803,6 +6932,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord = { ok: true, data: vrijwilligerGegevens(staat, onderwerpRijen) };
         antwoord.data.voorgesteld = voorgesteldeBoeken(voorstelRijen);
         antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.handleiding = handleiding(staat.inst);
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(onderwerpRijen));
         antwoord.data.mijn = mijnBijdragen(voorstelRijen, tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : [], staat.wie, staat.vandaag);

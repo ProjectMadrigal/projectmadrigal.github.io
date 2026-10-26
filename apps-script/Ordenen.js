@@ -24,6 +24,7 @@ var INSTELLING_GROEPEN = [
   ['Uitlenen: herinneringen', ['tekst_herinnering', 'tekst_herinnering_binnenkort']],
   ['Uitlenen: online reserveren', ['online_reserveren']],
   ['Vrijwilligers: shift', ['tekst_checklist_openen', 'tekst_checklist_sluiten', 'tekst_checklist_uitlenen']],
+  ['Vrijwilligers: handleiding', ['tekst_handleiding', 'tekst_handleiding_en']],
   ['Vrijwilligers: rooster', ['rooster_link', 'tekst_vaste_events']],
   ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
   ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],

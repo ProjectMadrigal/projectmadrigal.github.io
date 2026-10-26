@@ -34,6 +34,7 @@
   var ALLE_SECTIES = [
     ['vandaag', 'Vandaag', toonVandaag, 'start', 'beide'],
     ['meldingen', 'Meldingen', function (vak) { V.meldingen(vak, context()); }, 'start'],
+    ['handleiding', 'Handleiding', function (vak) { V.handleiding(vak, context()); }, 'start', 'vrijwilliger'],
     ['shift', 'Checklist voor de shift', function (vak) { V.checklist(vak, context()); }, 'start', 'vrijwilliger'],
     ['melden', 'Iets melden', function (vak) { V.melden(vak, context()); }, 'start', 'vrijwilliger'],
     ['mijn', 'Mijn voorstellen en meldingen', function (vak) { V.mijn(vak, context()); }, 'start', 'vrijwilliger'],

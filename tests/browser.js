@@ -63,6 +63,7 @@ function antwoord(rol, actie, vraag) {
   return {
     aanmelden: { ok: true, rol: rol === 'bestuur' && (vraag || {}).alsRol === 'vrijwilliger' ? 'vrijwilliger' : rol, echteRol: rol },
     vrijwilligerData: { ok: true, data: Object.assign({}, basis, { voorgesteld: [], checklist: { openen: ['Licht aan', 'Balie openen'], sluiten: ['Licht uit'] },
+      handleiding: { nl: [{ titel: 'De sleutel', regels: [{ punt: false, tekst: 'Vraag het in de groep.' }, { punt: true, tekst: 'Rode bol: niet uitlenen.' }] }], en: [{ titel: 'The key', regels: [{ punt: false, tekst: 'Ask in the group.' }] }] },
       briefjes: [{ briefje_id: 'N0001', datum: '2026-10-23', wie: 'Ilo', tekst: 'De printer is stuk.' }],
       vandaagTerug: [{ uitlening_id: 'U0009', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', auteur: 'Dewit, Rein', onderwerp: 'Geschiedenis en maatschappij', staat_terug: 'licht beschadigd' }],
       reservaties: [{ reservatie_id: 'R0001', boek_id: 'B0001', lenersnummer: '13', voornaam: 'Jo', status: 'wacht', tekst: 'Wacht' }],
@@ -548,7 +549,7 @@ async function meldAan(page, basis, pagina) {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
     await meldAan(page, basis, 'vrijwilliger.html');
     const knoppen = await page.$$eval('#sectienav button', (x) => x.map((e) => e.textContent.replace(/ \(.*\)$/, '')));
-    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
     verwacht(!/Logboek/.test(await page.textContent('#sectie')), 'Vandaag toont het Logboek aan een vrijwilliger');
     await page.click('#sectienav button:has-text("Te laat")');
     verwacht(!/0400000000|Kopieer herinnering/.test(await page.textContent('#sectie')), 'Contactgegevens zichtbaar');
@@ -578,6 +579,12 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("Sluit de rondleiding")');
     verwacht(!(await page.$('text=Start de rondleiding')), 'Welkom blijft staan na de rondleiding');
     verwacht(!!(await page.$('button:has-text("Bekijk de rondleiding")')), 'Knop om de rondleiding opnieuw te bekijken');
+    // Handleiding: Nederlands, en na de keuze Engels (blijft bewaard).
+    await page.click('#sectienav button:has-text("Handleiding")');
+    verwacht(/De sleutel[\s\S]*Vraag het in de groep[\s\S]*Rode bol/.test(await page.textContent('#sectie')) && !!(await page.$('#sectie li')), 'Handleiding in het Nederlands, met opsomming');
+    await page.click('#sectie button:has-text("English")');
+    verwacht(/The key[\s\S]*Ask in the group/.test(await page.textContent('#sectie')) && (await page.getAttribute('#sectie button[lang="en"]', 'aria-pressed')) === 'true', 'Handleiding in het Engels');
+    await page.click('#sectie button:has-text("Nederlands")');
     // Checklist: blijft afgevinkt na herladen.
     await page.click('#sectienav button:has-text("Checklist voor de shift")');
     await page.check('#check-openen-0');

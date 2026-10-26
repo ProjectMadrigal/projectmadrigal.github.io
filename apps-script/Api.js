@@ -290,6 +290,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.beschrijvingVoorstellen = openVoorstellen(tabelOfLeeg('Voorstellen') ? leesTabel('Voorstellen').rijen : []);
         antwoord.data.meldingen = openMeldingen(tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : []);
         antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.handleiding = handleiding(staat.inst);
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(leesTabel('Onderwerpen').rijen));
         break;
@@ -299,6 +300,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord = { ok: true, data: vrijwilligerGegevens(staat, onderwerpRijen) };
         antwoord.data.voorgesteld = voorgesteldeBoeken(voorstelRijen);
         antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.handleiding = handleiding(staat.inst);
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(onderwerpRijen));
         antwoord.data.mijn = mijnBijdragen(voorstelRijen, tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : [], staat.wie, staat.vandaag);
