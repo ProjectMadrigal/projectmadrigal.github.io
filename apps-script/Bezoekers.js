@@ -38,6 +38,12 @@ function gcVragen(basis, periode) {
   };
 }
 
+/** De schermgroottes van GoatCounter: die hebben geen naam, enkel een id. */
+var GC_TOESTELLEN = {
+  phone: 'Gsm', largephone: 'Grote gsm of kleine tablet', tablet: 'Tablet of kleine laptop',
+  desktop: 'Computer', desktophd: 'Groot computerscherm', unknown: 'Onbekend'
+};
+
 /**
  * Zet de antwoorden van GoatCounter om naar wat het bestuursscherm toont.
  * antwoorden: { totaal, paginas, bronnen, toestellen, landen } met het JSON-antwoord (of null).
@@ -57,8 +63,12 @@ function verwerkGoatcounter(antwoorden, dagen) {
     });
     verloop = perWeek;
   }
-  var lijst = function (a) {
-    return ((a && a.stats) || []).map(function (s) { return { naam: schoon(s.name) || '(onbekend)', n: Number(s.count) || 0 }; });
+  // Zonder naam: de id (schermgroottes), anders "(onbekend)". Regels met 0 vallen weg.
+  var lijst = function (a, namen) {
+    return ((a && a.stats) || []).map(function (s) {
+      var id = schoon(s.id);
+      return { naam: schoon(s.name) || (namen && namen[id]) || id || '(onbekend)', n: Number(s.count) || 0 };
+    }).filter(function (s) { return s.n > 0; }).sort(function (a, b) { return b.n - a.n; });
   };
   return {
     totaal: Number(t.total) || 0,
@@ -68,7 +78,7 @@ function verwerkGoatcounter(antwoorden, dagen) {
       return { pad: String(h.path || ''), titel: schoon(h.title), n: Number(h.count) || 0 };
     }).sort(function (a, b) { return b.n - a.n; }),
     bronnen: lijst(antwoorden.bronnen),
-    toestellen: lijst(antwoorden.toestellen),
+    toestellen: lijst(antwoorden.toestellen, GC_TOESTELLEN),
     landen: lijst(antwoorden.landen)
   };
 }

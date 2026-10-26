@@ -795,6 +795,9 @@ test('bezoekers uit GoatCounter: adres, periode en omzetten', () => {
     bronnen: { stats: [{ name: 'instagram.com', count: 4 }, { name: '', count: 2 }] },
     toestellen: null, landen: { stats: [{ name: 'Belgium', count: 30 }] }
   }, 7);
+  // Schermgroottes hebben enkel een id. Regels met 0 vallen weg, de grootste eerst.
+  const t = M.verwerkGoatcounter({ toestellen: { stats: [{ id: 'phone', name: '', count: 13 }, { id: 'tablet', name: '', count: 0 }, { id: 'desktop', name: '', count: 66 }, { id: 'iets', name: '', count: 1 }] } }, 7);
+  gelijk(t.toestellen, [{ naam: 'Computer', n: 66 }, { naam: 'Gsm', n: 13 }, { naam: 'iets', n: 1 }]);
   gelijk([c.totaal, c.perWeek, c.verloop.map((d) => d.dag), c.paginas.length, c.bronnen[1].naam, c.toestellen.length, c.landen[0].n],
     [42, false, ['2026-10-24', '2026-10-25'], 1, '(onbekend)', 0, 30]);
   // Foutafhandeling: alles mislukt, onbekende site, of een deel mislukt.

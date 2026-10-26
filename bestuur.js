@@ -740,7 +740,8 @@
       el('p', { class: 'hulptekst' }, 'Wie dezelfde pagina meerdere keren op een dag bekijkt, telt één keer. Bezoekers met "niet volgen" in hun browser tellen niet mee. De cijfers vernieuwen elk half uur.'),
       lijstOfNiets(c.perWeek ? 'Per week' : 'Per dag', c.perWeek ? 'Week van' : 'Dag', vanafEersteTelling(c.verloop).map(function (s) { return [tijd(s.dag), s.n]; })),
       lijstOfNiets('Meest bekeken pagina\'s', 'Pagina', c.paginas.map(function (p) { return [paginaNaam(p), p.n]; })),
-      lijstOfNiets('Vanwaar bezoekers komen', 'Bron', c.bronnen.map(function (b) { return [b.naam === '(onbekend)' ? 'Rechtstreeks of onbekend' : b.naam, b.n]; })),
+      lijstOfNiets('Vanwaar bezoekers komen', 'Bron', c.bronnen.map(function (b) { return [b.naam === '(onbekend)' ? 'Rechtstreeks (geen verwijzing)' : b.naam, b.n]; })),
+      c.bronnen.some(function (b) { return b.naam === '(onbekend)'; }) ? el('p', { class: 'hulptekst' }, 'Rechtstreeks: de browser gaf niet door vanwaar de bezoeker kwam. Bijvoorbeeld wie het adres typt, een bladwijzer gebruikt, of een link opent vanuit een app zoals Instagram, WhatsApp of een mail.') : null,
       lijstOfNiets('Toestel', 'Schermgrootte', c.toestellen.map(function (b) { return [b.naam, b.n]; })),
       lijstOfNiets('Land', 'Land', c.landen.map(function (b) { return [b.naam, b.n]; })));
   }
