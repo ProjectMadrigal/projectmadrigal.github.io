@@ -133,6 +133,7 @@ a:hover { color: var(--kleur-accent-donker); }
   border-bottom: 4px solid var(--kleur-geel);
 }
 .kop-binnen { max-width: var(--breedte-max); margin: 0 auto; display: flex; align-items: center; gap: .8rem; }
+.kop-binnen .taal-knop { margin-left: auto; flex-shrink: 0; }
 .kop a { color: inherit; text-decoration: none; }
 .kop .logo { width: 2.75rem; height: 2.75rem; flex: none; display: block; border-radius: 50%; }
 .kop h1 { font-size: 1.3rem; }

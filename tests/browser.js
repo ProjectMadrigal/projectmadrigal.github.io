@@ -585,6 +585,22 @@ async function meldAan(page, basis, pagina) {
     await page.click('#sectie button:has-text("English")');
     verwacht(/The key[\s\S]*Ask in the group/.test(await page.textContent('#sectie')) && (await page.getAttribute('#sectie button[lang="en"]', 'aria-pressed')) === 'true', 'Handleiding in het Engels');
     await page.click('#sectie button:has-text("Nederlands")');
+    // Knop English: het hele scherm in het Engels, ook na herladen. Terug naar Nederlands herlaadt.
+    await page.click('.taal-knop');
+    await page.waitForFunction(() => document.documentElement.lang === 'en');
+    const engels = await page.$$eval('#sectienav button', (b) => b.map((x) => x.textContent.trim()));
+    verwacht(engels.indexOf('Today') > -1 && engels.indexOf('Manual') > -1 && engels.indexOf('Shift checklist') > -1 && engels.indexOf('Report something') > -1, 'Menu in het Engels: ' + engels.join(', '));
+    await page.click('#sectienav button:has-text("Manual")');
+    verwacht(/The key/.test(await page.textContent('#sectie')), 'Handleiding volgt de taal van het scherm');
+    await page.click('#sectienav button:has-text("Shift checklist")');
+    verwacht(/When opening[\s\S]*0 of 2 done\./.test(await page.textContent('#sectie')), 'Checklist in het Engels, met teller');
+    await page.reload();
+    await page.waitForSelector('#sectienav button');
+    await page.waitForFunction(() => /Today/.test(document.querySelector('#sectienav').textContent));
+    verwacht((await page.textContent('.taal-knop')) === 'Nederlands', 'Engels blijft na herladen');
+    await Promise.all([page.waitForNavigation(), page.click('.taal-knop')]);
+    await page.waitForSelector('#sectienav button');
+    verwacht(/Vandaag/.test(await page.textContent('#sectienav')) && (await page.textContent('.taal-knop')) === 'English', 'Terug naar het Nederlands');
     // Checklist: blijft afgevinkt na herladen.
     await page.click('#sectienav button:has-text("Checklist voor de shift")');
     await page.check('#check-openen-0');
