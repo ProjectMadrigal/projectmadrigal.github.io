@@ -202,12 +202,33 @@
       ['Reserveren', '⧗', toonReserveren],
       ['Lener opzoeken', '🔍', toonLenerOpzoeken],
       ['Nieuwe lener', '＋', toonNieuweLener],
-      ['Rooster', '📅', toonRooster]
+      ['Rooster', '📅', toonRooster],
+      ['Checklist', '✓', function () { metVrijwilligers('checklist'); }],
+      ['Handleiding', '📖', function () { metVrijwilligers('handleiding'); }]
     ];
     D.vervang(werkvlak, el('h2', { class: 'verborgen' }, 'Menu'), el('nav', { class: 'menu-raster', 'aria-label': 'Wat wil je doen?' },
       knoppen.map(function (k) {
         return el('button', { type: 'button', class: 'knop', onclick: function () { k[2](); } }, el('span', { 'aria-hidden': 'true' }, k[1]), k[0]);
       })));
+  }
+
+  /* ---------- Checklist en handleiding (uit vrijwilligers.js) ---------- */
+
+  /** Toont de checklist voor de shift of de handleiding, zoals in het vrijwilligersscherm. */
+  function metVrijwilligers(onderdeel) {
+    var vak = el('div');
+    D.vervang(werkvlak,
+      el('button', { type: 'button', class: 'knop tweede', onclick: toonMenu }, '← Menu'),
+      el('div', { class: 'blok', style: 'margin-top:1rem' }, vak));
+    window.MadrigalVrijwilligers[onderdeel](vak, {
+      data: data,
+      kop: function (titel, uitleg) {
+        return [el('h2', { tabindex: '-1' }, titel), uitleg ? el('p', { class: 'hulptekst' }, uitleg) : null];
+      }
+    });
+    var kop = vak.querySelector('h2');
+    if (kop) kop.focus();
+    window.scrollTo(0, 0);
   }
 
   /* ---------- Rooster ---------- */

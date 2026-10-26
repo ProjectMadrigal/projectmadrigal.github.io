@@ -1,6 +1,6 @@
 /**
  * vertaling-check.js
- * Toont welke vaste teksten van het vrijwilligersscherm nog geen Engelse vertaling hebben in vertaal.js.
+ * Toont welke vaste teksten van het vrijwilligersscherm en het uitleenscherm nog geen Engelse vertaling hebben in vertaal.js.
  * Gebruik: node tools/vertaling-check.js
  *
  * Het zoekt de teksten tussen enkele aanhalingstekens in de scripts van het scherm. Ook namen van
@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const BESTANDEN = ['vrijwilligers.js', 'bestuur.js', 'beheer.js', 'bestuur-beheer.js', 'dom.js'];
+const BESTANDEN = ['vrijwilligers.js', 'bestuur.js', 'beheer.js', 'bestuur-beheer.js', 'dom.js', 'balie.js'];
 
 global.window = {};
 global.document = { querySelector: () => null, documentElement: {} };
@@ -38,6 +38,17 @@ BESTANDEN.forEach((f) => {
     if (/^[A-Z][A-Za-z]+$/.test(t) && !/[aeiou]/.test(t.slice(1))) continue; // afkortingen zoals NFD
     if (vertaal(t) === null) ontbreekt.add(f + ': ' + t);
   }
+});
+
+// Vaste tekst in de HTML van beide schermen.
+['vrijwilliger.html', 'balie.html'].forEach((f) => {
+  const html = fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/<script[\s\S]*?<\/script>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  const stukken = (html.match(/>([^<>]+)</g) || []).map((x) => x.slice(1, -1))
+    .concat((html.match(/(?:aria-label|placeholder|title|alt)="([^"]+)"/g) || []).map((x) => x.replace(/^[^"]*"|"$/g, '')));
+  stukken.forEach((x) => {
+    const t = x.replace(/\s+/g, ' ').trim();
+    if (LETTER.test(t) && vertaal(t) === null) ontbreekt.add(f + ': ' + t);
+  });
 });
 
 if (!ontbreekt.size) {

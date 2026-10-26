@@ -6951,7 +6951,11 @@ function voerActieUit(actie, invoer, rol) {
     var meldingen = verwerkVervallenReservaties(staat);
     var antwoord;
     switch (actie) {
-      case 'balieData': antwoord = { ok: true, data: balieGegevens(staat) }; break;
+      case 'balieData':
+        antwoord = { ok: true, data: balieGegevens(staat) };
+        antwoord.data.checklist = shiftChecklist(staat.inst);
+        antwoord.data.handleiding = handleiding(staat.inst);
+        break;
       case 'bestuurData':
         antwoord = { ok: true, data: bestuurGegevens(staat, leesTabel('Onderwerpen').rijen) };
         antwoord.data.aanvragen = openAanvragen(spreadsheet().getSheetByName('Aanvragen') ? leesTabel('Aanvragen').rijen : []);
