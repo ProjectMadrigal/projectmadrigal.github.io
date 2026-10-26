@@ -110,12 +110,12 @@ function zoekBoekOpTitel(catalogus, titel, auteur, soepel) {
 
 /**
  * Boeken die het bestuur zelf koos in Na te kijken: een enkel boek-ID in de kolom boek_id bij een
- * regel van de historiek. Geeft { 'oud blad rij 12': 'B0034' }.
+ * regel van de historiek of van een lopende uitlening. Geeft { 'oud blad rij 12': 'B0034' }.
  */
 function gekozenOudeBoeken(naTeKijkenRijen) {
   var uit = {};
   (naTeKijkenRijen || []).forEach(function (r) {
-    if (r.bron !== 'Overzetten' || r.veld !== 'historiek' || jaNee(r.afgehandeld) === 'ja') return;
+    if (r.bron !== 'Overzetten' || (r.veld !== 'historiek' && r.veld !== 'uitlening') || jaNee(r.afgehandeld) === 'ja') return;
     var m = String(r.waarde_bron || '').match(/\[(oud blad rij \d+)\]/);
     var id = schoon(r.boek_id).toUpperCase();
     if (m && /^[BZF]\d{4,}$/.test(id)) uit[m[1]] = id;
@@ -200,8 +200,8 @@ function verwerkOudeUitleningen(staat, oudeRijen, gekozen) {
     // 1. De lener: bestaat die al (zelfde e-mail of telefoon)?
     var lener = oudeLener(staat, o, teller);
 
-    // 2. Het boek.
-    var gevonden = zoekBoekOpTitel(staat.catalogus, o.boek, o.auteur);
+    // 2. Het boek: zelf gekozen in Na te kijken (kolom boek_id), of gezocht op titel.
+    var gevonden = gekozen && gekozen[bron] ? { zeker: boekVan(staat, gekozen[bron]) } : zoekBoekOpTitel(staat.catalogus, o.boek, o.auteur);
     var boek = gevonden.zeker;
     var exemplaar = '';
     if (boek) {
@@ -215,8 +215,8 @@ function verwerkOudeUitleningen(staat, oudeRijen, gekozen) {
         boek_id: gevonden.twijfel ? gevonden.twijfel.map(function (b) { return b.boek_id; }).join(', ') : '',
         titel: o.boek, veld: 'uitlening', waarde_catalogus: gevonden.twijfel ? gevonden.twijfel.map(function (b) { return b.titel + ' / ' + b.auteur; }).join(' | ') : '(geen boek gevonden)',
         waarde_bron: o.boek + ' / ' + o.auteur,
-        opmerking: (boek ? 'Alle exemplaren staan al als uitgeleend. ' : 'Het boek is niet zeker gevonden. ') + context +
-          ' Registreer deze uitlening zelf via het uitleenscherm.',
+        opmerking: (boek ? 'Alle exemplaren staan al als uitgeleend. ' + context + ' Registreer deze uitlening zelf via het uitleenscherm.'
+          : 'Het boek is niet zeker gevonden. ' + context + ' Zet het juiste boek-ID in de kolom boek_id (één ID) en kies het menu-item opnieuw, of registreer deze uitlening zelf via het uitleenscherm.'),
         sleutel_extra: bron
       });
       bekend[bron] = true;
@@ -278,7 +278,7 @@ function neemUitleningenOver() {
     // Wat via een gekozen boek-ID overkwam, is afgehandeld.
     naTeKijken.rijen.forEach(function (r) {
       var m = String(r.waarde_bron || '').match(/\[(oud blad rij \d+)\]/);
-      if (r.bron === 'Overzetten' && r.veld === 'historiek' && m && gekozen[m[1]] && jaNee(r.afgehandeld) !== 'ja' &&
+      if (r.bron === 'Overzetten' && m && gekozen[m[1]] && jaNee(r.afgehandeld) !== 'ja' &&
         staat.uitleningen.some(function (u) { return u.bron === m[1]; })) wijzig(r, { afgehandeld: 'ja' });
     });
     var nieuw = voegNaTeKijkenToe(naTeKijken.rijen, resultaat.naTeKijken.map(function (x) {
