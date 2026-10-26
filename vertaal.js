@@ -850,6 +850,8 @@
     [/^De eerste (\d+) van (\d+) boeken\.$/, 'The first $1 of $2 books.'],
     [/^(\d+) boeken\.$/, '$1 books.'],
     [/^Aangemeld als (.+)$/, 'Signed in as $1'],
+    [/^(\d+) boeke?n? uitgeleend, gesorteerd op vervaldatum\.$/, function (m, n) { return n + (n === '1' ? ' book' : ' books') + ' on loan, sorted by due date.'; }],
+    [/^(\d+) leners\. Zoek, pas aan of zet op inactief\. Een inactieve lener zonder uitleningen wordt na de bewaartermijn gewist\.$/, '$1 borrowers. Search, change or set to inactive. An inactive borrower without loans is deleted after the retention period.'],
     // Uitleenscherm.
     [/^Aan de balie: (.+)$/, 'At the desk: $1'],
     [/^Te laat sinds (.+) \((\d+) dagen?\)$/, function (m, d, n) { return 'Overdue since ' + d + ' (' + n + (n === '1' ? ' day' : ' days') + ')'; }],

@@ -595,6 +595,8 @@ async function meldAan(page, basis, pagina) {
     verwacht(/The key/.test(await page.textContent('#sectie')), 'Handleiding volgt de taal van het scherm');
     await page.click('#sectienav button:has-text("Shift checklist")');
     verwacht(/When opening[\s\S]*0 of 2 done\./.test(await page.textContent('#sectie')), 'Checklist in het Engels, met teller');
+    await page.click('#sectienav button:has-text("All loans")');
+    verwacht(/books? on loan, sorted by due date\./.test(await page.textContent('#sectie')), 'Alle uitleningen in het Engels');
     await page.reload();
     await page.waitForSelector('#sectienav button');
     await page.waitForFunction(() => /Today/.test(document.querySelector('#sectienav').textContent));
