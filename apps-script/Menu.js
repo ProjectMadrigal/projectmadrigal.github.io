@@ -136,6 +136,7 @@ function onOpen() {
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
       .addItem('Maak nu een back-up', 'maakBackupMenu')
       .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
+      .addItem('Zet de gsm-nummers van de leners in één vorm (0495/64.48.48)', 'gsmNummersMenu')
       .addItem('Peperfabriek: test het ophalen', 'testPeperfabriek')
       .addItem('Wikipedia: test het opzoeken', 'testWikipedia')
       .addItem('Wikipedia: test het bewaren', 'testWikipediaBewaren'))
@@ -222,4 +223,20 @@ function willekeurigeCode() {
   var code = '';
   for (var i = 0; i < 8; i++) code += tekens.charAt(Math.floor(Math.random() * tekens.length));
   return code;
+}
+
+/** Menu: zet de gsm-nummers in het tabblad Leners in één vorm. */
+function gsmNummersMenu() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var tabel = leesTabel('Leners');
+    var n = gsmNummersOpmaken(tabel.rijen);
+    if (n) bewaarTabel(tabel);
+    leegCache();
+    logboek('menu', 'gsmNummersMenu', n + ' leners aangepast');
+    meld(n ? n + ' gsm-nummers staan nu in de vorm 0495/64.48.48. Vaste en buitenlandse nummers bleven zoals ze waren.' : 'Alle gsm-nummers stonden al in de vorm 0495/64.48.48.');
+  } finally {
+    lock.releaseLock();
+  }
 }

@@ -655,6 +655,15 @@ test('nieuwe lener: toestemming verplicht, dubbel herkend op telefoon', () => {
   const dubbel = M.nieuweLener(s, { voornaam: 'Kim', telefoon: '+32 470 00 00 09', toestemming: true });
   assert.strictEqual(dubbel.ok, false);
 });
+test('gsm-nummers in één vorm: 0470/00.00.09', () => {
+  gelijk(['0470 00 00 09', '+32 470 00 00 09', '0032470000009', '0470000009', '0470/00.00.09', '03 000 00 00', '+31 6 00000000'].map(M.opmaakGsm),
+    ['0470/00.00.09', '0470/00.00.09', '0470/00.00.09', '0470/00.00.09', '0470/00.00.09', '03 000 00 00', '+31 6 00000000']);
+  const s = maakStaat();
+  const r = M.nieuweLener(s, { voornaam: 'Kim', telefoon: '+32 470 00 00 09', toestemming: true });
+  assert.strictEqual(s.leners.find((l) => String(l.lenersnummer) === String(r.lenersnummer)).telefoon, '0470/00.00.09', 'Bij inschrijven');
+  gelijk([M.gsmNummersOpmaken(s.leners), s.leners[0].telefoon, s.leners[1].telefoon], [2, '0470/00.00.01', ''], 'Bestaande leners');
+  assert.strictEqual(M.gsmNummersOpmaken(s.leners), 0, 'Opnieuw: niets meer aan te passen');
+});
 test('balie ziet geen contactgegevens', () => {
   const s = maakStaat();
   uitleen(s, 'B0001', '1');

@@ -2731,6 +2731,35 @@ function googleItemsMetIsbn(items, isbn) {
   });
 }
 
+/** Menu: zet de gsm-nummers in het tabblad Leners in één vorm. */
+function gsmNummersMenu() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var tabel = leesTabel('Leners');
+    var n = gsmNummersOpmaken(tabel.rijen);
+    if (n) bewaarTabel(tabel);
+    leegCache();
+    logboek('menu', 'gsmNummersMenu', n + ' leners aangepast');
+    meld(n ? n + ' gsm-nummers staan nu in de vorm 0495/64.48.48. Vaste en buitenlandse nummers bleven zoals ze waren.' : 'Alle gsm-nummers stonden al in de vorm 0495/64.48.48.');
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Zet de gsm-nummers van de leners in één vorm. Geeft het aantal aangepaste leners. */
+function gsmNummersOpmaken(leners) {
+  var n = 0;
+  leners.forEach(function (l) {
+    if (isLeeg(l.telefoon)) return;
+    var nieuw = opmaakGsm(l.telefoon);
+    if (nieuw !== String(l.telefoon)) { wijzig(l, { telefoon: nieuw }); n++; }
+  });
+  return n;
+}
+
+/* ---------- Grenzen ---------- */
+
 /** Vraag naar buiten (zoals UrlFetchApp.fetch). Bij de daglimiet: noteren en de lopende taak over 6 uur herstarten. */
 function haalExtern(url, opties) {
   try {
@@ -3956,7 +3985,7 @@ function leesOudeUitleningen(waarden, formules) {
       rijnummer: i + 1,
       boek: schoon(lees('boek')), auteur: schoon(lees('auteur')),
       voornaam: schoon(lees('voornaam')), achternaam: schoon(lees('achternaam')),
-      telefoon: schoon(lees('telefoon')), email: schoon(lees('email')).toLowerCase(),
+      telefoon: opmaakGsm(lees('telefoon')), email: schoon(lees('email')).toLowerCase(),
       datum_uit: parseerDatum(lees('datum_uit')), datum_terug_afgesproken: parseerDatum(lees('datum_terug_afgesproken')),
       borg: lees('borg'), gift: lees('gift'),
       herinnering: parseerDatum(herinnering) || (normaliseerTekst(herinnering) === 'ok' ? parseerDatum(lees('datum_terug_afgesproken')) : ''),
@@ -4006,7 +4035,7 @@ function lenerAanpassen(staat, invoer) {
   var l = lenerVan(staat, invoer.lenersnummer);
   if (!l) return { ok: false, fout: 'Deze lener bestaat niet.' };
   var voornaam = tekstInvoer(invoer.voornaam, 50);
-  var telefoon = tekstInvoer(invoer.telefoon, 25);
+  var telefoon = opmaakGsm(tekstInvoer(invoer.telefoon, 25));
   var email = tekstInvoer(invoer.email, 100).toLowerCase();
   if (!voornaam) return { ok: false, fout: 'Vul een voornaam in.' };
   if (!telefoon && !email) return { ok: false, fout: 'Vul een telefoonnummer of een e-mailadres in (of allebei).' };
@@ -4645,7 +4674,7 @@ function nietUitleenbaarFout(boek) {
 function nieuweLener(staat, invoer) {
   var voornaam = tekstInvoer(invoer.voornaam, 50);
   var achternaamWaarde = tekstInvoer(invoer.achternaam, 80);
-  var telefoon = tekstInvoer(invoer.telefoon, 25);
+  var telefoon = opmaakGsm(tekstInvoer(invoer.telefoon, 25));
   var email = tekstInvoer(invoer.email, 100).toLowerCase();
   if (!voornaam) return { ok: false, fout: 'Vul een voornaam in.' };
   if (!telefoon && !email) return { ok: false, fout: 'Vul een telefoonnummer of een e-mailadres in (of allebei).' };
@@ -4831,6 +4860,7 @@ function onOpen() {
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
       .addItem('Maak nu een back-up', 'maakBackupMenu')
       .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
+      .addItem('Zet de gsm-nummers van de leners in één vorm (0495/64.48.48)', 'gsmNummersMenu')
       .addItem('Peperfabriek: test het ophalen', 'testPeperfabriek')
       .addItem('Wikipedia: test het opzoeken', 'testWikipedia')
       .addItem('Wikipedia: test het bewaren', 'testWikipediaBewaren'))
@@ -4881,6 +4911,16 @@ function openVoorstellen(rijen) {
     return { voorstel_id: String(v.voorstel_id), datum: parseerDatum(v.datum) || String(v.datum || ''), boek_id: String(v.boek_id),
       titel: schoon(v.titel), tekst: schoonMetRegels(v.tekst), voorgesteld_door: schoon(v.voorgesteld_door) };
   }).sort(function (a, b) { return a.datum.localeCompare(b.datum); });
+}
+
+/**
+ * Een Belgisch gsm-nummer in één vorm: 0495/64.48.48 (ook vanuit +32 495 64 48 48 of 0495644848).
+ * Andere nummers (vast, buitenland) blijven zoals ze zijn.
+ */
+function opmaakGsm(t) {
+  var c = telefoonSleutel(t);
+  if (!/^04\d{8}$/.test(c)) return schoon(t);
+  return c.slice(0, 4) + '/' + c.slice(4, 6) + '.' + c.slice(6, 8) + '.' + c.slice(8);
 }
 
 /** Opmaak van de kopregel: vet, vastgezet. */
@@ -5823,8 +5863,6 @@ function telefoonSleutel(t) {
   else if (c.indexOf('32') === 0 && c.length === 11) c = '0' + c.slice(2);
   return c;
 }
-
-/* ---------- Grenzen ---------- */
 
 /** Telt een aantal maanden op (negatief mag ook). 31 maart min 1 maand wordt 28 of 29 februari. */
 function telMaandenOp(datum, maanden) {
