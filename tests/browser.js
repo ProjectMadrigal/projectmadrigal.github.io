@@ -81,7 +81,7 @@ function antwoord(rol, actie, vraag) {
     balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }] }) },
     bestuurCijfers: { ok: true, cijfers: { meestGeleend: [], groepen: [],
       shifts: { jaar: 2026, personen: [{ naam: 'Kim', bib: 3, backup: 1 }], dicht: [{ datum: '2026-05-01', rol: 'gesloten' }] },
-      extraCijfers: { nieuweLeners: [{ maand: 'oktober 2026', aantal: 2 }], nooitUitgeleend: 1, nooitVoorbeelden: [{ boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Aerts, Noor' }], gemiddeldeDagen: 17, afgesloten: 2, actieveLeners: 2 } } },
+      extraCijfers: { nieuweLeners: [{ maand: 'oktober 2026', aantal: 2 }], nooitUitgeleend: 1, mediaanDagen: 17, afgesloten: 2, langerDanHalfJaar: 0, actieveLeners: 2 } } },
     nieuweLener: { ok: true, lenersnummer: '14', voornaam: 'Alex', tekst: 'Alex is ingeschreven met lenersnummer 14.' },
     terugbrengen: { ok: true, tekst: '"De verzonnen zee" is terug.' },
     verlengen: { ok: true, tekst: '"De verzonnen zee" is verlengd.' },
@@ -96,7 +96,7 @@ function antwoord(rol, actie, vraag) {
       taken: [{ functie: 'zoekBeschrijvingenWikipedia', naam: 'Beschrijvingen bij Wikipedia', teGaan: 12, status: 'gepland', sinds: 0 }],
       logboek: [{ tijd: Date.UTC(2026, 9, 25, 10, 0), wie: 'menu', actie: 'zoekBeschrijvingenWikipedia', details: '20 opgezocht' }, { tijd: Date.UTC(2026, 9, 25, 9, 0), wie: 'Kim', actie: 'uitlenen', details: 'B0001-1' }] },
     beheerBoekOphalen: { ok: true, historiek: { keer: 3, laatst: '2026-09-20' }, wijzigingen: [{ tijd: Date.UTC(2026, 9, 24, 9), wie: 'Kim', actie: 'boek aangepast', details: 'B0001: beschrijving' }], boek: { boek_id: (vraag || {}).boek_id, titel: (BOEKEN.concat(VEEL).find((b) => b.id === (vraag || {}).boek_id) || {}).t, auteur: '', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
-    bezoekersCijfers: { ok: true, nietIngesteld: true },
+    bezoekersCijfers: { ok: true, cijfers: { totaal: 31, perWeek: false, verloop: [{ dag: '2026-09-27', n: 0 }, { dag: '2026-09-28', n: 0 }, { dag: '2026-10-24', n: 24 }, { dag: '2026-10-25', n: 0 }, { dag: '2026-10-26', n: 7 }], paginas: [], bronnen: [], toestellen: [], landen: [] } },
     filmsVoorbeeld: { ok: true, filmsTonen: false, teksten: { films: 'Verzonnen tekst over films.' },
       boeken: JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/catalogus.json'))).boeken.filter((x) => x.s === 'film') },
     roosterOverzicht: { ok: true, data: { gekoppeld: true, vandaag: '2026-10-25', link: 'https://voorbeeld.test/rooster', nietGepubliceerd: [], avonden: [
@@ -526,7 +526,9 @@ async function meldAan(page, basis, pagina) {
     // Cijfers
     await page.click('#sectienav button:has-text("Cijfers")');
     await page.waitForSelector('h4:has-text("Nooit uitgeleend")');
-    verwacht(/Nooit uitgeleend[\s\S]*Stille lichten/.test(await page.textContent('#sectie')), 'Extra cijfers');
+    const bezoek = await page.textContent('#sectie');
+    verwacht(/24\/10\/2026|24-10-2026|24 okt/.test(bezoek) && !/27\/9\/2026|27-09-2026|27 sep/.test(bezoek) && /25\/10\/2026|25-10-2026|25 okt/.test(bezoek), 'Bezoekers: geen lege dagen voor de eerste telling, wel daarna');
+    verwacht(/17 dagen duurt een uitlening meestal[\s\S]*1 uitleenbare boeken werden nog nooit uitgeleend\./.test(await page.textContent('#sectie')) && !/Stille lichten · B0003/.test(await page.textContent('#sectie')), 'Extra cijfers');
     verwacht(/Shifts in 2026[\s\S]*Kim[\s\S]*1\/5\/2026: gesloten/.test(await page.textContent('#sectie')), 'Shifts per vrijwilliger ontbreken');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));

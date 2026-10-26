@@ -194,8 +194,8 @@ function boekWijzigingen(waarden, boekId) {
 /* ---------- Extra cijfers (bestuursscherm, onderdeel Cijfers) ---------- */
 
 /**
- * Nieuwe leners per maand (laatste 12 maanden), boeken die nooit uitgeleend werden,
- * de gemiddelde uitleenduur en hoeveel leners het voorbije jaar iets leenden.
+ * Nieuwe leners per maand (laatste 12 maanden), hoeveel boeken nooit uitgeleend werden,
+ * de gewone uitleenduur (mediaan) en hoeveel leners het voorbije jaar iets leenden.
  * Enkel wat de privacy-opruiming nog niet wiste.
  */
 function extraCijfers(staat) {
@@ -222,13 +222,16 @@ function extraCijfers(staat) {
   var nooit = staat.catalogus.filter(function (b) {
     return !isLeeg(b.boek_id) && isUitleenbaar(b) && boekStatus(b) !== 'verloren' && !geleend[String(b.boek_id)];
   });
-  var gemiddeld = dagen.length ? Math.round(dagen.reduce(function (a, b) { return a + b; }, 0) / dagen.length) : 0;
+  // De mediaan: een paar uitleningen met een foute datum (een jaar te laat) trekken een gemiddelde scheef.
+  dagen.sort(function (a, b) { return a - b; });
+  var midden = Math.floor(dagen.length / 2);
+  var mediaan = !dagen.length ? 0 : dagen.length % 2 ? dagen[midden] : Math.round((dagen[midden - 1] + dagen[midden]) / 2);
   return {
     nieuweLeners: Object.keys(perMaand).sort().map(function (k) { return perMaand[k]; }),
     nooitUitgeleend: nooit.length,
-    nooitVoorbeelden: nooit.slice(0, 15).map(function (b) { return { boek_id: String(b.boek_id), titel: schoon(b.titel), auteur: schoon(b.auteur) }; }),
-    gemiddeldeDagen: gemiddeld,
+    mediaanDagen: mediaan,
     afgesloten: dagen.length,
+    langerDanHalfJaar: dagen.filter(function (d) { return d > 183; }).length,
     actieveLeners: Object.keys(actief).length
   };
 }

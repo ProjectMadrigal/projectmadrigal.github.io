@@ -723,6 +723,13 @@
     });
   }
 
+  /** Laat de dagen of weken met 0 bezoekers vóór de eerste telling weg (van voor GoatCounter er was). */
+  function vanafEersteTelling(verloop) {
+    var i = 0;
+    while (i < verloop.length && !verloop[i].n) i++;
+    return verloop.slice(i);
+  }
+
   function tekenBezoekers(vak, c) {
     var tijd = function (d) { return D.korteDatum(d); };
     var lijstOfNiets = function (titel, kolom, rijen) {
@@ -731,7 +738,7 @@
     D.vervang(vak,
       el('p', { class: 'groot-getal' }, el('strong', {}, String(c.totaal)), ' bezoekers'),
       el('p', { class: 'hulptekst' }, 'Wie dezelfde pagina meerdere keren op een dag bekijkt, telt één keer. Bezoekers met "niet volgen" in hun browser tellen niet mee. De cijfers vernieuwen elk half uur.'),
-      lijstOfNiets(c.perWeek ? 'Per week' : 'Per dag', c.perWeek ? 'Week van' : 'Dag', c.verloop.map(function (s) { return [tijd(s.dag), s.n]; })),
+      lijstOfNiets(c.perWeek ? 'Per week' : 'Per dag', c.perWeek ? 'Week van' : 'Dag', vanafEersteTelling(c.verloop).map(function (s) { return [tijd(s.dag), s.n]; })),
       lijstOfNiets('Meest bekeken pagina\'s', 'Pagina', c.paginas.map(function (p) { return [paginaNaam(p), p.n]; })),
       lijstOfNiets('Vanwaar bezoekers komen', 'Bron', c.bronnen.map(function (b) { return [b.naam === '(onbekend)' ? 'Rechtstreeks of onbekend' : b.naam, b.n]; })),
       lijstOfNiets('Toestel', 'Schermgrootte', c.toestellen.map(function (b) { return [b.naam, b.n]; })),
@@ -790,12 +797,12 @@
     return [
       el('h3', { style: 'margin-top:1.5rem' }, 'Leners en collectie'),
       el('p', { class: 'groot-getal' }, el('strong', {}, String(x.actieveLeners)), ' leners leenden het voorbije jaar iets.'),
-      el('p', { class: 'groot-getal' }, el('strong', {}, String(x.gemiddeldeDagen)), ' dagen duurt een uitlening gemiddeld (' + x.afgesloten + ' afgesloten uitleningen).'),
+      el('p', { class: 'groot-getal' }, el('strong', {}, String(x.mediaanDagen)), ' dagen duurt een uitlening meestal (mediaan van ' + x.afgesloten + ' afgesloten uitleningen).'),
+      x.langerDanHalfJaar ? el('p', { class: 'hulptekst' }, x.langerDanHalfJaar + (x.langerDanHalfJaar === 1 ? ' uitlening duurde' : ' uitleningen duurden') + ' langer dan een half jaar. Klopt de datum terug? Kijk het na in het tabblad Uitleningen.') : null,
       el('h4', {}, 'Nieuwe leners per maand'),
       staafTabel('Nieuwe leners per maand', 'Maand', x.nieuweLeners.map(function (m) { return [m.maand, m.aantal]; })),
       el('h4', {}, 'Nooit uitgeleend'),
-      el('p', {}, x.nooitUitgeleend + ' uitleenbare boeken werden nog nooit uitgeleend' + (x.nooitVoorbeelden.length ? '. Bijvoorbeeld:' : '.')),
-      x.nooitVoorbeelden.length ? el('ul', {}, x.nooitVoorbeelden.map(function (b) { return el('li', {}, b.titel + (b.auteur ? ' (' + b.auteur + ')' : '') + ' · ' + b.boek_id); })) : null,
+      el('p', {}, x.nooitUitgeleend + ' uitleenbare boeken werden nog nooit uitgeleend.'),
       el('p', { class: 'hulptekst' }, 'Oude uitleningen verdwijnen bij de privacy-opruiming. Deze cijfers gaan dus enkel over wat er nog bewaard is.')
     ];
   }
