@@ -95,7 +95,7 @@
       uitlegGereserveerd: 'Iemand wacht al op dit boek. Je kan in de bib ook in de wachtrij staan.',
       stBeschikbaar: 'Beschikbaar', stVanBeschikbaar: '{v} van {t} beschikbaar',
       stUitgeleend: 'Uitgeleend', stUitgeleendTot: 'Uitgeleend, verwacht terug op {datum}',
-      stGereserveerd: 'Gereserveerd', stNietUitleenbaar: 'Niet uitleenbaar', stTeKoop: 'Te koop in de bib, niet uitleenbaar',
+      stGereserveerd: 'Gereserveerd', stNietUitleenbaar: 'Niet uitleenbaar', stVerloren: 'Niet meer beschikbaar', stTeKoop: 'Te koop in de bib, niet uitleenbaar',
       labels: 'Labels',
       fOnderwerp: 'Onderwerp', fTaal: 'Taal', fStaat: 'Nieuw of tweedehands', fUitvoering: 'Uitvoering', fPeriode: 'Periode van uitgave', fAanrader: 'Aanrader',
       overTitel: 'Over Project Madrigal'
@@ -177,7 +177,7 @@
       uitlegGereserveerd: 'Someone is already waiting for this book. You can also join the queue at the library.',
       stBeschikbaar: 'Available', stVanBeschikbaar: '{v} of {t} available',
       stUitgeleend: 'On loan', stUitgeleendTot: 'On loan, expected back on {datum}',
-      stGereserveerd: 'Reserved', stNietUitleenbaar: 'Not for loan', stTeKoop: 'For sale at the library, not for loan',
+      stGereserveerd: 'Reserved', stNietUitleenbaar: 'Not for loan', stVerloren: 'No longer available', stTeKoop: 'For sale at the library, not for loan',
       labels: 'Labels',
       fOnderwerp: 'Topic', fTaal: 'Language', fStaat: 'New or second-hand', fUitvoering: 'Format', fPeriode: 'Publication period', fAanrader: 'Recommendation',
       overTitel: 'About Project Madrigal'

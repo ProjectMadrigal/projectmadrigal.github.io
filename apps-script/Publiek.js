@@ -55,6 +55,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     if (b.code === 'uitgeleend' && b.terug && b.terug >= staat.vandaag) boek.b.d = b.terug;
     if (b.code === 'niet_uitleenbaar' && !boek.tip && (normaliseerTekst(rij.genre) === 'verkoop' || jaNee(rij.te_koop) === 'ja')) boek.b.k = 1;
     if (boekStatus(rij) === 'gevoelig_zichtbaar') boek.w = 1;
+    // Verloren: blijft op de website, met het label "Niet meer beschikbaar".
+    if (boekStatus(rij) === 'verloren' && !boek.tip) { boek.b = { c: 'niet_uitleenbaar', l: 'Niet meer beschikbaar', t: 0, v: 0, x: 1 }; }
     // Lege velden laten we weg: dat maakt de lijst kleiner.
     var extra = {
       i: schoon(rij.isbn), u: schoon(rij.uitgeverij), j: parseerGetal(rij.jaartal) || '',

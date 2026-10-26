@@ -1233,14 +1233,15 @@ test('status lezen: verloren, gevoelig verborgen, gevoelig zichtbaar, tikfouten 
     .map((st) => M.boekStatus({ status: st })),
   ['', 'verloren', 'verloren', 'gevoelig_verborgen', 'gevoelig_verborgen', 'gevoelig_zichtbaar', 'gevoelig_zichtbaar', 'gevoelig_verborgen', '']);
 });
-test('website: verloren en gevoelig verborgen weg, gevoelig zichtbaar met label', () => {
+test('website: gevoelig verborgen weg, verloren als niet meer beschikbaar, gevoelig zichtbaar met label', () => {
   const s = maakStaat();
   s.catalogus[0].status = 'verloren';
   s.catalogus[1].status = 'gevoelig verborgen';
   s.catalogus[2].status = 'gevoelig zichtbaar';
   const p = M.bouwPubliekeCatalogus(s, []);
   const ids = p.boeken.map((b) => b.id);
-  assert.ok(ids.indexOf('B0001') === -1 && ids.indexOf('B0002') === -1);
+  assert.ok(ids.indexOf('B0001') > -1 && ids.indexOf('B0002') === -1);
+  gelijk(p.boeken.filter((b) => b.id === 'B0001')[0].b, { c: 'niet_uitleenbaar', l: 'Niet meer beschikbaar', t: 0, v: 0, x: 1 });
   const b3 = p.boeken.filter((b) => b.id === 'B0003')[0];
   assert.strictEqual(b3.w, 1);
   assert.ok(!('status' in b3));
@@ -2157,6 +2158,29 @@ test('daglimiet: de films herstarten eerst, de andere taken een half uur later',
   assert.strictEqual(M.wachtVoorTaak('vulAanUitGoogleBooks', 10 * uur, 16 * uur), 0.5 * uur);
   assert.strictEqual(M.wachtVoorTaak('vulAanUitGoogleBooks', 10 * uur, 17 * uur), 0);
   assert.strictEqual(M.wachtVoorTaak('vulAanUitGoogleBooks', 0, 17 * uur), 0, 'Geen daglimiet genoteerd');
+});
+
+test('boek verloren: uitlening afgesloten, status verloren, borg ingehouden telt niet als terug te betalen', () => {
+  const s = maakStaat();
+  s.uitleningen = [];
+  uitleen(s, 'B0001', '1');
+  uitleen(s, 'B0002-1', '2');
+  const [een, twee] = s.uitleningen;
+  let r = M.boekVerloren(s, { uitlening_id: een.uitlening_id, borg: 'ingehouden', opmerking: 'lener betaalt de waarde' });
+  assert.ok(r.ok && /ingehouden/.test(r.tekst), r.tekst);
+  gelijk([een.datum_terug, een.staat_terug, een.borg_terugbetaald], ['2026-10-23', 'verloren: lener betaalt de waarde', '']);
+  const b1 = s.catalogus.find((b) => b.boek_id === 'B0001');
+  gelijk([M.boekStatus(b1), M.isUitleenbaar(b1), /verloren bij lener 1/.test(b1.notitie)], ['verloren', false, true]);
+  assert.strictEqual(M.boekVerloren(s, { uitlening_id: een.uitlening_id }).ok, false, 'Al afgesloten');
+  // Meer exemplaren: status blijft leeg, wel een notitie en de vraag om het aantal te verlagen. Borg terugbetaald.
+  r = M.boekVerloren(s, { uitlening_id: twee.uitlening_id, borg: 'terugbetaald' });
+  const b2 = s.catalogus.find((b) => b.boek_id === 'B0002');
+  gelijk([M.boekStatus(b2), twee.borg_terugbetaald, /verlaag het aantal/.test(r.tekst)], ['', '2026-10-23', true]);
+  // Cijfers: geen borg terug te betalen, niet in de uitleenduur, wel in het aantal uitleningen.
+  const c = M.bestuurCijfers(s, []);
+  gelijk([c.extraCijfers.afgesloten, c.extraCijfers.mediaanDagen], [0, 0]);
+  const g = M.bestuurGegevens(s, []);
+  gelijk([g.borgen.terugTeBetalen.length, g.borgen.ingehouden.totaal], [0, 0]);
 });
 
 test('uitlening aanpassen: termijn met dagen verschuiven, verlenging en uitlening annuleren', () => {

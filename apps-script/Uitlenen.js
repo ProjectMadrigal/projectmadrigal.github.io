@@ -339,6 +339,46 @@ function terugbrengen(staat, invoer) {
 }
 
 /**
+ * Bestuur: het uitgeleende boek is verloren. Sluit de uitlening af (staat_terug "verloren") en zet
+ * de status van het boek op verloren, zodat het niet meer op de website staat en niet uitleenbaar is.
+ * Heeft het boek meer exemplaren, dan blijft de status leeg en komt het in de notitie van het boek.
+ * invoer: { uitlening_id, borg: 'ingehouden' | 'terugbetaald', opmerking }
+ * Een ingehouden borg is een vergoeding: die telt niet mee bij de borgen die nog terug moeten.
+ */
+function boekVerloren(staat, invoer) {
+  var u = uitleningVan(staat, invoer.uitlening_id);
+  if (!u) return { ok: false, fout: 'Deze uitlening bestaat niet.' };
+  if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht.' };
+  var opmerking = tekstInvoer(invoer.opmerking, 200);
+  var velden = { datum_terug: staat.vandaag, staat_terug: 'verloren' + (opmerking ? ': ' + opmerking : '') };
+  var terugbetaald = invoer.borg === 'terugbetaald' && Number(u.borg) > 0;
+  if (terugbetaald) velden.borg_terugbetaald = staat.vandaag;
+  wijzig(u, velden);
+  var boek = boekVan(staat, u.boek_id);
+  var enkel = boek && aantalExemplaren(boek) <= 1;
+  if (boek) {
+    var regel = staat.vandaag + ' ' + u.exemplaar + ': verloren bij lener ' + u.lenersnummer + (opmerking ? ' (' + opmerking + ')' : '');
+    var nieuw = { notitie: [schoonMetRegels(boek.notitie), regel].filter(Boolean).join('\n') };
+    if (enkel) nieuw.status = 'verloren';
+    wijzig(boek, nieuw);
+    staat.catalogusGewijzigd = true;
+  }
+  staat.log.push(['verloren', u.uitlening_id + ' ' + u.exemplaar + (terugbetaald ? ', borg terugbetaald' : ', borg ingehouden')]);
+  var titel = boek ? boek.titel : u.exemplaar;
+  return {
+    ok: true,
+    tekst: '"' + titel + '" staat als verloren. De uitlening is afgesloten' +
+      (Number(u.borg) > 0 ? (terugbetaald ? ' en de borg is terugbetaald.' : ', de borg van ' + bedragTekst(u.borg) + ' is ingehouden.') : '.') +
+      (boek && !enkel ? ' Het boek heeft meer exemplaren: verlaag het aantal in de Catalogus als dit exemplaar niet terugkomt.' : '')
+  };
+}
+
+/** Is deze uitlening afgesloten omdat het boek verloren is? */
+function isVerlorenUitlening(u) {
+  return /^verloren/i.test(String(u.staat_terug || ''));
+}
+
+/**
  * Verlengen.
  * invoer: { uitlening_id, uitzondering: { reden } }
  */

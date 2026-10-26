@@ -146,7 +146,8 @@ function bestuurGegevens(staat, onderwerpRijen) {
   var terugTeBetalen = [];
   staat.uitleningen.forEach(function (u) {
     var borg = Number(u.borg || 0);
-    if (borg <= 0 || !isLeeg(u.borg_terugbetaald)) return;
+    // Een borg die bij een verloren boek ingehouden werd, is een vergoeding: die moet niet meer terug.
+    if (borg <= 0 || !isLeeg(u.borg_terugbetaald) || isVerlorenUitlening(u)) return;
     var wijze = u.betaalwijze_borg || 'onbekend';
     ingehouden.totaal += borg;
     ingehouden.perBetaalwijze[wijze] = (ingehouden.perBetaalwijze[wijze] || 0) + borg;

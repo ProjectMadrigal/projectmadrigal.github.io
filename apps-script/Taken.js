@@ -216,7 +216,7 @@ function extraCijfers(staat) {
   staat.uitleningen.forEach(function (u) {
     geleend[String(u.boek_id)] = true;
     var uit = parseerDatum(u.datum_uit), terug = parseerDatum(u.datum_terug);
-    if (uit && terug) dagen.push(Math.round((Date.parse(terug) - Date.parse(uit)) / 86400000));
+    if (uit && terug && !isVerlorenUitlening(u)) dagen.push(Math.round((Date.parse(terug) - Date.parse(uit)) / 86400000));
     if (uit && uit >= jaarGeleden) actief[String(u.lenersnummer)] = true;
   });
   var nooit = staat.catalogus.filter(function (b) {
