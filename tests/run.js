@@ -1077,6 +1077,27 @@ test('handleiding en draaiboek: blokken, afspraken uit de instellingen, checklis
   gelijk([M.draaiboekAanvullen(inst, []).punten], [0]);
 });
 
+test('oud uitleenblad: giften en doorgeschoven borgen uit vrije tekst', () => {
+  const inst = instellingen({});
+  const g = (gift, borg) => { const r = M.oudeBorgEnGift({ gift, borg }, inst); return [r.bedrag, r.gift]; };
+  gelijk(g('geeft borg als gift', 'cash'), [0, 5]);
+  gelijk(g('x', 'cash'), [0, 5]);
+  gelijk(g('ja 10', 'gift'), [0, 10]);
+  gelijk(g('', 'Een gift'), [0, 5]);
+  gelijk(g('voor volgende keer', 'van vorige keer'), [0, 0]);
+  gelijk(g('cash teruggegeven', 'cash'), [5, 0]);
+  gelijk(g('Geld voor volgende boek', 'cash'), [5, 0]);
+  gelijk(g('3', 'QR'), [5, 3]);
+  // Al overgenomen zonder gift: een nieuwe run zet de gift en haalt de borg weg.
+  const s = maakStaat('2026-10-26');
+  s.uitleningen = [{ uitlening_id: 'U00001', exemplaar: 'B0001-1', boek_id: 'B0001', lenersnummer: '', datum_uit: '2026-03-06', oorspronkelijke_vervaldatum: '2026-04-03', vervaldatum: '2026-04-03', datum_terug: '2026-04-03', borg: 5, betaalwijze_borg: 'cash', borg_terugbetaald: '2026-04-03', gift: '', laatste_herinnering: '', vrijwilliger: 'overgezet', bron: 'oud blad rij 2' }];
+  const o = { rijnummer: 2, boek: 'De verzonnen zee', auteur: 'Mira Verbeek', datum_uit: '2026-03-06', datum_terug_afgesproken: '2026-04-03', terug_op: 'ok', borg: 'cash', gift: 'x', herinnering: '' };
+  gelijk(M.verwerkOudeUitleningen(s, [o]).hersteld, 1);
+  gelijk([s.uitleningen[0].borg, s.uitleningen[0].gift, s.uitleningen[0].borg_terugbetaald], [0, 5, '']);
+  gelijk(M.verwerkOudeUitleningen(s, [o]).hersteld, 0, 'Opnieuw: niets meer te herstellen');
+  gelijk(M.bestuurGegevens(s, []).perMaand.filter((m) => m.giften).map((m) => m.giften), [5]);
+});
+
 test('oud uitleenblad: zelf het boek kiezen voor een lopende uitlening', () => {
   const s = maakStaat('2026-10-25');
   s.leners = [];

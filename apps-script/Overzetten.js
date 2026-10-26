@@ -23,7 +23,7 @@
  *     bij, soms het verkeerde. De kolom "datum terug" is een formule (=DATEVALUE(I12+28+28)) die bij het
  *     importeren het jaar van vandaag kreeg. Het script rekent die datum zelf uit de formule uit, en zet
  *     een datum ontlening die later valt dan de rijen eronder (de lijst is chronologisch) een jaar terug.
- *     Wat al overgenomen is, krijgt bij een nieuwe run de herstelde datums.
+ *     Wat al overgenomen is, krijgt bij een nieuwe run de herstelde datums, borg en gift.
  *
  * Dit script past het oude blad niet aan.
  */
@@ -131,6 +131,29 @@ function leesBorg(waarde, inst) {
 }
 
 /**
+ * Borg en gift uit het oude blad. De kolom Gift is vrije tekst:
+ *   - "ja", "x", "geeft borg als gift", of "gift" in de kolom Borg: de borg werd een gift.
+ *     Dan geen borg (niets terug te betalen) en een gift van de borg, of van het bedrag na "ja" ("ja 10").
+ *   - "van vorige keer" in de kolom Borg: de borg schoof door van een vorige uitlening. Geen nieuwe borg.
+ *   - "voor volgende keer", "cash teruggegeven" en andere tekst: geen gift.
+ *   - Enkel een getal: dat bedrag als gift.
+ */
+function oudeBorgEnGift(o, inst) {
+  var borg = leesBorg(o.borg, inst);
+  var gt = normaliseerTekst(o.gift);
+  var bt = normaliseerTekst(o.borg);
+  var ja = gt.match(/^ja\s*(\d+)?/);
+  var borgIsGift = /\bgift\b/.test(bt) || /borg als gift/.test(gt) || gt === 'x' || !!ja;
+  if (borgIsGift) {
+    var bedrag = ja && ja[1] ? Number(ja[1]) : (borg.bedrag || inst.borg_per_boek);
+    return { bedrag: 0, betaalwijze: '', gift: bedrag };
+  }
+  if (/vorige keer/.test(bt)) return { bedrag: 0, betaalwijze: '', gift: 0 };
+  var getal = /^\s*[€]?\s*\d+([.,]\d+)?\s*(euro|eur|€)?\s*$/i.test(String(o.gift || '')) ? parseerGetal(o.gift) : null;
+  return { bedrag: borg.bedrag, betaalwijze: borg.betaalwijze, gift: getal || 0 };
+}
+
+/**
  * Zoekt een boek in de Catalogus op titel en auteur.
  * Geeft { zeker: boek } of { twijfel: [boeken] } of {} terug.
  * soepel (voor de historiek, enkel voor de cijfers): de beste kandidaat met de juiste auteur telt als zeker,
@@ -212,10 +235,17 @@ function herstelOudeTerug(u, o, inst) {
   if (u.vrijwilliger !== 'overgezet' || isLeeg(u.datum_terug) || !o.datum_uit) return false;
   var d = oudeTerugDatums(o, inst);
   var nieuw = { datum_uit: o.datum_uit, oorspronkelijke_vervaldatum: d.verval, vervaldatum: d.verval, datum_terug: d.terug };
-  if (!isLeeg(u.borg_terugbetaald)) nieuw.borg_terugbetaald = d.terug;
+  var bg = oudeBorgEnGift(o, inst);
+  nieuw.borg_terugbetaald = bg.bedrag > 0 ? d.terug : '';
   if (o.herinnering && !isLeeg(u.laatste_herinnering)) nieuw.laatste_herinnering = o.herinnering;
-  var anders = Object.keys(nieuw).some(function (k) { return parseerDatum(u[k]) !== nieuw[k]; });
-  if (anders) wijzig(u, nieuw);
+  var anders = Object.keys(nieuw).some(function (k) { return (parseerDatum(u[k]) || '') !== nieuw[k]; }) ||
+    Number(u.borg || 0) !== bg.bedrag || Number(u.gift || 0) !== bg.gift;
+  if (anders) {
+    nieuw.borg = bg.bedrag;
+    nieuw.betaalwijze_borg = bg.betaalwijze;
+    nieuw.gift = bg.gift || '';
+    wijzig(u, nieuw);
+  }
   return anders;
 }
 
@@ -244,13 +274,13 @@ function verwerkOudeTerug(staat, o, bron, teller, naTeKijken, gekozen) {
   var terug = d.terug, verval = d.verval;
   var grens = telMaandenOp(staat.vandaag, -staat.inst.bewaartermijn_afgesloten_uitleningen_maanden);
   var lener = terug >= grens && (o.email || o.telefoon || o.voornaam) ? oudeLener(staat, o, teller) : null;
-  var borg = leesBorg(o.borg, staat.inst);
+  var borg = oudeBorgEnGift(o, staat.inst);
   voegToe(staat.uitleningen, {
     uitlening_id: 'U' + metNullen(nieuwNummer(staat, 'uitlening', staat.uitleningen.map(function (x) { return x.uitlening_id; })), 5),
     exemplaar: boek.boek_id + '-1', boek_id: boek.boek_id, lenersnummer: lener ? lener.lenersnummer : '',
     datum_uit: o.datum_uit, oorspronkelijke_vervaldatum: verval, vervaldatum: verval, datum_terug: terug,
     aantal_verlengingen: 0, datum_verlenging: '', borg: borg.bedrag, betaalwijze_borg: borg.betaalwijze,
-    borg_terugbetaald: borg.bedrag > 0 ? terug : '', gift: parseerGetal(o.gift) || '',
+    borg_terugbetaald: borg.bedrag > 0 ? terug : '', gift: borg.gift || '',
     laatste_herinnering: parseerDatum(o.herinnering) || '', vrijwilliger: 'overgezet', bron: bron
   });
   teller.historiek++;
@@ -284,7 +314,7 @@ function verwerkOudeUitleningen(staat, oudeRijen, gekozen) {
     if (boek) {
       exemplaar = exemplarenVan(boek).filter(function (ex) { return !uitleningVanExemplaar(staat, ex); })[0] || '';
     }
-    var borg = leesBorg(o.borg, staat.inst);
+    var borg = oudeBorgEnGift(o, staat.inst);
     var context = 'Lener ' + lener.lenersnummer + ', geleend op ' + korteDatum(o.datum_uit) +
       ', terug tegen ' + korteDatum(o.datum_terug_afgesproken) + ', borg ' + bedragTekst(borg.bedrag) + (borg.betaalwijze ? ' (' + borg.betaalwijze + ')' : '') + '.';
     if (!boek || !exemplaar) {
@@ -303,7 +333,7 @@ function verwerkOudeUitleningen(staat, oudeRijen, gekozen) {
     // 3. De uitlening.
     var datumUit = o.datum_uit || staat.vandaag;
     var verval = o.datum_terug_afgesproken || berekenVervaldatum(datumUit, staat.inst);
-    var gift = parseerGetal(o.gift);
+    var gift = borg.gift;
     voegToe(staat.uitleningen, {
       uitlening_id: 'U' + metNullen(nieuwNummer(staat, 'uitlening', staat.uitleningen.map(function (x) { return x.uitlening_id; })), 5),
       exemplaar: exemplaar, boek_id: boek.boek_id, lenersnummer: lener.lenersnummer,
@@ -368,7 +398,7 @@ function neemUitleningenOver() {
     leegCache();
     logboek('menu', 'neemUitleningenOver', resultaat.uitleningen + ' lopend, ' + resultaat.historiek + ' historiek, ' + resultaat.nietGevonden + ' boeken niet gevonden, ' + resultaat.leners + ' leners, ' + resultaat.hersteld + ' hersteld, ' + nieuw + ' na te kijken');
     meld(resultaat.uitleningen + ' lopende uitleningen en ' + resultaat.historiek + ' teruggebrachte uitleningen overgenomen, ' + resultaat.leners + ' nieuwe leners aangemaakt. ' +
-      (resultaat.hersteld ? 'Bij ' + resultaat.hersteld + ' al overgenomen uitleningen zijn de datums hersteld. ' : '') +
+      (resultaat.hersteld ? 'Bij ' + resultaat.hersteld + ' al overgenomen uitleningen zijn de datums, de borg of de gift hersteld. ' : '') +
       (resultaat.nietGevonden ? resultaat.nietGevonden + ' teruggebrachte boeken vond het script niet in de Catalogus. Ze staan in "Na te kijken" (veld historiek): zet daar het juiste boek-ID en kies dit menu-item opnieuw. ' : '') +
       nieuw + ' twijfelgevallen staan in "Na te kijken". Vraag nieuwe leners bij hun volgende bezoek om toestemming voor de privacyverklaring (kolom toestemming_privacy staat op "onbekend").');
   } finally {
