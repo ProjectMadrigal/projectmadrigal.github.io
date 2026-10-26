@@ -79,7 +79,8 @@ function antwoord(rol, actie, vraag) {
       beschrijvingVoorstellen: [{ voorstel_id: 'V0001', datum: '2026-10-24', boek_id: 'B0001', titel: 'De verzonnen zee', tekst: 'Een verzonnen roman over een zee die niet bestaat.', voorgesteld_door: 'Kim' }],
       privacy: 'Verzonnen privacyverklaring.'
     }) },
-    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }] }) },
+    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }],
+      checklist: { openen: ['Licht aan'], sluiten: ['Licht uit'] }, handleiding: { nl: [{ titel: 'De sleutel', regels: [{ punt: false, tekst: 'Vraag het in de groep.' }] }], en: [{ titel: 'The key', regels: [{ punt: false, tekst: 'Ask in the group.' }] }] } }) },
     bestuurCijfers: { ok: true, cijfers: { meestGeleend: [], groepen: [],
       shifts: { jaar: 2026, personen: [{ naam: 'Kim', bib: 3, backup: 1 }], dicht: [{ datum: '2026-05-01', rol: 'gesloten' }] },
       extraCijfers: { nieuweLeners: [{ maand: 'oktober 2026', aantal: 2 }], nooitUitgeleend: 1, mediaanDagen: 17, afgesloten: 2, langerDanHalfJaar: 0, actieveLeners: 2 } } },
@@ -594,6 +595,8 @@ async function meldAan(page, basis, pagina) {
     verwacht(/The key/.test(await page.textContent('#sectie')), 'Handleiding volgt de taal van het scherm');
     await page.click('#sectienav button:has-text("Shift checklist")');
     verwacht(/When opening[\s\S]*0 of 2 done\./.test(await page.textContent('#sectie')), 'Checklist in het Engels, met teller');
+    await page.click('#sectienav button:has-text("All loans")');
+    verwacht(/books? on loan, sorted by due date\./.test(await page.textContent('#sectie')), 'Alle uitleningen in het Engels');
     await page.reload();
     await page.waitForSelector('#sectienav button');
     await page.waitForFunction(() => /Today/.test(document.querySelector('#sectienav').textContent));
@@ -747,6 +750,28 @@ async function meldAan(page, basis, pagina) {
     await page.waitForSelector('#naar-scherm');
     verwacht((await page.getAttribute('#naar-scherm', 'href')) === 'vrijwilliger.html', 'Verkeerde link');
     await ctx.close();
+  });
+  await test('uitleenscherm: checklist, handleiding en de knop English', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'balie' });
+    await meldAan(page, basis, 'balie.html');
+    await page.click('#werkvlak button:has-text("Checklist")');
+    verwacht(/Bij het openen[\s\S]*Licht aan[\s\S]*Bij het sluiten/.test(await page.textContent('#werkvlak')), 'Checklist aan de balie');
+    await page.click('button:has-text("← Menu")');
+    await page.click('#werkvlak button:has-text("Handleiding")');
+    verwacht(/De sleutel/.test(await page.textContent('#werkvlak')), 'Handleiding aan de balie');
+    await page.click('.taal-knop');
+    await page.waitForFunction(() => document.documentElement.lang === 'en');
+    await page.click('#werkvlak button:has-text("English")');
+    verwacht(/The key/.test(await page.textContent('#werkvlak')), 'Handleiding in het Engels');
+    await page.click('button:has-text("← Menu")');
+    const menu = await page.$$eval('#werkvlak nav button', (b) => b.map((x) => x.textContent.replace(/^\W+/, '').trim()));
+    verwacht(['Lending', 'Return', 'Extend', 'Reserve', 'Look up a borrower', 'New borrower', 'Schedule', 'Checklist', 'Manual'].every((k) => menu.indexOf(k) > -1), 'Menu in het Engels: ' + menu.join(', '));
+    verwacht(/Lending screen/.test(await page.textContent('h1')), 'Titel in het Engels');
+    await Promise.all([page.waitForNavigation(), page.click('.taal-knop')]);
+    await page.waitForSelector('#werkvlak nav button');
+    verwacht(/Uitlenen/.test(await page.textContent('#werkvlak')), 'Terug naar het Nederlands');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
   });
 
   await browser.close();
