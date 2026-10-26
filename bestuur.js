@@ -43,6 +43,7 @@
     ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen', 'beide'],
     ['reservaties', 'Reservaties', toonReservaties, 'uitlenen', 'beide'],
     ['terugzetten', 'Terug te zetten', function (vak) { V.terugzetten(vak, context()); }, 'uitlenen', 'beide'],
+    ['tevervangen', 'Te vervangen', toonTeVervangen, 'uitlenen', 'beide'],
     ['opzoeken', 'Boek opzoeken', function (vak) { V.opzoeken(vak, context()); }, 'uitlenen', 'vrijwilliger'],
     ['aanvragen', 'Aanvragen van de website', toonAanvragen, 'uitlenen'],
     ['leners', 'Leners', toonLeners, 'uitlenen'],
@@ -125,6 +126,7 @@
     if (naam === 'aanvragen') return (data.aanvragen || []).length;
     if (naam === 'meldingen') return (data.meldingen || []).length;
     if (naam === 'terugzetten') return (data.vandaagTerug || []).length;
+    if (naam === 'tevervangen') return (data.teVervangen || []).length;
     if (naam === 'voorstellen') return (data.beschrijvingVoorstellen || []).length;
     return null;
   }
@@ -537,6 +539,42 @@
       })) : el('p', {}, 'Er zijn geen open aanvragen.'));
   }
 
+  /* ---------- Te vervangen ---------- */
+
+  /**
+   * Verloren exemplaren: een nieuw exemplaar zoeken, of beslissen dat het niet vervangen wordt.
+   * Vrijwilligers zien de lijst (handig als je tweedehands zoekt), het bestuur beslist.
+   */
+  function toonTeVervangen(vak) {
+    var lijst = data.teVervangen || [];
+    D.vervang(vak, kop('Te vervangen', VRIJWILLIGER
+      ? 'Boeken die verloren zijn. Zie je er een tweedehands, of brengt iemand er een binnen? Meld het via Iets melden.'
+      : 'Boeken die verloren zijn. Staat er een nieuw exemplaar in de kast, klik dan op Vervangen. Koop je het niet opnieuw, klik op Niet vervangen: dan blijft het op de website als niet meer beschikbaar.'),
+      lijst.length ? el('ul', { class: 'kaartlijst' }, lijst.map(function (b) {
+        var fout = el('div', { 'aria-live': 'polite' });
+        function kies(keuze, knop) {
+          knop.disabled = true;
+          B.voerUit('boekVervangen', { sleutel: b.sleutel, keuze: keuze }).then(function (r) {
+            knop.disabled = false;
+            if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+            B.melding($('melding'), 'ok', r.tekst);
+            laad();
+          });
+        }
+        return el('li', { class: 'kaart' },
+          el('p', {}, el('strong', {}, b.titel), b.auteur ? ' (' + b.auteur + ')' : ''),
+          el('p', { class: 'hulptekst' }, [b.exemplaar || b.boek_id, b.isbn ? 'ISBN ' + b.isbn : '', b.datum ? 'verloren op ' + D.korteDatum(b.datum) : '',
+            b.lenersnummer ? 'lener ' + b.lenersnummer : '', b.borg ? 'borg ' + b.borg : ''].filter(Boolean).join(' · ')),
+          b.opmerking ? el('p', {}, b.opmerking) : null,
+          fout,
+          VRIJWILLIGER ? null : el('div', { class: 'knoppen' },
+            el('button', { type: 'button', class: 'knop', onclick: function (e) { kies('vervangen', e.target); } }, 'Vervangen'),
+            el('button', { type: 'button', class: 'knop tweede', onclick: function (e) {
+              if (window.confirm('"' + b.titel + '" niet vervangen? Het blijft op de website als niet meer beschikbaar.')) kies('niet', e.target);
+            } }, 'Niet vervangen')));
+      })) : el('p', {}, 'Er is niets te vervangen.'));
+  }
+
   /* ---------- Verloren en gevoelig ---------- */
 
   function toonBoekstatus(vak) {
@@ -941,6 +979,7 @@
     logboek: 'De achtergrondtaken die boeken opzoeken (Wikipedia, Google, covers) en de laatste regels van het Logboek. Staat een taak stil, start ze dan in de spreadsheet via het menu Madrigal.',
     rooster: 'Wie wanneer de bib openhoudt. Je beschikbaarheid geef je door in de roostertool.',
     mijn: 'Je voorgestelde beschrijvingen en je meldingen van de laatste 60 dagen, met wat het bestuur ermee deed. Het scherm zoekt op de voornaam waarmee je aanmeldt.',
+    tevervangen: 'Boeken die verloren zijn en een nieuw exemplaar nodig hebben. Het bestuur beslist: vervangen of niet.',
     terugzetten: 'De boeken die vandaag terugkwamen, per onderwerp, zodat je weet in welke kast ze horen. Vink aan wat terug staat.',
     opzoeken: 'Zoek een boek op titel, auteur, ISBN of boek-ID, of scan het ISBN. Je ziet hoeveel exemplaren er zijn, wanneer uitgeleende exemplaren terug moeten en hoeveel mensen wachten. Namen van leners zie je hier niet.',
     meldingen: 'Wat vrijwilligers via Iets melden doorgaven: een kapot boek, iets kwijt, een vraag van een lener. Volg op en klik op Afgehandeld.',

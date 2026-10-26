@@ -75,6 +75,7 @@ function antwoord(rol, actie, vraag) {
       leners: [{ lenersnummer: '12', voornaam: 'Sam', achternaam: 'Verzonnen', telefoon: '0400000000', email: '', actief: true, toestemming_privacy: 'ja', lopend: 1, datum_inschrijving: '2026-01-01' }],
       boekstatus: { verloren: [], gevoelig_verborgen: [], gevoelig_zichtbaar: [] }, borgen: { ingehouden: { totaal: 0, perBetaalwijze: {} }, terugTeBetalen: [] },
       perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], voorstellen: 1,
+      teVervangen: [{ sleutel: 'U:U0009', boek_id: 'B0003', exemplaar: 'B0003-1', titel: 'Stille lichten', auteur: 'Aerts, Noor', isbn: '', datum: '2026-10-20', lenersnummer: '12', opmerking: '', borg: 'ingehouden' }],
       meldingen: [{ melding_id: 'M0001', datum: '2026-10-24', wie: 'Kim', soort: 'boek kapot', onderwerp: 'B0001', bericht: 'De rug is gescheurd.' }],
       beschrijvingVoorstellen: [{ voorstel_id: 'V0001', datum: '2026-10-24', boek_id: 'B0001', titel: 'De verzonnen zee', tekst: 'Een verzonnen roman over een zee die niet bestaat.', voorgesteld_door: 'Kim' }],
       privacy: 'Verzonnen privacyverklaring.'
@@ -112,6 +113,7 @@ function antwoord(rol, actie, vraag) {
     vervaldatumAanpassen: { ok: true, tekst: '"Twee kasten vol" moet nu terug tegen vrijdag 25 oktober.' },
     annuleerVerlenging: { ok: true, tekst: 'De verlenging van "Twee kasten vol" is geannuleerd.' },
     annuleerUitlening: { ok: true, tekst: 'De uitlening van "Twee kasten vol" is geannuleerd. Geef de borg van 5 euro terug.' },
+    boekVervangen: { ok: true, tekst: '"Stille lichten": vervangen. Het staat weer gewoon in de catalogus.' },
     boekVerloren: { ok: true, tekst: '"Twee kasten vol" staat als verloren. De uitlening is afgesloten, de borg van 5 euro is ingehouden.' },
     briefjeMaken: { ok: true, tekst: 'Je briefje staat bij Vandaag voor de volgende shift.' },
     briefjeWeg: { ok: true, tekst: 'Het briefje is weg.' }
@@ -551,7 +553,7 @@ async function meldAan(page, basis, pagina) {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
     await meldAan(page, basis, 'vrijwilliger.html');
     const knoppen = await page.$$eval('#sectienav button', (x) => x.map((e) => e.textContent.replace(/ \(.*\)$/, '')));
-    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Te vervangen', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
     verwacht(!/Logboek/.test(await page.textContent('#sectie')), 'Vandaag toont het Logboek aan een vrijwilliger');
     await page.click('#sectienav button:has-text("Te laat")');
     verwacht(!/0400000000|Kopieer herinnering/.test(await page.textContent('#sectie')), 'Contactgegevens zichtbaar');
@@ -720,6 +722,13 @@ async function meldAan(page, basis, pagina) {
     await kaart.locator('button:has-text("Noteer als verloren")').click();
     await r.page.waitForSelector('text=staat als verloren');
     verwacht(vragen.some((v) => v.actie === 'boekVerloren' && v.uitlening_id === 'U0002' && v.borg === 'terugbetaald' && v.opmerking === 'nieuw exemplaar gebracht'), 'Verloren niet verstuurd');
+    // Te vervangen: teller in het menu, en Vervangen stuurt de keuze door.
+    verwacht(/Te vervangen \(1\)/.test(await r.page.textContent('#sectienav')), 'Teller Te vervangen');
+    await r.page.click('#sectienav button:has-text("Te vervangen")');
+    verwacht(/Stille lichten[\s\S]*verloren op 20\/10\/2026 · lener 12 · borg ingehouden/.test(await r.page.textContent('#sectie')), 'Kaart Te vervangen');
+    await r.page.click('#sectie button:has-text("Vervangen")');
+    await r.page.waitForSelector('text=vervangen. Het staat weer gewoon in de catalogus');
+    verwacht(vragen.some((v) => v.actie === 'boekVervangen' && v.sleutel === 'U:U0009' && v.keuze === 'vervangen'), 'Vervangen niet verstuurd');
     verwacht(!(await axe(r.page)).length, 'Toegankelijkheid: ' + (await axe(r.page)).join(' | '));
     await r.ctx.close();
     verwacht(!r.fouten.length, r.fouten.join(' | '));

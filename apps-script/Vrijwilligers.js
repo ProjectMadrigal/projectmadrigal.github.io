@@ -392,7 +392,8 @@ function mijnBijdragen(voorstelRijen, meldingRijen, wie, vandaag) {
 
 /** De boeken die vandaag terugkwamen, met hun onderwerp: zo weet je in welke kast ze horen. Zonder gegevens van leners. */
 function vandaagTerug(staat, vertaal) {
-  return staat.uitleningen.filter(function (u) { return parseerDatum(u.datum_terug) === staat.vandaag; }).map(function (u) {
+  // Een verloren boek kwam niet terug: dat staat bij Te vervangen.
+  return staat.uitleningen.filter(function (u) { return parseerDatum(u.datum_terug) === staat.vandaag && !isVerlorenUitlening(u); }).map(function (u) {
     var boek = boekVan(staat, u.boek_id);
     var groepen = boek && vertaal ? filtergroepenVan(boek, vertaal) : [];
     return { uitlening_id: String(u.uitlening_id), exemplaar: String(u.exemplaar || ''), boek_id: String(u.boek_id),

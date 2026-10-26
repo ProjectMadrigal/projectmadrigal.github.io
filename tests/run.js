@@ -2183,6 +2183,29 @@ test('boek verloren: uitlening afgesloten, status verloren, borg ingehouden telt
   gelijk([g.borgen.terugTeBetalen.length, g.borgen.ingehouden.totaal], [0, 0]);
 });
 
+test('te vervangen: verloren exemplaren, niet bij Terug te zetten, vervangen of niet', () => {
+  const s = maakStaat();
+  s.uitleningen = [];
+  uitleen(s, 'B0001', '1');
+  uitleen(s, 'B0003', '2');
+  M.boekVerloren(s, { uitlening_id: s.uitleningen[0].uitlening_id, borg: 'ingehouden' });
+  M.terugbrengen(s, { uitlening_id: s.uitleningen[1].uitlening_id });
+  s.catalogus.find((b) => b.boek_id === 'B0004').status = 'verloren';
+  gelijk(M.vandaagTerug(s, null).map((x) => x.boek_id), ['B0003'], 'Verloren staat niet bij Terug te zetten');
+  let lijst = M.teVervangen(s, true);
+  gelijk(lijst.map((x) => [x.sleutel.charAt(0), x.boek_id, x.borg || '']), [['U', 'B0001', 'ingehouden'], ['B', 'B0004', '']]);
+  assert.ok(!('borg' in M.teVervangen(s, false)[0]), 'Vrijwilligers zien de borg niet');
+  // Vervangen: de status verloren gaat weg, het boek is weer uitleenbaar.
+  let r = M.boekVervangen(s, { sleutel: lijst[0].sleutel, keuze: 'vervangen' });
+  const b1 = s.catalogus.find((b) => b.boek_id === 'B0001');
+  gelijk([r.ok, M.boekStatus(b1), M.isUitleenbaar(b1), /vervangen op/.test(s.uitleningen[0].staat_terug)], [true, '', true, true]);
+  // Niet vervangen: blijft verloren, verdwijnt uit de lijst.
+  r = M.boekVervangen(s, { sleutel: 'B:B0004', keuze: 'niet' });
+  gelijk([r.ok, M.boekStatus(s.catalogus.find((b) => b.boek_id === 'B0004')), M.teVervangen(s, true).length], [true, 'verloren', 0]);
+  assert.strictEqual(M.boekVervangen(s, { sleutel: 'B:B0004', keuze: 'iets' }).ok, false);
+  assert.strictEqual(M.isVerlorenUitlening(s.uitleningen[0]), true, 'Blijft een verloren uitlening voor de cijfers');
+});
+
 test('uitlening aanpassen: termijn met dagen verschuiven, verlenging en uitlening annuleren', () => {
   const s = maakStaat();
   uitleen(s, 'B0001', '1');
