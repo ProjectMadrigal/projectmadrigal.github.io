@@ -137,6 +137,130 @@ function shiftChecklist(inst) {
   return { openen: checklistPunten(inst.tekst_checklist_openen), sluiten: checklistPunten(inst.tekst_checklist_sluiten) };
 }
 
+/* ---------- Handleiding (draaiboek voor vrijwilligers) ---------- */
+
+/**
+ * Een tekst met titels (# vooraan) en opsommingen (- vooraan) wordt een lijst blokken:
+ * [{ titel, regels: [{ punt: true/false, tekst }] }]. Tekst voor de eerste titel komt in een blok zonder titel.
+ */
+function handleidingBlokken(tekst) {
+  var blokken = [];
+  String(tekst || '').split('\n').forEach(function (r) {
+    var regel = String(r).trim();
+    if (!regel) return;
+    if (/^#/.test(regel)) { blokken.push({ titel: schoon(regel.replace(/^#+/, '')), regels: [] }); return; }
+    if (!blokken.length) blokken.push({ titel: '', regels: [] });
+    var punt = /^[-*•]\s*/.test(regel);
+    blokken[blokken.length - 1].regels.push({ punt: punt, tekst: schoon(regel.replace(/^[-*•]\s*/, '')) });
+  });
+  return blokken.filter(function (b) { return b.titel || b.regels.length; }).slice(0, 40);
+}
+
+/** De afspraken voor lenen, uit de instellingen, zodat ze altijd kloppen met het uitleenscherm. */
+function uitleenAfspraken(inst, taal) {
+  var en = taal === 'en';
+  var meervoud = function (n, een, meer) { return n + ' ' + (n === 1 ? een : meer); };
+  var betalen = inst.borg_betaalwijzen.join(en ? ' or ' : ' of ');
+  var regels = en ? [
+    'Opening hours: ' + schoon(String(inst.openingsuren_en || '').replace(/\n/g, ', ')) + '.',
+    'A reader borrows at most ' + meervoud(inst.max_boeken_per_lener, 'book', 'books') + ' at a time, for ' + meervoud(inst.uitleentermijn_weken, 'week', 'weeks') + '.',
+    inst.max_verlengingen ? 'Extending is possible ' + (inst.max_verlengingen === 1 ? 'once' : inst.max_verlengingen + ' times') + ', for ' + meervoud(inst.verlengingstermijn_weken, 'week', 'weeks') + (inst.verlengen_niet_bij_reservatie ? ', unless someone else has reserved the book' : '') + '.' : 'Extending is not possible.',
+    'The deposit is ' + inst.borg_per_boek + ' euro per book' + (betalen ? ', paid ' + betalen : '') + '.'
+  ] : [
+    'Openingsuren: ' + schoon(String(inst.openingsuren || '').replace(/\n/g, ', ')) + '.',
+    'Een lezer leent maximaal ' + meervoud(inst.max_boeken_per_lener, 'boek', 'boeken') + ' tegelijk, voor ' + meervoud(inst.uitleentermijn_weken, 'week', 'weken') + '.',
+    inst.max_verlengingen ? 'Verlengen kan ' + (inst.max_verlengingen === 1 ? 'één keer' : inst.max_verlengingen + ' keer') + ', voor ' + meervoud(inst.verlengingstermijn_weken, 'week', 'weken') + (inst.verlengen_niet_bij_reservatie ? ', tenzij iemand anders het boek reserveerde' : '') + '.' : 'Verlengen kan niet.',
+    'De borg is ' + inst.borg_per_boek + ' euro per boek' + (betalen ? ', ' + betalen : '') + '.'
+  ];
+  return { titel: en ? 'Borrowing rules' : 'Afspraken voor lenen', regels: regels.map(function (t) { return { punt: true, tekst: t }; }) };
+}
+
+/** Voor het vrijwilligersscherm: de handleiding in het Nederlands en het Engels, met de afspraken voor lenen. */
+function handleiding(inst) {
+  var maak = function (tekst, taal) {
+    var blokken = handleidingBlokken(tekst);
+    // De afspraken na het eerste blok (wat Madrigal is), anders bovenaan.
+    blokken.splice(blokken.length > 1 ? 2 : 0, 0, uitleenAfspraken(inst, taal));
+    return blokken;
+  };
+  return { nl: maak(inst.tekst_handleiding, 'nl'), en: maak(inst.tekst_handleiding_en, 'en') };
+}
+
+/**
+ * Wat het draaiboek voor vrijwilligers toevoegt aan de checklists. Een punt komt er enkel bij als
+ * geen bestaand punt het trefwoord al bevat.
+ */
+var DRAAIBOEK_CHECKLIST = {
+  openen: [['sleutel', 'Sleutel op zak: geen sleutel? Vraag het op tijd in de vrijwilligersgroep', 'begin']],
+  sluiten: [
+    ['witte kast', 'Kassa met de borgen onder de witte kast, uit het zicht'],
+    ['vuilbak', 'Vuilbakken leeg: restafval in de containers buiten, de pmd-zak in de keuken'],
+    ['op 1', 'Verwarming terug op 1'],
+    ['afgesloten', 'Lokaal goed afgesloten']
+  ]
+};
+
+/** De veelgestelde vragen uit het draaiboek. bron_id voorkomt dubbels. */
+var DRAAIBOEK_VRAGEN = [
+  ['draaiboek-verlies', 'Wat als ik een boek verlies of beschadig?', 'What if I lose or damage a book?',
+    'Dan vraagt de bib enkel de huidige waarde van het boek terug. Je mag ook zelf een vervangend exemplaar brengen.',
+    'Then the library only asks you to pay the current value of the book. You are also welcome to bring a replacement copy yourself.'],
+  ['draaiboek-borg', 'Wanneer krijg ik mijn borg niet terug?', 'When will I not get my deposit back?',
+    'Je krijgt je borg terug als je de boeken in goede staat en op tijd terugbrengt. Vraag je geen verlenging en reageer je niet op de herinnering? Dan houdt de bib de borg in.',
+    'You get your deposit back if you return the books in good condition and on time. If you do not ask for an extension and do not respond to the reminder, the library keeps your deposit.'],
+  ['draaiboek-bollen', 'Wat betekent de rode of gele bol op een boek?', 'What does the red or yellow dot on a book mean?',
+    'Een rode bol betekent dat je het boek niet kan lenen. Je mag het wel lezen in de bib tijdens de openingsuren. Een gele bol betekent dat het boek van Uitgeverij \'t Verschil of Kartonnen Dozen komt, of een persoonlijke aanrader is van Johanna Pas.',
+    'A red dot means you cannot borrow the book. You are welcome to read it in the library during opening hours. A yellow dot means the book comes from \'t Verschil or Kartonnen Dozen, or is a personal recommendation from Johanna Pas.']
+];
+
+/**
+ * Vult de checklists en de veelgestelde vragen aan met het draaiboek, zonder iets te wissen.
+ * Geeft { openen, sluiten (nieuwe teksten), punten (aantal nieuwe punten), vragen (aantal nieuwe vragen) }.
+ */
+function draaiboekAanvullen(inst, faqRijen) {
+  var punten = 0;
+  var vul = function (tekst, extra) {
+    var regels = String(tekst || '').split('\n').map(function (r) { return r.trim(); }).filter(Boolean);
+    extra.forEach(function (e) {
+      if (regels.some(function (r) { return normaliseerTekst(r).indexOf(e[0]) > -1; })) return;
+      if (e[2] === 'begin') regels.unshift(e[1]); else regels.push(e[1]);
+      punten++;
+    });
+    return regels.join('\n');
+  };
+  var openen = vul(inst.tekst_checklist_openen, DRAAIBOEK_CHECKLIST.openen);
+  var sluiten = vul(inst.tekst_checklist_sluiten, DRAAIBOEK_CHECKLIST.sluiten);
+  var bekend = {};
+  var volgorde = 0;
+  faqRijen.forEach(function (r) {
+    if (r.bron_id) bekend[String(r.bron_id)] = true;
+    bekend[normaliseerTekst(r.vraag)] = true;
+    volgorde = Math.max(volgorde, parseerGetal(r.volgorde) || 0);
+  });
+  var vragen = 0;
+  DRAAIBOEK_VRAGEN.forEach(function (v) {
+    if (bekend[v[0]] || bekend[normaliseerTekst(v[1])]) return;
+    voegToe(faqRijen, { volgorde: ++volgorde, vraag: v[1], vraag_en: v[2], antwoord: v[3], antwoord_en: v[4], publiek: 'ja', bron_id: v[0] });
+    vragen++;
+  });
+  return { openen: openen, sluiten: sluiten, punten: punten, vragen: vragen };
+}
+
+/** Menu: neemt het draaiboek over in de checklists en de veelgestelde vragen. */
+function neemDraaiboekOver() {
+  installeer(); // zorgt dat de tabbladen en de nieuwe instellingen bestaan
+  var inst = leesInstellingen();
+  var faq = leesTabel('Veelgestelde vragen');
+  var r = draaiboekAanvullen(inst, faq.rijen);
+  var blad = spreadsheet().getSheetByName('Instellingen');
+  if (r.openen !== inst.tekst_checklist_openen) zetInstelling(blad, 'tekst_checklist_openen', r.openen);
+  if (r.sluiten !== inst.tekst_checklist_sluiten) zetInstelling(blad, 'tekst_checklist_sluiten', r.sluiten);
+  if (r.vragen) bewaarTabel(faq);
+  leegCache();
+  logboek('menu', 'neemDraaiboekOver', r.punten + ' punten in de checklists, ' + r.vragen + ' vragen');
+  meld(r.punten + ' nieuwe punten in de checklists en ' + r.vragen + ' nieuwe veelgestelde vragen. Kijk de checklist bij het sluiten na: staat er nog "verwarming uit"? Dat moet nu "verwarming terug op 1" zijn. De handleiding voor vrijwilligers staat in de instellingen tekst_handleiding en tekst_handleiding_en.');
+}
+
 /* ---------- Tabbladen lezen en bewaren (enkel in Apps Script) ---------- */
 
 /** Leest een tabblad, of geeft een lege tabel als het nog niet bestaat. */

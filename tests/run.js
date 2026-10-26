@@ -1044,6 +1044,30 @@ test('oud uitleenblad: jaartallen herstellen (datums zonder jaar, formule in dat
   assert.strictEqual(M.verwerkOudeUitleningen(s, r).hersteld, 0, 'Opnieuw: niets meer te herstellen');
 });
 
+test('handleiding en draaiboek: blokken, afspraken uit de instellingen, checklists en vragen aanvullen', () => {
+  const b = M.handleidingBlokken('Inleiding zonder titel\n# De sleutel\nVraag het in de groep.\n- Rood: niet lenen\n* Geel: aanrader\n\n# Leeg');
+  gelijk(b.map((x) => [x.titel, x.regels.length]), [['', 1], ['De sleutel', 3], ['Leeg', 0]]);
+  gelijk(b[1].regels.map((r) => r.punt), [false, true, true]);
+  const inst = instellingen({});
+  const h = M.handleiding(inst);
+  assert.ok(h.nl.length > 5 && h.en.length > 5, 'Standaardtekst in beide talen');
+  assert.strictEqual(h.nl[2].titel, 'Afspraken voor lenen', 'Afspraken na het eerste blok');
+  assert.ok(/maximaal 2 boeken tegelijk, voor 4 weken/.test(h.nl[2].regels[1].tekst));
+  assert.ok(/once, for 4 weeks, unless someone else has reserved/.test(h.en[2].regels[2].tekst));
+  assert.ok(/5 euro per boek, cash of QR/.test(h.nl[2].regels[3].tekst));
+  // Eigen checklists: enkel wat ontbreekt komt erbij, niets dubbel.
+  const eigen = Object.assign({}, inst, { tekst_checklist_openen: 'Licht aan', tekst_checklist_sluiten: 'Licht uit\nVuilbakken leegmaken' });
+  const faq = [{ volgorde: 3, vraag: 'Hoe lang mag ik lenen?' }, { volgorde: 4, vraag: 'Wat betekent de rode of gele bol op een boek?' }];
+  const r = M.draaiboekAanvullen(eigen, faq);
+  assert.ok(/^Sleutel op zak/.test(r.openen) && /Licht aan$/.test(r.openen), 'Sleutel bovenaan');
+  gelijk(r.sluiten.split('\n'), ['Licht uit', 'Vuilbakken leegmaken', 'Kassa met de borgen onder de witte kast, uit het zicht', 'Verwarming terug op 1', 'Lokaal goed afgesloten']);
+  gelijk([r.punten, r.vragen, faq.length, faq[2].volgorde, faq[3].bron_id], [4, 2, 4, 5, 'draaiboek-borg']);
+  const opnieuw = M.draaiboekAanvullen(Object.assign({}, eigen, { tekst_checklist_openen: r.openen, tekst_checklist_sluiten: r.sluiten }), faq);
+  gelijk([opnieuw.punten, opnieuw.vragen], [0, 0], 'Opnieuw: niets dubbel');
+  // De standaardchecklist bevat het draaiboek al.
+  gelijk([M.draaiboekAanvullen(inst, []).punten], [0]);
+});
+
 test('oud uitleenblad: zelf het boek kiezen voor een lopende uitlening', () => {
   const s = maakStaat('2026-10-25');
   s.leners = [];
