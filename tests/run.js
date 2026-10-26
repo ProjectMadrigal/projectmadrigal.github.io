@@ -1096,6 +1096,8 @@ test('oud uitleenblad: giften en doorgeschoven borgen uit vrije tekst', () => {
   gelijk([s.uitleningen[0].borg, s.uitleningen[0].gift, s.uitleningen[0].borg_terugbetaald], [0, 5, '']);
   gelijk(M.verwerkOudeUitleningen(s, [o]).hersteld, 0, 'Opnieuw: niets meer te herstellen');
   gelijk(M.bestuurGegevens(s, []).perMaand.filter((m) => m.giften).map((m) => m.giften), [5]);
+  s.uitleningen.push({ uitlening_id: 'U00002', boek_id: 'B0002', datum_uit: '2024-03-01', datum_terug: '2024-03-29', gift: 10 }, { uitlening_id: 'U00003', boek_id: 'B0003', datum_uit: '2024-05-01', datum_terug: '2024-05-29', gift: '' });
+  gelijk(M.bestuurGegevens(s, []).perJaar, [{ jaar: 2026, uitleningen: 1, giften: 5 }, { jaar: 2024, uitleningen: 2, giften: 10 }], 'Per jaar, nieuwste eerst');
 });
 
 test('oud uitleenblad: zelf het boek kiezen voor een lopende uitlening', () => {

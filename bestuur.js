@@ -464,7 +464,16 @@
         el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Maand'), el('th', { scope: 'col', class: 'getal' }, 'Giften'))),
         el('tbody', {}, data.perMaand.map(function (m) {
           return el('tr', {}, el('td', {}, m.maand), el('td', { class: 'getal' }, D.euro(m.giften)));
-        })))));
+        })))),
+      (data.perJaar || []).length ? [
+        el('h3', { style: 'margin-top:1.5rem' }, 'Giften per jaar'),
+        el('p', { class: 'hulptekst' }, 'Alle bewaarde uitleningen, ook die ouder dan 12 maanden.'),
+        el('div', { class: 'tabel-wrap' }, el('table', {},
+          el('caption', { class: 'verborgen' }, 'Giften per jaar'),
+          el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Jaar'), el('th', { scope: 'col', class: 'getal' }, 'Uitleningen'), el('th', { scope: 'col', class: 'getal' }, 'Giften'))),
+          el('tbody', {}, data.perJaar.map(function (j) {
+            return el('tr', {}, el('td', {}, String(j.jaar)), el('td', { class: 'getal' }, String(j.uitleningen)), el('td', { class: 'getal' }, D.euro(j.giften)));
+          }))))] : null);
   }
 
   /* ---------- Reservaties ---------- */

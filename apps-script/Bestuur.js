@@ -167,12 +167,20 @@ function bestuurGegevens(staat, onderwerpRijen) {
     perMaand[sleutel] = { maand: maandTekst(sleutel), uitleningen: 0, giften: 0 };
   }
   var vertaal = vertaalTabel(onderwerpRijen);
+  // Per jaar: alles wat bewaard is (ook ouder dan 12 maanden).
+  var perJaar = {};
   staat.uitleningen.forEach(function (u) {
-    var maand = String(u.datum_uit || '').slice(0, 7);
+    var datum = parseerDatum(u.datum_uit) || '';
+    var maand = datum.slice(0, 7);
     if (perMaand[maand]) {
       perMaand[maand].uitleningen++;
       perMaand[maand].giften += Number(u.gift || 0);
     }
+    var jaar = datum.slice(0, 4);
+    if (!jaar) return;
+    perJaar[jaar] = perJaar[jaar] || { jaar: Number(jaar), uitleningen: 0, giften: 0 };
+    perJaar[jaar].uitleningen++;
+    perJaar[jaar].giften += Number(u.gift || 0);
   });
 
   // Uitzonderingen van de laatste 6 maanden, nieuwste eerst.
@@ -197,6 +205,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
       terugTeBetalen: terugTeBetalen
     },
     perMaand: Object.keys(perMaand).sort().map(function (k) { return perMaand[k]; }),
+    perJaar: Object.keys(perJaar).sort().reverse().map(function (k) { return perJaar[k]; }),
     reservaties: alleReservaties(staat),
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),

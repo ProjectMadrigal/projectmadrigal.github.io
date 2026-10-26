@@ -18,6 +18,9 @@
   var HANDLEIDING = 'madrigal_handleiding_taal';
 
   var TEKST = {
+   "Giften per jaar": "Donations per year",
+   "Alle bewaarde uitleningen, ook die ouder dan 12 maanden": "All stored loans, including those older than 12 months",
+   "Jaar": "Year",
    "Te vervangen": "To replace",
    "Boeken die verloren zijn. Zie je er een tweedehands, of brengt iemand er een binnen? Meld het via Iets melden": "Books that are lost. Do you see a second-hand copy, or does someone bring one in? Report it via Report something",
    "Boeken die verloren zijn. Staat er een nieuw exemplaar in de kast, klik dan op Vervangen. Koop je het niet opnieuw, klik op Niet vervangen: dan blijft het op de website als niet meer beschikbaar": "Books that are lost. Is there a new copy on the shelf, click Replaced. If you will not buy it again, click Not replacing: it stays on the website as no longer available",
