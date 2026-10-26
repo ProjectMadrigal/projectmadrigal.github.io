@@ -335,7 +335,29 @@
       actie('annuleerUitlening', {}, e.target);
     } }, 'Annuleer de uitlening');
     return el('details', { class: 'meer-opties' }, el('summary', {}, 'Meer opties'),
-      termijn, el('div', { class: 'knoppen' }, verlenging, annuleer));
+      termijn, el('div', { class: 'knoppen' }, verlenging, annuleer), VRIJWILLIGER ? null : verlorenBlok(u, actie));
+  }
+
+  /** Bestuur: het boek is verloren. Sluit de uitlening af en zet de status van het boek op verloren. */
+  function verlorenBlok(u, actie) {
+    var naam = 'borg-' + u.uitlening_id;
+    var keuzes = u.borg > 0 ? el('fieldset', { class: 'keuzes' }, el('legend', {}, 'De borg van ' + D.euro(u.borg)),
+      [['ingehouden', 'Ingehouden als vergoeding'], ['terugbetaald', 'Terugbetaald: de lener bracht een ander exemplaar of betaalde de waarde']].map(function (k, i) {
+        var id = naam + '-' + k[0];
+        return el('label', { class: 'vinkje', for: id }, el('input', { type: 'radio', name: naam, id: id, value: k[0], checked: i === 0 }), k[1]);
+      })) : null;
+    var opmerkingId = 'verloren-opmerking-' + u.uitlening_id;
+    var opmerking = el('input', { type: 'text', id: opmerkingId, maxlength: '200', autocomplete: 'off', placeholder: 'bv. lener betaalde 15 euro' });
+    return el('div', { class: 'veld' },
+      el('h4', {}, 'Boek verloren'),
+      el('p', { class: 'hulptekst' }, 'Sluit de uitlening af en zet het boek op verloren: op de website staat het als niet meer beschikbaar en je kan het niet meer uitlenen. Telt niet mee in de uitleenduur.'),
+      keuzes,
+      el('label', { for: opmerkingId }, 'Opmerking ', el('span', { class: 'hulptekst' }, '(mag leeg)')), opmerking,
+      el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop tweede gevaar', onclick: function (e) {
+        if (!window.confirm('"' + u.titel + '" als verloren noteren? De uitlening wordt afgesloten.')) return;
+        var gekozen = document.querySelector('input[name="' + naam + '"]:checked');
+        actie('boekVerloren', { borg: gekozen ? gekozen.value : 'ingehouden', opmerking: opmerking.value }, e.target);
+      } }, 'Noteer als verloren')));
   }
 
   function toonTeLaat(vak) {
@@ -526,7 +548,7 @@
         })) : el('p', {}, leeg));
     }
     D.vervang(vak, kop('Verloren en gevoelig', 'Boeken met een status in de kolom status van de Catalogus. Zet de status leeg om een boek terug gewoon te maken.'),
-      lijst('Verloren', 'Niet op de website en niet uitleenbaar.', s.verloren, 'Geen verloren boeken.'),
+      lijst('Verloren', 'Op de website als niet meer beschikbaar, niet uitleenbaar.', s.verloren, 'Geen verloren boeken.'),
       lijst('Gevoelig, verborgen', 'Niet op de website, wel uitleenbaar aan de balie.', s.gevoelig_verborgen, 'Geen boeken.'),
       lijst('Gevoelig, zichtbaar', 'Op de website met het label "Gevoelige inhoud".', s.gevoelig_zichtbaar, 'Geen boeken.'));
   }

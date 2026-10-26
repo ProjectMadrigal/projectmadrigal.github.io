@@ -89,6 +89,7 @@
   function status(b) {
     var s = b.b || {};
     if (s.c === 'tip') return t('stTip');
+    if (s.c === 'niet_uitleenbaar' && s.x) return t('stVerloren');
     if (s.c === 'niet_uitleenbaar') return t(s.k ? (FILM ? 'stTeKoopFilm' : 'stTeKoop') : 'stNietUitleenbaar');
     if (s.c === 'beschikbaar') return s.t > 1 ? t('stVanBeschikbaar', { v: s.v, t: s.t }) : t('stBeschikbaar');
     if (s.c === 'gereserveerd') return t('stGereserveerd');

@@ -48,7 +48,7 @@ const UITLENING = { uitlening_id: 'U0001', exemplaar: 'B0001-1', boek_id: 'B0001
 const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', x: 1, u: true, c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', x: 1, u: true, c: true, g: ['Geschiedenis en maatschappij'] }];
 // Veel boeken zonder beschrijving (verzonnen), om Toon er nog 100 te testen.
 const VEEL = Array.from({ length: 150 }, (_, i) => ({ id: 'X' + String(i).padStart(3, '0'), t: 'Verzonnen titel ' + String(i).padStart(3, '0'), a: '', c: true, zb: true }));
-const UITLENING2 = Object.assign({}, UITLENING, { uitlening_id: 'U0002', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', lenersnummer: '13', voornaam: 'Jo', aantal_verlengingen: 1 });
+const UITLENING2 = Object.assign({}, UITLENING, { uitlening_id: 'U0002', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', lenersnummer: '13', voornaam: 'Jo', aantal_verlengingen: 1, borg: 5, betaalwijze_borg: 'cash' });
 const INHOUD = {
   tabbladen: {
     Nieuws: [{ rij: 2, vingerafdruk: 'a', datum: '2026-10-20', titel: 'Voorstel boekenruil', publiek: 'nee', voorgesteld_door: 'Kim' }],
@@ -112,6 +112,7 @@ function antwoord(rol, actie, vraag) {
     vervaldatumAanpassen: { ok: true, tekst: '"Twee kasten vol" moet nu terug tegen vrijdag 25 oktober.' },
     annuleerVerlenging: { ok: true, tekst: 'De verlenging van "Twee kasten vol" is geannuleerd.' },
     annuleerUitlening: { ok: true, tekst: 'De uitlening van "Twee kasten vol" is geannuleerd. Geef de borg van 5 euro terug.' },
+    boekVerloren: { ok: true, tekst: '"Twee kasten vol" staat als verloren. De uitlening is afgesloten, de borg van 5 euro is ingehouden.' },
     briefjeMaken: { ok: true, tekst: 'Je briefje staat bij Vandaag voor de volgende shift.' },
     briefjeWeg: { ok: true, tekst: 'Het briefje is weg.' }
   }[actie] || { ok: false, fout: 'Niet nagebootst: ' + actie };
@@ -711,6 +712,14 @@ async function meldAan(page, basis, pagina) {
     await kaart.locator('summary:has-text("Meer opties")').click();
     await kaart.locator('button:has-text("Annuleer de verlenging")').click();
     await r.page.waitForSelector('text=De verlenging van');
+    // Boek verloren: borg terugbetaald gekozen, met een opmerking.
+    await r.page.click('#sectienav button:has-text("Alle uitleningen")');
+    await kaart.locator('summary:has-text("Meer opties")').click();
+    await kaart.locator('input[value="terugbetaald"]').check();
+    await kaart.locator('input[placeholder^="bv. lener betaalde"]').fill('nieuw exemplaar gebracht');
+    await kaart.locator('button:has-text("Noteer als verloren")').click();
+    await r.page.waitForSelector('text=staat als verloren');
+    verwacht(vragen.some((v) => v.actie === 'boekVerloren' && v.uitlening_id === 'U0002' && v.borg === 'terugbetaald' && v.opmerking === 'nieuw exemplaar gebracht'), 'Verloren niet verstuurd');
     verwacht(!(await axe(r.page)).length, 'Toegankelijkheid: ' + (await axe(r.page)).join(' | '));
     await r.ctx.close();
     verwacht(!r.fouten.length, r.fouten.join(' | '));
@@ -723,6 +732,7 @@ async function meldAan(page, basis, pagina) {
     await r.page.click('#sectienav button:has-text("Alle uitleningen")');
     await r.page.click('.kaartlijst > li summary:has-text("Meer opties")');
     verwacht(!(await r.page.$('button:has-text("Pas de termijn aan")')), 'Vrijwilliger kan de termijn aanpassen');
+    verwacht(!(await r.page.$('button:has-text("Noteer als verloren")')), 'Vrijwilliger kan een boek op verloren zetten');
     await r.page.click('.kaartlijst > li button:has-text("Annuleer de uitlening")');
     await r.page.waitForSelector('text=Geef de borg van 5 euro terug');
     verwacht(vragen2.some((v) => v.actie === 'annuleerUitlening'), 'Annuleren niet verstuurd');

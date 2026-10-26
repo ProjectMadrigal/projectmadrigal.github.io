@@ -41,7 +41,7 @@
     aanrader: 'Voornamen, gescheiden door komma\'s. Wordt het label "Aanrader van ..."',
     leeslijsten: 'Namen van leeslijsten, gescheiden door komma\'s. Uitleg en Engelse naam zet je in het tabblad Leeslijsten.',
     extra_onderwerpen: 'Extra filtergroepen, gescheiden door komma\'s',
-    status: 'Verloren: niet op de website, niet uitleenbaar. Gevoelig verborgen: niet op de website, wel uitleenbaar. Gevoelig zichtbaar: met het label "Gevoelige inhoud".',
+    status: 'Verloren: op de website als niet meer beschikbaar, niet uitleenbaar. Gevoelig verborgen: niet op de website, wel uitleenbaar. Gevoelig zichtbaar: met het label "Gevoelige inhoud".',
     startpagina: 'Automatisch: als aanrader of als het nieuw binnen is',
     beschrijving_en: 'Leeg laten: dan vertaalt het script de Nederlandse tekst',
     herkomst: 'Nooit publiek: donatie, schenker, ... Enkel zichtbaar in de spreadsheet',

@@ -117,7 +117,7 @@ function bronSleutel(boek) {
 
 /**
  * De kolom status in de Catalogus. Leeg = gewoon.
- *   verloren            niet op de website, niet uitleenbaar
+ *   verloren            op de website als "niet meer beschikbaar", niet uitleenbaar
  *   gevoelig verborgen  niet op de website, wel uitleenbaar aan de balie
  *   gevoelig zichtbaar  op de website met het label "Gevoelige inhoud"
  */
@@ -132,10 +132,9 @@ function boekStatus(boek) {
   return '';
 }
 
-/** Mag het boek op de website? Niet bij publiek = nee, verloren of gevoelig verborgen. */
+/** Mag het boek op de website? Niet bij publiek = nee of gevoelig verborgen. Een verloren boek staat er als niet meer beschikbaar. */
 function opWebsite(boek) {
-  var s = boekStatus(boek);
-  return jaNee(boek.publiek) !== 'nee' && s !== 'verloren' && s !== 'gevoelig_verborgen';
+  return jaNee(boek.publiek) !== 'nee' && boekStatus(boek) !== 'gevoelig_verborgen';
 }
 
 /** Mag het boek uitgeleend worden? Niet bij uitleenbaar = nee, verloren, te koop, of een kijktip (film die niet in de bib is). */

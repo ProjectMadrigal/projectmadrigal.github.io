@@ -33,6 +33,7 @@ var ACTIES = {
   verlengen: 'balie',
   // Een uitlening aanpassen of annuleren (Uitlenen.js). Annuleren kan ook in het vrijwilligersscherm.
   vervaldatumAanpassen: 'bestuur',
+  boekVerloren: 'bestuur',
   annuleerUitlening: 'vrijwilliger',
   annuleerVerlenging: 'vrijwilliger',
   reserveren: 'balie',
@@ -315,6 +316,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true, staat_boek: invoer.staat_boek, opmerking: invoer.opmerking }); break;
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
       case 'vervaldatumAanpassen': antwoord = vervaldatumAanpassen(staat, invoer); break;
+      case 'boekVerloren': antwoord = boekVerloren(staat, invoer); break;
       case 'annuleerUitlening': antwoord = annuleerUitlening(staat, invoer, rol === 'bestuur'); break;
       case 'annuleerVerlenging': antwoord = annuleerVerlenging(staat, invoer); break;
       case 'reserveren': antwoord = reserveren(staat, invoer); break;

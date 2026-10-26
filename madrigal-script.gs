@@ -37,6 +37,7 @@ var ACTIES = {
   verlengen: 'balie',
   // Een uitlening aanpassen of annuleren (Uitlenen.js). Annuleren kan ook in het vrijwilligersscherm.
   vervaldatumAanpassen: 'bestuur',
+  boekVerloren: 'bestuur',
   annuleerUitlening: 'vrijwilliger',
   annuleerVerlenging: 'vrijwilliger',
   reserveren: 'balie',
@@ -197,7 +198,7 @@ var ONDERWERP_VOORSTELLEN = [
 
 /**
  * De kolom status in de Catalogus. Leeg = gewoon.
- *   verloren            niet op de website, niet uitleenbaar
+ *   verloren            op de website als "niet meer beschikbaar", niet uitleenbaar
  *   gevoelig verborgen  niet op de website, wel uitleenbaar aan de balie
  *   gevoelig zichtbaar  op de website met het label "Gevoelige inhoud"
  */
@@ -1217,7 +1218,8 @@ function bestuurGegevens(staat, onderwerpRijen) {
   var terugTeBetalen = [];
   staat.uitleningen.forEach(function (u) {
     var borg = Number(u.borg || 0);
-    if (borg <= 0 || !isLeeg(u.borg_terugbetaald)) return;
+    // Een borg die bij een verloren boek ingehouden werd, is een vergoeding: die moet niet meer terug.
+    if (borg <= 0 || !isLeeg(u.borg_terugbetaald) || isVerlorenUitlening(u)) return;
     var wijze = u.betaalwijze_borg || 'onbekend';
     ingehouden.totaal += borg;
     ingehouden.perBetaalwijze[wijze] = (ingehouden.perBetaalwijze[wijze] || 0) + borg;
@@ -1562,6 +1564,41 @@ function boekVan(staat, boekId) {
   return null;
 }
 
+/**
+ * Bestuur: het uitgeleende boek is verloren. Sluit de uitlening af (staat_terug "verloren") en zet
+ * de status van het boek op verloren, zodat het niet meer op de website staat en niet uitleenbaar is.
+ * Heeft het boek meer exemplaren, dan blijft de status leeg en komt het in de notitie van het boek.
+ * invoer: { uitlening_id, borg: 'ingehouden' | 'terugbetaald', opmerking }
+ * Een ingehouden borg is een vergoeding: die telt niet mee bij de borgen die nog terug moeten.
+ */
+function boekVerloren(staat, invoer) {
+  var u = uitleningVan(staat, invoer.uitlening_id);
+  if (!u) return { ok: false, fout: 'Deze uitlening bestaat niet.' };
+  if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht.' };
+  var opmerking = tekstInvoer(invoer.opmerking, 200);
+  var velden = { datum_terug: staat.vandaag, staat_terug: 'verloren' + (opmerking ? ': ' + opmerking : '') };
+  var terugbetaald = invoer.borg === 'terugbetaald' && Number(u.borg) > 0;
+  if (terugbetaald) velden.borg_terugbetaald = staat.vandaag;
+  wijzig(u, velden);
+  var boek = boekVan(staat, u.boek_id);
+  var enkel = boek && aantalExemplaren(boek) <= 1;
+  if (boek) {
+    var regel = staat.vandaag + ' ' + u.exemplaar + ': verloren bij lener ' + u.lenersnummer + (opmerking ? ' (' + opmerking + ')' : '');
+    var nieuw = { notitie: [schoonMetRegels(boek.notitie), regel].filter(Boolean).join('\n') };
+    if (enkel) nieuw.status = 'verloren';
+    wijzig(boek, nieuw);
+    staat.catalogusGewijzigd = true;
+  }
+  staat.log.push(['verloren', u.uitlening_id + ' ' + u.exemplaar + (terugbetaald ? ', borg terugbetaald' : ', borg ingehouden')]);
+  var titel = boek ? boek.titel : u.exemplaar;
+  return {
+    ok: true,
+    tekst: '"' + titel + '" staat als verloren. De uitlening is afgesloten' +
+      (Number(u.borg) > 0 ? (terugbetaald ? ' en de borg is terugbetaald.' : ', de borg van ' + bedragTekst(u.borg) + ' is ingehouden.') : '.') +
+      (boek && !enkel ? ' Het boek heeft meer exemplaren: verlaag het aantal in de Catalogus als dit exemplaar niet terugkomt.' : '')
+  };
+}
+
 /** De laatste wijzigingen aan een boek volgens het Logboek (waarden: het tabblad Logboek). */
 function boekWijzigingen(waarden, boekId) {
   var id = String(boekId);
@@ -1724,6 +1761,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     if (b.code === 'uitgeleend' && b.terug && b.terug >= staat.vandaag) boek.b.d = b.terug;
     if (b.code === 'niet_uitleenbaar' && !boek.tip && (normaliseerTekst(rij.genre) === 'verkoop' || jaNee(rij.te_koop) === 'ja')) boek.b.k = 1;
     if (boekStatus(rij) === 'gevoelig_zichtbaar') boek.w = 1;
+    // Verloren: blijft op de website, met het label "Niet meer beschikbaar".
+    if (boekStatus(rij) === 'verloren' && !boek.tip) { boek.b = { c: 'niet_uitleenbaar', l: 'Niet meer beschikbaar', t: 0, v: 0, x: 1 }; }
     // Lege velden laten we weg: dat maakt de lijst kleiner.
     var extra = {
       i: schoon(rij.isbn), u: schoon(rij.uitgeverij), j: parseerGetal(rij.jaartal) || '',
@@ -2340,7 +2379,7 @@ function extraCijfers(staat) {
   staat.uitleningen.forEach(function (u) {
     geleend[String(u.boek_id)] = true;
     var uit = parseerDatum(u.datum_uit), terug = parseerDatum(u.datum_terug);
-    if (uit && terug) dagen.push(Math.round((Date.parse(terug) - Date.parse(uit)) / 86400000));
+    if (uit && terug && !isVerlorenUitlening(u)) dagen.push(Math.round((Date.parse(terug) - Date.parse(uit)) / 86400000));
     if (uit && uit >= jaarGeleden) actief[String(u.lenersnummer)] = true;
   });
   var nooit = staat.catalogus.filter(function (b) {
@@ -3571,6 +3610,11 @@ function isStaandeCover(afm) {
 /** Mag het boek uitgeleend worden? Niet bij uitleenbaar = nee, verloren, te koop, of een kijktip (film die niet in de bib is). */
 function isUitleenbaar(boek) {
   return jaNee(boek.uitleenbaar) !== 'nee' && boekStatus(boek) !== 'verloren' && jaNee(boek.te_koop) !== 'ja' && !isFilmTip(boek);
+}
+
+/** Is deze uitlening afgesloten omdat het boek verloren is? */
+function isVerlorenUitlening(u) {
+  return /^verloren/i.test(String(u.staat_terug || ''));
 }
 
 /** Maakt ja/nee eenvormig. Geeft 'ja', 'nee' of '' terug. */
@@ -4930,10 +4974,9 @@ function opmaakKop(blad, kolommen) {
   blad.setFrozenRows(1);
 }
 
-/** Mag het boek op de website? Niet bij publiek = nee, verloren of gevoelig verborgen. */
+/** Mag het boek op de website? Niet bij publiek = nee of gevoelig verborgen. Een verloren boek staat er als niet meer beschikbaar. */
 function opWebsite(boek) {
-  var s = boekStatus(boek);
-  return jaNee(boek.publiek) !== 'nee' && s !== 'verloren' && s !== 'gevoelig_verborgen';
+  return jaNee(boek.publiek) !== 'nee' && boekStatus(boek) !== 'gevoelig_verborgen';
 }
 
 /** Menu: orden de tabbladen en de instellingen. */
@@ -6985,6 +7028,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'terugbrengen': antwoord = terugbrengen(staat, { uitlening_id: invoer.uitlening_id, borg_terugbetaald: invoer.borg_terugbetaald === true, staat_boek: invoer.staat_boek, opmerking: invoer.opmerking }); break;
       case 'verlengen': antwoord = verlengen(staat, invoer); break;
       case 'vervaldatumAanpassen': antwoord = vervaldatumAanpassen(staat, invoer); break;
+      case 'boekVerloren': antwoord = boekVerloren(staat, invoer); break;
       case 'annuleerUitlening': antwoord = annuleerUitlening(staat, invoer, rol === 'bestuur'); break;
       case 'annuleerVerlenging': antwoord = annuleerVerlenging(staat, invoer); break;
       case 'reserveren': antwoord = reserveren(staat, invoer); break;
