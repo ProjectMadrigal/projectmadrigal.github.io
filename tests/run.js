@@ -1016,6 +1016,31 @@ test('oud uitleenblad: historiek met lener binnen de bewaartermijn, zonder lener
   assert.strictEqual(c.extraCijfers.actieveLeners, 2);
 });
 
+test('oud uitleenblad: jaartallen herstellen (datums zonder jaar, formule in datum terug)', () => {
+  gelijk([M.dagenUitFormule('=DATEVALUE(I3+28+28)', 3), M.dagenUitFormule('=I3+28', 3), M.dagenUitFormule('=DATEVALUE(I4+28)', 3), M.dagenUitFormule('', 3)], [56, 28, null, null]);
+  const kop = ['', 'Boek', '', 'Auteur', 'Voornaam', 'Achternaam', 'Telefoon', 'E-mail', 'datum ontlening', 'datum terug', 'Borg (cash/QR)', 'Gift', 'reminder mail', 'boek terug op...'];
+  const rij = (a, boek, uit, terug, terugOp, herinnering) => [a, boek, '', 'Mira Verbeek', 'Robin', '', '', '', uit, terug, '', '', herinnering || '', terugOp || ''];
+  // Rij 2 en 3: ontleend "26/11" met het verkeerde jaar (2024 i.p.v. 2023). Datum terug kreeg bij het importeren 2026.
+  const waarden = [kop,
+    rij('ok', 'De verzonnen zee', '2024-11-26', '2026-01-21', '2024-01-24'),
+    rij('ok', 'Stille lichten', '2024-11-26', '2026-01-21', '', 'ok'),
+    rij('ok', 'Twee kasten vol', '2024-01-05', '2026-02-02', ''),
+    rij('', 'Een lopend boek', '2026-09-25', '2026-11-20', '')];
+  const formules = [kop.map(() => ''), ['', '', '', '', '', '', '', '', '', '=DATEVALUE(I2+28+28)'], ['', '', '', '', '', '', '', '', '', '=DATEVALUE(I3+28+28)'], ['', '', '', '', '', '', '', '', '', '=DATEVALUE(I4+28)'], ['', '', '', '', '', '', '', '', '', '=DATEVALUE(I5+28+28)']];
+  const r = M.leesOudeUitleningen(waarden, formules);
+  gelijk(r.map((o) => [o.datum_uit, o.datum_terug_afgesproken]), [['2023-11-26', '2024-01-21'], ['2023-11-26', '2024-01-21'], ['2024-01-05', '2024-02-02'], ['2026-09-25', '2026-11-20']]);
+  assert.strictEqual(r[1].herinnering, '2024-01-21', 'Herinnering "ok": de herstelde afgesproken datum');
+  // Zonder formules: de afgesproken datum valt binnen het jaar na de ontlening.
+  gelijk(M.leesOudeUitleningen(waarden).map((o) => o.datum_terug_afgesproken).slice(0, 3), ['2024-01-21', '2024-01-21', '2024-02-02']);
+  // Al overgenomen met de foute datums: een nieuwe run herstelt ze.
+  const s = maakStaat('2026-10-26');
+  s.uitleningen = [{ uitlening_id: 'U00001', exemplaar: 'B0001-1', boek_id: 'B0001', lenersnummer: '', datum_uit: '2024-11-26', oorspronkelijke_vervaldatum: '2026-01-21', vervaldatum: '2026-01-21', datum_terug: '2026-01-21', borg: 0, borg_terugbetaald: '', laatste_herinnering: '', vrijwilliger: 'overgezet', bron: 'oud blad rij 3' }];
+  const v = M.verwerkOudeUitleningen(s, r);
+  assert.strictEqual(v.hersteld, 1);
+  gelijk([s.uitleningen[0].datum_uit, s.uitleningen[0].vervaldatum, s.uitleningen[0].datum_terug], ['2023-11-26', '2024-01-21', '2024-01-21']);
+  assert.strictEqual(M.verwerkOudeUitleningen(s, r).hersteld, 0, 'Opnieuw: niets meer te herstellen');
+});
+
 test('oud uitleenblad: zelf het boek kiezen voor een lopende uitlening', () => {
   const s = maakStaat('2026-10-25');
   s.leners = [];
