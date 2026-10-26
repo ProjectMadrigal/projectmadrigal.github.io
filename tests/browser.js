@@ -74,7 +74,7 @@ function antwoord(rol, actie, vraag) {
       lopend: [UITLENING, UITLENING2], aanvragen: [], uitzonderingen: [],
       leners: [{ lenersnummer: '12', voornaam: 'Sam', achternaam: 'Verzonnen', telefoon: '0400000000', email: '', actief: true, toestemming_privacy: 'ja', lopend: 1, datum_inschrijving: '2026-01-01' }],
       boekstatus: { verloren: [], gevoelig_verborgen: [], gevoelig_zichtbaar: [] }, borgen: { ingehouden: { totaal: 0, perBetaalwijze: {} }, terugTeBetalen: [] },
-      perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], voorstellen: 1,
+      perMaand: [{ maand: 'oktober 2026', uitleningen: 1, giften: 0 }], perJaar: [{ jaar: 2025, uitleningen: 30, giften: 20 }, { jaar: 2024, uitleningen: 40, giften: 10 }], voorstellen: 1,
       teVervangen: [{ sleutel: 'U:U0009', boek_id: 'B0003', exemplaar: 'B0003-1', titel: 'Stille lichten', auteur: 'Aerts, Noor', isbn: '', datum: '2026-10-20', lenersnummer: '12', opmerking: '', borg: 'ingehouden' }],
       meldingen: [{ melding_id: 'M0001', datum: '2026-10-24', wie: 'Kim', soort: 'boek kapot', onderwerp: 'B0001', bericht: 'De rug is gescheurd.' }],
       beschrijvingVoorstellen: [{ voorstel_id: 'V0001', datum: '2026-10-24', boek_id: 'B0001', titel: 'De verzonnen zee', tekst: 'Een verzonnen roman over een zee die niet bestaat.', voorgesteld_door: 'Kim' }],
@@ -729,6 +729,8 @@ async function meldAan(page, basis, pagina) {
     await r.page.click('#sectie button:has-text("Vervangen")');
     await r.page.waitForSelector('text=vervangen. Het staat weer gewoon in de catalogus');
     verwacht(vragen.some((v) => v.actie === 'boekVervangen' && v.sleutel === 'U:U0009' && v.keuze === 'vervangen'), 'Vervangen niet verstuurd');
+    await r.page.click('#sectienav button:has-text("Borgen en giften")');
+    verwacht(/Giften per jaar[\s\S]*2025\s*30\s*€\s?20[\s\S]*2024\s*40\s*€\s?10/.test(await r.page.textContent('#sectie')), 'Giften per jaar: ' + (await r.page.textContent('#sectie')).slice(-200));
     verwacht(!(await axe(r.page)).length, 'Toegankelijkheid: ' + (await axe(r.page)).join(' | '));
     await r.ctx.close();
     verwacht(!r.fouten.length, r.fouten.join(' | '));
