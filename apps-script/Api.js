@@ -62,6 +62,14 @@ var ACTIES = {
   // Boeken aan de voorraad toevoegen vanuit het verkoopscherm: enkel het bestuur.
   voorraadCatalogus: 'bestuur',
   voorraadZetten: 'bestuur',
+  // De aankooplijst (Aankoop.js): vrijwilligers voegen toe, het bestuur past aan, duidt aan en verwijdert.
+  aankoopData: 'vrijwilliger',
+  aankoopToevoegen: 'vrijwilliger',
+  aankoopLezen: 'bestuur',
+  aankoopImporteren: 'bestuur',
+  aankoopAanpassen: 'bestuur',
+  aankoopVerwijderen: 'bestuur',
+  aankoopUitvinken: 'bestuur',
   briefjeWeg: 'vrijwilliger',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
@@ -275,6 +283,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'beheerLogboek') return logboekEnTaken(); // leest enkel, geen slot nodig
   if (actie === 'beheerCoverLinks') return coverLinks(leesTabel('Catalogus').rijen); // leest enkel
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
+  if (actie === 'aankoopLezen') return aankoopLezen(invoer); // leest enkel bij bol.com of Google Books: kan even duren, dus zonder slot
 
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { ok: false, fout: 'Het is even druk. Probeer het over een paar seconden opnieuw.' };
@@ -283,6 +292,7 @@ function voerActieUit(actie, invoer, rol) {
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
     if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
     if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
+    if (/^aankoop/.test(actie)) return aankoopActie(actie, invoer, wie, rol);
     if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus', 'voorraadCatalogus', 'voorraadZetten'].indexOf(actie) > -1) {
       var verkoop = verkoopActie(actie, invoer, wie);
       if (verkoop.ok && ((actie === 'verkopenDoorsturen' && verkoop.nieuw) || actie === 'voorraadZetten')) leegCache();

@@ -58,6 +58,11 @@ const INHOUD = {
   instellingen: [{ titel: 'Website: leeslijsten', instellingen: [{ sleutel: 'leeslijsten_tonen', waarde: 'nee', uitleg: '' }] }]
 };
 
+const AANKOOP = [
+  { id: 'K0001', t: 'Atlas van niets', a: 'Bedacht, Noor', i: '9781861972712', g: 'Fictie', p: 19.99, l: 'https://voorbeeld.test/atlas', r: 'Gevraagd door een lener', d: '2026-10-28', w: 'Sam', k: false, s: 'open', b: '', db: '' },
+  { id: 'K0002', t: 'Gedichten van niemand', a: 'Verzonnen, Vera', i: '', g: 'Poëzie', p: null, l: '', r: '', d: '2026-10-20', w: 'Kim', k: true, s: 'open', b: '', db: '' },
+  { id: 'K0003', t: 'Stille lichten', a: 'Fictief, Kim', i: '', g: '', p: 12, l: '', r: '', d: '2026-09-01', w: 'Kim', k: false, s: 'binnen', b: 'B0003', db: '2026-10-01' }
+];
 const VERKOOP = {
   teKoop: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', prijs: 8, o: true, stock: 3, c: '', g: ['Fictie', 'Gender'], d: 'Een verzonnen verhaal over de zee.' }],
   standjes: [{ standje_id: 'S0001', naam: 'Pride Antwerpen', thema: 'Pride', datum: '2026-08-08', locatie: 'Groenplaats', status: 'bezig',
@@ -123,6 +128,13 @@ function antwoord(rol, actie, vraag) {
     annuleerUitlening: { ok: true, tekst: 'De uitlening van "Twee kasten vol" is geannuleerd. Geef de borg van 5 euro terug.' },
     beheerCoverVanLink: { ok: true, tekst: 'De afbeelding is de cover van "Stille lichten".', cover_url: 'https://lh3.googleusercontent.com/d/test' },
     verkoopData: { ok: true, data: VERKOOP },
+    aankoopData: { ok: true, lijst: AANKOOP },
+    aankoopToevoegen: { ok: true, tekst: '"' + ((vraag || {}).titel || '') + '" staat op de aankooplijst. Dank je!', lijst: AANKOOP },
+    aankoopAanpassen: { ok: true, tekst: 'Bewaard.', lijst: AANKOOP.map((b) => b.id === (vraag || {}).aankoop_id && (vraag || {}).hasOwnProperty('gekozen') ? Object.assign({}, b, { k: vraag.gekozen }) : b) },
+    aankoopVerwijderen: { ok: true, tekst: 'Verwijderd.', lijst: AANKOOP },
+    aankoopLezen: { ok: true, overgeslagen: 0, boeken: [{ titel: 'Nieuwe verzonnen roman', auteur: 'Fictief, Kim', isbn: '9780306406157', prijs: 21.5, genre: 'Fictie', link: 'https://www.bol.com/nl/nl/p/x/9300000111111111/' },
+      { titel: 'Stille lichten', auteur: 'Fictief, Kim', isbn: '', prijs: '', genre: '', link: '', al: 'in de catalogus (B0003)' }] },
+    aankoopImporteren: { ok: true, gelukt: ((vraag || {}).boeken || []).length, tekst: ((vraag || {}).boeken || []).length + ' boek staat nu op de aankooplijst.', lijst: AANKOOP },
     voorraadCatalogus: { ok: true, boeken: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', i: '', stock: 3, prijs: 8, o: true }, { id: 'B0002', t: 'Stille lichten', a: 'Fictief, Kim', i: '9780000000002', stock: 0, prijs: null, o: false }] },
     voorraadZetten: { ok: true, tekst: '"Stille lichten": 2 te koop aan 7,50 euro.', data: VERKOOP },
     verkopenDoorsturen: { ok: true, bewaard: ((vraag || {}).verkopen || []).map((v) => v.verkoop_id), nieuw: ((vraag || {}).verkopen || []).length, fouten: [], data: VERKOOP },
@@ -566,7 +578,7 @@ async function meldAan(page, basis, pagina) {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
     await meldAan(page, basis, 'vrijwilliger.html');
     const knoppen = await page.$$eval('#sectienav button', (x) => x.map((e) => e.textContent.replace(/ \(.*\)$/, '')));
-    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Te vervangen', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Te vervangen', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Aankooplijst', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
     verwacht(!/Logboek/.test(await page.textContent('#sectie')), 'Vandaag toont het Logboek aan een vrijwilliger');
     await page.click('#sectienav button:has-text("Te laat")');
     verwacht(!/0400000000|Kopieer herinnering/.test(await page.textContent('#sectie')), 'Contactgegevens zichtbaar');
@@ -868,6 +880,62 @@ async function meldAan(page, basis, pagina) {
     verwacht(!(await vw.page.$('#werkvlak button:has-text("Voorraad beheren")')), 'Een vrijwilliger ziet de knop niet');
     await vw.ctx.close();
     verwacht(!fouten.length && !vw.fouten.length, fouten.concat(vw.fouten).join(' | '));
+  });
+  await test('aankooplijst: een vrijwilliger stelt een boek voor, maar kan niets aanduiden of verwijderen', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await meldAan(page, basis, 'vrijwilliger.html');
+    await page.click('#sectienav button:has-text("Aankooplijst")');
+    await page.waitForSelector('text=Atlas van niets');
+    verwacht(!(await page.$('#sectie button:has-text("Verwijder")')) && !(await page.$('text=Aanduiden voor aankoop')) && !(await page.$('text=Lijst van bol.com inlezen')), 'Een vrijwilliger ziet bestuursknoppen');
+    await page.fill('#ak-titel', 'Een verzonnen nieuw boek');
+    await page.fill('#ak-reden', 'Gevraagd aan de balie');
+    await page.click('button:has-text("Zet op de aankooplijst")');
+    await page.waitForSelector('text=staat op de aankooplijst. Dank je!');
+    const v = vragen.filter((x) => x.actie === 'aankoopToevoegen').pop();
+    verwacht(v && v.titel === 'Een verzonnen nieuw boek' && v.reden === 'Gevraagd aan de balie', 'Doorgestuurd: ' + JSON.stringify(v));
+    await page.click('#sectie button:has-text("In de catalogus (1)")');
+    verwacht(/In de catalogus als B0003/.test(await page.textContent('#sectie')), 'Binnen-lijst');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('aankooplijst: het bestuur leest bol.com in, duidt aan en trekt een lijst', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await meldAan(page, basis, 'bestuur.html');
+    await page.click('#sectienav button:has-text("Aankooplijst")');
+    await page.waitForSelector('text=1 boek aangeduid voor aankoop');
+    // Aanduiden
+    await page.check('#ak-kies-K0001');
+    await page.waitForSelector('text=2 boeken aangeduid voor aankoop');
+    verwacht(vragen.some((x) => x.actie === 'aankoopAanpassen' && x.aankoop_id === 'K0001' && x.gekozen === true), 'Aanduiden stuurt niets door');
+    // bol.com inlezen: wat al in de catalogus staat, is niet aangevinkt.
+    await page.click('summary:has-text("Lijst van bol.com inlezen")');
+    await page.fill('#ak-bol', 'https://voorbeeld.test/lijst');
+    await page.click('button:has-text("Lees de lijst")');
+    await page.waitForSelector('text=Plak de link van je lijst op bol.com');
+    await page.fill('#ak-bol', 'https://www.bol.com/nl/nl/lijst/verzonnen');
+    await page.click('button:has-text("Lees de lijst")');
+    await page.waitForSelector('text=2 boeken gelezen');
+    verwacht(await page.isChecked('#ak-lees-0') && !(await page.isChecked('#ak-lees-1')), 'Vinkjes na het inlezen');
+    await page.click('button:has-text("Zet de aangevinkte op de aankooplijst")');
+    await page.waitForSelector('text=1 boek staat nu op de aankooplijst.');
+    const imp = vragen.filter((x) => x.actie === 'aankoopImporteren').pop();
+    verwacht(imp && imp.boeken.length === 1 && imp.boeken[0].isbn === '9780306406157', 'Importeren: ' + JSON.stringify(imp));
+    // Lijst trekken
+    await page.click('button:has-text("Trek de aankooplijst")');
+    await page.waitForSelector('text=Aankooplijst trekken');
+    verwacht(/Gedichten van niemand/.test(await page.textContent('#sectie table')) && /Totaal \(1 boek\)/.test(await page.textContent('#sectie table')), 'Tabel: ' + await page.textContent('#sectie table'));
+    const csv = await page.evaluate(() => window.MadrigalAankoop.csvTekst([{ t: 'Atlas; van niets', a: 'Bedacht, Noor', i: '9781861972712', g: 'Fictie', p: 19.99, l: '', w: 'Sam' }]));
+    verwacht(csv.split('\r\n')[1] === '"Atlas; van niets";Bedacht, Noor;\'9781861972712;Fictie;19,99;;Sam', 'CSV: ' + csv);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Download als CSV")')]);
+    verwacht(/^aankooplijst-\d{4}-\d{2}-\d{2}\.csv$/.test(download.suggestedFilename()), 'Bestandsnaam: ' + download.suggestedFilename());
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
   });
   await test('cover via een link: plakken en bewaren', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });

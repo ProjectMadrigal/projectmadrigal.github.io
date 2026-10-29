@@ -72,7 +72,9 @@ var KOLOMMEN = {
   'Standjes': ['standje_id', 'naam', 'thema', 'datum', 'locatie', 'status', 'notitie'],
   'Standje boeken': ['standje_id', 'boek_id', 'mee', 'prijs', 'onderhandelbaar'],
   // verkoop_id maakt de gsm zelf (ook zonder internet): zo telt een verkoop nooit dubbel.
-  'Verkopen': ['verkoop_id', 'standje_id', 'boek_id', 'aantal', 'prijs', 'betaalwijze', 'tijdstip', 'vrijwilliger']
+  'Verkopen': ['verkoop_id', 'standje_id', 'boek_id', 'aantal', 'prijs', 'betaalwijze', 'tijdstip', 'vrijwilliger'],
+  // Boeken die de bib wil kopen (Aankoop.js). status: open of in catalogus. gekozen: ja als het bestuur het aanduidde.
+  'Aankooplijst': ['aankoop_id', 'datum', 'titel', 'auteur', 'isbn', 'genre', 'prijs', 'link', 'reden', 'voorgesteld_door', 'status', 'gekozen', 'boek_id', 'datum_binnen', 'bron']
 };
 
 /** Kolommen met een getal. Staat er per ongeluk datumopmaak op, dan leest leesTabel toch het getal. */
@@ -92,7 +94,7 @@ var DATUMKOLOMMEN = [
   'datum_inschrijving', 'markering_sinds', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
   'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'datum_behandeld', 'vorige_vervaldatum', 'datum_weg', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
-  'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
+  'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot', 'datum_binnen'
 ];
 
 /** Het actieve spreadsheetbestand. */

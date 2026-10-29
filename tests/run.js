@@ -1752,6 +1752,66 @@ test('verkoopscherm: cover, korte beschrijving en thema\'s zoals op de website',
   gelijk(M.verkoopOverzicht(Object.assign({}, t, { onderwerpen: undefined })).teKoop[1].g, ['Gender'], 'Zonder Onderwerpen');
 });
 
+console.log('\nAankooplijst');
+test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als binnen', () => {
+  const catalogus = [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera', isbn: '9780306406157' }];
+  const rijen = [];
+  let n = 0;
+  const id = () => 'K' + String(++n).padStart(4, '0');
+  assert.strictEqual(M.aankoopToevoegen(rijen, catalogus, { titel: '' }, 'Kim', '2026-10-30', id).ok, false, 'Titel nodig');
+  assert.strictEqual(M.aankoopToevoegen(rijen, catalogus, { titel: 'X', isbn: '123' }, 'Kim', '2026-10-30', id).ok, false, 'Ongeldig ISBN');
+  assert.strictEqual(M.aankoopToevoegen(rijen, catalogus, { titel: 'X', link: 'javascript:alert(1)' }, 'Kim', '2026-10-30', id).ok, false, 'Enkel http(s)');
+  assert.ok(/al in de catalogus \(B0001\)/.test(M.aankoopToevoegen(rijen, catalogus, { titel: 'Andere titel', isbn: '978-0-306-40615-7' }, 'Kim', '2026-10-30', id).fout), 'Zelfde ISBN');
+  assert.ok(/al in de catalogus/.test(M.aankoopToevoegen(rijen, catalogus, { titel: 'zee van Glas', auteur: 'Vera Verzonnen' }, 'Kim', '2026-10-30', id).fout), 'Zelfde titel en auteur');
+  let r = M.aankoopToevoegen(rijen, catalogus, { titel: 'Atlas van niets', auteur: 'Noor Bedacht', link: 'https://voorbeeld.test/atlas', reden: 'Gevraagd door een lener' }, 'Kim', '2026-10-30', id);
+  gelijk([r.ok, rijen[0].aankoop_id, rijen[0].status, rijen[0].voorgesteld_door, rijen[0].link], [true, 'K0001', 'open', 'Kim', 'https://voorbeeld.test/atlas']);
+  assert.ok(/al op de aankooplijst/.test(M.aankoopToevoegen(rijen, catalogus, { titel: 'ATLAS VAN NIETS', auteur: 'Bedacht, Noor' }, 'Sam', '2026-10-30', id).fout));
+  M.aankoopToevoegen(rijen, catalogus, { titel: 'Stille lichten', auteur: 'Kim Fictief', isbn: '9781861972712' }, 'Sam', '2026-10-31', id);
+  // Het bestuur duidt aan, past aan en de lijst zet open boeken bovenaan.
+  r = M.aankoopAanpassen(rijen, { aankoop_id: 'K0002', gekozen: true });
+  gelijk([r.ok, rijen[1].gekozen, /aangeduid voor aankoop/.test(r.tekst)], [true, 'ja', true]);
+  assert.strictEqual(M.aankoopAanpassen(rijen, { aankoop_id: 'K0002', prijs: 'veel' }).ok, false);
+  M.aankoopAanpassen(rijen, { aankoop_id: 'K0002', prijs: '€ 19,99', genre: 'Poëzie' });
+  gelijk([rijen[1].prijs, rijen[1].genre], [19.99, 'Poëzie']);
+  // Komt Stille lichten in de catalogus, dan staat het als binnen en niet meer aangeduid.
+  catalogus.push({ boek_id: 'B0002', titel: 'Stille lichten', auteur: 'Fictief, Kim', isbn: '9781861972712' });
+  gelijk(M.aankoopBijwerken(rijen, catalogus, '2026-11-02'), 1);
+  gelijk([rijen[1].status, rijen[1].boek_id, rijen[1].gekozen, rijen[1].datum_binnen], ['in catalogus', 'B0002', '', '2026-11-02']);
+  gelijk(M.aankoopBijwerken(rijen, catalogus, '2026-11-03'), 0, 'Niet opnieuw');
+  const o = M.aankoopOverzicht(rijen);
+  gelijk(o.map((b) => [b.id, b.s, b.k]), [['K0001', 'open', false], ['K0002', 'binnen', false]]);
+  // Alles uitvinken en verwijderen.
+  M.aankoopAanpassen(rijen, { aankoop_id: 'K0001', gekozen: true });
+  gelijk(M.aankoopAllesUitvinken(rijen).tekst, '1 boeken zijn niet meer aangeduid.');
+  r = M.aankoopVerwijderen(rijen, { ids: ['K0002'] });
+  gelijk([r.ok, rijen[1]._verwijderen, M.aankoopOverzicht(rijen).length], [true, true, 1]);
+  assert.strictEqual(M.aankoopVerwijderen(rijen, { aankoop_id: 'K9999' }).ok, false);
+});
+
+test('aankooplijst: een lijst van bol.com lezen (lijstpagina en boekpagina\'s)', () => {
+  const lijst = '<html><a href="/nl/nl/p/atlas-van-niets/9300000111111111/?bltgh=x">Atlas</a>' +
+    '<a href="https://www.bol.com/nl/nl/p/stille-lichten/9300000222222222/">Stille</a><a href="/nl/nl/p/atlas-van-niets/9300000111111111/">dubbel</a></html>';
+  gelijk(M.bolProductLinks(lijst), ['https://www.bol.com/nl/nl/p/atlas-van-niets/9300000111111111/', 'https://www.bol.com/nl/nl/p/stille-lichten/9300000222222222/']);
+  const pagina1 = '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Atlas van niets &amp; meer",' +
+    '"gtin13":"9780306406157","author":{"@type":"Person","name":"Noor Bedacht"},"category":"Fictie","offers":{"@type":"Offer","price":"19.99","priceCurrency":"EUR"}}</script>';
+  const pagina2 = '<meta property="og:title" content="Stille lichten | bol"><div>EAN</div><div>9781861972712</div>' +
+    '<meta itemprop="price" content="12.50"><dt>Auteur</dt><dd><a href="/x">Kim Fictief</a></dd>';
+  gelijk(M.bolBoekUitHtml(pagina1, 'l1'), { titel: 'Atlas van niets & meer', auteur: 'Noor Bedacht', isbn: '9780306406157', prijs: 19.99, genre: 'Fictie', link: 'l1' });
+  const b2 = M.bolBoekUitHtml(pagina2, 'l2');
+  gelijk([b2.titel, b2.isbn, b2.prijs, b2.auteur], ['Stille lichten', '9781861972712', 12.5, 'Kim Fictief']);
+  const paginas = { 'https://www.bol.com/nl/nl/lijst/abc': lijst, 'https://www.bol.com/nl/nl/p/atlas-van-niets/9300000111111111/': pagina1, 'https://www.bol.com/nl/nl/p/stille-lichten/9300000222222222/': pagina2 };
+  const haal = (u) => paginas[u] ? { code: 200, tekst: paginas[u] } : { code: 404, tekst: '' };
+  let r = M.aankoopUitBol('https://www.bol.com/nl/nl/lijst/abc', haal);
+  gelijk([r.ok, r.boeken.map((b) => b.isbn)], [true, ['9780306406157', '9781861972712']]);
+  gelijk(M.aankoopUitBol('https://voorbeeld.test/lijst', haal).ok, false, 'Enkel bol.com');
+  assert.ok(/niet binnen \(code 403\)/.test(M.aankoopUitBol('https://www.bol.com/nl/nl/lijst/abc', () => ({ code: 403 })).fout));
+  assert.ok(/geen boeken/.test(M.aankoopUitBol('https://www.bol.com/nl/nl/lijst/leeg', () => ({ code: 200, tekst: '<html></html>' })).fout));
+  // ISBN's plakken: geldige, uniek, ook ISBN-10.
+  gelijk(M.isbnsUitTekst('9780306406157, 978-0-306-40615-7\n0-306-40615-2 en 1234567890123'), ['9780306406157']);
+  gelijk(M.aankoopUitGoogle('9780306406157', { title: 'Atlas', subtitle: 'van niets', authors: ['Noor Bedacht'], categories: ['Fiction'] }),
+    { isbn: '9780306406157', titel: 'Atlas: van niets', auteur: 'Noor Bedacht', genre: 'Fiction', prijs: '', link: '' });
+});
+
 console.log('\nFoto van de cover en bol.com');
 test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', () => {
   const s = maakStaat();

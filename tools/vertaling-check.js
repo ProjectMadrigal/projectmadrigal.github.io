@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const BESTANDEN = ['vrijwilligers.js', 'bestuur.js', 'beheer.js', 'bestuur-beheer.js', 'dom.js', 'balie.js', 'verkoop.js'];
+const BESTANDEN = ['vrijwilligers.js', 'bestuur.js', 'beheer.js', 'bestuur-beheer.js', 'dom.js', 'balie.js', 'verkoop.js', 'aankoop.js'];
 
 global.window = {};
 global.document = { querySelector: () => null, documentElement: {} };
