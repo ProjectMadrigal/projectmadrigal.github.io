@@ -59,7 +59,8 @@ function googleBooksZoek(isbn, sleutel, land) {
   if (!r.fout) r.items = googleItemsMetIsbn(r.items, isbn);
   if (r.limiet || r.items.length) return r;
   var reserve = googleBooksVraag(googleBooksUrl(isbn, sleutel, land));
-  if (!reserve.fout) return reserve;
+  // Is de daglimiet op bij de tweede vraag, dan moet het script dat ook weten (anders lijkt het boek onbekend).
+  if (!reserve.fout || reserve.limiet) return reserve;
   return r.fout ? r : { code: 200, items: [], limiet: false, fout: '' };
 }
 

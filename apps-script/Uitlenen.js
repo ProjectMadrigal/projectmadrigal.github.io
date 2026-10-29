@@ -453,7 +453,9 @@ function verlengen(staat, invoer) {
   if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht.' };
   var stop = behandelGrenzen(staat, 'verlengen', { uitlening: u, boek: boekVan(staat, u.boek_id), lener: lenerVan(staat, u.lenersnummer) }, invoer);
   if (stop) return stop;
-  var nieuw = berekenVerlenging(u.vervaldatum, staat.inst);
+  // Al te laat? Dan telt de termijn vanaf vandaag, anders zou de nieuwe datum al voorbij zijn.
+  var oud = parseerDatum(u.vervaldatum) || staat.vandaag;
+  var nieuw = berekenVerlenging(oud < staat.vandaag ? staat.vandaag : oud, staat.inst);
   // Zelf een datum gekozen aan de balie (bv. de lener kan pas later komen)? Dan die, op een openingsdag.
   if (!isLeeg(invoer.tot)) {
     var gekozen = parseerDatum(invoer.tot);

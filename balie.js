@@ -445,9 +445,10 @@
     function bevestigVerlengen(u) {
       var fout = foutVak();
       var knop = el('button', { type: 'button', class: 'knop breed' }, 'Bevestig de verlenging');
-      // De voorgestelde datum: de huidige vervaldatum plus de termijn. Een andere datum kiezen mag.
+      // De voorgestelde datum: de huidige vervaldatum plus de termijn. Al te laat? Dan vanaf vandaag. Een andere datum kiezen mag.
       var weken = Number((data.instellingen || {}).verlengingstermijn_weken) || 4;
-      var basis = new Date(String(u.vervaldatum) + 'T12:00:00Z');
+      var vandaag = new Date().toISOString().slice(0, 10);
+      var basis = new Date((String(u.vervaldatum) < vandaag ? vandaag : String(u.vervaldatum)) + 'T12:00:00Z');
       basis.setUTCDate(basis.getUTCDate() + weken * 7);
       var voorstel = basis.toISOString().slice(0, 10);
       var datum = el('input', { type: 'date', id: 'verleng-datum', value: voorstel });

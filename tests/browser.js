@@ -845,7 +845,9 @@ async function meldAan(page, basis, pagina) {
     await page.click('#werkvlak nav button:has-text("Verlengen")');
     await page.fill('#verleng-zoek', 'verzonnen');
     await page.click('#werkvlak .keuzeknop');
-    verwacht((await page.inputValue('#verleng-datum')) === '2026-11-15', 'Voorgestelde datum: ' + (await page.inputValue('#verleng-datum')));
+    // De uitlening is al te laat: het voorstel telt 4 weken vanaf vandaag, niet vanaf de oude datum.
+    const voorstel = new Date(Date.now() + 28 * 864e5).toISOString().slice(0, 10);
+    verwacht((await page.inputValue('#verleng-datum')) === voorstel, 'Voorgestelde datum: ' + (await page.inputValue('#verleng-datum')));
     await page.fill('#verleng-datum', '2026-11-27');
     await page.click('button:has-text("Bevestig de verlenging")');
     await page.waitForSelector('text=Verlengd');
