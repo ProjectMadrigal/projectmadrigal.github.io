@@ -3221,7 +3221,8 @@ function googleBooksControle(sleutel, zoek) {
   zoek = zoek || function (isbn) { return googleBooksZoek(isbn, sleutel); };
   for (var i = 0; i < GB_CONTROLE_ISBNS.length; i++) {
     var r = zoek(GB_CONTROLE_ISBNS[i]);
-    if (r.items.length) return { werkt: true, fout: null };
+    // Vond Google iets (ook een andere uitgave), dan werken de verbinding en de sleutel.
+    if (r.items.length || r.totaal > 0) return { werkt: true, fout: null };
     if (r.fout) return { werkt: false, fout: r };
   }
   return { werkt: false, fout: null };
@@ -3252,7 +3253,8 @@ function googleBooksVraag(url) {
     r.fout = 'Google gaf een onleesbaar antwoord (code ' + a.code + ', geen JSON)';
     r.code = 502;
   }
-  r.info = 'code ' + a.code + (a.data ? ', ' + (Number(a.data.totalItems) || 0) + ' gevonden' : ', onleesbaar');
+  r.totaal = a.data ? Number(a.data.totalItems) || 0 : 0;
+  r.info = 'code ' + a.code + (a.data ? ', ' + r.totaal + ' gevonden' : ', onleesbaar');
   return r;
 }
 
@@ -3265,14 +3267,20 @@ function googleBooksZoek(isbn, sleutel, land) {
   // Eerst op het ISBN als gewoon getal: dat werkt bij Google het best. We nemen enkel een
   // uitgave met precies dat ISBN. Levert dat niets op, dan als reserve de vorm "isbn:…".
   var r = googleBooksVraag(googleBooksUrl(isbn, sleutel, land, 'vrij'));
-  if (!r.fout) r.items = googleItemsMetIsbn(r.items, isbn);
+  if (!r.fout) {
+    r.items = googleItemsMetIsbn(r.items, isbn);
+    r.info += ', ' + r.items.length + ' met dit ISBN';
+  }
   r.pogingen = [r.info];
   if (r.limiet || r.items.length) return r;
   var reserve = googleBooksVraag(googleBooksUrl(isbn, sleutel, land));
   reserve.pogingen = [r.info, reserve.info];
+  // totaal: Google vond iets (ook al was het niet dit ISBN). Dan werken de verbinding en de sleutel.
+  reserve.totaal = Math.max(r.totaal || 0, reserve.totaal || 0);
   // Is de daglimiet op bij de tweede vraag, dan moet het script dat ook weten (anders lijkt het boek onbekend).
   if (!reserve.fout || reserve.limiet) return reserve;
-  return r.fout ? r : { code: 200, items: [], limiet: false, fout: '', pogingen: reserve.pogingen };
+  // Een storing bij de tweede vraag: als de eerste wel lukte, is het boek gewoon niet gevonden.
+  return r.fout ? r : { code: 200, items: [], limiet: false, fout: '', pogingen: reserve.pogingen, totaal: reserve.totaal };
 }
 
 /** De foutmelding uit een antwoord van Google, kort. */
@@ -3283,13 +3291,20 @@ function googleFout(data) {
   return String(e.message || e.status || '').replace(/\s+/g, ' ').slice(0, 200) + reden;
 }
 
-/** Enkel de uitgaven met precies dit ISBN (13 of 10 cijfers). */
+/**
+ * De uitgaven met precies dit ISBN (13 of 10 cijfers). Is er geen, dan de uitgaven zonder enig ISBN:
+ * Google vond die op het nummer, maar toont het niet (dat gebeurt soms). Een uitgave met een ander
+ * ISBN nemen we nooit: dat is een ander boek of een andere uitgave.
+ */
 function googleItemsMetIsbn(items, isbn) {
   var gezocht = [String(isbn), isbn13Naar10(isbn)].filter(Boolean);
-  return (items || []).filter(function (it) {
-    var ids = (it && it.volumeInfo && it.volumeInfo.industryIdentifiers) || [];
-    return ids.some(function (id) { return gezocht.indexOf(String(id.identifier || '').replace(/[^0-9X]/gi, '').toUpperCase()) > -1; });
-  });
+  function isbns(it) {
+    return ((it && it.volumeInfo && it.volumeInfo.industryIdentifiers) || []).filter(function (id) { return /^ISBN/.test(String(id.type || '')); })
+      .map(function (id) { return String(id.identifier || '').replace(/[^0-9X]/gi, '').toUpperCase(); });
+  }
+  var juist = (items || []).filter(function (it) { return isbns(it).some(function (i) { return gezocht.indexOf(i) > -1; }); });
+  if (juist.length) return juist;
+  return (items || []).filter(function (it) { return !isbns(it).length; });
 }
 
 /** Waarom een ronde stopte en wanneer het script verdergaat, voor het Logboek. Leeg als het gewoon doorloopt. */
