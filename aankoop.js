@@ -251,6 +251,10 @@
           onclick: function () { filter = f[0]; tekenLijst(inhoud, vak, ctx, melding); } }, f[1]);
       }));
     var totaal = gekozen.reduce(function (s, b) { return s + (b.p || 0); }, 0);
+    // Wat de hele lijst van te kopen boeken samen kost, voor iedereen zichtbaar.
+    var totaalOpen = open.reduce(function (s, b) { return s + (b.p || 0); }, 0);
+    var heleLijst = open.length ? el('p', { id: 'ak-totaal' },
+      el('strong', {}, open.length + (open.length === 1 ? ' boek' : ' boeken') + ' te kopen'), prijsSom(open, totaalOpen)) : null;
     var aangeduid = bestuur ? el('div', { class: 'blok' },
       el('p', {}, el('strong', {}, gekozen.length + (gekozen.length === 1 ? ' boek' : ' boeken') + ' aangeduid voor aankoop'), gekozen.length ? prijsSom(gekozen, totaal) : '.'),
       knoppen(
@@ -265,7 +269,7 @@
         : el('p', {}, q ? 'Geen boek gevonden.' : filter === 'open' ? 'Er staat nog geen boek op de aankooplijst.' : 'Nog geen boek van de aankooplijst staat in de catalogus.'));
     }
     tekenKaarten();
-    D.vervang(inhoud, aangeduid, keuze,
+    D.vervang(inhoud, heleLijst, aangeduid, keuze,
       el('div', { class: 'veld' }, el('label', { for: 'ak-zoek' }, 'Zoek op de aankooplijst'), zoek),
       bestuur && filter === 'binnen' && binnen.length ? knoppen(el('button', { type: 'button', class: 'knop tweede gevaar', onclick: function (e) {
         if (window.confirm('Alle ' + binnen.length + ' boeken die al in de catalogus staan van de aankooplijst verwijderen?')) {
