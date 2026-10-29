@@ -5,6 +5,7 @@
  *   - Standjes: naam, thema, datum, plaats. Hetzelfde boek mag op meerdere standjes.
  *   - Klaarzetten: kies boeken die te koop zijn (kolom te_koop_aantal in de Catalogus) en hoeveel mee gaan.
  *   - Verkopen: per boek de prijs, onderhandelbaar of niet, hoeveel mee, verkocht, nog hier en thuis.
+ *   - Bekijk de voorraad: alles wat te koop is, voor iedereen, ook zonder internet.
  *   - Klaarzetten en Verkopen tonen de boeken als kaarten zoals op de website: cover, thema's en beschrijving.
  *   - Zonder internet: elke verkoop komt in een wachtrij op dit toestel (localStorage) en gaat door
  *     zodra er weer internet is. Elke verkoop heeft een eigen code, zodat ze nooit dubbel telt.
@@ -31,6 +32,7 @@
   var bezigMetSturen = false;
   var catalogus = null;     // voor Voorraad beheren: alle boeken, pas geladen als het bestuur het opent
   var opVoorraad = false;   // het bestuur werkt in Voorraad beheren
+  var opStock = false;      // iedereen bekijkt de voorraad
 
   function lees(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
   function bewaar(k, w) { try { if (w) localStorage.setItem(k, w); else localStorage.removeItem(k); } catch (e) { /* vol of geblokkeerd */ } }
@@ -134,6 +136,7 @@
     $('verkoop-info').textContent = 'Aangemeld als ' + B.sessie.wie + (navigator.onLine ? '' : ' · zonder internet');
     if (!data) { D.vervang($('werkvlak'), el('p', {}, 'Gegevens laden...')); return; }
     if (opVoorraad) { toonVoorraad(); return; }
+    if (opStock) { toonStock(); return; }
     var s = huidig ? standjeVan(huidig) : null;
     if (s) toonStandje(s); else toonLijst();
   }
@@ -153,6 +156,7 @@
       el('h2', { tabindex: '-1' }, 'Standjes'),
       el('p', {}, 'Kies een standje, of maak een nieuw. Zet de boeken klaar voor je vertrekt, en verkoop op het standje zelf.'),
       knoppen(el('button', { type: 'button', class: 'knop', onclick: toonNieuwStandje }, '+ Nieuw standje'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { opStock = true; teken(); } }, 'Bekijk de voorraad (' + data.teKoop.length + (data.teKoop.length === 1 ? ' boek)' : ' boeken)')),
         B.sessie.rol === 'bestuur' ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { opVoorraad = true; teken(); } }, 'Voorraad beheren') : null),
       B.sessie.rol === 'bestuur' ? null : el('p', { class: 'hulptekst' }, 'Boeken aan de voorraad toevoegen kan enkel met de code van het bestuur.'),
       open.length ? el('ul', { class: 'kaartlijst' }, open.map(kaart)) : el('p', {}, 'Er is nog geen standje gepland.'),
@@ -238,22 +242,63 @@
     }
     function tekenLijst() {
       var q = Z().normaliseer(zoek.value);
+      // Zonder zoekterm: alles wat te koop is, met wat al klaargezet is bovenaan.
       var boeken = data.teKoop.filter(function (b) {
-        return mee[b.id] || (q && Z().normaliseer(b.t + ' ' + b.a).indexOf(q) > -1);
-      }).slice(0, 40);
+        return mee[b.id] || !q || Z().normaliseer(b.t + ' ' + b.a).indexOf(q) > -1;
+      }).sort(function (a, b) { return (mee[b.id] ? 1 : 0) - (mee[a.id] ? 1 : 0); }).slice(0, 60);
       D.vervang(lijst, boeken.length ? el('ul', { class: 'boekenlijst' }, boeken.map(rij))
-        : el('p', {}, q ? 'Geen boek te koop gevonden. Staat er een getal in de kolom te_koop_aantal van de Catalogus?' : 'Zoek een boek om het mee te nemen.'));
+        : el('p', {}, q ? 'Geen boek te koop gevonden.' : LEGE_VOORRAAD));
     }
     zoek.addEventListener('input', tekenLijst);
     tekenLijst();
     return el('div', {},
-      el('p', {}, 'Zoek de boeken die mee gaan en vul in hoeveel. Bovenaan staat wat al klaargezet is. Laat de prijs leeg om de gewone prijs uit de Catalogus te gebruiken.'),
+      el('p', {}, 'Hieronder staat alles wat te koop is. Vul bij de boeken die mee gaan in hoeveel. Bovenaan staat wat al klaargezet is. Laat de prijs leeg om de gewone prijs uit de Catalogus te gebruiken.'),
       el('div', { class: 'veld' }, el('label', { for: 'kz-zoek' }, 'Zoek een boek dat te koop is'), zoek),
       lijst,
       s.status === 'voorbereiding' ? knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { zetStatus(s, 'bezig'); } }, 'Klaar: begin de verkoop')) : null);
   }
 
   function Z() { return root.MadrigalZoeken; }
+
+  /* ---------- De voorraad bekijken (iedereen, ook zonder internet) ---------- */
+
+  var LEGE_VOORRAAD = 'Er is nog niets te koop. Het bestuur zet boeken te koop via Voorraad beheren, of in de Catalogus (kolom te_koop_aantal).';
+
+  /** Op welke standjes (nog niet afgesloten) dit boek klaarstaat, bv. "Pride Antwerpen: 2". */
+  function opStandjes(id) {
+    return data.standjes.filter(function (s) { return s.status !== 'afgesloten'; }).map(function (s) {
+      var b = s.boeken.filter(function (x) { return x.boek_id === id; })[0];
+      return b ? s.naam + ': ' + b.mee : '';
+    }).filter(Boolean);
+  }
+
+  function toonStock() {
+    var zoek = el('input', { type: 'search', id: 'st-zoek', autocomplete: 'off', placeholder: 'Titel of auteur' });
+    var lijst = el('div', { 'aria-live': 'polite' });
+    var exemplaren = 0, waarde = 0;
+    data.teKoop.forEach(function (b) { exemplaren += b.stock; waarde += b.stock * (b.prijs || 0); });
+    function kaart(b) {
+      var standjes = opStandjes(b.id);
+      return boekKaart(b, [
+        el('p', {}, el('strong', {}, prijsTekst(b.prijs)), b.o ? ' · onderhandelbaar' : ' · vaste prijs'),
+        el('p', { class: 'meta' }, b.stock + (b.stock === 1 ? ' exemplaar' : ' exemplaren') + ' te koop'),
+        standjes.length ? el('p', { class: 'meta' }, 'Klaargezet voor ' + standjes.join(', ')) : null]);
+    }
+    function tekenLijst() {
+      var q = Z().normaliseer(zoek.value);
+      var boeken = data.teKoop.filter(function (b) { return !q || Z().normaliseer(b.t + ' ' + b.a).indexOf(q) > -1; });
+      D.vervang(lijst, boeken.length ? el('ul', { class: 'boekenlijst' }, boeken.map(kaart))
+        : el('p', {}, q ? 'Geen boek te koop gevonden.' : LEGE_VOORRAAD));
+    }
+    zoek.addEventListener('input', tekenLijst);
+    tekenLijst();
+    D.vervang($('werkvlak'),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { opStock = false; teken(); } }, '← Alle standjes')),
+      el('h2', { tabindex: '-1' }, 'Voorraad'),
+      el('p', {}, data.teKoop.length + (data.teKoop.length === 1 ? ' boek, ' : ' boeken, ') + exemplaren + (exemplaren === 1 ? ' exemplaar' : ' exemplaren') + ' te koop, samen ' + D.euro(waarde) + '.'),
+      el('div', { class: 'veld' }, el('label', { for: 'st-zoek' }, 'Zoek in de voorraad'), zoek),
+      lijst);
+  }
 
   /* ---------- Voorraad beheren (enkel het bestuur) ---------- */
 
