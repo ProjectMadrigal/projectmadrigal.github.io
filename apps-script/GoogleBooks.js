@@ -76,8 +76,9 @@ function testGoogleBooks() {
   var sleutel = leesInstellingen().google_books_api_key;
   var r = googleBooksZoek(isbn, sleutel);
   // Kent Google dit boek niet, dan kijken we of Google wel een bekend boek kent: zo weet je of het aan het boek ligt.
-  var werkt = r.fout ? false : (r.items.length ? true : googleBooksWerkt(sleutel));
-  var tekst = googleTestTekst(isbn, r, sleutel, werkt);
+  // Kent Google dit boek niet, dan kijken we of Google wel een bekend boek kent: zo weet je of het aan het boek ligt.
+  var controle = r.fout || r.items.length ? { werkt: !r.fout, fout: null } : googleBooksControle(sleutel);
+  var tekst = googleTestTekst(isbn, controle.fout || r, sleutel, controle.werkt);
   logboek('menu', 'testGoogleBooks', tekst.replace(/\n/g, ' | '));
   meld(tekst);
 }
@@ -95,7 +96,8 @@ function googleTestTekst(isbn, r, sleutel, werkt) {
   } else if (werkt) {
     regels.push('Google Books werkt, maar kent ISBN ' + isbn + ' niet.');
   } else {
-    regels.push('Google Books werkt niet: Google kent zelfs een bekend boek niet. Kijk de google_books_api_key in Instellingen na.');
+    // Geen fout, maar ook geen bekend boek: dat gebeurt soms even bij Google. Later opnieuw proberen.
+    regels.push('Google Books gaf geen enkel boek terug, ook geen boek dat het zeker kent, en meldde geen fout. Probeer de test over een uur opnieuw. Blijft het zo, kijk dan de google_books_api_key in Instellingen na.');
   }
   if (!sleutel) regels.push('Er staat geen google_books_api_key in Instellingen.');
   return regels.join('\n');
@@ -109,9 +111,22 @@ function googleRondeReden(limiet, storing, fout, rest) {
   return '';
 }
 
-/** Kent Google Books een boek dat het zeker kent? Zo weten we of de verbinding en de sleutel werken. */
-function googleBooksWerkt(sleutel) {
-  return googleBooksZoek('9780141439518', sleutel).items.length > 0; // Pride and Prejudice
+// Boeken die Google zeker kent: Pride and Prejudice (Penguin Classics) en To Kill a Mockingbird (Harper Perennial).
+var GB_CONTROLE_ISBNS = ['9780141439518', '9780061120084'];
+
+/**
+ * Kent Google Books een boek dat het zeker kent? Zo weten we of de verbinding en de sleutel werken.
+ * Geeft { werkt, fout } terug. fout: het antwoord van Google als dat een fout was (daglimiet, storing, sleutel).
+ * zoek(isbn): standaard googleBooksZoek met de sleutel (een andere functie kan in de tests).
+ */
+function googleBooksControle(sleutel, zoek) {
+  zoek = zoek || function (isbn) { return googleBooksZoek(isbn, sleutel); };
+  for (var i = 0; i < GB_CONTROLE_ISBNS.length; i++) {
+    var r = zoek(GB_CONTROLE_ISBNS[i]);
+    if (r.items.length) return { werkt: true, fout: null };
+    if (r.fout) return { werkt: false, fout: r };
+  }
+  return { werkt: false, fout: null };
 }
 
 /**
@@ -183,12 +198,18 @@ function vulAanUitGoogleBooks() {
       gedaan.push(boek);
       verwerkt++;
       // Kent Google na 20 boeken nog geen enkel boek, dan vragen we een boek dat Google zeker kent.
-      // Kent Google ook dat niet, dan klopt er iets niet (sleutel, land, ...): stoppen en niets aanvinken.
+      // Kent Google ook dat niet: bij de daglimiet of een storing wachten, anders klopt er iets niet (sleutel, land, ...).
       // Kent Google het wel, dan zijn het gewoon moeilijke boeken (bv. Nederlandstalig of oud) en gaan we verder.
-      if (verwerkt === 20 && gekend === 0 && !googleBooksWerkt(sleutel)) {
-        verdacht = true;
-        gedaan.forEach(function (b) { wijzig(b, { gb_gecontroleerd: '' }); });
-        break;
+      if (verwerkt === 20 && gekend === 0) {
+        var controle = googleBooksControle(sleutel);
+        if (!controle.werkt) {
+          // Niets aanvinken: deze boeken komen later opnieuw aan de beurt.
+          gedaan.forEach(function (b) { wijzig(b, { gb_gecontroleerd: '' }); });
+          if (controle.fout && controle.fout.limiet) { limiet = true; fout = controle.fout.fout; }
+          else if (controle.fout && controle.fout.code >= 500) { storing = true; fout = controle.fout.fout; }
+          else verdacht = true;
+          break;
+        }
       }
       // Om de 25 boeken bewaren: zo gaat er niets verloren als het script stopt.
       if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
