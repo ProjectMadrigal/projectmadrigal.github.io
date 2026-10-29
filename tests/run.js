@@ -1676,6 +1676,17 @@ test('Google: daglimiet bij de tweede zoekvorm gaat niet verloren, wachttijd tot
   gelijk([M.minutenTotGoogleReset(23, 50), M.minutenTotGoogleReset(0, 0), M.minutenTotGoogleReset(7, 22)], [20, 1450, 1008]);
 });
 
+test('Google: de test toont in gewone woorden of Google Books werkt', () => {
+  const boek = { items: [{ volumeInfo: { title: 'Verzonnen roman', imageLinks: {}, description: 'x' } }], fout: '', limiet: false };
+  const leeg = { items: [], fout: '', limiet: false };
+  assert.strictEqual(M.googleTestTekst('9780000000002', boek, 'k', true), 'Google Books werkt.\nISBN 9780000000002: "Verzonnen roman", cover ja, beschrijving ja.');
+  assert.strictEqual(M.googleTestTekst('9780000000002', leeg, 'k', true), 'Google Books werkt, maar kent ISBN 9780000000002 niet.');
+  assert.ok(/werkt niet: Google kent zelfs/.test(M.googleTestTekst('9780000000002', leeg, 'k', false)));
+  assert.ok(/daglimiet van je sleutel is op/.test(M.googleTestTekst('9780000000002', { items: [], fout: 'Quota', limiet: true }, 'k', false)));
+  assert.ok(/Google meldt: API key not valid/.test(M.googleTestTekst('9780000000002', { items: [], fout: 'API key not valid', limiet: false }, 'k', false)));
+  assert.ok(/geen google_books_api_key/.test(M.googleTestTekst('9780000000002', boek, '', true)));
+});
+
 console.log('\nFoto van de cover en bol.com');
 test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', () => {
   const s = maakStaat();
