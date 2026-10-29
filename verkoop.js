@@ -279,10 +279,20 @@
     data.teKoop.forEach(function (b) { exemplaren += b.stock; waarde += b.stock * (b.prijs || 0); });
     function kaart(b) {
       var standjes = opStandjes(b.id);
+      var vak = el('div');
+      // Het bestuur past aantal en prijs meteen hier aan.
+      var pasAan = B.sessie.rol === 'bestuur' ? el('button', { type: 'button', class: 'knop tweede', 'aria-expanded': 'false' }, 'Pas aan') : null;
+      if (pasAan) pasAan.addEventListener('click', function () {
+        var open = pasAan.getAttribute('aria-expanded') === 'true';
+        pasAan.setAttribute('aria-expanded', open ? 'false' : 'true');
+        D.vervang(vak, open ? null : voorraadVelden(b));
+        if (!open) vak.querySelector('input').focus();
+      });
       return boekKaart(b, [
         el('p', {}, el('strong', {}, prijsTekst(b.prijs)), b.o ? ' · onderhandelbaar' : ' · vaste prijs'),
         el('p', { class: 'meta' }, b.stock + (b.stock === 1 ? ' exemplaar' : ' exemplaren') + ' te koop'),
-        standjes.length ? el('p', { class: 'meta' }, 'Klaargezet voor ' + standjes.join(', ')) : null]);
+        standjes.length ? el('p', { class: 'meta' }, 'Klaargezet voor ' + standjes.join(', ')) : null,
+        pasAan ? knoppen(pasAan) : null, vak]);
     }
     function tekenLijst() {
       var q = Z().normaliseer(zoek.value);
@@ -302,6 +312,34 @@
 
   /* ---------- Voorraad beheren (enkel het bestuur) ---------- */
 
+  /** Velden om aantal te koop, prijs en onderhandelbaar van één boek aan te passen (enkel het bestuur). */
+  function voorraadVelden(b) {
+    var idAantal = 'vr-aantal-' + b.id, idPrijs = 'vr-prijs-' + b.id, idO = 'vr-o-' + b.id;
+    var fout = el('div', { 'aria-live': 'assertive' });
+    var aantal = el('input', { type: 'number', id: idAantal, min: '0', step: '1', value: String(b.stock), class: 'kort', inputmode: 'numeric' });
+    var prijs = el('input', { type: 'text', id: idPrijs, inputmode: 'decimal', value: b.prijs === null || b.prijs === undefined ? '' : String(b.prijs).replace('.', ','), class: 'kort' });
+    var o = el('input', { type: 'checkbox', id: idO });
+    o.checked = b.o;
+    var knop = el('button', { type: 'button', class: 'knop tweede' }, 'Bewaar');
+    knop.addEventListener('click', function () {
+      if (!navigator.onLine) { B.melding(fout, 'fout', 'Dit kan enkel met internet.'); return; }
+      knop.disabled = true;
+      B.voerUit('voorraadZetten', { boek_id: b.id, te_koop_aantal: aantal.value, prijs: prijs.value, onderhandelbaar: o.checked }).then(function (r) {
+        knop.disabled = false;
+        if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+        b.stock = Number(aantal.value); b.prijs = prijs.value ? Number(String(prijs.value).replace(',', '.')) : null; b.o = o.checked;
+        if (r.data) gebruik(r.data);
+        B.melding(fout, 'ok', r.tekst);
+      });
+    });
+    return el('div', {},
+      el('div', { class: 'knoppen' },
+        el('label', { for: idAantal }, 'Aantal te koop '), aantal,
+        el('label', { for: idPrijs }, 'Prijs in euro '), prijs,
+        el('label', { for: idO }, o, ' Onderhandelbaar'), knop),
+      fout);
+  }
+
   function toonVoorraad() {
     var terug = knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { opVoorraad = false; teken(); } }, '← Alle standjes'));
     if (!catalogus) {
@@ -317,31 +355,7 @@
     var zoek = el('input', { type: 'search', id: 'vr-zoek', autocomplete: 'off', placeholder: 'Titel, auteur of ISBN' });
     var lijst = el('div', { 'aria-live': 'polite' });
     function rij(b) {
-      var idAantal = 'vr-aantal-' + b.id, idPrijs = 'vr-prijs-' + b.id, idO = 'vr-o-' + b.id;
-      var fout = el('div', { 'aria-live': 'assertive' });
-      var aantal = el('input', { type: 'number', id: idAantal, min: '0', step: '1', value: String(b.stock), class: 'kort', inputmode: 'numeric' });
-      var prijs = el('input', { type: 'text', id: idPrijs, inputmode: 'decimal', value: b.prijs === null ? '' : String(b.prijs).replace('.', ','), class: 'kort' });
-      var o = el('input', { type: 'checkbox', id: idO });
-      o.checked = b.o;
-      var knop = el('button', { type: 'button', class: 'knop tweede' }, 'Bewaar');
-      knop.addEventListener('click', function () {
-        if (!navigator.onLine) { B.melding(fout, 'fout', 'Dit kan enkel met internet.'); return; }
-        knop.disabled = true;
-        B.voerUit('voorraadZetten', { boek_id: b.id, te_koop_aantal: aantal.value, prijs: prijs.value, onderhandelbaar: o.checked }).then(function (r) {
-          knop.disabled = false;
-          if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
-          b.stock = Number(aantal.value); b.prijs = prijs.value ? Number(String(prijs.value).replace(',', '.')) : null; b.o = o.checked;
-          if (r.data) gebruik(r.data);
-          B.melding(fout, 'ok', r.tekst);
-        });
-      });
-      return el('li', { class: 'kaart' },
-        el('p', {}, el('strong', {}, b.t), b.a ? ' (' + b.a + ')' : ''),
-        el('div', { class: 'knoppen' },
-          el('label', { for: idAantal }, 'Aantal te koop '), aantal,
-          el('label', { for: idPrijs }, 'Prijs in euro '), prijs,
-          el('label', { for: idO }, o, ' Onderhandelbaar'), knop),
-        fout);
+      return el('li', { class: 'kaart' }, el('p', {}, el('strong', {}, b.t), b.a ? ' (' + b.a + ')' : ''), voorraadVelden(b));
     }
     function tekenLijst() {
       var q = Z().normaliseer(zoek.value);

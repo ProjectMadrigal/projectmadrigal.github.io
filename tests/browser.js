@@ -841,6 +841,17 @@ async function meldAan(page, basis, pagina) {
     await page.click('#werkvlak button:has-text("Voorraad beheren")');
     await page.waitForSelector('#vr-zoek');
     verwacht(/De verzonnen zee/.test(await page.textContent('#werkvlak')) && !/Stille lichten/.test(await page.textContent('#werkvlak')), 'Zonder zoekterm: enkel wat te koop is');
+    // Ook vanuit Bekijk de voorraad: Pas aan op de kaart.
+    await page.click('#werkvlak button:has-text("Alle standjes")');
+    await page.click('#werkvlak button:has-text("Bekijk de voorraad")');
+    await page.click('#werkvlak button:has-text("Pas aan")');
+    await page.fill('#vr-prijs-B0001', '9');
+    await page.click('#werkvlak .boek button:has-text("Bewaar")');
+    await page.waitForFunction(() => document.querySelectorAll('#werkvlak .melding').length > 0);
+    verwacht(vragen.some((x) => x.actie === 'voorraadZetten' && x.boek_id === 'B0001' && x.prijs === '9'), 'Pas aan stuurt niets door');
+    await page.click('#werkvlak button:has-text("Alle standjes")');
+    await page.click('#werkvlak button:has-text("Voorraad beheren")');
+    await page.waitForSelector('#vr-zoek');
     await page.fill('#vr-zoek', '9780000000002');
     await page.fill('#vr-aantal-B0002', '2');
     await page.fill('#vr-prijs-B0002', '7,50');

@@ -6833,6 +6833,8 @@ function verkoopActie(actie, invoer, wie) {
     r = voorraadZetten(rijen.catalogus, invoer);
     if (r.ok) {
       bewaarTabel(catalogus);
+      // Staat er datumopmaak op de kolom prijs (dan toont de spreadsheet 7,50 als 6/1/1900)? Meteen rechtzetten.
+      try { zetGetalopmaak(catalogus.blad, ['prijs'], '0.00'); } catch (e) { /* enkel opmaak */ }
       try { schrijfVoorraad(rijen.catalogus, rijen.verkopen); } catch (e) { /* het overzicht is een extraatje */ }
     }
   } else if (actie === 'standjeStatus') {
