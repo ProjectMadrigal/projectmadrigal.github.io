@@ -59,9 +59,9 @@ const INHOUD = {
 };
 
 const VERKOOP = {
-  teKoop: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', prijs: 8, o: true, stock: 3 }],
+  teKoop: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', prijs: 8, o: true, stock: 3, c: '', g: ['Fictie', 'Gender'], d: 'Een verzonnen verhaal over de zee.' }],
   standjes: [{ standje_id: 'S0001', naam: 'Pride Antwerpen', thema: 'Pride', datum: '2026-08-08', locatie: 'Groenplaats', status: 'bezig',
-    boeken: [{ boek_id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', mee: 2, verkocht: 0, prijs: 8, o: true, stock: 3 }],
+    boeken: [{ boek_id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', mee: 2, verkocht: 0, prijs: 8, o: true, stock: 3, c: '', g: ['Fictie', 'Gender'], d: 'Een verzonnen verhaal over de zee.' }],
     omzet: { totaal: 0, perBetaalwijze: {} }, aantalVerkopen: 0 }],
   betaalwijzen: ['cash', 'QR']
 };
@@ -792,6 +792,11 @@ async function meldAan(page, basis, pagina) {
     await meldAan(page, basis, 'verkoop.html');
     await page.click('#werkvlak button:has-text("Open")');
     verwacht(/Mee: 2 · verkocht: 0 · nog hier: 2 · thuis: 1/.test(await page.textContent('#werkvlak')), 'Stand van het boek');
+    // Zoals op de website: een kaart met (tijdelijke) cover, thema's en de beschrijving om open te klappen.
+    verwacht(await page.$('#werkvlak .boekenlijst .boek .plaatshouder'), 'Geen cover of plaatshouder');
+    verwacht((await page.textContent('#werkvlak .labels')).includes('Gender'), 'Thema\'s ontbreken');
+    await page.click('#werkvlak summary:has-text("Beschrijving")');
+    verwacht(await page.isVisible('text=Een verzonnen verhaal over de zee.'), 'Beschrijving gaat niet open');
     await ctx.setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
     await page.click('#werkvlak button:has-text("Verkocht")');

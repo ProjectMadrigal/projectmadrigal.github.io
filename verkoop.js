@@ -5,6 +5,7 @@
  *   - Standjes: naam, thema, datum, plaats. Hetzelfde boek mag op meerdere standjes.
  *   - Klaarzetten: kies boeken die te koop zijn (kolom te_koop_aantal in de Catalogus) en hoeveel mee gaan.
  *   - Verkopen: per boek de prijs, onderhandelbaar of niet, hoeveel mee, verkocht, nog hier en thuis.
+ *   - Klaarzetten en Verkopen tonen de boeken als kaarten zoals op de website: cover, thema's en beschrijving.
  *   - Zonder internet: elke verkoop komt in een wachtrij op dit toestel (localStorage) en gaat door
  *     zodra er weer internet is. Elke verkoop heeft een eigen code, zodat ze nooit dubbel telt.
  *     Open het scherm thuis met internet: dan staan de gegevens en de pagina zelf op de gsm.
@@ -46,6 +47,34 @@
   }
 
   function prijsTekst(p) { return p === null || p === undefined || p === '' ? 'geen prijs' : D.euro(p); }
+
+  /* ---------- Een boek als kaart, zoals op de website ---------- */
+
+  /** De cover, of een gekleurd vlak met titel en auteur als er geen is (of als er geen internet is). */
+  function cover(b) {
+    var vlak = D.plaatshouder({ id: b.id || b.boek_id, t: b.t, a: b.a, s: b.s });
+    if (!b.c) return vlak;
+    var img = el('img', { class: 'cover', src: b.c, alt: '', loading: 'lazy', decoding: 'async', width: 72, height: 108 });
+    img.addEventListener('error', function () { if (img.parentNode) img.parentNode.replaceChild(vlak, img); });
+    return img;
+  }
+
+  /**
+   * Een boek als kaart: cover, titel, auteur, thema's en de beschrijving (open te klappen), met daaronder
+   * wat het scherm nodig heeft (inhoud: een lijst van elementen). uitverkocht: rode rand links.
+   */
+  function boekKaart(b, inhoud, uitverkocht) {
+    return el('li', { class: 'boek verkoopkaart' + (uitverkocht ? ' uitverkocht' : '') },
+      cover(b),
+      el('div', {},
+        el('h3', { class: 'boek-titel' }, b.t),
+        b.a ? el('p', { class: 'auteur' }, b.a) : null,
+        b.g && b.g.length ? el('ul', { class: 'labels', 'aria-label': 'Thema\'s' }, b.g.map(function (g) {
+          return el('li', {}, el('span', { class: 'label label-onderwerp' }, g));
+        })) : null,
+        b.d ? el('details', { class: 'beschrijving-kort' }, el('summary', {}, 'Beschrijving'), el('p', {}, b.d)) : null,
+        inhoud));
+  }
 
   /* ---------- Gegevens en wachtrij ---------- */
 
@@ -200,20 +229,19 @@
           B.melding(fout, 'ok', r.tekst);
         });
       });
-      return el('li', { class: 'kaart' },
-        el('p', {}, el('strong', {}, b.t), b.a ? ' (' + b.a + ')' : ''),
-        el('p', { class: 'hulptekst' }, prijsTekst(b.prijs) + (b.o ? ', onderhandelbaar' : '') + ' · ' + b.stock + ' te koop in de stock'),
+      return boekKaart(b, [
+        el('p', { class: 'meta' }, prijsTekst(b.prijs) + (b.o ? ', onderhandelbaar' : '') + ' · ' + b.stock + ' te koop in de stock'),
         el('div', { class: 'knoppen' },
           el('label', { for: idMee }, 'Mee '), aantal,
           el('label', { for: idPrijs }, 'Andere prijs voor dit standje '), prijs, knop),
-        fout);
+        fout]);
     }
     function tekenLijst() {
       var q = Z().normaliseer(zoek.value);
       var boeken = data.teKoop.filter(function (b) {
         return mee[b.id] || (q && Z().normaliseer(b.t + ' ' + b.a).indexOf(q) > -1);
       }).slice(0, 40);
-      D.vervang(lijst, boeken.length ? el('ul', { class: 'kaartlijst' }, boeken.map(rij))
+      D.vervang(lijst, boeken.length ? el('ul', { class: 'boekenlijst' }, boeken.map(rij))
         : el('p', {}, q ? 'Geen boek te koop gevonden. Staat er een getal in de kolom te_koop_aantal van de Catalogus?' : 'Zoek een boek om het mee te nemen.'));
     }
     zoek.addEventListener('input', tekenLijst);
@@ -292,7 +320,7 @@
   function verkopen(s) {
     if (!s.boeken.length) return el('p', {}, 'Er staan nog geen boeken klaar. Ga naar Klaarzetten.');
     var wijzen = (data.betaalwijzen && data.betaalwijzen.length) ? data.betaalwijzen : ['cash', 'QR'];
-    return el('ul', { class: 'kaartlijst' }, s.boeken.map(function (b) {
+    return el('ul', { class: 'boekenlijst' }, s.boeken.map(function (b) {
       var lokaal = inWachtrij(s.standje_id, b.boek_id).reduce(function (som, v) { return som + v.aantal; }, 0);
       var verkocht = b.verkocht + lokaal;
       var hier = Math.max(0, b.mee - verkocht);
@@ -325,12 +353,11 @@
           keuzes, fout, knoppen(bevestig, el('button', { type: 'button', class: 'knop tweede', onclick: function () { D.vervang(vak); } }, 'Annuleer'))));
         prijs.focus();
       }
-      return el('li', { class: 'kaart' + (hier ? '' : ' telaat') },
-        el('p', {}, el('strong', {}, b.t), b.a ? ' (' + b.a + ')' : ''),
+      return boekKaart(b, [
         el('p', {}, el('strong', {}, prijsTekst(b.prijs)), b.o ? ' · onderhandelbaar' : ' · vaste prijs'),
-        el('p', { class: 'hulptekst' }, 'Mee: ' + b.mee + ' · verkocht: ' + verkocht + ' · nog hier: ' + hier + ' · thuis: ' + thuis),
+        el('p', { class: 'meta' }, 'Mee: ' + b.mee + ' · verkocht: ' + verkocht + ' · nog hier: ' + hier + ' · thuis: ' + thuis),
         hier && s.status !== 'afgesloten' ? knoppen(el('button', { type: 'button', class: 'knop', onclick: formulier }, 'Verkocht')) : el('p', {}, hier ? '' : 'Alles van dit boek is verkocht.'),
-        vak);
+        vak], !hier);
     }));
   }
 

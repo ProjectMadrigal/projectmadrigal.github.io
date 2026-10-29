@@ -1734,6 +1734,24 @@ test('voorraad beheren: aantal, prijs en onderhandelbaar zetten vanuit het verko
   gelijk([r.ok, r.tekst, b.te_koop_aantal, b.onderhandelbaar], [true, '"Zee van glas" is niet meer te koop.', 0, 'nee']);
 });
 
+test('verkoopscherm: cover, korte beschrijving en thema\'s zoals op de website', () => {
+  const t = {
+    catalogus: [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Vera Verzonnen', genre: 'Queer fictie', extra_onderwerpen: 'Gender', cover_url: 'https://voorbeeld.test/c.jpg',
+      beschrijving: 'Een verzonnen zin. '.repeat(40), te_koop_aantal: 2, prijs: 8 },
+    { boek_id: 'B0002', titel: 'Atlas van niets', cover_url: 'javascript:alert(1)', te_koop_aantal: 1, prijs: 5, soort: 'zine' }],
+    standjes: [{ standje_id: 'S0001', naam: 'Pride', datum: '2026-08-08', status: 'bezig' }],
+    standjeBoeken: [{ standje_id: 'S0001', boek_id: 'B0001', mee: 1 }], verkopen: [],
+    onderwerpen: [{ genre: 'Queer fictie', filtergroepen: 'Fictie' }]
+  };
+  const o = M.verkoopOverzicht(t);
+  const zee = o.teKoop.find((b) => b.id === 'B0001');
+  gelijk([zee.c, zee.g, zee.d.length <= 400, /\.$/.test(zee.d)], ['https://voorbeeld.test/c.jpg', ['Fictie', 'Gender'], true, true]);
+  const atlas = o.teKoop.find((b) => b.id === 'B0002');
+  gelijk([atlas.c, atlas.d, atlas.s], ['', '', 'zine'], 'Geen onveilige cover');
+  gelijk([o.standjes[0].boeken[0].c, o.standjes[0].boeken[0].g], ['https://voorbeeld.test/c.jpg', ['Fictie', 'Gender']]);
+  gelijk(M.verkoopOverzicht(Object.assign({}, t, { onderwerpen: undefined })).teKoop[1].g, ['Gender'], 'Zonder Onderwerpen');
+});
+
 console.log('\nFoto van de cover en bol.com');
 test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', () => {
   const s = maakStaat();

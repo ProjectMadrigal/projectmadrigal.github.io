@@ -364,6 +364,15 @@ textarea { min-height: 6rem; }
 .kaart h3 { font-size: 1.05rem; }
 .kaart p { margin: .25rem 0 0; }
 .kaart.telaat { border-left: 6px solid var(--kleur-fout); }
+/* Verkoopscherm: boeken als kaarten zoals op de website (zie verkoop.js). */
+.verkoopkaart .knoppen { margin-top: .5rem; }
+.verkoopkaart .beschrijving-kort { margin-top: .5rem; font-size: .92rem; }
+.verkoopkaart .beschrijving-kort summary { cursor: pointer; color: var(--kleur-tekst-zacht); list-style: none; }
+.verkoopkaart .beschrijving-kort summary::-webkit-details-marker { display: none; }
+.verkoopkaart .beschrijving-kort summary::before { content: "▸ "; }
+.verkoopkaart .beschrijving-kort[open] summary::before { content: "▾ "; }
+.verkoopkaart .beschrijving-kort p { margin: .3rem 0 0; }
+.boek.uitverkocht { border-left: 6px solid var(--kleur-fout); }
 .kaart.binnenkort { border-left: 6px solid var(--kleur-let-op); }
 .kaart.optijd { border-left: 6px solid var(--kleur-ok); }
 
