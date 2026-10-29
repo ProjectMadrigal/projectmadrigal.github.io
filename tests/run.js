@@ -191,6 +191,25 @@ test('genres met andere schrijfwijze komen één keer in Onderwerpen', () => {
   assert.strictEqual(rijen.find((r) => r.genre.toLowerCase() === 'erotica').filtergroepen, 'Erotica en BDSM');
 });
 
+test('thema\'s: Geschiedenis, Maatschappij en Religie en spiritualiteit apart', () => {
+  gelijk(M.stelFiltergroepenVoor('Geschiedenis'), ['Geschiedenis']);
+  gelijk(M.stelFiltergroepenVoor('Politiek'), ['Maatschappij']);
+  gelijk(M.stelFiltergroepenVoor('Religie'), ['Religie en spiritualiteit']);
+  gelijk(M.stelFiltergroepenVoor('Spiritualiteit'), ['Religie en spiritualiteit']);
+  const rijen = [
+    { genre: 'Geschiedenis', filtergroepen: 'Geschiedenis en maatschappij' },
+    { genre: 'Essay', filtergroepen: 'Geschiedenis en maatschappij, Feminisme' },
+    { genre: 'Religie', filtergroepen: 'Geschiedenis en maatschappij' },
+    { genre: 'Verzonnen genre', filtergroepen: 'Geschiedenis en maatschappij' },
+    { genre: 'Spiritualiteit', filtergroepen: '' },
+    { genre: 'Roman', filtergroepen: 'Fictie' }
+  ];
+  gelijk(M.verdeelOudeGroep(rijen), { aangepast: 5, religie: 2 });
+  gelijk(rijen.map((r) => r.filtergroepen), ['Geschiedenis', 'Feminisme, Maatschappij', 'Religie en spiritualiteit', 'Maatschappij', 'Religie en spiritualiteit', 'Fictie']);
+  gelijk(M.verdeelOudeGroep(rijen), { aangepast: 0, religie: 0 }, 'Opnieuw: niets meer te doen');
+  assert.ok(M.FILTERGROEPEN.indexOf('Geschiedenis en maatschappij') === -1 && M.FILTERGROEPEN.indexOf('Religie en spiritualiteit') > -1);
+});
+
 test('filtergroepen: vertaaltabel, extra onderwerpen, klassieker en zines', () => {
   const vertaal = M.vertaalTabel([{ genre: 'Roman', filtergroepen: 'Fictie' }]);
   const g = M.filtergroepenVan({ genre: 'roman', extra_onderwerpen: 'gender; Seksualiteit', klassieker: true, soort: 'boek' }, vertaal);

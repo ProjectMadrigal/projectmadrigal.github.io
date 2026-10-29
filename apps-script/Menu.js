@@ -111,6 +111,7 @@ function onOpen() {
       .addItem('Nieuwe boeken verwerken', 'verwerkNieuweBoeken')
       .addItem('Ververs de publieke catalogus', 'verversMenu')
       .addItem('Werk de vertaaltabel Onderwerpen bij', 'werkOnderwerpenBijMenu')
+      .addItem('Verdeel Geschiedenis en maatschappij in drie thema\'s', 'verdeelOudeGroepMenu')
       .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock'))
     .addSubMenu(ui.createMenu('Covers')
       .addItem('Vul aan uit Open Library', 'vulAanUitOpenLibrary')

@@ -45,7 +45,7 @@ function startServer() {
 
 const STATUS = (code, label) => ({ code, label, tekst: label });
 const UITLENING = { uitlening_id: 'U0001', exemplaar: 'B0001-1', boek_id: 'B0001', titel: 'De verzonnen zee', lenersnummer: '12', voornaam: 'Sam', datum_uit: '2026-09-20', vervaldatum: '2026-10-18', status: STATUS('telaat', 'Te laat') };
-const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', x: 1, u: true, c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', x: 1, u: true, c: true, g: ['Geschiedenis en maatschappij'] }];
+const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', x: 1, u: true, c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', x: 1, u: true, c: true, g: ['Maatschappij'] }];
 // Veel boeken zonder beschrijving (verzonnen), om Toon er nog 100 te testen.
 const VEEL = Array.from({ length: 150 }, (_, i) => ({ id: 'X' + String(i).padStart(3, '0'), t: 'Verzonnen titel ' + String(i).padStart(3, '0'), a: '', c: true, zb: true }));
 const UITLENING2 = Object.assign({}, UITLENING, { uitlening_id: 'U0002', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', lenersnummer: '13', voornaam: 'Jo', aantal_verlengingen: 1, borg: 5, betaalwijze_borg: 'cash' });
@@ -65,7 +65,7 @@ function antwoord(rol, actie, vraag) {
     vrijwilligerData: { ok: true, data: Object.assign({}, basis, { voorgesteld: [], checklist: { openen: ['Licht aan', 'Balie openen'], sluiten: ['Licht uit'] },
       handleiding: { nl: [{ titel: 'De sleutel', regels: [{ punt: false, tekst: 'Vraag het in de groep.' }, { punt: true, tekst: 'Rode bol: niet uitlenen.' }] }], en: [{ titel: 'The key', regels: [{ punt: false, tekst: 'Ask in the group.' }] }] },
       briefjes: [{ briefje_id: 'N0001', datum: '2026-10-23', wie: 'Ilo', tekst: 'De printer is stuk.' }],
-      vandaagTerug: [{ uitlening_id: 'U0009', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', auteur: 'Dewit, Rein', onderwerp: 'Geschiedenis en maatschappij', staat_terug: 'licht beschadigd' }],
+      vandaagTerug: [{ uitlening_id: 'U0009', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', auteur: 'Dewit, Rein', onderwerp: 'Maatschappij', staat_terug: 'licht beschadigd' }],
       reservaties: [{ reservatie_id: 'R0001', boek_id: 'B0001', lenersnummer: '13', voornaam: 'Jo', status: 'wacht', tekst: 'Wacht' }],
       mijn: { voorstellen: [{ datum: '2026-10-20', titel: 'Stille lichten', status: 'goedgekeurd', datum_behandeld: '2026-10-21' }], meldingen: [{ datum: '2026-10-22', soort: 'boek kapot', onderwerp: 'B0001', status: 'nieuw', datum_afgehandeld: '' }] } }) },
     bestuurData: { ok: true, data: Object.assign({}, basis, {
@@ -663,7 +663,7 @@ async function meldAan(page, basis, pagina) {
     const mijn = await page.textContent('#sectie');
     verwacht(/Stille lichten/.test(mijn) && /Goedgekeurd/.test(mijn) && /Wacht op het bestuur/.test(mijn), 'Mijn voorstellen: ' + mijn.slice(0, 200));
     await page.click('#sectienav button:has-text("Terug te zetten (1)")');
-    verwacht(/Geschiedenis en maatschappij \(1\)/.test(await page.textContent('#sectie')), 'Onderwerp ontbreekt');
+    verwacht(/Maatschappij \(1\)/.test(await page.textContent('#sectie')), 'Onderwerp ontbreekt');
     await page.check('#gezet-U0009');
     await page.reload();
     await page.click('#sectienav button:has-text("Terug te zetten")');
