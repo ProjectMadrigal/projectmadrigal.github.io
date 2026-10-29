@@ -92,13 +92,13 @@ function testGoogleBooks() {
   var r = zoek(isbn);
   // Kent Google dit boek niet, dan kijken we of Google wel een bekend boek kent: zo weet je of het aan het boek ligt.
   var controle = r.fout || r.items.length ? { werkt: !r.fout, fout: null } : googleBooksControle(sleutel, zoek);
-  var tekst = googleTestTekst(isbn, controle.fout || r, sleutel, controle.werkt) + '\nWat Google antwoordde (' + (sleutel ? 'met' : 'zonder') + ' sleutel, land BE): ' + details.join(' | ');
+  var tekst = googleTestTekst(isbn, controle.fout || r, sleutel, controle.werkt, controle.vreemd) + '\nWat Google antwoordde (' + (sleutel ? 'met' : 'zonder') + ' sleutel, land BE): ' + details.join(' | ');
   logboek('menu', 'testGoogleBooks', tekst.replace(/\n/g, ' | '));
   meld(tekst);
 }
 
 /** De uitkomst van de test in gewone woorden. r: het antwoord van googleBooksZoek. */
-function googleTestTekst(isbn, r, sleutel, werkt) {
+function googleTestTekst(isbn, r, sleutel, werkt, vreemd) {
   var info = r.items.length ? r.items[0].volumeInfo : null;
   var regels = [];
   if (r.fout) {
@@ -109,6 +109,9 @@ function googleTestTekst(isbn, r, sleutel, werkt) {
     regels.push('ISBN ' + isbn + ': "' + (info.title || '?') + '", cover ' + (info.imageLinks ? 'ja' : 'nee') + ', beschrijving ' + (info.description ? 'ja' : 'nee') + '.');
   } else if (werkt) {
     regels.push('Google Books werkt, maar kent ISBN ' + isbn + ' niet.');
+  } else if (vreemd) {
+    regels.push('Google Books zoekt nu verkeerd: op het ISBN van een bekend boek komen andere boeken terug. Dat ligt bij Google, niet bij je sleutel.');
+    regels.push('Het script vinkt zolang geen boeken af als "niet gevonden". Probeer de test morgen opnieuw.');
   } else {
     // Geen fout, maar ook geen bekend boek: dat gebeurt soms even bij Google. Later opnieuw proberen.
     regels.push('Google Books gaf geen enkel boek terug, ook geen boek dat het zeker kent, en meldde geen fout. Probeer de test over een uur opnieuw. Blijft het zo, kijk dan de google_books_api_key in Instellingen na.');
@@ -131,18 +134,21 @@ var GB_CONTROLE_BOEKEN = { '9780141439518': { titel: 'Pride and Prejudice', aute
 
 /**
  * Kent Google Books een boek dat het zeker kent? Zo weten we of de verbinding en de sleutel werken.
- * Geeft { werkt, fout } terug. fout: het antwoord van Google als dat een fout was (daglimiet, storing, sleutel).
+ * Geeft { werkt, fout, vreemd } terug. fout: het antwoord van Google als dat een fout was (daglimiet, storing, sleutel).
+ * vreemd: Google gaf andere boeken terug dan het bekende boek (Google zoekt dan verkeerd, zoals op 29/10/2026).
  * zoek(isbn): standaard googleBooksZoek met de sleutel (een andere functie kan in de tests).
  */
 function googleBooksControle(sleutel, zoek) {
   zoek = zoek || function (isbn) { return googleBooksZoek(isbn, sleutel, undefined, GB_CONTROLE_BOEKEN[isbn]); };
+  var vreemd = false;
   for (var i = 0; i < GB_CONTROLE_ISBNS.length; i++) {
     var r = zoek(GB_CONTROLE_ISBNS[i]);
-    // Vond Google iets (ook een andere uitgave), dan werken de verbinding en de sleutel.
-    if (r.items.length || r.totaal > 0) return { werkt: true, fout: null };
-    if (r.fout) return { werkt: false, fout: r };
+    if (r.items.length) return { werkt: true, fout: null, vreemd: false };
+    if (r.fout) return { werkt: false, fout: r, vreemd: false };
+    // Google gaf wel boeken terug, maar niet dit bekende boek: dan geeft Google verkeerde resultaten.
+    if (r.totaal > 0) vreemd = true;
   }
-  return { werkt: false, fout: null };
+  return { werkt: false, fout: null, vreemd: vreemd };
 }
 
 /**
@@ -186,7 +192,7 @@ function vulAanUitGoogleBooks() {
     meldAlBezig('vulAanUitGoogleBooks');
     return;
   }
-  var verwerkt = 0, aangevuld = 0, rest = 0, limiet = false, fout = '', gekend = 0, storing = false, verdacht = false;
+  var verwerkt = 0, aangevuld = 0, rest = 0, limiet = false, fout = '', gekend = 0, storing = false, verdacht = false, vreemd = false;
   var gedaan = [];
   try {
     var sleutel = leesInstellingen().google_books_api_key;
@@ -223,7 +229,7 @@ function vulAanUitGoogleBooks() {
           gedaan.forEach(function (b) { wijzig(b, { gb_gecontroleerd: '' }); });
           if (controle.fout && controle.fout.limiet) { limiet = true; fout = controle.fout.fout; }
           else if (controle.fout && controle.fout.code >= 500) { storing = true; fout = controle.fout.fout; }
-          else verdacht = true;
+          else { verdacht = true; vreemd = controle.vreemd; }
           break;
         }
       }
@@ -238,7 +244,9 @@ function vulAanUitGoogleBooks() {
   }
   verwijderTriggers('vulAanUitGoogleBooks');
   if (verdacht) {
-    var waarschuwing = 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Covers > Test Google Books.';
+    var waarschuwing = vreemd
+      ? 'Google Books zoekt nu verkeerd: op het ISBN van een bekend boek komen andere boeken terug. Het script stopt en vinkt niets aan. Probeer het morgen opnieuw.'
+      : 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Covers > Test Google Books.';
     logboek('menu', 'vulAanUitGoogleBooks', waarschuwing);
     meld(waarschuwing);
     return;
