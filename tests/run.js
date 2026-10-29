@@ -580,6 +580,12 @@ test('verlengen zonder reservatie: 4 weken erbij', () => {
   assert.strictEqual(s.uitleningen[0].aantal_verlengingen, 1);
   assert.strictEqual(s.uitleningen[0].oorspronkelijke_vervaldatum, '2026-11-20');
 });
+test('verlengen van een te laat boek telt vanaf vandaag', () => {
+  const s = maakStaat('2026-12-04');
+  s.uitleningen.push({ uitlening_id: 'U00001', exemplaar: 'B0001-1', boek_id: 'B0001', lenersnummer: '1', datum_uit: '2026-10-23', oorspronkelijke_vervaldatum: '2026-11-20', vervaldatum: '2026-11-20', datum_terug: '', aantal_verlengingen: 0 });
+  const r = M.verlengen(s, { uitlening_id: 'U00001' });
+  gelijk([r.ok, r.vervaldatum, s.uitleningen[0].vorige_vervaldatum], [true, '2027-01-01', '2026-11-20'], 'Niet 18/12 maar 4 weken na vandaag');
+});
 test('tweede verlenging vraagt een uitzondering', () => {
   const s = maakStaat();
   uitleen(s, 'B0001', '1');
@@ -1656,6 +1662,18 @@ test('Google: tweede zoekvorm neemt enkel een uitgave met precies dit ISBN', () 
   ];
   gelijk(M.googleItemsMetIsbn(items, '9780141439518').map((i) => i.volumeInfo.title), ['Juiste uitgave']);
   assert.ok(M.googleBooksUrl('9780141439518', 'k', 'BE', 'vrij').includes('?q=9780141439518&country=BE&key=k'));
+});
+
+test('Google: daglimiet bij de tweede zoekvorm gaat niet verloren, wachttijd tot de reset', () => {
+  const oud = M.haalJson;
+  const antwoorden = [{ code: 200, data: {} }, { code: 429, data: { error: { message: 'Quota exceeded', errors: [{ reason: 'rateLimitExceeded' }] } } }];
+  M.haalJson = () => antwoorden.shift();
+  try {
+    const r = M.googleBooksZoek('9780141439518', 'k');
+    gelijk([r.limiet, r.items.length], [true, 0]);
+  } finally { M.haalJson = oud; }
+  // Middernacht in Californie: 23:50 daar is 20 minuten wachten, 00:00 een volle dag plus 10 minuten.
+  gelijk([M.minutenTotGoogleReset(23, 50), M.minutenTotGoogleReset(0, 0), M.minutenTotGoogleReset(7, 22)], [20, 1450, 1008]);
 });
 
 console.log('\nFoto van de cover en bol.com');

@@ -2903,6 +2903,11 @@ function googleBooksVraag(url) {
   return r;
 }
 
+/** Kent Google Books een boek dat het zeker kent? Zo weten we of de verbinding en de sleutel werken. */
+function googleBooksWerkt(sleutel) {
+  return googleBooksZoek('9780141439518', sleutel).items.length > 0; // Pride and Prejudice
+}
+
 /**
  * Zoekt een ISBN op bij Google Books. Geeft { code, items, limiet, fout } terug.
  *   limiet: Google zegt dat de daglimiet op is (dan later opnieuw proberen);
@@ -2915,7 +2920,8 @@ function googleBooksZoek(isbn, sleutel, land) {
   if (!r.fout) r.items = googleItemsMetIsbn(r.items, isbn);
   if (r.limiet || r.items.length) return r;
   var reserve = googleBooksVraag(googleBooksUrl(isbn, sleutel, land));
-  if (!reserve.fout) return reserve;
+  // Is de daglimiet op bij de tweede vraag, dan moet het script dat ook weten (anders lijkt het boek onbekend).
+  if (!reserve.fout || reserve.limiet) return reserve;
   return r.fout ? r : { code: 200, items: [], limiet: false, fout: '' };
 }
 
@@ -4748,6 +4754,14 @@ function mijnBijdragen(voorstelRijen, meldingRijen, wie, vandaag) {
 }
 
 /* ---------- Terug te zetten ---------- */
+
+/**
+ * Hoeveel minuten tot de daglimiet van Google weer vrij is. Google zet die limiet om middernacht
+ * in Californië terug op nul. We wachten tot 10 minuten daarna. uur en minuut: de tijd nu in Californië.
+ */
+function minutenTotGoogleReset(uur, minuut) {
+  return 24 * 60 - (uur * 60 + minuut) + 10;
+}
 
 /** "2026-11-20" naar een Date in UTC (enkel om mee te rekenen). */
 function naarUtc(datum) {
@@ -6859,7 +6873,9 @@ function verlengen(staat, invoer) {
   if (!isLeeg(u.datum_terug)) return { ok: false, fout: 'Dit boek is al teruggebracht.' };
   var stop = behandelGrenzen(staat, 'verlengen', { uitlening: u, boek: boekVan(staat, u.boek_id), lener: lenerVan(staat, u.lenersnummer) }, invoer);
   if (stop) return stop;
-  var nieuw = berekenVerlenging(u.vervaldatum, staat.inst);
+  // Al te laat? Dan telt de termijn vanaf vandaag, anders zou de nieuwe datum al voorbij zijn.
+  var oud = parseerDatum(u.vervaldatum) || staat.vandaag;
+  var nieuw = berekenVerlenging(oud < staat.vandaag ? staat.vandaag : oud, staat.inst);
   // Zelf een datum gekozen aan de balie (bv. de lener kan pas later komen)? Dan die, op een openingsdag.
   if (!isLeeg(invoer.tot)) {
     var gekozen = parseerDatum(invoer.tot);
@@ -7762,9 +7778,10 @@ function vulAanUitGoogleBooks() {
       wijzig(boek, velden);
       gedaan.push(boek);
       verwerkt++;
-      // Kent Google na 20 boeken nog geen enkel boek, dan klopt er iets niet (sleutel, land, ...).
-      // Dan stoppen we en vinken we niets aan, zodat die boeken later opnieuw aan de beurt komen.
-      if (verwerkt === 20 && gekend === 0) {
+      // Kent Google na 20 boeken nog geen enkel boek, dan vragen we een boek dat Google zeker kent.
+      // Kent Google ook dat niet, dan klopt er iets niet (sleutel, land, ...): stoppen en niets aanvinken.
+      // Kent Google het wel, dan zijn het gewoon moeilijke boeken (bv. Nederlandstalig of oud) en gaan we verder.
+      if (verwerkt === 20 && gekend === 0 && !googleBooksWerkt(sleutel)) {
         verdacht = true;
         gedaan.forEach(function (b) { wijzig(b, { gb_gecontroleerd: '' }); });
         break;
@@ -7786,8 +7803,8 @@ function vulAanUitGoogleBooks() {
     return;
   }
   if (rest > 0) {
-    // Daglimiet: 6 uur wachten. Storing bij Google: een kwartier. Anders: een minuut.
-    var minuten = limiet ? 6 * 60 : (storing ? 15 : 1);
+    // Daglimiet: wachten tot Google ze terugzet (rond 9 uur 's ochtends bij ons). Storing bij Google: een kwartier. Anders: een minuut.
+    var minuten = limiet ? wachtNaGoogleLimiet() : (storing ? 15 : 1);
     ScriptApp.newTrigger('vulAanUitGoogleBooks').timeBased().after(minuten * 60 * 1000).create();
   } else {
     // Klaar: nu de beschrijvingen die nog ontbreken (zie Beschrijvingen.js).
@@ -7799,7 +7816,7 @@ function vulAanUitGoogleBooks() {
   var reden = !limiet ? '' : (echteLimiet ? ' (daglimiet van Google bereikt)' : ' (Google weigert)');
   logboek('menu', 'vulAanUitGoogleBooks', verwerkt + ' opgevraagd, ' + gekend + ' gekend bij Google, ' + aangevuld + ' covers gevonden, ' + rest + ' te gaan' + reden + (fout ? '. Google meldt: ' + fout : '') + (sleutel ? '' : '. Er staat geen google_books_api_key in Instellingen.'));
   var tekst = verwerkt + ' boeken opgevraagd bij Google Books, ' + aangevuld + ' covers gevonden.';
-  if (rest > 0) tekst += limiet ? ' De daglimiet van Google is bereikt: over 6 uur gaat het script vanzelf verder.' : ' Nog ' + rest + ' te gaan: het script gaat over een minuut vanzelf verder.';
+  if (rest > 0) tekst += limiet ? ' De daglimiet van Google is bereikt: het script gaat vanzelf verder als Google ze terugzet, rond 9 uur in de ochtend.' : ' Nog ' + rest + ' te gaan: het script gaat over een minuut vanzelf verder.';
   else tekst += ' Alles is verwerkt. Het script zoekt nu nog ontbrekende beschrijvingen.';
   try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
 }
@@ -8040,6 +8057,16 @@ function vulVasteEventsAan(avonden, inst) {
 }
 
 /* ---------- Een oud rooster overnemen (een tabblad per maand) ---------- */
+
+/** Hoeveel minuten wachten na de daglimiet van Google Books. Lukt de berekening niet: 6 uur. */
+function wachtNaGoogleLimiet() {
+  try {
+    var t = Utilities.formatDate(new Date(), 'America/Los_Angeles', 'H:m').split(':');
+    return minutenTotGoogleReset(Number(t[0]), Number(t[1]));
+  } catch (e) {
+    return 6 * 60;
+  }
+}
 
 /**
  * Voor elke achtergrondtaak, helemaal vooraan: is de daglimiet nog op, dan start de taak niet

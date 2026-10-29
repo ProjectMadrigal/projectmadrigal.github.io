@@ -985,7 +985,7 @@
       if (!a.fout) a = { items: metIsbn(a.items, isbn) };
       if (a.limiet || (a.items && a.items.length)) return a;
       return vraagGoogleUrl('isbn:' + encodeURIComponent(isbn), sleutel).then(function (b) {
-        if (!b.fout) return b;
+        if (!b.fout || b.limiet) return b;
         return a.fout ? a : { items: [] };
       });
     }).then(function (a) {

@@ -96,6 +96,29 @@ function testGoogleBooks() {
   meld(tekst);
 }
 
+/** Kent Google Books een boek dat het zeker kent? Zo weten we of de verbinding en de sleutel werken. */
+function googleBooksWerkt(sleutel) {
+  return googleBooksZoek('9780141439518', sleutel).items.length > 0; // Pride and Prejudice
+}
+
+/**
+ * Hoeveel minuten tot de daglimiet van Google weer vrij is. Google zet die limiet om middernacht
+ * in Californië terug op nul. We wachten tot 10 minuten daarna. uur en minuut: de tijd nu in Californië.
+ */
+function minutenTotGoogleReset(uur, minuut) {
+  return 24 * 60 - (uur * 60 + minuut) + 10;
+}
+
+/** Hoeveel minuten wachten na de daglimiet van Google Books. Lukt de berekening niet: 6 uur. */
+function wachtNaGoogleLimiet() {
+  try {
+    var t = Utilities.formatDate(new Date(), 'America/Los_Angeles', 'H:m').split(':');
+    return minutenTotGoogleReset(Number(t[0]), Number(t[1]));
+  } catch (e) {
+    return 6 * 60;
+  }
+}
+
 /** Menu: boeken zonder cover nog eens laten opzoeken bij Google (maakt gb_gecontroleerd leeg). */
 function zoekCoversOpnieuw() {
   var tabel = leesTabel('Catalogus');
@@ -146,9 +169,10 @@ function vulAanUitGoogleBooks() {
       wijzig(boek, velden);
       gedaan.push(boek);
       verwerkt++;
-      // Kent Google na 20 boeken nog geen enkel boek, dan klopt er iets niet (sleutel, land, ...).
-      // Dan stoppen we en vinken we niets aan, zodat die boeken later opnieuw aan de beurt komen.
-      if (verwerkt === 20 && gekend === 0) {
+      // Kent Google na 20 boeken nog geen enkel boek, dan vragen we een boek dat Google zeker kent.
+      // Kent Google ook dat niet, dan klopt er iets niet (sleutel, land, ...): stoppen en niets aanvinken.
+      // Kent Google het wel, dan zijn het gewoon moeilijke boeken (bv. Nederlandstalig of oud) en gaan we verder.
+      if (verwerkt === 20 && gekend === 0 && !googleBooksWerkt(sleutel)) {
         verdacht = true;
         gedaan.forEach(function (b) { wijzig(b, { gb_gecontroleerd: '' }); });
         break;
@@ -170,8 +194,8 @@ function vulAanUitGoogleBooks() {
     return;
   }
   if (rest > 0) {
-    // Daglimiet: 6 uur wachten. Storing bij Google: een kwartier. Anders: een minuut.
-    var minuten = limiet ? 6 * 60 : (storing ? 15 : 1);
+    // Daglimiet: wachten tot Google ze terugzet (rond 9 uur 's ochtends bij ons). Storing bij Google: een kwartier. Anders: een minuut.
+    var minuten = limiet ? wachtNaGoogleLimiet() : (storing ? 15 : 1);
     ScriptApp.newTrigger('vulAanUitGoogleBooks').timeBased().after(minuten * 60 * 1000).create();
   } else {
     // Klaar: nu de beschrijvingen die nog ontbreken (zie Beschrijvingen.js).
@@ -183,7 +207,7 @@ function vulAanUitGoogleBooks() {
   var reden = !limiet ? '' : (echteLimiet ? ' (daglimiet van Google bereikt)' : ' (Google weigert)');
   logboek('menu', 'vulAanUitGoogleBooks', verwerkt + ' opgevraagd, ' + gekend + ' gekend bij Google, ' + aangevuld + ' covers gevonden, ' + rest + ' te gaan' + reden + (fout ? '. Google meldt: ' + fout : '') + (sleutel ? '' : '. Er staat geen google_books_api_key in Instellingen.'));
   var tekst = verwerkt + ' boeken opgevraagd bij Google Books, ' + aangevuld + ' covers gevonden.';
-  if (rest > 0) tekst += limiet ? ' De daglimiet van Google is bereikt: over 6 uur gaat het script vanzelf verder.' : ' Nog ' + rest + ' te gaan: het script gaat over een minuut vanzelf verder.';
+  if (rest > 0) tekst += limiet ? ' De daglimiet van Google is bereikt: het script gaat vanzelf verder als Google ze terugzet, rond 9 uur in de ochtend.' : ' Nog ' + rest + ' te gaan: het script gaat over een minuut vanzelf verder.';
   else tekst += ' Alles is verwerkt. Het script zoekt nu nog ontbrekende beschrijvingen.';
   try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
 }
