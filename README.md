@@ -336,6 +336,12 @@ Een nieuwe code maken? Maak de cel `code_vrijwilliger` leeg en kies **Madrigal >
 - **Een oud rooster overnemen:** importeer het bestand (een tabblad per maand) via **Bestand > Importeren > Uploaden > Nieuwe bladen invoegen**. Kies dan **Madrigal > Eenmalig bij de start > Neem een oud rooster over uit de tabbladen**. Wie in de bib stond en wie back-up was, komt in het tabblad **Shifts**, net als de avonden dat de bib dicht was of een workshop had. Daarna mag je de geïmporteerde tabbladen verwijderen.
 - **Cijfers:** het bestuursscherm toont onder Cijfers hoeveel vrijdagen elke vrijwilliger dit jaar de bib openhield of back-up was. Namen van vrijwilligers staan nooit op de website.
 
+### Verkopen op een standje
+
+- **Je voorraad staat in de Catalogus.** Vul per boek dat te koop is `te_koop_aantal` (hoeveel exemplaren), `prijs` (in euro) en `onderhandelbaar` (`ja` of `nee`) in. Die exemplaren staan los van de uitleenbare in `aantal`.
+- **Tabblad Voorraad:** een overzicht dat het script zelf schrijft: wat te koop is, de waarde, wat al verkocht werd en wat dat opbracht. Pas er niets in aan. Het volgt vanzelf na elke verkoop en als je in de Catalogus `te_koop_aantal`, `prijs` of `onderhandelbaar` wijzigt. Klopt het niet? **Madrigal > Verkoop > Werk de voorraad bij.**
+- **Standjes, Standje boeken en Verkopen** vult het verkoopscherm (`verkoop.html`). Je vult ze niet zelf in.
+
 ### Films
 
 Films (dvd's) staan in de Catalogus, net als de boeken, met soort `film` en een nummer F0001. Je leent ze uit, reserveert ze en brengt ze terug aan de balie zoals een boek. Op de website hebben ze een eigen pagina, `films.html`, met filters op genre, land en periode.

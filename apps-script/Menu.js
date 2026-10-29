@@ -90,6 +90,9 @@ function installeer() {
   ScriptApp.newTrigger('maakBackup').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(4).create();
   ScriptApp.newTrigger('bijWijziging').forSpreadsheet(ss).onEdit().create();
 
+  // Het tabblad Voorraad (Verkoop.js): een overzicht dat het script zelf schrijft.
+  try { schrijfVoorraad(leesTabel('Catalogus').rijen, leesTabel('Verkopen').rijen); } catch (e) { /* later via Madrigal > Verkoop */ }
+
   ordenTabbladen(ss);
   logboekNieuwsteBoven(ss.getSheetByName('Logboek'));
   logboek('menu', 'installeer', 'tabbladen klaar');
@@ -133,6 +136,8 @@ function onOpen() {
       .addItem('Haal de Letterboxd-lijst op', 'haalLetterboxdLijst')
       .addItem('Neem de films over uit dit tabblad (CSV van IMDb of Letterboxd)', 'neemFilmsOverUitTabblad')
       .addItem('Vul de films aan (Wikidata en Wikipedia)', 'vulFilmsAan'))
+    .addSubMenu(ui.createMenu('Verkoop')
+      .addItem('Werk de voorraad bij', 'voorraadBijwerkenMenu'))
     .addSubMenu(ui.createMenu('Onderhoud')
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
       .addItem('Maak nu een back-up', 'maakBackupMenu')
@@ -169,6 +174,7 @@ function verversMenu() {
 function bijWijziging(e) {
   var naam = e && e.range ? e.range.getSheet().getName() : '';
   if (['Catalogus', 'Onderwerpen', 'Instellingen', 'Uitleningen', 'Reservaties', 'Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten'].indexOf(naam) > -1) leegCache();
+  if (naam === 'Catalogus') voorraadBijWijziging(e); // zie Verkoop.js
 }
 
 /** Opmaak van de kopregel: vet, vastgezet. */
