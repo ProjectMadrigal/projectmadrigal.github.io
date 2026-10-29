@@ -18,6 +18,7 @@
   var HANDLEIDING = 'madrigal_handleiding_taal';
 
   var TEKST = {
+   "GoatCounter gaf het totaal niet. Dit getal en het verloop zijn opgeteld uit de meest bekeken pagina's, dus een ondergrens": "GoatCounter did not return the total. This number and the trend are added up from the most viewed pages, so it is a minimum",
    "Terug naar het menu": "Back to the menu",
    "niemand": "nobody",
    "Project Madrigal, boeken verkopen op een standje": "Project Madrigal, selling books at a stand",

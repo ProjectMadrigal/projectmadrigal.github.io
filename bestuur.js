@@ -811,7 +811,8 @@
       return [el('h4', {}, titel), rijen.length ? staafTabel(titel, kolom, rijen) : el('p', { class: 'hulptekst' }, 'Nog niets geteld.')];
     };
     D.vervang(vak,
-      el('p', { class: 'groot-getal' }, el('strong', {}, String(c.totaal)), ' bezoekers'),
+      el('p', { class: 'groot-getal' }, el('strong', {}, (c.geschat ? 'ongeveer ' : '') + String(c.totaal)), ' bezoekers'),
+      c.geschat ? el('p', { class: 'hulptekst' }, 'GoatCounter gaf het totaal niet. Dit getal en het verloop zijn opgeteld uit de meest bekeken pagina\'s, dus een ondergrens.') : null,
       el('p', { class: 'hulptekst' }, 'Wie dezelfde pagina meerdere keren op een dag bekijkt, telt één keer. Bezoekers met "niet volgen" in hun browser tellen niet mee. De cijfers vernieuwen elk half uur.'),
       lijstOfNiets(c.perWeek ? 'Per week' : 'Per dag', c.perWeek ? 'Week van' : 'Dag', vanafEersteTelling(c.verloop).map(function (s) { return [tijd(s.dag), s.n]; })),
       lijstOfNiets('Meest bekeken pagina\'s', 'Pagina', c.paginas.map(function (p) { return [paginaNaam(p), p.n]; })),
