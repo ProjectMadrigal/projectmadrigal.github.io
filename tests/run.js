@@ -2253,6 +2253,18 @@ test('te vervangen: verloren exemplaren, niet bij Terug te zetten, vervangen of 
   assert.strictEqual(M.isVerlorenUitlening(s.uitleningen[0]), true, 'Blijft een verloren uitlening voor de cijfers');
 });
 
+test('verlengen met een zelf gekozen datum, op een openingsdag', () => {
+  const s = maakStaat();
+  s.uitleningen = [];
+  uitleen(s, 'B0001', '1');
+  const u = s.uitleningen[0];
+  assert.strictEqual(M.verlengen(s, { uitlening_id: u.uitlening_id, tot: '2026-10-20' }).ok, false, 'Niet in het verleden');
+  assert.strictEqual(M.verlengen(s, { uitlening_id: u.uitlening_id, tot: '2027-06-01' }).ok, false, 'Niet verder dan 6 maanden');
+  assert.strictEqual(M.verlengen(s, { uitlening_id: u.uitlening_id, tot: 'morgen' }).ok, false);
+  const r = M.verlengen(s, { uitlening_id: u.uitlening_id, tot: '2026-12-29' });
+  gelijk([r.ok, u.vervaldatum, Number(u.aantal_verlengingen)], [true, '2027-01-01', 1], 'Dinsdag schuift naar vrijdag');
+});
+
 test('uitlening aanpassen: termijn met dagen verschuiven, verlenging en uitlening annuleren', () => {
   const s = maakStaat();
   uitleen(s, 'B0001', '1');

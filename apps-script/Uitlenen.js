@@ -453,6 +453,14 @@ function verlengen(staat, invoer) {
   var stop = behandelGrenzen(staat, 'verlengen', { uitlening: u, boek: boekVan(staat, u.boek_id), lener: lenerVan(staat, u.lenersnummer) }, invoer);
   if (stop) return stop;
   var nieuw = berekenVerlenging(u.vervaldatum, staat.inst);
+  // Zelf een datum gekozen aan de balie (bv. de lener kan pas later komen)? Dan die, op een openingsdag.
+  if (!isLeeg(invoer.tot)) {
+    var gekozen = parseerDatum(invoer.tot);
+    if (!gekozen) return { ok: false, fout: 'Deze datum klopt niet. Kies een datum in de kalender.' };
+    if (gekozen <= staat.vandaag) return { ok: false, fout: 'Kies een datum na vandaag.' };
+    if (gekozen > telMaandenOp(staat.vandaag, 6)) return { ok: false, fout: 'Kies een datum binnen de 6 maanden. Langer kan enkel het bestuur afspreken.' };
+    nieuw = staat.inst.terugbrengdatum_op_openingsdag ? volgendeOpeningsdag(gekozen, staat.inst, true) : gekozen;
+  }
   wijzig(u, {
     vervaldatum: nieuw,
     vorige_vervaldatum: u.vervaldatum,

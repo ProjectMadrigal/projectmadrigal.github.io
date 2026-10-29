@@ -83,6 +83,7 @@ function balieGegevens(staat) {
       borg_betaalwijzen: staat.inst.borg_betaalwijzen,
       gift_mogelijk: staat.inst.gift_mogelijk,
       max_boeken_per_lener: staat.inst.max_boeken_per_lener,
+      verlengingstermijn_weken: staat.inst.verlengingstermijn_weken,
       checklist_uitlenen: checklistPunten(staat.inst.tekst_checklist_uitlenen)
     },
     privacy: staat.inst.tekst_privacy,

@@ -418,16 +418,24 @@
       id: 'verleng-zoek', label: 'Zoek het boek of de lener', hulp: '(titel, nummer op het etiket, lenersnummer of voornaam)',
       zoek: zoekLopend, toon: uitleningKnop, kies: bevestigVerlengen, leeg: 'Geen lopende uitlening gevonden.'
     });
-    scherm('Verlengen', el('p', {}, 'Een lener vraagt meestal per mail om te verlengen. Het boek krijgt er 4 weken bij, tot een openingsdag.'), k);
+    scherm('Verlengen', el('p', {}, 'Een lener vraagt meestal per mail om te verlengen. Kies het boek. Daarna zie je de nieuwe terugbrengdatum, die je nog kan aanpassen.'), k);
     k.toon();
     focusOp('verleng-zoek');
 
     function bevestigVerlengen(u) {
       var fout = foutVak();
       var knop = el('button', { type: 'button', class: 'knop breed' }, 'Bevestig de verlenging');
+      // De voorgestelde datum: de huidige vervaldatum plus de termijn. Een andere datum kiezen mag.
+      var weken = Number((data.instellingen || {}).verlengingstermijn_weken) || 4;
+      var basis = new Date(String(u.vervaldatum) + 'T12:00:00Z');
+      basis.setUTCDate(basis.getUTCDate() + weken * 7);
+      var voorstel = basis.toISOString().slice(0, 10);
+      var datum = el('input', { type: 'date', id: 'verleng-datum', value: voorstel });
       knop.addEventListener('click', function () {
         var klaar = bezig(knop);
-        B.voerUit('verlengen', { uitlening_id: u.uitlening_id }, klaar).then(function (r) {
+        var invoer = { uitlening_id: u.uitlening_id };
+        if (datum.value && datum.value !== voorstel) invoer.tot = datum.value;
+        B.voerUit('verlengen', invoer, klaar).then(function (r) {
           klaar();
           if (r.geannuleerd) return;
           if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
@@ -441,6 +449,8 @@
       });
       scherm('Verlengen',
         gekozenVak(el('div', {}, el('p', {}, el('strong', {}, u.titel), el('br'), 'lener ' + u.lenersnummer + ' (' + u.voornaam + ')'), B.uitleenStatus(u)), toonVerlengen),
+        el('div', { class: 'veld' }, el('label', { for: 'verleng-datum' }, 'Nieuwe terugbrengdatum ',
+          el('span', { class: 'hulptekst' }, '(' + weken + ' weken erbij. Kan de lener pas later komen? Kies een andere datum. Ze schuift naar een openingsdag.)')), datum),
         fout, el('div', { class: 'knoppen' }, knop));
     }
   }

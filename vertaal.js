@@ -18,6 +18,11 @@
   var HANDLEIDING = 'madrigal_handleiding_taal';
 
   var TEKST = {
+   "Nieuwe terugbrengdatum": "New return date",
+   "Een lener vraagt meestal per mail om te verlengen. Kies het boek. Daarna zie je de nieuwe terugbrengdatum, die je nog kan aanpassen": "A borrower usually asks by email to extend. Choose the book. Then you see the new return date, which you can still change",
+   "Deze datum klopt niet. Kies een datum in de kalender": "This date is not valid. Choose a date in the calendar",
+   "Kies een datum na vandaag": "Choose a date after today",
+   "Kies een datum binnen de 6 maanden. Langer kan enkel het bestuur afspreken": "Choose a date within 6 months. Only the board can agree on longer",
    "Foto of link van de cover": "Photo or link for the cover",
    "Of plak een link": "Or paste a link",
    "naar een afbeelding, een webpagina zoals bol.com, of uit Google Afbeeldingen": "to an image, a web page such as bol.com, or from Google Images",
@@ -880,6 +885,8 @@
     }],
     [/^De afbeelding is de cover van (".+")\.(.*)$/, function (m, t, rest) { return 'The image is the cover of ' + t + '.' + rest.replace(' De website toont ze binnen enkele minuten.', ' The website shows it within a few minutes.'); }],
     [/^Deze link opent niet( \(code \d+\))?\. Probeer een andere link, of neem een foto\.$/, 'This link does not open$1. Try another link, or take a photo.'],
+    [/^\((\d+) weken erbij\. Kan de lener pas later komen\? Kies een andere datum\. Ze schuift naar een openingsdag\.\)$/, '($1 more weeks. Can the borrower only come later? Choose another date. It moves to an opening day.)'],
+    [/^Nieuwe datum: breng terug tegen (.+)$/, 'New date: return by $1'],
     // Uitleenscherm.
     [/^Aan de balie: (.+)$/, 'At the desk: $1'],
     [/^Te laat sinds (.+) \((\d+) dagen?\)$/, function (m, d, n) { return 'Overdue since ' + d + ' (' + n + (n === '1' ? ' day' : ' days') + ')'; }],

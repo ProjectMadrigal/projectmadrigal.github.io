@@ -795,6 +795,20 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("← Menu")');
     await page.click('#werkvlak button:has-text("Handleiding")');
     verwacht(/De sleutel/.test(await page.textContent('#werkvlak')), 'Handleiding aan de balie');
+    // Verlengen met een andere datum.
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await page.click('button:has-text("← Menu")');
+    await page.click('#werkvlak nav button:has-text("Verlengen")');
+    await page.fill('#verleng-zoek', 'verzonnen');
+    await page.click('#werkvlak .keuzeknop');
+    verwacht((await page.inputValue('#verleng-datum')) === '2026-11-15', 'Voorgestelde datum: ' + (await page.inputValue('#verleng-datum')));
+    await page.fill('#verleng-datum', '2026-11-27');
+    await page.click('button:has-text("Bevestig de verlenging")');
+    await page.waitForSelector('text=Verlengd');
+    verwacht(vragen.some((v) => v.actie === 'verlengen' && v.tot === '2026-11-27'), 'Gekozen datum niet verstuurd');
+    await page.click('button:has-text("Klaar")');
+    await page.click('#werkvlak button:has-text("Handleiding")');
     await page.click('.taal-knop');
     await page.waitForFunction(() => document.documentElement.lang === 'en');
     await page.click('#werkvlak button:has-text("English")');
