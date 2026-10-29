@@ -967,13 +967,15 @@
   }
 
   /** Enkel uitgaven met precies dit ISBN. */
+  /** Uitgaven met precies dit ISBN, anders uitgaven zonder enig ISBN (zoals googleItemsMetIsbn in het script). */
   function metIsbn(items, isbn) {
     var gezocht = [isbn, isbn13Naar10(isbn)].filter(Boolean);
-    return (items || []).filter(function (it) {
-      return ((it.volumeInfo || {}).industryIdentifiers || []).some(function (id) {
-        return gezocht.indexOf(String(id.identifier || '').replace(/[^0-9X]/gi, '').toUpperCase()) > -1;
-      });
-    });
+    function isbns(it) {
+      return ((it.volumeInfo || {}).industryIdentifiers || []).filter(function (id) { return /^ISBN/.test(String(id.type || '')); })
+        .map(function (id) { return String(id.identifier || '').replace(/[^0-9X]/gi, '').toUpperCase(); });
+    }
+    var juist = (items || []).filter(function (it) { return isbns(it).some(function (i) { return gezocht.indexOf(i) > -1; }); });
+    return juist.length ? juist : (items || []).filter(function (it) { return !isbns(it).length; });
   }
 
   /**

@@ -129,7 +129,8 @@ function googleBooksControle(sleutel, zoek) {
   zoek = zoek || function (isbn) { return googleBooksZoek(isbn, sleutel); };
   for (var i = 0; i < GB_CONTROLE_ISBNS.length; i++) {
     var r = zoek(GB_CONTROLE_ISBNS[i]);
-    if (r.items.length) return { werkt: true, fout: null };
+    // Vond Google iets (ook een andere uitgave), dan werken de verbinding en de sleutel.
+    if (r.items.length || r.totaal > 0) return { werkt: true, fout: null };
     if (r.fout) return { werkt: false, fout: r };
   }
   return { werkt: false, fout: null };
