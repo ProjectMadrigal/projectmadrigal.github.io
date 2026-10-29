@@ -914,12 +914,34 @@ async function meldAan(page, basis, pagina) {
     verwacht(vragen.some((x) => x.actie === 'aankoopAanpassen' && x.aankoop_id === 'K0001' && x.gekozen === true), 'Aanduiden stuurt niets door');
     // bol.com inlezen: wat al in de catalogus staat, is niet aangevinkt.
     await page.click('summary:has-text("Lijst van bol.com inlezen")');
-    await page.fill('#ak-bol', 'https://voorbeeld.test/lijst');
-    await page.click('button:has-text("Lees de lijst")');
-    await page.waitForSelector('text=Plak de link van je lijst op bol.com');
-    await page.fill('#ak-bol', 'https://www.bol.com/nl/nl/lijst/verzonnen');
-    await page.click('button:has-text("Lees de lijst")');
+    // Hier op de bladwijzer klikken doet niets, behalve uitleggen dat je hem moet slepen.
+    await page.click('#ak-bladwijzer-link');
+    await page.waitForSelector('text=Sleep deze knop naar je bladwijzerbalk');
+    // De bladwijzer op een (nagebootste) lijst bij bol.com: leest de boekpagina's en kopieert.
+    const code = decodeURIComponent((await page.getAttribute('#ak-bladwijzer-link', 'href')).slice('javascript:'.length));
+    await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'https://www.bol.com' });
+    await ctx.route('https://www.bol.com/**', (r) => {
+      const u = r.request().url();
+      const body = /lijst/.test(u) ? '<html><body><a href="/nl/nl/p/nieuwe-roman/9300000111111111/?x=1">Nieuwe roman</a><a href="/nl/nl/p/nieuwe-roman/9300000111111111/">dubbel</a><a href="/nl/nl/p/stille-lichten/9300000222222222/">Stille lichten</a></body></html>'
+        : /nieuwe-roman/.test(u) ? '<html><head><script type="application/ld+json">{"@type":"Product","name":"Nieuwe verzonnen roman","gtin13":"9780306406157","offers":{"price":"21.50"}}</script></head><body>' + 'x'.repeat(5000) + '</body></html>'
+        : '<html><head><meta property="og:title" content="Stille lichten | bol"></head><body>EAN</dt><dd>9781861972712</body></html>';
+      r.fulfill({ contentType: 'text/html', body });
+    });
+    const bol = await ctx.newPage();
+    await bol.goto('https://www.bol.com/nl/nl/lijst/verzonnen');
+    await bol.evaluate(code);
+    await bol.waitForSelector('text=Madrigal las 2 van de 2 boeken');
+    await bol.click('button:has-text("Kopieer voor Madrigal")');
+    await bol.waitForSelector('text=Gekopieerd!');
+    const gekopieerd = await bol.evaluate(() => navigator.clipboard.readText());
+    verwacht(/^MADRIGAL1\[/.test(gekopieerd) && gekopieerd.includes('9780306406157') && gekopieerd.includes('og:title') && gekopieerd.length < 3000, 'Gekopieerd: ' + gekopieerd.slice(0, 200));
+    await bol.close();
+    await page.fill('#ak-bladwijzer', 'iets anders');
+    await page.fill('#ak-bladwijzer', gekopieerd);
+    await page.click('button:has-text("Lees in")');
     await page.waitForSelector('text=2 boeken gelezen');
+    const lees = vragen.filter((x) => x.actie === 'aankoopLezen').pop();
+    verwacht(lees && lees.bladwijzer === gekopieerd, 'Niet doorgestuurd');
     verwacht(await page.isChecked('#ak-lees-0') && !(await page.isChecked('#ak-lees-1')), 'Vinkjes na het inlezen');
     await page.click('button:has-text("Zet de aangevinkte op de aankooplijst")');
     await page.waitForSelector('text=1 boek staat nu op de aankooplijst.');

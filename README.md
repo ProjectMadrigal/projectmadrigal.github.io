@@ -339,7 +339,7 @@ Een nieuwe code maken? Maak de cel `code_vrijwilliger` leeg en kies **Madrigal >
 ### Aankooplijst
 
 - **Bestuursscherm en vrijwilligersscherm > Website > Aankooplijst.** Iedereen stelt een boek voor: titel, auteur, ISBN, link en waarom. Vrijwilligers kunnen enkel toevoegen.
-- **Lijst van bol.com inlezen (bestuur):** plak de deellink van je lijst. Het script leest elk boek (titel, auteur, ISBN, prijs, genre) en jij vinkt aan wat op de aankooplijst komt. Laat bol.com het script niet binnen, plak dan de ISBN's: het script zoekt titel, auteur en genre op bij Google Books.
+- **Lijst van bol.com inlezen (bestuur, op een computer):** bol.com weigert het script, maar niet je browser. Sleep eenmalig de knop **Naar Madrigal** naar je bladwijzerbalk. Open je lijst op bol.com, scroll tot onderaan en klik op de bladwijzer. Die leest elk boek (titel, auteur, ISBN, prijs, genre). Klik **Kopieer voor Madrigal**, plak het in de aankooplijst en klik **Lees in**. Je vinkt aan wat op de aankooplijst komt. Of plak ISBN's: het script zoekt titel, auteur en genre op bij Google Books.
 - **Aanduiden en lijst trekken (bestuur):** vink **Aanduiden voor aankoop** aan en kies **Trek de aankooplijst**: afdrukken of als PDF bewaren, kopiëren voor een mail, of downloaden als CSV.
 - **Vanzelf afgevinkt:** komt een boek in de Catalogus (zelfde ISBN, of zelfde titel en auteur), dan staat het bij **In de catalogus**. Het bestuur verwijdert die boeken één voor één of allemaal tegelijk.
 - Alles staat in het tabblad **Aankooplijst** van de spreadsheet.

@@ -283,7 +283,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'beheerLogboek') return logboekEnTaken(); // leest enkel, geen slot nodig
   if (actie === 'beheerCoverLinks') return coverLinks(leesTabel('Catalogus').rijen); // leest enkel
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
-  if (actie === 'aankoopLezen') return aankoopLezen(invoer); // leest enkel bij bol.com of Google Books: kan even duren, dus zonder slot
+  if (actie === 'aankoopLezen') return aankoopLezen(invoer); // leest wat de bladwijzer kopieerde, of zoekt ISBN's op bij Google Books: zonder slot
 
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { ok: false, fout: 'Het is even druk. Probeer het over een paar seconden opnieuw.' };

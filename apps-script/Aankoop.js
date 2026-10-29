@@ -4,9 +4,10 @@
  *
  *   - Vrijwilligers en het bestuur stellen boeken voor (titel, auteur, ISBN, link, waarom).
  *     Vrijwilligers voegen enkel toe. Aanpassen, aanduiden en verwijderen kan enkel het bestuur.
- *   - Het bestuur leest een lijst van bol.com in via de deellink. Het script leest die pagina en
- *     daarna elke boekpagina (titel, auteur, ISBN, prijs, genre). Lukt dat niet (bol.com laat niet
- *     elk script binnen), dan kan je ISBN's plakken: het script zoekt de rest op bij Google Books.
+ *   - Het bestuur leest een lijst van bol.com in met de bladwijzer "Naar Madrigal" (zie aankoop.js).
+ *     bol.com weigert de servers van Google (code 403), daarom leest de bladwijzer de boekpagina's
+ *     in de browser en kopieert hij de nodige stukjes. Dit script haalt daar titel, auteur, ISBN,
+ *     prijs en genre uit. Of je plakt ISBN's: dan zoekt het script de rest op bij Google Books.
  *   - Komt een boek in de Catalogus (zelfde ISBN, of zelfde titel en auteur), dan krijgt het de
  *     status "in catalogus". Het blijft bewaard, en het bestuur kan het daarna echt verwijderen.
  *   - Het bestuur duidt boeken aan (kolom gekozen) en trekt daarvan een lijst: afdrukken,
@@ -18,8 +19,6 @@
 var AANKOOP_STATUS_OPEN = 'open';
 var AANKOOP_STATUS_BINNEN = 'in catalogus';
 var AANKOOP_MAX_BOL = 80;          // zoveel boeken leest het script hoogstens van één bol.com-lijst
-var AANKOOP_BOL_PAUZE_MS = 300;
-var AANKOOP_BOL_MAX_MS = 4 * 60 * 1000;
 
 /* ---------- Herkennen ---------- */
 
@@ -212,30 +211,6 @@ function htmlTekst(t) {
 }
 
 /**
- * De productlinks op een lijstpagina van bol.com: /nl/nl/p/titel/9200000012345678/.
- * Geeft unieke volledige links terug, in de volgorde van de pagina.
- */
-function bolProductLinks(html) {
-  var gezien = {}, links = [];
-  var re = /(?:https:\/\/www\.bol\.com)?(\/[a-z]{2}\/[a-z]{2}\/p\/[^"'\s?#<>]*?\/(\d{6,20}))\/?/g, m;
-  while ((m = re.exec(String(html || '')))) {
-    if (gezien[m[2]]) continue;
-    gezien[m[2]] = true;
-    links.push('https://www.bol.com' + m[1] + '/');
-  }
-  // Ook een lijst in JSON-LD (ItemList) telt mee.
-  jsonLdUitHtml(html).forEach(function (o) {
-    if (!ldType(o, 'itemlist')) return;
-    [].concat(o.itemListElement || []).forEach(function (el) {
-      var url = el && (el.url || (el.item && (el.item.url || el.item['@id'])));
-      var id = url && String(url).match(/\/p\/[^?#]*?\/(\d{6,20})/);
-      if (id && !gezien[id[1]]) { gezien[id[1]] = true; links.push(String(url).replace(/^\/\//, 'https://')); }
-    });
-  });
-  return links;
-}
-
-/**
  * Wat een boekpagina van bol.com over het boek zegt: titel, auteur, ISBN, prijs, genre.
  * Eerst de gestructureerde gegevens (JSON-LD), daarna wat er als tekst op de pagina staat.
  */
@@ -278,33 +253,26 @@ function bolBoekUitHtml(html, link) {
   return boek;
 }
 
+var BLADWIJZER_KOP = 'MADRIGAL1'; // zo begint wat de bladwijzer kopieert (zie aankoop.js)
+
 /**
- * Leest een lijst van bol.com: de lijstpagina, daarna elke boekpagina.
- * haal(url) geeft { code, tekst }. Geeft { ok, boeken, fout } terug. Schrijft niets weg.
+ * Wat de bladwijzer "Naar Madrigal" kopieerde: MADRIGAL1 en een lijst { l: link, h: stukjes van de boekpagina }.
+ * Geeft { ok, boeken, overgeslagen } of { ok: false, fout }.
  */
-function aankoopUitBol(link, haal, pauze, maxMs) {
-  if (!isBolLink(link)) return { ok: false, fout: 'Plak de link van je lijst op bol.com (die begint met https://www.bol.com/).' };
-  var start = Date.now();
-  var lijst = haal(link);
-  if (!lijst || lijst.code !== 200) {
-    return { ok: false, fout: 'bol.com liet het script niet binnen (code ' + (lijst ? lijst.code : '?') + '). Plak de ISBN\'s in het vak eronder.' };
-  }
-  var links = bolProductLinks(lijst.tekst);
-  // Een link naar één boek: dat boek zelf.
-  if (!links.length && /\/p\//.test(link)) links = [link];
-  if (!links.length) return { ok: false, fout: 'Op deze pagina vond het script geen boeken. Is de lijst openbaar gedeeld? Anders: plak de ISBN\'s in het vak eronder.' };
+function aankoopUitBladwijzer(tekst) {
+  var t = String(tekst || '').trim();
+  if (t.indexOf(BLADWIJZER_KOP) !== 0) return { ok: false, fout: 'Dit is niet wat de bladwijzer Naar Madrigal kopieerde. Klik op bol.com op de bladwijzer, daarna op Kopieer voor Madrigal, en plak het hier.' };
+  var lijst;
+  try { lijst = JSON.parse(t.slice(BLADWIJZER_KOP.length)); } catch (e) { lijst = null; }
+  if (!Array.isArray(lijst)) return { ok: false, fout: 'Wat je plakte, is niet volledig. Kopieer het opnieuw met de bladwijzer.' };
   var boeken = [], overgeslagen = 0;
-  links.slice(0, AANKOOP_MAX_BOL).forEach(function (l) {
-    if (Date.now() - start > (maxMs || AANKOOP_BOL_MAX_MS)) { overgeslagen++; return; }
-    var p = l === link ? lijst : haal(l);
-    if (p && p.code === 200) {
-      var b = bolBoekUitHtml(p.tekst, l);
-      if (b.titel) boeken.push(b);
-    } else overgeslagen++;
-    if (pauze) pauze();
+  lijst.slice(0, AANKOOP_MAX_BOL).forEach(function (x) {
+    var link = x && isBolLink(x.l) ? schoon(x.l) : '';
+    var b = link ? bolBoekUitHtml(String(x.h || ''), link) : null;
+    if (b && b.titel) boeken.push(b); else overgeslagen++;
   });
-  overgeslagen += Math.max(0, links.length - AANKOOP_MAX_BOL);
-  if (!boeken.length) return { ok: false, fout: 'bol.com liet de boekpagina\'s niet lezen. Plak de ISBN\'s in het vak eronder.' };
+  overgeslagen += Math.max(0, lijst.length - AANKOOP_MAX_BOL);
+  if (!boeken.length) return { ok: false, fout: 'Het script vond geen boeken in wat de bladwijzer kopieerde.' };
   return { ok: true, boeken: boeken, overgeslagen: overgeslagen };
 }
 
@@ -329,16 +297,7 @@ function isbnsUitTekst(tekst) {
 
 /* ---------- In Apps Script ---------- */
 
-/** Haalt een pagina van bol.com op, zoals een browser. */
-function haalBolPagina(url) {
-  var r = haalExtern(url, {
-    muteHttpExceptions: true, followRedirects: true,
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProjectMadrigal/1.0; +https://projectmadrigal.github.io)', 'Accept-Language': 'nl-BE,nl;q=0.9' }
-  });
-  return { code: r.getResponseCode(), tekst: r.getContentText() };
-}
-
-/** Actie aankoopLezen (bestuur, zonder slot: leest enkel): { link } of { isbns }. Geeft boeken om na te kijken. */
+/** Actie aankoopLezen (bestuur, zonder slot: leest enkel): { bladwijzer } of { isbns }. Geeft boeken om na te kijken. */
 function aankoopLezen(invoer) {
   var r;
   if (!isLeeg(invoer.isbns)) {
@@ -352,7 +311,7 @@ function aankoopLezen(invoer) {
     });
     r = { ok: true, boeken: boeken, overgeslagen: 0 };
   } else {
-    r = aankoopUitBol(schoon(invoer.link), haalBolPagina, function () { Utilities.sleep(AANKOOP_BOL_PAUZE_MS); });
+    r = aankoopUitBladwijzer(invoer.bladwijzer);
   }
   if (!r.ok) return r;
   // Wat al in de catalogus of op de lijst staat, krijgt een vlag: dat voegt het scherm niet nog eens toe.

@@ -3,7 +3,8 @@
  * De aankooplijst in het bestuursscherm en het vrijwilligersscherm. Zie apps-script/Aankoop.js.
  *
  *   - Iedereen stelt een boek voor: titel, auteur, ISBN, link en waarom.
- *   - Enkel het bestuur (in het bestuursscherm): een lijst van bol.com inlezen (of ISBN's plakken),
+ *   - Enkel het bestuur (in het bestuursscherm): een lijst van bol.com inlezen met de bladwijzer
+ *     "Naar Madrigal" (of ISBN's plakken),
  *     boeken aanpassen, aanduiden voor aankoop en verwijderen, en een lijst trekken van de
  *     aangeduide boeken: afdrukken, kopiëren of als CSV.
  *   - Boeken die in de catalogus komen, vinkt het script vanzelf af ("in de catalogus").
@@ -97,14 +98,81 @@
 
   /* ---------- Een lijst van bol.com of ISBN's inlezen (bestuur) ---------- */
 
+  /**
+   * De bladwijzer "Naar Madrigal". bol.com weigert de servers van Google, maar niet je eigen browser.
+   * Deze functie draait als bladwijzer op je lijst bij bol.com: ze opent elk boek van de lijst (in de
+   * achtergrond), houdt enkel de stukjes met titel, auteur, ISBN, prijs en genre, en kopieert alles.
+   * Ze moet op zichzelf werken (geen hulpfuncties van deze pagina): ze wordt als tekst in de link gezet.
+   */
+  function bladwijzerCode() {
+    var KOP = 'MADRIGAL1', MAX = 80;
+    if (!/(^|\.)bol\.com$/.test(location.hostname)) { alert('Open eerst je lijst op bol.com en klik dan op de bladwijzer Naar Madrigal.'); return; }
+    var gezien = {}, links = [];
+    Array.prototype.forEach.call(document.querySelectorAll('a[href*="/p/"]'), function (a) {
+      var m = String(a.href).split(/[?#]/)[0].match(/^https:\/\/www\.bol\.com\/[a-z]{2}\/[a-z]{2}\/p\/[^\/]+\/(\d{6,20})\/?$/);
+      if (m && !gezien[m[1]]) { gezien[m[1]] = 1; links.push(m[0]); }
+    });
+    if (!links.length) { alert('Madrigal vond geen boeken op deze pagina. Scroll eerst tot onderaan je lijst, zodat alle boeken geladen zijn, en klik dan opnieuw.'); return; }
+    links = links.slice(0, MAX);
+    var doos = document.createElement('div');
+    doos.setAttribute('role', 'status');
+    doos.setAttribute('style', 'position:fixed;z-index:2147483647;top:1rem;right:1rem;max-width:24rem;background:#1b1b1c;color:#fff;font:16px/1.4 sans-serif;padding:1rem;border:3px solid #ffcd30;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.4)');
+    document.body.appendChild(doos);
+    var uit = [];
+    function stukjes(html) {
+      var delen = [], re = /<script[^>]+application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi, m;
+      while ((m = re.exec(html))) delen.push(m[0]);
+      [/<meta[^>]+og:title[^>]*>/i, /<meta[^>]+itemprop=["']price["'][^>]*>/i, /(?:EAN|ISBN)[^0-9]{0,200}?97[89]\d{10}/,
+        />\s*Auteur\s*<[\s\S]{0,300}?<\/a>/i, />\s*(?:Hoofdcategorie|Genre|Categorie)\s*<[\s\S]{0,300}?>[^<>]{3,60}</i].forEach(function (r) {
+        var x = html.match(r);
+        if (x) delen.push(x[0]);
+      });
+      return delen.join('\n');
+    }
+    function knop(tekst, actie) {
+      var k = document.createElement('button');
+      k.textContent = tekst;
+      k.setAttribute('style', 'margin:.6rem .4rem 0 0;padding:.5rem .8rem;font:inherit;font-weight:bold;background:#ffcd30;color:#1b1b1c;border:0;border-radius:6px;cursor:pointer');
+      k.onclick = actie;
+      doos.appendChild(k);
+      return k;
+    }
+    function klaar() {
+      var tekst = KOP + JSON.stringify(uit);
+      doos.textContent = 'Madrigal las ' + uit.length + ' van de ' + links.length + ' boeken. Kopieer en plak het in de aankooplijst.';
+      var k = knop('Kopieer voor Madrigal', function () {
+        function toon() {
+          var vak = document.createElement('textarea');
+          vak.value = tekst;
+          vak.setAttribute('style', 'display:block;width:100%;height:6rem;margin-top:.6rem');
+          doos.appendChild(vak);
+          vak.select();
+          k.textContent = 'Kopieer met Ctrl+C (Cmd+C op een Mac)';
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(tekst).then(function () { k.textContent = 'Gekopieerd! Plak het nu in de aankooplijst.'; }, toon);
+        } else toon();
+      });
+      knop('Sluit', function () { doos.remove(); });
+    }
+    function volgende(i) {
+      if (i >= links.length) { klaar(); return; }
+      doos.textContent = 'Madrigal leest boek ' + (i + 1) + ' van ' + links.length + '...';
+      fetch(links[i], { credentials: 'include' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (h) {
+        if (h) uit.push({ l: links[i], h: stukjes(h) });
+      }, function () { /* dit boek overslaan */ }).then(function () { setTimeout(function () { volgende(i + 1); }, 300); });
+    }
+    volgende(0);
+  }
+
   function inleesBlok(vak, ctx) {
-    var link = el('input', { type: 'url', id: 'ak-bol', placeholder: 'https://www.bol.com/...' });
+    var geplakt = el('textarea', { id: 'ak-bladwijzer', rows: '3' });
     var isbns = el('textarea', { id: 'ak-isbns', rows: '3' });
     var fout = el('div', { 'aria-live': 'assertive' });
     var resultaat = el('div', { 'aria-live': 'polite' });
     function lees(invoer, knop) {
       knop.disabled = true;
-      B.melding(fout, 'info', 'Even geduld: het script leest elk boek apart. Dat kan een minuut duren.');
+      B.melding(fout, 'info', 'Even geduld...');
       B.voerUit('aankoopLezen', invoer).then(function (r) {
         knop.disabled = false;
         if (r.geannuleerd) return;
@@ -113,10 +181,16 @@
         nalezen(r, resultaat, vak, ctx);
       });
     }
-    var bolKnop = el('button', { type: 'button', class: 'knop' }, 'Lees de lijst');
-    bolKnop.addEventListener('click', function () {
-      if (!/^https:\/\/(www\.)?bol\.com\//.test(link.value.trim())) { B.melding(fout, 'fout', 'Plak de link van je lijst op bol.com (die begint met https://www.bol.com/).'); link.focus(); return; }
-      lees({ link: link.value.trim() }, bolKnop);
+    // De link is de bladwijzer: sleep hem naar de bladwijzerbalk. Hier klikken doet niets.
+    var bladwijzer = el('a', { class: 'knop tweede bladwijzer', href: 'javascript:' + encodeURIComponent('(' + bladwijzerCode.toString() + ')()'), id: 'ak-bladwijzer-link' }, 'Naar Madrigal');
+    bladwijzer.addEventListener('click', function (e) {
+      e.preventDefault();
+      B.melding(fout, 'info', 'Sleep deze knop naar je bladwijzerbalk (bovenaan je browser). Hier klikken doet niets: je klikt erop als je op bol.com bent.');
+    });
+    var leesKnop = el('button', { type: 'button', class: 'knop' }, 'Lees in');
+    leesKnop.addEventListener('click', function () {
+      if (!geplakt.value.trim()) { B.melding(fout, 'fout', 'Plak eerst wat de bladwijzer kopieerde.'); geplakt.focus(); return; }
+      lees({ bladwijzer: geplakt.value }, leesKnop);
     });
     var isbnKnop = el('button', { type: 'button', class: 'knop tweede' }, 'Zoek deze ISBN\'s op');
     isbnKnop.addEventListener('click', function () {
@@ -124,8 +198,13 @@
       lees({ isbns: isbns.value }, isbnKnop);
     });
     return el('details', { class: 'blok' }, el('summary', {}, 'Lijst van bol.com inlezen'),
-      el('p', {}, 'Open je lijst op bol.com, kies Delen en kopieer de link. Het script leest titel, auteur, ISBN, prijs en genre. Je kijkt alles na voor het op de aankooplijst komt.'),
-      veld('ak-bol', 'Link van je lijst op bol.com', link), knoppen(bolKnop),
+      el('p', {}, 'bol.com laat het script niet binnen, maar je eigen browser wel. Daarom werkt dit met een bladwijzer, op een computer.'),
+      el('ol', {},
+        el('li', {}, 'Eenmalig: zie je geen bladwijzerbalk bovenaan je browser, druk dan Ctrl+Shift+B (Cmd+Shift+B op een Mac). Sleep daarna deze knop naar die balk: ', bladwijzer),
+        el('li', {}, 'Open je lijst op bol.com en scroll tot onderaan, zodat alle boeken geladen zijn.'),
+        el('li', {}, 'Klik in je bladwijzerbalk op Naar Madrigal. Een zwart vak toont hoe ver het is. Klik daarna op Kopieer voor Madrigal.'),
+        el('li', {}, 'Kom terug naar deze pagina, plak het hieronder (Ctrl+V) en klik op Lees in. Je kijkt alles na voor het op de aankooplijst komt.')),
+      veld('ak-bladwijzer', 'Plak hier wat de bladwijzer kopieerde', geplakt), knoppen(leesKnop),
       veld('ak-isbns', 'Of plak ISBN\'s', isbns, '(één per regel of gescheiden door komma\'s. Het script zoekt titel, auteur en genre op, de prijs vul je zelf in)'),
       knoppen(isbnKnop), fout, resultaat);
   }
@@ -319,5 +398,5 @@
   }
 
   // Bij elk bezoek aan het onderdeel: de verse lijst ophalen.
-  root.MadrigalAankoop = { toon: function (vak, ctx) { lijst = null; toon(vak, ctx); }, csvTekst: csvTekst };
+  root.MadrigalAankoop = { toon: function (vak, ctx) { lijst = null; toon(vak, ctx); }, csvTekst: csvTekst, bladwijzerCode: bladwijzerCode };
 })(window);
