@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const BESTANDEN = ['vrijwilligers.js', 'bestuur.js', 'beheer.js', 'bestuur-beheer.js', 'dom.js', 'balie.js'];
+const BESTANDEN = ['vrijwilligers.js', 'bestuur.js', 'beheer.js', 'bestuur-beheer.js', 'dom.js', 'balie.js', 'verkoop.js'];
 
 global.window = {};
 global.document = { querySelector: () => null, documentElement: {} };
@@ -41,7 +41,7 @@ BESTANDEN.forEach((f) => {
 });
 
 // Vaste tekst in de HTML van beide schermen.
-['vrijwilliger.html', 'balie.html'].forEach((f) => {
+['vrijwilliger.html', 'balie.html', 'verkoop.html'].forEach((f) => {
   const html = fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/<script[\s\S]*?<\/script>/g, '').replace(/<!--[\s\S]*?-->/g, '');
   const stukken = (html.match(/>([^<>]+)</g) || []).map((x) => x.slice(1, -1))
     .concat((html.match(/(?:aria-label|placeholder|title|alt)="([^"]+)"/g) || []).map((x) => x.replace(/^[^"]*"|"$/g, '')));

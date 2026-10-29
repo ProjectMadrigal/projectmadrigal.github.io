@@ -58,6 +58,14 @@ const INHOUD = {
   instellingen: [{ titel: 'Website: leeslijsten', instellingen: [{ sleutel: 'leeslijsten_tonen', waarde: 'nee', uitleg: '' }] }]
 };
 
+const VERKOOP = {
+  teKoop: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', prijs: 8, o: true, stock: 3 }],
+  standjes: [{ standje_id: 'S0001', naam: 'Pride Antwerpen', thema: 'Pride', datum: '2026-08-08', locatie: 'Groenplaats', status: 'bezig',
+    boeken: [{ boek_id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', mee: 2, verkocht: 0, prijs: 8, o: true, stock: 3 }],
+    omzet: { totaal: 0, perBetaalwijze: {} }, aantalVerkopen: 0 }],
+  betaalwijzen: ['cash', 'QR']
+};
+
 function antwoord(rol, actie, vraag) {
   const basis = { vandaagTekst: 'zondag 25 oktober', telaat: [UITLENING], binnenkort: [], lopend: [UITLENING], reservaties: [], boeken: BOEKEN };
   return {
@@ -114,6 +122,8 @@ function antwoord(rol, actie, vraag) {
     annuleerVerlenging: { ok: true, tekst: 'De verlenging van "Twee kasten vol" is geannuleerd.' },
     annuleerUitlening: { ok: true, tekst: 'De uitlening van "Twee kasten vol" is geannuleerd. Geef de borg van 5 euro terug.' },
     beheerCoverVanLink: { ok: true, tekst: 'De afbeelding is de cover van "Stille lichten".', cover_url: 'https://lh3.googleusercontent.com/d/test' },
+    verkoopData: { ok: true, data: VERKOOP },
+    verkopenDoorsturen: { ok: true, bewaard: ((vraag || {}).verkopen || []).map((v) => v.verkoop_id), nieuw: ((vraag || {}).verkopen || []).length, fouten: [], data: VERKOOP },
     boekVervangen: { ok: true, tekst: '"Stille lichten": vervangen. Het staat weer gewoon in de catalogus.' },
     boekVerloren: { ok: true, tekst: '"Twee kasten vol" staat als verloren. De uitlening is afgesloten, de borg van 5 euro is ingehouden.' },
     briefjeMaken: { ok: true, tekst: 'Je briefje staat bij Vandaag voor de volgende shift.' },
@@ -772,6 +782,32 @@ async function meldAan(page, basis, pagina) {
     await page.waitForSelector('#naar-scherm');
     verwacht((await page.getAttribute('#naar-scherm', 'href')) === 'vrijwilliger.html', 'Verkeerde link');
     await ctx.close();
+  });
+  await test('verkoopscherm: verkopen, ook zonder internet, en daarna doorsturen', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await meldAan(page, basis, 'verkoop.html');
+    await page.click('#werkvlak button:has-text("Open")');
+    verwacht(/Mee: 2 · verkocht: 0 · nog hier: 2 · thuis: 1/.test(await page.textContent('#werkvlak')), 'Stand van het boek');
+    await ctx.setOffline(true);
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    await page.click('#werkvlak button:has-text("Verkocht")');
+    await page.fill('#vk-prijs-B0001', '6');
+    await page.check('#werkvlak input[value="QR"]');
+    await page.click('button:has-text("Bevestig de verkoop")');
+    await page.waitForSelector('text=1 verkoop wacht om doorgestuurd te worden.');
+    verwacht(/Geen internet/.test(await page.textContent('#verbinding')), 'Melding zonder internet');
+    verwacht(/Mee: 2 · verkocht: 1 · nog hier: 1 · thuis: 1/.test(await page.textContent('#werkvlak')), 'Verkoop telt al mee');
+    verwacht(!vragen.some((v) => v.actie === 'verkopenDoorsturen'), 'Mag niet doorsturen zonder internet');
+    await ctx.setOffline(false);
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await page.waitForFunction(() => !/wacht om doorgestuurd/.test(document.getElementById('verbinding').textContent));
+    const v = vragen.filter((x) => x.actie === 'verkopenDoorsturen').pop();
+    verwacht(v && v.verkopen.length === 1 && v.verkopen[0].prijs === 6 && v.verkopen[0].betaalwijze === 'QR' && /^v-\d+-[a-z0-9]+$/.test(v.verkopen[0].verkoop_id), 'Doorgestuurd: ' + JSON.stringify(v));
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
   });
   await test('cover via een link: plakken en bewaren', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });

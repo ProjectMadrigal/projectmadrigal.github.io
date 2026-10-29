@@ -6723,7 +6723,8 @@ function verkoopActie(actie, invoer, wie) {
     catalogus: catalogus.rijen, standjes: leesTabel('Standjes'), standjeBoeken: leesTabel('Standje boeken'), verkopen: leesTabel('Verkopen')
   };
   var rijen = { catalogus: catalogus.rijen, standjes: tabellen.standjes.rijen, standjeBoeken: tabellen.standjeBoeken.rijen, verkopen: tabellen.verkopen.rijen };
-  if (actie === 'verkoopData') return { ok: true, data: verkoopOverzicht(rijen) };
+  var betaalwijzen = leesInstellingen().borg_betaalwijzen;
+  if (actie === 'verkoopData') return { ok: true, data: Object.assign(verkoopOverzicht(rijen), { betaalwijzen: betaalwijzen }) };
   var r;
   if (actie === 'standjeBewaren') {
     r = standjeBewaren(rijen.standjes, invoer, nieuwIdVoor(rijen.standjes, 'standje_id', 'standje', 'S'));
@@ -6742,7 +6743,7 @@ function verkoopActie(actie, invoer, wie) {
   }
   if (r.ok) {
     logboek(wie, actie, String(invoer.standje_id || '') + (r.nieuw ? ' (' + r.nieuw + ' verkopen)' : ''));
-    r.data = verkoopOverzicht(rijen);
+    r.data = Object.assign(verkoopOverzicht(rijen), { betaalwijzen: betaalwijzen });
   }
   return r;
 }
