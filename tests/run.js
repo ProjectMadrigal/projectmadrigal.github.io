@@ -1687,6 +1687,13 @@ test('Google: de test toont in gewone woorden of Google Books werkt', () => {
   assert.ok(/geen google_books_api_key/.test(M.googleTestTekst('9780000000002', boek, '', true)));
 });
 
+test('Google: het Logboek zegt waarom een ronde stopte en wanneer het verdergaat', () => {
+  assert.strictEqual(M.googleRondeReden(false, true, 'Service temporarily unavailable. (backendFailed)', 888), ' (storing bij Google, gaat over 15 minuten vanzelf verder)');
+  assert.strictEqual(M.googleRondeReden(true, false, 'Quota exceeded (rateLimitExceeded)', 5), ' (daglimiet van Google bereikt, gaat vanzelf verder rond 9 uur in de ochtend)');
+  assert.strictEqual(M.googleRondeReden(true, false, 'API key not valid', 5), ' (Google weigert, gaat vanzelf verder rond 9 uur in de ochtend)');
+  gelijk([M.googleRondeReden(false, false, '', 5), M.googleRondeReden(false, true, 'x', 0)], ['', '']);
+});
+
 console.log('\nFoto van de cover en bol.com');
 test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', () => {
   const s = maakStaat();

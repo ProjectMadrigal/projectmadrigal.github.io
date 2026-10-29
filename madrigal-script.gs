@@ -2942,6 +2942,14 @@ function googleItemsMetIsbn(items, isbn) {
   });
 }
 
+/** Waarom een ronde stopte en wanneer het script verdergaat, voor het Logboek. Leeg als het gewoon doorloopt. */
+function googleRondeReden(limiet, storing, fout, rest) {
+  if (!rest) return '';
+  if (limiet) return (!fout || /quota|limit/i.test(fout) ? ' (daglimiet van Google bereikt' : ' (Google weigert') + ', gaat vanzelf verder rond 9 uur in de ochtend)';
+  if (storing) return ' (storing bij Google, gaat over 15 minuten vanzelf verder)';
+  return '';
+}
+
 /** De uitkomst van de test in gewone woorden. r: het antwoord van googleBooksZoek. */
 function googleTestTekst(isbn, r, sleutel, werkt) {
   var info = r.items.length ? r.items[0].volumeInfo : null;
@@ -7817,11 +7825,12 @@ function vulAanUitGoogleBooks() {
     ScriptApp.newTrigger('vulBeschrijvingenAan').timeBased().after(60 * 1000).create();
   }
   if (aangevuld) leegCache();
-  var echteLimiet = !fout || /quota|limit/i.test(fout);
-  var reden = !limiet ? '' : (echteLimiet ? ' (daglimiet van Google bereikt)' : ' (Google weigert)');
+  var reden = googleRondeReden(limiet, storing, fout, rest);
   logboek('menu', 'vulAanUitGoogleBooks', verwerkt + ' opgevraagd, ' + gekend + ' gekend bij Google, ' + aangevuld + ' covers gevonden, ' + rest + ' te gaan' + reden + (fout ? '. Google meldt: ' + fout : '') + (sleutel ? '' : '. Er staat geen google_books_api_key in Instellingen.'));
   var tekst = verwerkt + ' boeken opgevraagd bij Google Books, ' + aangevuld + ' covers gevonden.';
-  if (rest > 0) tekst += limiet ? ' De daglimiet van Google is bereikt: het script gaat vanzelf verder als Google ze terugzet, rond 9 uur in de ochtend.' : ' Nog ' + rest + ' te gaan: het script gaat over een minuut vanzelf verder.';
+  if (rest > 0) tekst += limiet ? ' De daglimiet van Google is bereikt: het script gaat vanzelf verder als Google ze terugzet, rond 9 uur in de ochtend.'
+    : storing ? ' Google heeft een storing: het script gaat over 15 minuten vanzelf verder.'
+    : ' Nog ' + rest + ' te gaan: het script gaat over een minuut vanzelf verder.';
   else tekst += ' Alles is verwerkt. Het script zoekt nu nog ontbrekende beschrijvingen.';
   try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
 }
