@@ -1788,24 +1788,23 @@ test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als bin
   assert.strictEqual(M.aankoopVerwijderen(rijen, { aankoop_id: 'K9999' }).ok, false);
 });
 
-test('aankooplijst: een lijst van bol.com lezen (lijstpagina en boekpagina\'s)', () => {
-  const lijst = '<html><a href="/nl/nl/p/atlas-van-niets/9300000111111111/?bltgh=x">Atlas</a>' +
-    '<a href="https://www.bol.com/nl/nl/p/stille-lichten/9300000222222222/">Stille</a><a href="/nl/nl/p/atlas-van-niets/9300000111111111/">dubbel</a></html>';
-  gelijk(M.bolProductLinks(lijst), ['https://www.bol.com/nl/nl/p/atlas-van-niets/9300000111111111/', 'https://www.bol.com/nl/nl/p/stille-lichten/9300000222222222/']);
+test('aankooplijst: wat de bladwijzer op bol.com kopieerde, lezen', () => {
   const pagina1 = '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Atlas van niets &amp; meer",' +
     '"gtin13":"9780306406157","author":{"@type":"Person","name":"Noor Bedacht"},"category":"Fictie","offers":{"@type":"Offer","price":"19.99","priceCurrency":"EUR"}}</script>';
-  const pagina2 = '<meta property="og:title" content="Stille lichten | bol"><div>EAN</div><div>9781861972712</div>' +
-    '<meta itemprop="price" content="12.50"><dt>Auteur</dt><dd><a href="/x">Kim Fictief</a></dd>';
+  const pagina2 = '<meta property="og:title" content="Stille lichten | bol">\nEAN</dt><dd>9781861972712\n<meta itemprop="price" content="12.50">\n>Auteur</dt><dd><a href="/x">Kim Fictief</a>';
   gelijk(M.bolBoekUitHtml(pagina1, 'l1'), { titel: 'Atlas van niets & meer', auteur: 'Noor Bedacht', isbn: '9780306406157', prijs: 19.99, genre: 'Fictie', link: 'l1' });
   const b2 = M.bolBoekUitHtml(pagina2, 'l2');
   gelijk([b2.titel, b2.isbn, b2.prijs, b2.auteur], ['Stille lichten', '9781861972712', 12.5, 'Kim Fictief']);
-  const paginas = { 'https://www.bol.com/nl/nl/lijst/abc': lijst, 'https://www.bol.com/nl/nl/p/atlas-van-niets/9300000111111111/': pagina1, 'https://www.bol.com/nl/nl/p/stille-lichten/9300000222222222/': pagina2 };
-  const haal = (u) => paginas[u] ? { code: 200, tekst: paginas[u] } : { code: 404, tekst: '' };
-  let r = M.aankoopUitBol('https://www.bol.com/nl/nl/lijst/abc', haal);
-  gelijk([r.ok, r.boeken.map((b) => b.isbn)], [true, ['9780306406157', '9781861972712']]);
-  gelijk(M.aankoopUitBol('https://voorbeeld.test/lijst', haal).ok, false, 'Enkel bol.com');
-  assert.ok(/niet binnen \(code 403\)/.test(M.aankoopUitBol('https://www.bol.com/nl/nl/lijst/abc', () => ({ code: 403 })).fout));
-  assert.ok(/geen boeken/.test(M.aankoopUitBol('https://www.bol.com/nl/nl/lijst/leeg', () => ({ code: 200, tekst: '<html></html>' })).fout));
+  const tekst = 'MADRIGAL1' + JSON.stringify([
+    { l: 'https://www.bol.com/nl/nl/p/atlas-van-niets/9300000111111111/', h: pagina1 },
+    { l: 'https://www.bol.com/nl/nl/p/stille-lichten/9300000222222222/', h: pagina2 },
+    { l: 'https://voorbeeld.test/vreemd', h: pagina1 },
+    { l: 'https://www.bol.com/nl/nl/p/leeg/9300000333333333/', h: '<html></html>' }]);
+  const r = M.aankoopUitBladwijzer(tekst);
+  gelijk([r.ok, r.boeken.map((b) => b.isbn), r.overgeslagen], [true, ['9780306406157', '9781861972712'], 2], 'Enkel links van bol.com, zonder titel overgeslagen');
+  assert.ok(/niet wat de bladwijzer/.test(M.aankoopUitBladwijzer('9780306406157').fout));
+  assert.ok(/niet volledig/.test(M.aankoopUitBladwijzer('MADRIGAL1[{"l":').fout));
+  assert.ok(/geen boeken/.test(M.aankoopUitBladwijzer('MADRIGAL1[]').fout));
   // ISBN's plakken: geldige, uniek, ook ISBN-10.
   gelijk(M.isbnsUitTekst('9780306406157, 978-0-306-40615-7\n0-306-40615-2 en 1234567890123'), ['9780306406157']);
   gelijk(M.aankoopUitGoogle('9780306406157', { title: 'Atlas', subtitle: 'van niets', authors: ['Noor Bedacht'], categories: ['Fiction'] }),
