@@ -14,6 +14,9 @@
  * een verkoop pas later doorkomt (geen internet op het standje).
  *
  * Het scherm is verkoop.html (verkoop.js). Vrijwilligers zetten boeken klaar en verkopen.
+ *
+ * Tabblad Voorraad: een overzicht dat het script zelf maakt. Pas er niets in aan: het wordt telkens
+ * opnieuw geschreven, na een verkoop en als je in de Catalogus te_koop_aantal, prijs of onderhandelbaar wijzigt.
  */
 
 var STANDJE_STATUSSEN = ['voorbereiding', 'bezig', 'afgesloten'];
@@ -165,6 +168,87 @@ function standjeStatus(rijen, invoer) {
   return { ok: true, tekst: invoer.status === 'afgesloten' ? 'Standje "' + schoon(rij.naam) + '" is afgesloten.' : 'Standje "' + schoon(rij.naam) + '": ' + invoer.status + '.' };
 }
 
+/* ---------- Tabblad Voorraad ---------- */
+
+var VOORRAAD_KOP = ['boek_id', 'titel', 'auteur', 'te koop', 'prijs', 'onderhandelbaar', 'waarde', 'verkocht', 'opbrengst'];
+// Wijzig je een van deze kolommen in de Catalogus, dan schrijft het script de Voorraad opnieuw.
+var VOORRAAD_BRON = ['te_koop_aantal', 'prijs', 'onderhandelbaar', 'titel', 'auteur'];
+
+/**
+ * De rijen van het tabblad Voorraad: elk boek met exemplaren te koop, en elk boek dat al eens verkocht werd
+ * (ook als het nu uitverkocht is). Waarde: te koop maal prijs. Opbrengst: wat de verkopen echt opbrachten.
+ * Geeft { rijen, totaal } terug. totaal: [te koop, waarde, verkocht, opbrengst].
+ */
+function voorraadRijen(catalogus, verkopen) {
+  var verkocht = {}, opbrengst = {};
+  (verkopen || []).forEach(function (v) {
+    var id = String(v.boek_id || '');
+    if (!id) return;
+    var aantal = verkoopGetal(v.aantal) || 1;
+    verkocht[id] = (verkocht[id] || 0) + aantal;
+    opbrengst[id] = (opbrengst[id] || 0) + aantal * (verkoopGetal(v.prijs) || 0);
+  });
+  var totaal = [0, 0, 0, 0];
+  var rijen = catalogus.filter(function (b) {
+    return !isLeeg(b.boek_id) && (stockVan(b) > 0 || verkocht[String(b.boek_id)]);
+  }).map(function (b) {
+    var id = String(b.boek_id), stock = stockVan(b), prijs = verkoopGetal(b.prijs);
+    var waarde = prijs === null ? '' : rondAf(stock * prijs);
+    totaal[0] += stock; totaal[1] += waarde || 0; totaal[2] += verkocht[id] || 0; totaal[3] += opbrengst[id] || 0;
+    return [id, schoon(b.titel), schoon(b.auteur), stock, prijs === null ? '' : prijs, jaNee(b.onderhandelbaar) === 'ja' ? 'ja' : 'nee',
+      waarde, verkocht[id] || 0, rondAf(opbrengst[id] || 0)];
+  }).sort(function (a, b) { return String(a[1]).localeCompare(String(b[1])); });
+  return { rijen: rijen, totaal: [totaal[0], rondAf(totaal[1]), totaal[2], rondAf(totaal[3])] };
+}
+
+function rondAf(n) {
+  return Math.round(n * 100) / 100;
+}
+
+/** Schrijft het tabblad Voorraad opnieuw. catalogus en verkopen: rijen (zoals leesTabel ze geeft). */
+function schrijfVoorraad(catalogus, verkopen) {
+  var ss = spreadsheet();
+  var blad = ss.getSheetByName('Voorraad') || ss.insertSheet('Voorraad');
+  var v = voorraadRijen(catalogus, verkopen);
+  var info = 'Overzicht van het script, bijgewerkt op ' + Utilities.formatDate(new Date(), tijdzone(), 'dd/MM/yyyy HH:mm') +
+    '. Pas prijzen en aantallen aan in de Catalogus (te_koop_aantal, prijs, onderhandelbaar): dit tabblad volgt vanzelf.';
+  var t = v.totaal;
+  var waarden = [[info, '', '', '', '', '', '', '', ''], VOORRAAD_KOP].concat(v.rijen)
+    .concat([['', 'Totaal', v.rijen.length + ' boeken', t[0], '', '', t[1], t[2], t[3]]]);
+  blad.clear();
+  blad.getRange(1, 1, waarden.length, VOORRAAD_KOP.length).setValues(waarden);
+  blad.getRange(1, 1).setFontStyle('italic');
+  blad.getRange(2, 1, 1, VOORRAAD_KOP.length).setFontWeight('bold');
+  blad.getRange(waarden.length, 1, 1, VOORRAAD_KOP.length).setFontWeight('bold');
+  blad.setFrozenRows(2);
+  [5, 7, 9].forEach(function (k) { blad.getRange(3, k, waarden.length - 2, 1).setNumberFormat('€ #,##0.00'); });
+  return v;
+}
+
+/** Menu: Madrigal > Verkoop > Werk de voorraad bij. */
+function voorraadBijwerkenMenu() {
+  var verkopen = spreadsheet().getSheetByName('Verkopen') ? leesTabel('Verkopen').rijen : [];
+  var v = schrijfVoorraad(leesTabel('Catalogus').rijen, verkopen);
+  meld('De Voorraad is bijgewerkt: ' + v.rijen.length + ' boeken, ' + v.totaal[0] + ' exemplaren te koop.');
+}
+
+/**
+ * Wijzig je in de Catalogus het aantal te koop, de prijs of onderhandelbaar, dan volgt de Voorraad vanzelf.
+ * Wordt opgeroepen door bijWijziging (Menu.js), bij elke wijziging die iemand met de hand maakt.
+ */
+function voorraadBijWijziging(e) {
+  try {
+    var blad = e.range.getSheet();
+    if (blad.getName() !== 'Catalogus' || e.range.getRow() === 1) return;
+    var kop = blad.getRange(1, e.range.getColumn(), 1, e.range.getNumColumns()).getValues()[0].map(schoon);
+    if (!kop.some(function (k) { return VOORRAAD_BRON.indexOf(k) > -1; })) return;
+    var verkopen = spreadsheet().getSheetByName('Verkopen') ? leesTabel('Verkopen').rijen : [];
+    schrijfVoorraad(leesTabel('Catalogus').rijen, verkopen);
+  } catch (err) {
+    // Een fout hier mag het bewerken van de Catalogus nooit hinderen. Madrigal > Verkoop > Werk de voorraad bij lost het op.
+  }
+}
+
 /* ---------- In Apps Script ---------- */
 
 /** Voert een actie van het verkoopscherm uit (binnen het slot van doPost). */
@@ -189,7 +273,11 @@ function verkoopActie(actie, invoer, wie) {
     if (r.ok) bewaarTabel(tabellen.standjeBoeken);
   } else if (actie === 'verkopenDoorsturen') {
     r = verkopenToevoegen(rijen, invoer.verkopen, wie);
-    if (r.nieuw) { bewaarTabel(tabellen.verkopen); bewaarTabel(catalogus); }
+    if (r.nieuw) {
+      bewaarTabel(tabellen.verkopen);
+      bewaarTabel(catalogus);
+      try { schrijfVoorraad(rijen.catalogus, rijen.verkopen); } catch (e) { /* het overzicht is een extraatje */ }
+    }
   } else if (actie === 'standjeStatus') {
     r = standjeStatus(rijen.standjes, invoer);
     if (r.ok) bewaarTabel(tabellen.standjes);

@@ -1694,6 +1694,26 @@ test('Google: het Logboek zegt waarom een ronde stopte en wanneer het verdergaat
   gelijk([M.googleRondeReden(false, false, '', 5), M.googleRondeReden(false, true, 'x', 0)], ['', '']);
 });
 
+test('voorraad: wat te koop is en wat al verkocht werd, met totalen', () => {
+  const catalogus = [
+    { boek_id: 'B0002', titel: 'Zee van glas', auteur: 'Vera Verzonnen', te_koop_aantal: 2, prijs: '12,50', onderhandelbaar: 'ja' },
+    { boek_id: 'B0001', titel: 'Atlas van niets', auteur: 'Noor Bedacht', te_koop_aantal: 0, prijs: 8, onderhandelbaar: '' },
+    { boek_id: 'B0003', titel: 'Niet te koop', auteur: 'Kim Fictief', te_koop_aantal: '', prijs: '' },
+    { boek_id: 'B0004', titel: 'Zonder prijs', auteur: '', te_koop_aantal: 1, prijs: '' }
+  ];
+  const verkopen = [
+    { boek_id: 'B0001', aantal: 1, prijs: 8 },
+    { boek_id: 'B0001', aantal: 1, prijs: 6 },
+    { boek_id: 'B0002', aantal: '', prijs: 10 }
+  ];
+  const v = M.voorraadRijen(catalogus, verkopen);
+  gelijk(v.rijen.map((r) => r[0]), ['B0001', 'B0002', 'B0004'], 'Uitverkocht boek blijft staan, nooit verkocht en geen stock niet');
+  gelijk(v.rijen[0], ['B0001', 'Atlas van niets', 'Noor Bedacht', 0, 8, 'nee', 0, 2, 14]);
+  gelijk(v.rijen[1], ['B0002', 'Zee van glas', 'Vera Verzonnen', 2, 12.5, 'ja', 25, 1, 10]);
+  gelijk(v.rijen[2].slice(3, 7), [1, '', 'nee', '']);
+  gelijk(v.totaal, [3, 25, 3, 24]);
+});
+
 console.log('\nFoto van de cover en bol.com');
 test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', () => {
   const s = maakStaat();
