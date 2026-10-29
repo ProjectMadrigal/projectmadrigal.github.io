@@ -18,6 +18,10 @@
   var HANDLEIDING = 'madrigal_handleiding_taal';
 
   var TEKST = {
+   "Voor deze lener kan je nu niets uitlenen of reserveren. Vraag vriendelijk om contact op te nemen met het bestuur": "You cannot lend or reserve anything for this borrower right now. Kindly ask them to contact the board",
+   "Voor deze lener kan je nu niets uitlenen of reserveren. Vraag vriendelijk om contact op te nemen met het bestuur. Je hoeft de reden niet te kennen": "You cannot lend or reserve anything for this borrower right now. Kindly ask them to contact the board. You do not need to know the reason",
+   "Je hoeft de reden niet te kennen. Zeg het rustig en discreet, liefst niet waar anderen meeluisteren. Terugbrengen kan wel": "You do not need to know the reason. Say it calmly and discreetly, preferably not where others can hear. Returning books is still possible",
+   "Eerst contact met het bestuur": "First contact the board",
    "Nieuwe terugbrengdatum": "New return date",
    "Een lener vraagt meestal per mail om te verlengen. Kies het boek. Daarna zie je de nieuwe terugbrengdatum, die je nog kan aanpassen": "A borrower usually asks by email to extend. Choose the book. Then you see the new return date, which you can still change",
    "Deze datum klopt niet. Kies een datum in de kalender": "This date is not valid. Choose a date in the calendar",

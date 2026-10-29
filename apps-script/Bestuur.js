@@ -89,7 +89,8 @@ function balieGegevens(staat) {
     privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat),
     leners: staat.leners.filter(function (l) { return jaNee(l.actief) !== 'nee'; }).map(function (l) {
-      return { n: l.lenersnummer, v: l.voornaam };
+      // m: de lener is gemarkeerd. Enkel dat, nooit de reden.
+      return isGemarkeerd(l) ? { n: l.lenersnummer, v: l.voornaam, m: 1 } : { n: l.lenersnummer, v: l.voornaam };
     }),
     lopend: lopend,
     reservaties: alleReservaties(staat)
@@ -217,6 +218,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
         lenersnummer: l.lenersnummer, voornaam: l.voornaam, achternaam: l.achternaam, telefoon: l.telefoon,
         email: l.email, datum_inschrijving: l.datum_inschrijving, toestemming_privacy: l.toestemming_privacy,
         actief: jaNee(l.actief) !== 'nee', notitie: schoonMetRegels(l.notitie),
+        markering: schoonMetRegels(l.markering), markering_sinds: parseerDatum(l.markering_sinds) || '',
         lopend: lopendeUitleningenVan(staat, l.lenersnummer).length
       };
     })

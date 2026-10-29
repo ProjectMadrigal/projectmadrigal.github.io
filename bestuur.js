@@ -617,6 +617,7 @@
           el('span', {}, [l.telefoon, l.email].filter(Boolean).join(' · ')),
           el('span', { class: 'labels' },
             l.actief ? null : D.statusLabel('niet_uitleenbaar', 'Inactief'),
+            l.markering ? D.statusLabel('binnenkort', 'Gemarkeerd') : null,
             l.toestemming_privacy === 'ja' ? null : D.statusLabel('binnenkort', 'Toestemming: ' + (l.toestemming_privacy || 'onbekend')),
             l.lopend ? D.statusLabel('uitgeleend', l.lopend + ' in huis') : null)));
       })) : el('p', {}, 'Geen lener gevonden.'));
@@ -639,6 +640,9 @@
         veld('l-email', 'E-mail', l.email, 'email'),
         el('div', { class: 'veld' }, el('label', { for: 'l-notitie' }, 'Notitie ', el('span', { class: 'hulptekst' }, '(enkel voor het bestuur, verdwijnt met de lener bij de privacy-opruiming)')),
           el('textarea', { id: 'l-notitie', rows: '3', maxlength: '500' }, l.notitie || '')),
+        el('div', { class: 'veld' }, el('label', { for: 'l-markering' }, 'Markering ', el('span', { class: 'hulptekst' }, '(leeg: geen markering)')),
+          el('p', { class: 'hulptekst', id: 'l-markering-uitleg' }, 'Schrijf hier waarom deze lener even niets kan lenen of reserveren, bv. "boek van maart nog niet terug". Aan de balie zien vrijwilligers enkel een vriendelijke vraag om contact op te nemen met het bestuur, nooit deze reden. Haal de tekst weg zodra het opgelost is.' + (l.markering_sinds ? ' Gemarkeerd sinds ' + D.korteDatum(l.markering_sinds) + '.' : '')),
+          el('textarea', { id: 'l-markering', rows: '2', maxlength: '300', 'aria-describedby': 'l-markering-uitleg' }, l.markering || '')),
         el('label', { class: 'vinkje', for: 'l-actief' }, el('input', { type: 'checkbox', id: 'l-actief', checked: l.actief }), 'Actief'),
         el('p', { class: 'hulptekst' }, 'Ingeschreven op ' + D.korteDatum(l.datum_inschrijving) + '. Toestemming privacy: ' + (l.toestemming_privacy || 'onbekend') + '. Pas de toestemming aan in het tabblad Leners.'),
         fout,
@@ -649,7 +653,8 @@
         e.preventDefault();
         B.voerUit('lenerAanpassen', {
           lenersnummer: l.lenersnummer, voornaam: $('l-voornaam').value, achternaam: $('l-achternaam').value,
-          telefoon: $('l-telefoon').value, email: $('l-email').value, actief: $('l-actief').checked, notitie: $('l-notitie').value
+          telefoon: $('l-telefoon').value, email: $('l-email').value, actief: $('l-actief').checked, notitie: $('l-notitie').value,
+          markering: $('l-markering').value
         }).then(function (r) {
           if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
           B.melding($('melding'), 'ok', r.tekst);

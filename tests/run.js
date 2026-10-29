@@ -2253,6 +2253,25 @@ test('te vervangen: verloren exemplaren, niet bij Terug te zetten, vervangen of 
   assert.strictEqual(M.isVerlorenUitlening(s.uitleningen[0]), true, 'Blijft een verloren uitlening voor de cijfers');
 });
 
+test('lener markeren: uitlenen en reserveren kunnen niet, de balie ziet de reden nooit', () => {
+  const s = maakStaat();
+  s.uitleningen = [];
+  let r = M.lenerAanpassen(s, { lenersnummer: '1', voornaam: 'Sam', telefoon: '0470 00 00 01', markering: 'boek van maart nog niet terug' });
+  const l = s.leners.find((x) => String(x.lenersnummer) === '1');
+  gelijk([r.ok, l.markering, l.markering_sinds], [true, 'boek van maart nog niet terug', '2026-10-23']);
+  r = uitleen(s, 'B0001', '1');
+  gelijk([r.ok, r.gemarkeerd, /contact op te nemen met het bestuur/.test(r.fout), /maart/.test(r.fout)], [false, true, true, false]);
+  assert.strictEqual(M.reserveren(s, { boek_id: 'B0001', lenersnummer: '1' }).gemarkeerd, true);
+  const balie = M.balieGegevens(s).leners.find((x) => String(x.n) === '1');
+  gelijk(balie, { n: '1', v: 'Sam', m: 1 }, 'Enkel dat er een markering is');
+  assert.ok(!JSON.stringify(M.balieGegevens(s)).includes('maart'), 'De reden staat nergens in de gegevens van de balie');
+  assert.ok(!JSON.stringify(M.vrijwilligerGegevens(s, [])).includes('maart'), 'Ook niet bij de vrijwilligers');
+  gelijk(M.bestuurGegevens(s, []).leners.find((x) => String(x.lenersnummer) === '1').markering, 'boek van maart nog niet terug');
+  // Weghalen: dan kan het weer.
+  M.lenerAanpassen(s, { lenersnummer: '1', voornaam: 'Sam', telefoon: '0470 00 00 01', markering: '' });
+  gelijk([l.markering, l.markering_sinds, uitleen(s, 'B0001', '1').ok], ['', '', true]);
+});
+
 test('verlengen met een zelf gekozen datum, op een openingsdag', () => {
   const s = maakStaat();
   s.uitleningen = [];

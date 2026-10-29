@@ -473,7 +473,9 @@ var KOLOMMEN = {
   ],
   'Onderwerpen': ['genre', 'filtergroepen', 'aantal_boeken'],
   // notitie: enkel voor het bestuur. Verdwijnt met de lener bij de privacy-opruiming.
-  'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief', 'notitie'],
+  // markering: waarom het bestuur deze lener tegenhoudt (bv. boek nog niet terug). Leeg: geen markering.
+  // De balie ziet enkel dat er een markering is, nooit de reden.
+  'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief', 'notitie', 'markering', 'markering_sinds'],
   'Uitleningen': [
     'uitlening_id', 'exemplaar', 'boek_id', 'lenersnummer', 'datum_uit', 'oorspronkelijke_vervaldatum',
     'vervaldatum', 'datum_terug', 'aantal_verlengingen', 'datum_verlenging', 'borg', 'betaalwijze_borg',
@@ -515,7 +517,7 @@ var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal'];
 
 // wiki_gezocht staat er bewust niet bij: die datum bewaren we als tekst (zie herstelKolom in Wikipedia.js).
 var DATUMKOLOMMEN = [
-  'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
+  'datum_inschrijving', 'markering_sinds', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
   'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'datum_behandeld', 'vorige_vervaldatum', 'datum_weg', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
   'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
@@ -636,6 +638,13 @@ var STATUS_GEANNULEERD = 'geannuleerd';
 var STATEN_TERUG = ['in orde', 'licht beschadigd', 'beschadigd'];
 
 var ANNULEREN_MAX_DAGEN = 7; // een vrijwilliger annuleert enkel uitleningen van de laatste 7 dagen
+
+/*
+ * Een lener markeren: het bestuur houdt een lener tegen, bv. omdat een boek al lang niet terug is.
+ * Uitlenen en reserveren kunnen dan niet, tot het bestuur de markering weghaalt. De balie ziet een
+ * neutrale, vriendelijke zin. De reden ziet enkel het bestuur.
+ */
+var MARKERING_TEKST = 'Voor deze lener kan je nu niets uitlenen of reserveren. Vraag vriendelijk om contact op te nemen met het bestuur. Je hoeft de reden niet te kennen.';
 
 var VOORSTEL_NIEUW = 'nieuw';
 
@@ -866,6 +875,11 @@ function annuleerVerlenging(staat, invoer) {
   return { ok: true, tekst: 'De verlenging van "' + boekTitel(staat, u) + '" is geannuleerd. Het moet terug tegen ' + datumTekst(vorige, staat.vandaag) + '.', vervaldatum: vorige };
 }
 
+/**
+ * Reserveren: zet een lener in de wachtrij voor een boek.
+ * invoer: { boek_id, lenersnummer }
+ */
+
 function apartLeggenMelding(staat, r) {
   return {
     reservatie_id: r.reservatie_id, exemplaar: r.exemplaar, lenersnummer: r.lenersnummer,
@@ -938,7 +952,8 @@ function balieGegevens(staat) {
     privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat),
     leners: staat.leners.filter(function (l) { return jaNee(l.actief) !== 'nee'; }).map(function (l) {
-      return { n: l.lenersnummer, v: l.voornaam };
+      // m: de lener is gemarkeerd. Enkel dat, nooit de reden.
+      return isGemarkeerd(l) ? { n: l.lenersnummer, v: l.voornaam, m: 1 } : { n: l.lenersnummer, v: l.voornaam };
     }),
     lopend: lopend,
     reservaties: alleReservaties(staat)
@@ -1312,6 +1327,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
         lenersnummer: l.lenersnummer, voornaam: l.voornaam, achternaam: l.achternaam, telefoon: l.telefoon,
         email: l.email, datum_inschrijving: l.datum_inschrijving, toestemming_privacy: l.toestemming_privacy,
         actief: jaNee(l.actief) !== 'nee', notitie: schoonMetRegels(l.notitie),
+        markering: schoonMetRegels(l.markering), markering_sinds: parseerDatum(l.markering_sinds) || '',
         lopend: lopendeUitleningenVan(staat, l.lenersnummer).length
       };
     })
@@ -3702,6 +3718,10 @@ function isFilmTip(rij) {
   return isFilm(rij) && jaNee(rij.film_tip) === 'ja';
 }
 
+function isGemarkeerd(lener) {
+  return !!lener && !isLeeg(lener.markering);
+}
+
 function isGoogleCover(url) {
   return /^https:\/\/(books\.google\.[a-z.]+|books\.googleusercontent\.com|[a-z0-9-]+\.googleusercontent\.com)\//.test(String(url || ''));
 }
@@ -4227,6 +4247,12 @@ function lenerAanpassen(staat, invoer) {
     actief: invoer.actief === false ? 'nee' : 'ja'
   };
   if (invoer.hasOwnProperty('notitie')) velden.notitie = tekstInvoer(invoer.notitie, 500);
+  if (invoer.hasOwnProperty('markering')) {
+    var reden = tekstInvoer(invoer.markering, 300);
+    if (reden && isLeeg(l.markering)) velden.markering_sinds = staat.vandaag;
+    if (!reden) velden.markering_sinds = '';
+    velden.markering = reden;
+  }
   wijzig(l, velden);
   staat.log.push(['lener aangepast', 'lener ' + l.lenersnummer]);
   return { ok: true, tekst: 'Lener ' + l.lenersnummer + ' is bijgewerkt.' };
@@ -5617,10 +5643,6 @@ function reservatieVan(staat, reservatieId) {
   return staat.reservaties.filter(function (r) { return String(r.reservatie_id) === String(reservatieId); })[0] || null;
 }
 
-/**
- * Reserveren: zet een lener in de wachtrij voor een boek.
- * invoer: { boek_id, lenersnummer }
- */
 function reserveren(staat, invoer) {
   var boek = boekVan(staat, invoer.boek_id);
   if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
@@ -5628,6 +5650,7 @@ function reserveren(staat, invoer) {
   var lener = lenerVan(staat, invoer.lenersnummer);
   if (!lener) return { ok: false, fout: 'Er is geen lener met nummer ' + tekstInvoer(invoer.lenersnummer, 10) + '.' };
   if (jaNee(lener.actief) === 'nee') return { ok: false, fout: 'Deze lener staat op inactief.' };
+  if (isGemarkeerd(lener)) return { ok: false, gemarkeerd: true, fout: MARKERING_TEKST };
   var actief = actieveReservaties(staat, boek.boek_id);
   if (actief.some(function (r) { return String(r.lenersnummer) === String(lener.lenersnummer); })) {
     return { ok: false, fout: 'Deze lener staat al in de wachtrij voor dit boek.' };
@@ -6408,6 +6431,7 @@ function uitlenen(staat, invoer) {
   var lener = lenerVan(staat, invoer.lenersnummer);
   if (!lener) return { ok: false, fout: 'Er is geen lener met nummer ' + tekstInvoer(invoer.lenersnummer, 10) + '.' };
   if (jaNee(lener.actief) === 'nee') return { ok: false, fout: 'Deze lener staat op inactief. Vraag het bestuur om de lener weer actief te zetten.' };
+  if (isGemarkeerd(lener)) return { ok: false, gemarkeerd: true, fout: MARKERING_TEKST };
   var borg = bedragInvoer(invoer.borg);
   var gift = bedragInvoer(invoer.gift);
   if (borg === null) return { ok: false, fout: 'Vul een geldig bedrag in voor de borg.' };
@@ -7275,6 +7299,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'lenerAanpassen':
         var lenerInvoer = { lenersnummer: invoer.lenersnummer, voornaam: invoer.voornaam, achternaam: invoer.achternaam, telefoon: invoer.telefoon, email: invoer.email, actief: invoer.actief !== false };
         if (invoer.hasOwnProperty('notitie')) lenerInvoer.notitie = invoer.notitie;
+        if (invoer.hasOwnProperty('markering')) lenerInvoer.markering = invoer.markering;
         antwoord = lenerAanpassen(staat, lenerInvoer);
         break;
     }

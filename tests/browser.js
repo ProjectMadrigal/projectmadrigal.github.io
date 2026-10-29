@@ -80,7 +80,7 @@ function antwoord(rol, actie, vraag) {
       beschrijvingVoorstellen: [{ voorstel_id: 'V0001', datum: '2026-10-24', boek_id: 'B0001', titel: 'De verzonnen zee', tekst: 'Een verzonnen roman over een zee die niet bestaat.', voorgesteld_door: 'Kim' }],
       privacy: 'Verzonnen privacyverklaring.'
     }) },
-    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }],
+    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }, { n: '14', v: 'Robin', m: 1 }],
       checklist: { openen: ['Licht aan'], sluiten: ['Licht uit'] }, handleiding: { nl: [{ titel: 'De sleutel', regels: [{ punt: false, tekst: 'Vraag het in de groep.' }] }], en: [{ titel: 'The key', regels: [{ punt: false, tekst: 'Ask in the group.' }] }] } }) },
     bestuurCijfers: { ok: true, cijfers: { meestGeleend: [], groepen: [],
       shifts: { jaar: 2026, personen: [{ naam: 'Kim', bib: 3, backup: 1 }], dicht: [{ datum: '2026-05-01', rol: 'gesloten' }] },
@@ -795,6 +795,13 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("← Menu")');
     await page.click('#werkvlak button:has-text("Handleiding")');
     verwacht(/De sleutel/.test(await page.textContent('#werkvlak')), 'Handleiding aan de balie');
+    // Een gemarkeerde lener: neutrale melding, uitlenen kan niet, geen reden te zien.
+    await page.click('button:has-text("← Menu")');
+    await page.click('#werkvlak nav button:has-text("Uitlenen")');
+    await page.fill('#uit-lener', 'Robin');
+    await page.click('#werkvlak .keuzeknop:has-text("Robin")');
+    verwacht(/Vraag vriendelijk om contact op te nemen met het bestuur/.test(await page.textContent('#werkvlak')), 'Neutrale melding ontbreekt');
+    verwacht(await page.isDisabled('button:has-text("Bevestig de uitlening")'), 'Uitlenen kan nog');
     // Verlengen met een andere datum.
     const vragen = [];
     page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
