@@ -88,7 +88,7 @@ function antwoord(rol, actie, vraag) {
       beschrijvingVoorstellen: [{ voorstel_id: 'V0001', datum: '2026-10-24', boek_id: 'B0001', titel: 'De verzonnen zee', tekst: 'Een verzonnen roman over een zee die niet bestaat.', voorgesteld_door: 'Kim' }],
       privacy: 'Verzonnen privacyverklaring.'
     }) },
-    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }, { n: '14', v: 'Robin', m: 1 }],
+    balieData: { ok: true, data: Object.assign({}, basis, { vandaag: '2026-10-25', instellingen: { borg_per_boek: 5, borg_betaalwijzen: ['cash'], checklist_uitlenen: ['Geen rode bol op het boek', 'Bladwijzer in het boek'] }, leners: [{ n: '12', v: 'Sam' }, { n: '14', v: 'Robin', m: 1 }], privacy: 'Verzonnen privacytekst.', privacy_en: 'Made-up privacy text.',
       checklist: { openen: ['Licht aan'], sluiten: ['Licht uit'] }, handleiding: { nl: [{ titel: 'De sleutel', regels: [{ punt: false, tekst: 'Vraag het in de groep.' }] }], en: [{ titel: 'The key', regels: [{ punt: false, tekst: 'Ask in the group.' }] }] } }) },
     bestuurCijfers: { ok: true, cijfers: { meestGeleend: [], groepen: [],
       shifts: { jaar: 2026, personen: [{ naam: 'Kim', bib: 3, backup: 1 }], dicht: [{ datum: '2026-05-01', rol: 'gesloten' }] },
@@ -828,11 +828,11 @@ async function meldAan(page, basis, pagina) {
     await meldAan(page, basis, 'balie.html');
     await page.click('#werkvlak button:has-text("Checklist")');
     verwacht(/Bij het openen[\s\S]*Licht aan[\s\S]*Bij het sluiten/.test(await page.textContent('#werkvlak')), 'Checklist aan de balie');
-    await page.click('button:has-text("← Menu")');
+    await page.click('button:has-text("← Terug naar het menu")');
     await page.click('#werkvlak button:has-text("Handleiding")');
     verwacht(/De sleutel/.test(await page.textContent('#werkvlak')), 'Handleiding aan de balie');
     // Een gemarkeerde lener: neutrale melding, uitlenen kan niet, geen reden te zien.
-    await page.click('button:has-text("← Menu")');
+    await page.click('button:has-text("← Terug naar het menu")');
     await page.click('#werkvlak nav button:has-text("Uitlenen")');
     await page.fill('#uit-lener', 'Robin');
     await page.click('#werkvlak .keuzeknop:has-text("Robin")');
@@ -841,7 +841,7 @@ async function meldAan(page, basis, pagina) {
     // Verlengen met een andere datum.
     const vragen = [];
     page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
-    await page.click('button:has-text("← Menu")');
+    await page.click('button:has-text("← Terug naar het menu")');
     await page.click('#werkvlak nav button:has-text("Verlengen")');
     await page.fill('#verleng-zoek', 'verzonnen');
     await page.click('#werkvlak .keuzeknop');
@@ -856,10 +856,13 @@ async function meldAan(page, basis, pagina) {
     await page.waitForFunction(() => document.documentElement.lang === 'en');
     await page.click('#werkvlak button:has-text("English")');
     verwacht(/The key/.test(await page.textContent('#werkvlak')), 'Handleiding in het Engels');
-    await page.click('button:has-text("← Menu")');
+    await page.click('button:has-text("← Back to the menu")');
     const menu = await page.$$eval('#werkvlak nav button', (b) => b.map((x) => x.textContent.replace(/^\W+/, '').trim()));
     verwacht(['Lending', 'Return', 'Extend', 'Reserve', 'Look up a borrower', 'New borrower', 'Schedule', 'Checklist', 'Manual'].every((k) => menu.indexOf(k) > -1), 'Menu in het Engels: ' + menu.join(', '));
     verwacht(/Lending screen/.test(await page.textContent('h1')), 'Titel in het Engels');
+    await page.click('#werkvlak nav button:has-text("New borrower")');
+    await page.waitForSelector('text=Made-up privacy text.');
+    await page.click('button:has-text("Back to the menu")');
     await Promise.all([page.waitForNavigation(), page.click('.taal-knop')]);
     await page.waitForSelector('#werkvlak nav button');
     verwacht(/Uitlenen/.test(await page.textContent('#werkvlak')), 'Terug naar het Nederlands');

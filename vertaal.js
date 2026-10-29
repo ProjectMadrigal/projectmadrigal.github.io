@@ -18,6 +18,8 @@
   var HANDLEIDING = 'madrigal_handleiding_taal';
 
   var TEKST = {
+   "Terug naar het menu": "Back to the menu",
+   "niemand": "nobody",
    "Project Madrigal, boeken verkopen op een standje": "Project Madrigal, selling books at a stand",
    "Verkoop": "Sales",
    "Verkoop · Project Madrigal": "Sales · Project Madrigal",
@@ -947,6 +949,9 @@
     [/^Deze link opent niet( \(code \d+\))?\. Probeer een andere link, of neem een foto\.$/, 'This link does not open$1. Try another link, or take a photo.'],
     [/^\((\d+) weken erbij\. Kan de lener pas later komen\? Kies een andere datum\. Ze schuift naar een openingsdag\.\)$/, '($1 more weeks. Can the borrower only come later? Choose another date. It moves to an opening day.)'],
     [/^Nieuwe datum: breng terug tegen (.+)$/, 'New date: return by $1'],
+    // Rooster.
+    [/^Het rooster van (.+) is nog niet gepubliceerd\.$/, function (m, maanden) { return 'The schedule for ' + maanden.replace(/ en /g, ' and ') + ' has not been published yet.'; }],
+    [/^Vandaag, (.+)$/, 'Today, $1'],
     // Verkoopscherm.
     [/^(\d+) verkopen wachten om doorgestuurd te worden\.$/, '$1 sales are waiting to be sent.'],
     [/^1 verkoop wacht om doorgestuurd te worden\.$/, '1 sale is waiting to be sent.'],
@@ -1151,5 +1156,16 @@
   knop();
   if (engels()) zetAan();
 
-  root.MadrigalVertaal = { vertaal: vertaal, TEKST: TEKST };
+  /**
+   * Een vertaling die uit de spreadsheet komt (bv. de privacyverklaring in tekst_privacy en
+   * tekst_privacy_en). Het scherm geeft ze door zodra de gegevens geladen zijn.
+   */
+  function voegToe(nl, en) {
+    var kern = String(nl || '').trim();
+    if (!kern || !String(en || '').trim()) return;
+    TEKST[kern] = String(en).trim();
+    if (engels()) vertaalBoom(document.body);
+  }
+
+  root.MadrigalVertaal = { vertaal: vertaal, TEKST: TEKST, voegToe: voegToe };
 })(window);

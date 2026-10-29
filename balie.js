@@ -28,6 +28,8 @@
         return;
       }
       data = r.data;
+      // De Engelse privacyverklaring (instelling tekst_privacy_en) voor de knop English.
+      if (window.MadrigalVertaal && data.privacy_en) window.MadrigalVertaal.voegToe(data.privacy, data.privacy_en);
       index = Z.maakIndex(data.boeken);
       uitPerExemplaar = {};
       data.lopend.forEach(function (u) { uitPerExemplaar[u.exemplaar] = u; });
@@ -101,12 +103,17 @@
 
   /* ---------- Bouwstenen ---------- */
 
+  /** De knop terug naar het menu: groot en in het midden, zodat je ze niet over het hoofd ziet. */
+  function menuKnop() {
+    return el('div', { class: 'knoppen midden' }, el('button', { type: 'button', class: 'knop tweede menu-knop', onclick: toonMenu }, '← Terug naar het menu'));
+  }
+
   /** Toont een scherm in het werkvlak, met een knop terug naar het menu. */
   function scherm(titel) {
     var kop = el('h2', { tabindex: '-1' }, titel);
     var inhoud = Array.prototype.slice.call(arguments, 1);
     D.vervang(werkvlak,
-      el('button', { type: 'button', class: 'knop tweede', onclick: toonMenu }, '← Menu'),
+      menuKnop(),
       el('div', { class: 'blok', style: 'margin-top:1rem' }, kop, inhoud));
     kop.focus();
     window.scrollTo(0, 0);
@@ -231,7 +238,7 @@
   function metVrijwilligers(onderdeel) {
     var vak = el('div');
     D.vervang(werkvlak,
-      el('button', { type: 'button', class: 'knop tweede', onclick: toonMenu }, '← Menu'),
+      menuKnop(),
       el('div', { class: 'blok', style: 'margin-top:1rem' }, vak));
     window.MadrigalVrijwilligers[onderdeel](vak, {
       data: data,
@@ -618,6 +625,8 @@
         knop.href = rol === 'bestuur' ? 'bestuur.html' : 'vrijwilliger.html';
         knop.textContent = rol === 'bestuur' ? 'Naar het bestuursscherm' : 'Naar het vrijwilligersscherm';
         $('vernieuw').parentNode.insertBefore(knop, $('vernieuw'));
+        // De gegevens van dat scherm alvast ophalen, zodat het meteen opent als je erheen gaat.
+        setTimeout(function () { B.haalAlvastOp(rol === 'bestuur' ? 'bestuurData' : 'vrijwilligerData', 'madrigal_data_' + rol); }, 3000);
       }
       laad().then(function () {
         if (!data) return;

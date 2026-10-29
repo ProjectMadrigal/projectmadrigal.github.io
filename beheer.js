@@ -109,6 +109,7 @@
           return;
         }
         schrijf(opties.codeSleutel, '');
+        document.getElementById('app').hidden = true;
         document.getElementById('aanmelden').hidden = false;
         if (!stil) {
           melding.textContent = r.ok ? 'Deze code geeft geen toegang tot dit scherm.' : (r.fout || 'Aanmelden lukte niet.');
@@ -135,8 +136,17 @@
     // Het bestuur mag ook de balie gebruiken: dan volstaat de bewaarde bestuurscode.
     var bewaard = lees(opties.codeSleutel);
     [].concat(opties.reserveSleutel || []).forEach(function (s) { if (!bewaard) bewaard = lees(s); });
-    if (bewaard && lees(SLEUTEL_WIE)) probeer(bewaard, lees(SLEUTEL_WIE), true);
-    else document.getElementById('aanmelden').hidden = false;
+    if (bewaard && lees(SLEUTEL_WIE)) {
+      // Sneller openen: met een bewaarde code toont het scherm meteen de gegevens en controleert het
+      // de code tegelijk. De web-app kijkt de code bij elke vraag toch na. Klopt ze niet, dan verschijnt
+      // het aanmeldscherm.
+      if (opties.snelStart) {
+        sessie.code = bewaard; sessie.wie = lees(SLEUTEL_WIE);
+        document.getElementById('app').hidden = false;
+        opties.snelStart();
+      }
+      probeer(bewaard, lees(SLEUTEL_WIE), true);
+    } else document.getElementById('aanmelden').hidden = false;
     var afgemeld = false;
     try { afgemeld = sessionStorage.getItem('madrigal_afgemeld') === 'ja'; sessionStorage.removeItem('madrigal_afgemeld'); } catch (e) { /* geen opslag */ }
     if (afgemeld) {
@@ -150,6 +160,18 @@
     schrijf(sessie.codeSleutel, '');
     try { sessionStorage.removeItem('madrigal_data_bestuur'); sessionStorage.removeItem('madrigal_data_vrijwilliger'); } catch (e) { /* geen opslag */ }
     location.reload();
+  }
+
+  /**
+   * Haalt de gegevens van een ander scherm alvast op en bewaart ze in dit tabblad (sessionStorage).
+   * Zo opent het vrijwilligers- of bestuursscherm meteen als je erheen gaat. Eén keer per tabblad.
+   */
+  function haalAlvastOp(actie, cacheSleutel) {
+    var vlag = 'madrigal_alvast_' + actie;
+    try { if (sessionStorage.getItem(cacheSleutel) || sessionStorage.getItem(vlag)) return; sessionStorage.setItem(vlag, 'ja'); } catch (e) { return; }
+    voerUit(actie).then(function (r) {
+      if (r && r.ok) { try { sessionStorage.setItem(cacheSleutel, JSON.stringify(r.data)); } catch (e) { /* te groot: niet erg */ } }
+    });
   }
 
   /** Wie staat er aan de balie? Wisselen zonder opnieuw de code te typen. */
@@ -342,7 +364,7 @@
   }
 
   root.MadrigalBeheer = {
-    aanmelden: aanmelden, afmelden: afmelden, wisselWie: wisselWie, voerUit: voerUit,
+    aanmelden: aanmelden, afmelden: afmelden, wisselWie: wisselWie, voerUit: voerUit, haalAlvastOp: haalAlvastOp,
     uitleenStatus: uitleenStatus, melding: melding, sessie: sessie, toonRooster: toonRooster, staatVraag: staatVraag,
     langeDatum: langeDatum, AVONDSTATUS: AVONDSTATUS, roosterVerouderd: roosterVerouderd
   };
