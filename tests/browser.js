@@ -816,6 +816,23 @@ async function meldAan(page, basis, pagina) {
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });
+  await test('verkoopscherm: iedereen ziet de voorraad, en Klaarzetten toont alles wat te koop is', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
+    await meldAan(page, basis, 'verkoop.html');
+    await page.click('#werkvlak button:has-text("Bekijk de voorraad (1 boek)")');
+    await page.waitForSelector('#st-zoek');
+    const tekst = await page.textContent('#werkvlak');
+    verwacht(/1 boek, 3 exemplaren te koop/.test(tekst) && /De verzonnen zee/.test(tekst) && /Klaargezet voor Pride Antwerpen: 2/.test(tekst), 'Voorraad: ' + tekst);
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await page.fill('#st-zoek', 'bestaat niet');
+    await page.waitForSelector('text=Geen boek te koop gevonden.');
+    await page.click('#werkvlak button:has-text("Alle standjes")');
+    await page.click('#werkvlak button:has-text("Open")');
+    await page.click('#werkvlak button:has-text("Klaarzetten")');
+    verwacht(await page.$('#kz-mee-B0001'), 'Klaarzetten toont het boek niet zonder te zoeken');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
   await test('verkoopscherm: het bestuur zet een boek uit de Catalogus in de voorraad, een vrijwilliger niet', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
     const vragen = [];
