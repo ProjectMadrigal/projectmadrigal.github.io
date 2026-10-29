@@ -74,11 +74,17 @@ function testGoogleBooks() {
     if (eigen) isbn = eigen;
   } catch (e) { /* geen cel gekozen */ }
   var sleutel = leesInstellingen().google_books_api_key;
-  var r = googleBooksZoek(isbn, sleutel);
+  // Wat Google op elke vraag antwoordde, onderaan in de melding: zo zie je wat er gebeurt.
+  var details = [];
+  var zoek = function (x) {
+    var antwoord = googleBooksZoek(x, sleutel);
+    details.push(x + ': ' + (antwoord.pogingen || []).join(' / '));
+    return antwoord;
+  };
+  var r = zoek(isbn);
   // Kent Google dit boek niet, dan kijken we of Google wel een bekend boek kent: zo weet je of het aan het boek ligt.
-  // Kent Google dit boek niet, dan kijken we of Google wel een bekend boek kent: zo weet je of het aan het boek ligt.
-  var controle = r.fout || r.items.length ? { werkt: !r.fout, fout: null } : googleBooksControle(sleutel);
-  var tekst = googleTestTekst(isbn, controle.fout || r, sleutel, controle.werkt);
+  var controle = r.fout || r.items.length ? { werkt: !r.fout, fout: null } : googleBooksControle(sleutel, zoek);
+  var tekst = googleTestTekst(isbn, controle.fout || r, sleutel, controle.werkt) + '\nWat Google antwoordde (' + (sleutel ? 'met' : 'zonder') + ' sleutel, land BE): ' + details.join(' | ');
   logboek('menu', 'testGoogleBooks', tekst.replace(/\n/g, ' | '));
   meld(tekst);
 }

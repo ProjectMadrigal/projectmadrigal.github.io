@@ -3237,14 +3237,22 @@ function googleBooksUrl(isbn, sleutel, land, vorm) {
     (land === '' ? '' : '&country=' + (land || 'BE')) + (sleutel ? '&key=' + encodeURIComponent(sleutel) : '');
 }
 
-/** Eén vraag aan Google Books. Geeft { code, items, limiet, fout }. */
+/**
+ * Eén vraag aan Google Books. Geeft { code, items, limiet, fout, info }.
+ * info: kort wat Google antwoordde (code en aantal resultaten), voor de test.
+ * Een antwoord dat geen JSON is (bv. een webpagina van Google), telt als storing (code 502).
+ */
 function googleBooksVraag(url) {
   var a = haalJson(url);
   var r = { code: a.code, items: (a.data && a.data.items) || [], limiet: false, fout: '' };
   if (a.code >= 400) {
     r.fout = googleFout(a.data) || ('code ' + a.code);
     r.limiet = isGoogleLimiet(a.code, r.fout);
+  } else if (!a.data) {
+    r.fout = 'Google gaf een onleesbaar antwoord (code ' + a.code + ', geen JSON)';
+    r.code = 502;
   }
+  r.info = 'code ' + a.code + (a.data ? ', ' + (Number(a.data.totalItems) || 0) + ' gevonden' : ', onleesbaar');
   return r;
 }
 
@@ -3258,11 +3266,13 @@ function googleBooksZoek(isbn, sleutel, land) {
   // uitgave met precies dat ISBN. Levert dat niets op, dan als reserve de vorm "isbn:…".
   var r = googleBooksVraag(googleBooksUrl(isbn, sleutel, land, 'vrij'));
   if (!r.fout) r.items = googleItemsMetIsbn(r.items, isbn);
+  r.pogingen = [r.info];
   if (r.limiet || r.items.length) return r;
   var reserve = googleBooksVraag(googleBooksUrl(isbn, sleutel, land));
+  reserve.pogingen = [r.info, reserve.info];
   // Is de daglimiet op bij de tweede vraag, dan moet het script dat ook weten (anders lijkt het boek onbekend).
   if (!reserve.fout || reserve.limiet) return reserve;
-  return r.fout ? r : { code: 200, items: [], limiet: false, fout: '' };
+  return r.fout ? r : { code: 200, items: [], limiet: false, fout: '', pogingen: reserve.pogingen };
 }
 
 /** De foutmelding uit een antwoord van Google, kort. */
@@ -6734,11 +6744,17 @@ function testGoogleBooks() {
     if (eigen) isbn = eigen;
   } catch (e) { /* geen cel gekozen */ }
   var sleutel = leesInstellingen().google_books_api_key;
-  var r = googleBooksZoek(isbn, sleutel);
+  // Wat Google op elke vraag antwoordde, onderaan in de melding: zo zie je wat er gebeurt.
+  var details = [];
+  var zoek = function (x) {
+    var antwoord = googleBooksZoek(x, sleutel);
+    details.push(x + ': ' + (antwoord.pogingen || []).join(' / '));
+    return antwoord;
+  };
+  var r = zoek(isbn);
   // Kent Google dit boek niet, dan kijken we of Google wel een bekend boek kent: zo weet je of het aan het boek ligt.
-  // Kent Google dit boek niet, dan kijken we of Google wel een bekend boek kent: zo weet je of het aan het boek ligt.
-  var controle = r.fout || r.items.length ? { werkt: !r.fout, fout: null } : googleBooksControle(sleutel);
-  var tekst = googleTestTekst(isbn, controle.fout || r, sleutel, controle.werkt);
+  var controle = r.fout || r.items.length ? { werkt: !r.fout, fout: null } : googleBooksControle(sleutel, zoek);
+  var tekst = googleTestTekst(isbn, controle.fout || r, sleutel, controle.werkt) + '\nWat Google antwoordde (' + (sleutel ? 'met' : 'zonder') + ' sleutel, land BE): ' + details.join(' | ');
   logboek('menu', 'testGoogleBooks', tekst.replace(/\n/g, ' | '));
   meld(tekst);
 }
