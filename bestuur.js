@@ -55,6 +55,7 @@
     ['beschrijvingen', 'Boeken zonder beschrijving', function (vak) { W.zonderBeschrijving(vak, context()); }, 'website', 'vrijwilliger'],
     ['voorstellen', 'Voorgestelde beschrijvingen', function (vak) { V.voorstellen(vak, context()); }, 'website'],
     ['kast', 'Kastcontrole', function (vak) { V.kast(vak, context()); }, 'website', 'beide'],
+    ['aankoop', 'Aankooplijst', function (vak) { window.MadrigalAankoop.toon(vak, context()); }, 'website', 'beide'],
     ['boekstatus', 'Verloren en gevoelig', toonBoekstatus, 'website'],
     ['inhoud', 'Nieuws en agenda', function (vak) { W.inhoud(vak, context()); }, 'website', 'beide'],
     ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website', 'beide'],
@@ -1002,7 +1003,8 @@
     melden: 'Geef iets door aan het bestuur: een kapot boek, iets dat kwijt is, of een vraag van een lener die je niet kon beantwoorden.',
     beschrijvingen: 'Boeken zonder beschrijving. Kies een boek en stel een tekst voor, of neem een foto van de achterkant. Het bestuur keurt je voorstel goed voor het op de website komt.',
     voorstellen: 'Beschrijvingen die vrijwilligers voorstelden. Lees na, verbeter waar nodig en klik op Keur goed. Dan staat de tekst in de Catalogus en op de website.',
-    kast: 'Kies een kast (onderwerp en eventueel letters van de auteurs) en scan de boeken die er staan. Het scherm toont wat ontbreekt, wat uitgeleend is en wat niet in de kast hoort. Boeken zonder ISBN vink je met de hand aan.'
+    kast: 'Kies een kast (onderwerp en eventueel letters van de auteurs) en scan de boeken die er staan. Het scherm toont wat ontbreekt, wat uitgeleend is en wat niet in de kast hoort. Boeken zonder ISBN vink je met de hand aan.',
+    aankoop: 'Boeken die de bib wil kopen. Iedereen kan een boek voorstellen. Het bestuur leest ook een lijst van bol.com in, duidt aan wat gekocht wordt en trekt daarvan een lijst om af te drukken, te kopiëren of als CSV te downloaden. Een boek dat in de catalogus komt, vinkt het script vanzelf af.'
   };
 
   function toonHulp(naam) {

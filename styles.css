@@ -224,6 +224,9 @@ textarea { min-height: 6rem; }
 .knop.tweede { background: var(--kleur-vlak); color: var(--kleur-accent); }
 .knop.tweede:hover { background: var(--kleur-aanrader-vlak); color: var(--kleur-accent-donker); }
 .knop.gevaar { background: var(--kleur-fout); border-color: var(--kleur-fout); }
+/* Een tweede knop die iets wist: rode rand en rode tekst op het gewone vlak (anders paarse tekst op rood). */
+.knop.tweede.gevaar { background: var(--kleur-vlak); color: var(--kleur-fout); border-color: var(--kleur-fout); }
+.knop.tweede.gevaar:hover { background: var(--kleur-fout-vlak); color: var(--kleur-fout); }
 .knop.breed { width: 100%; }
 .knoppen { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: var(--ruimte); }
 
