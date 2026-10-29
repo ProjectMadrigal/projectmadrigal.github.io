@@ -2942,6 +2942,25 @@ function googleItemsMetIsbn(items, isbn) {
   });
 }
 
+/** De uitkomst van de test in gewone woorden. r: het antwoord van googleBooksZoek. */
+function googleTestTekst(isbn, r, sleutel, werkt) {
+  var info = r.items.length ? r.items[0].volumeInfo : null;
+  var regels = [];
+  if (r.fout) {
+    regels.push('Google Books werkt niet.');
+    regels.push(r.limiet ? 'De daglimiet van je sleutel is op. Het script gaat vanzelf verder rond 9 uur in de ochtend.' : 'Google meldt: ' + r.fout);
+  } else if (info) {
+    regels.push('Google Books werkt.');
+    regels.push('ISBN ' + isbn + ': "' + (info.title || '?') + '", cover ' + (info.imageLinks ? 'ja' : 'nee') + ', beschrijving ' + (info.description ? 'ja' : 'nee') + '.');
+  } else if (werkt) {
+    regels.push('Google Books werkt, maar kent ISBN ' + isbn + ' niet.');
+  } else {
+    regels.push('Google Books werkt niet: Google kent zelfs een bekend boek niet. Kijk de google_books_api_key in Instellingen na.');
+  }
+  if (!sleutel) regels.push('Er staat geen google_books_api_key in Instellingen.');
+  return regels.join('\n');
+}
+
 /** Menu: zet de gsm-nummers in het tabblad Leners in één vorm. */
 function gsmNummersMenu() {
   var lock = LockService.getScriptLock();
@@ -6272,8 +6291,8 @@ function testBol() {
 }
 
 /**
- * Menu: test Google Books met één ISBN en toont het antwoord. Zo zie je meteen of de
- * sleutel werkt en wat Google over een boek weet. Zonder ISBN in de cel: een bekend boek.
+ * Menu: test Google Books met één ISBN, op dezelfde manier als het script zoekt (met de sleutel, land BE).
+ * Zonder ISBN in de gekozen cel: een boek dat Google zeker kent.
  */
 function testGoogleBooks() {
   var isbn = '9780141439518'; // Pride and Prejudice (Penguin Classics): Google kent dit boek zeker
@@ -6283,25 +6302,11 @@ function testGoogleBooks() {
     if (eigen) isbn = eigen;
   } catch (e) { /* geen cel gekozen */ }
   var sleutel = leesInstellingen().google_books_api_key;
-  // Een paar varianten naast elkaar: zo zien we welke wel werkt.
-  var varianten = [
-    ['met sleutel, land BE', sleutel, 'BE'],
-    ['met sleutel, land US', sleutel, 'US'],
-    ['met sleutel, zonder land', sleutel, ''],
-    ['zonder sleutel, land BE', '', 'BE']
-  ];
-  var regels = ['Google Books, ISBN ' + isbn + (sleutel ? '' : ' (er staat geen google_books_api_key in Instellingen)')];
-  varianten.forEach(function (v) {
-    if (v[0].indexOf('met sleutel') === 0 && !sleutel) return;
-    var r = googleBooksZoek(isbn, v[1], v[2]);
-    var info = r.items.length ? r.items[0].volumeInfo : null;
-    regels.push(v[0] + ': ' + (r.fout ? 'fout, ' + r.fout
-      : !info ? 'kent dit ISBN niet (code ' + r.code + ')'
-      : '"' + (info.title || '?') + '", cover ' + (info.imageLinks ? 'ja' : 'nee') + ', beschrijving ' + (info.description ? 'ja' : 'nee')));
-    Utilities.sleep(300);
-  });
-  var tekst = regels.join('\n');
-  logboek('menu', 'testGoogleBooks', regels.join(' | '));
+  var r = googleBooksZoek(isbn, sleutel);
+  // Kent Google dit boek niet, dan kijken we of Google wel een bekend boek kent: zo weet je of het aan het boek ligt.
+  var werkt = r.fout ? false : (r.items.length ? true : googleBooksWerkt(sleutel));
+  var tekst = googleTestTekst(isbn, r, sleutel, werkt);
+  logboek('menu', 'testGoogleBooks', tekst.replace(/\n/g, ' | '));
   meld(tekst);
 }
 
