@@ -82,6 +82,7 @@ var ACTIES = {
   beheerCoversLijst: 'vrijwilliger',
   beheerCoversBewaren: 'vrijwilliger',
   beheerCoverUpload: 'vrijwilliger',
+  beheerCoverVanLink: 'vrijwilliger',
   beheerTekstUitFoto: 'vrijwilliger',
   beheerIaCovers: 'bestuur',
   beheerIaCoversWissen: 'bestuur'
@@ -124,6 +125,8 @@ var VOORSTEL_TABBLADEN = ['Nieuws', 'Agenda'];
 var FOTO_MAX_BYTES = 1500000;
 
 var FOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+var LINK_MAX_BYTES = 4000000;
 
 var OCR_MAX_BYTES = 4000000;
 
@@ -482,7 +485,9 @@ var KOLOMMEN = {
   ],
   'Onderwerpen': ['genre', 'filtergroepen', 'aantal_boeken'],
   // notitie: enkel voor het bestuur. Verdwijnt met de lener bij de privacy-opruiming.
-  'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief', 'notitie'],
+  // markering: waarom het bestuur deze lener tegenhoudt (bv. boek nog niet terug). Leeg: geen markering.
+  // De balie ziet enkel dat er een markering is, nooit de reden.
+  'Leners': ['lenersnummer', 'voornaam', 'achternaam', 'telefoon', 'email', 'datum_inschrijving', 'toestemming_privacy', 'actief', 'notitie', 'markering', 'markering_sinds'],
   'Uitleningen': [
     'uitlening_id', 'exemplaar', 'boek_id', 'lenersnummer', 'datum_uit', 'oorspronkelijke_vervaldatum',
     'vervaldatum', 'datum_terug', 'aantal_verlengingen', 'datum_verlenging', 'borg', 'betaalwijze_borg',
@@ -524,7 +529,7 @@ var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal'];
 
 // wiki_gezocht staat er bewust niet bij: die datum bewaren we als tekst (zie herstelKolom in Wikipedia.js).
 var DATUMKOLOMMEN = [
-  'datum_inschrijving', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
+  'datum_inschrijving', 'markering_sinds', 'datum_uit', 'oorspronkelijke_vervaldatum', 'vervaldatum', 'datum_terug',
   'datum_verlenging', 'borg_terugbetaald', 'laatste_herinnering', 'datum_reservatie', 'datum_klaar',
   'ophalen_tot', 'datum_afgesloten', 'datum', 'ol_gecontroleerd', 'gb_gecontroleerd', 'toegevoegd_op', 'beschrijving_gezocht', 'beschrijving_vertaald', 'datum_afgehandeld', 'datum_behandeld', 'vorige_vervaldatum', 'datum_weg', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht',
   'online_vanaf', 'zichtbaar_vanaf', 'zichtbaar_tot'
@@ -645,6 +650,13 @@ var STATUS_GEANNULEERD = 'geannuleerd';
 var STATEN_TERUG = ['in orde', 'licht beschadigd', 'beschadigd'];
 
 var ANNULEREN_MAX_DAGEN = 7; // een vrijwilliger annuleert enkel uitleningen van de laatste 7 dagen
+
+/*
+ * Een lener markeren: het bestuur houdt een lener tegen, bv. omdat een boek al lang niet terug is.
+ * Uitlenen en reserveren kunnen dan niet, tot het bestuur de markering weghaalt. De balie ziet een
+ * neutrale, vriendelijke zin. De reden ziet enkel het bestuur.
+ */
+var MARKERING_TEKST = 'Voor deze lener kan je nu niets uitlenen of reserveren. Vraag vriendelijk om contact op te nemen met het bestuur. Je hoeft de reden niet te kennen.';
 
 var VOORSTEL_NIEUW = 'nieuw';
 
@@ -778,6 +790,25 @@ function afbeeldingAfmetingen(bytes) {
   return null;
 }
 
+/** Zoekt in de HTML van een webpagina de afbeelding die de pagina zelf als voorbeeld geeft. */
+function afbeeldingUitHtml(html, paginaUrl) {
+  var patronen = [
+    /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/i,
+    /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+    /<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i
+  ];
+  for (var i = 0; i < patronen.length; i++) {
+    var m = String(html || '').match(patronen[i]);
+    if (!m) continue;
+    var link = m[1].replace(/&amp;/g, '&');
+    if (/^\/\//.test(link)) link = 'https:' + link;
+    else if (/^\//.test(link)) link = String(paginaUrl).replace(/^(https?:\/\/[^\/]+).*$/, '$1') + link;
+    return link.replace(/^http:\/\//i, 'https://');
+  }
+  return '';
+}
+
 /** Alle lopende reservaties, met hun plaats in de wachtrij. */
 function alleReservaties(staat) {
   var perBoek = {};
@@ -856,6 +887,11 @@ function annuleerVerlenging(staat, invoer) {
   return { ok: true, tekst: 'De verlenging van "' + boekTitel(staat, u) + '" is geannuleerd. Het moet terug tegen ' + datumTekst(vorige, staat.vandaag) + '.', vervaldatum: vorige };
 }
 
+/**
+ * Reserveren: zet een lener in de wachtrij voor een boek.
+ * invoer: { boek_id, lenersnummer }
+ */
+
 function apartLeggenMelding(staat, r) {
   return {
     reservatie_id: r.reservatie_id, exemplaar: r.exemplaar, lenersnummer: r.lenersnummer,
@@ -922,12 +958,14 @@ function balieGegevens(staat) {
       borg_betaalwijzen: staat.inst.borg_betaalwijzen,
       gift_mogelijk: staat.inst.gift_mogelijk,
       max_boeken_per_lener: staat.inst.max_boeken_per_lener,
+      verlengingstermijn_weken: staat.inst.verlengingstermijn_weken,
       checklist_uitlenen: checklistPunten(staat.inst.tekst_checklist_uitlenen)
     },
     privacy: staat.inst.tekst_privacy,
     boeken: baliecatalogus(staat),
     leners: staat.leners.filter(function (l) { return jaNee(l.actief) !== 'nee'; }).map(function (l) {
-      return { n: l.lenersnummer, v: l.voornaam };
+      // m: de lener is gemarkeerd. Enkel dat, nooit de reden.
+      return isGemarkeerd(l) ? { n: l.lenersnummer, v: l.voornaam, m: 1 } : { n: l.lenersnummer, v: l.voornaam };
     }),
     lopend: lopend,
     reservaties: alleReservaties(staat)
@@ -1301,6 +1339,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
         lenersnummer: l.lenersnummer, voornaam: l.voornaam, achternaam: l.achternaam, telefoon: l.telefoon,
         email: l.email, datum_inschrijving: l.datum_inschrijving, toestemming_privacy: l.toestemming_privacy,
         actief: jaNee(l.actief) !== 'nee', notitie: schoonMetRegels(l.notitie),
+        markering: schoonMetRegels(l.markering), markering_sinds: parseerDatum(l.markering_sinds) || '',
         lopend: lopendeUitleningenVan(staat, l.lenersnummer).length
       };
     })
@@ -2208,6 +2247,43 @@ function coverUploaden(staat, invoer, bewaar) {
   return { ok: true, tekst: 'De foto is de cover van "' + schoon(boek.titel) + '".', cover_url: url };
 }
 
+/*
+ * Een cover via een link. Een link naar een webpagina (bol.com, een uitgeverij, Goodreads) of uit
+ * Google Afbeeldingen is geen afbeelding: het script zoekt de afbeelding erachter (bij Google de
+ * parameter imgurl, op een webpagina de og:image), haalt ze op en bewaart ze op Google Drive,
+ * net als een foto. Zo blijft de cover werken, ook als de andere site de link verandert.
+ */
+
+/**
+ * Bewaart de afbeelding achter een link als cover van een boek.
+ * invoer: { boek_id, url }
+ * haal: functie (url) -> { code, type, data (base64), tekst (bij HTML) }. bewaar: zoals bij coverUploaden.
+ */
+function coverVanLink(staat, invoer, haal, bewaar) {
+  var boek = boekVan(staat, invoer.boek_id);
+  if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  var url = echteAfbeeldingLink(invoer.url);
+  if (!/^https:\/\/[^\s"'<>]+$/.test(url)) return { ok: false, fout: 'Plak een link die begint met https://' };
+  var r = haal(url);
+  if (r && r.code < 300 && /^text\/html/i.test(r.type || '')) {
+    var beeld = afbeeldingUitHtml(r.tekst, url);
+    if (!beeld) return { ok: false, fout: 'Op deze pagina vond ik geen afbeelding. Klik met de rechtermuisknop op de cover en kies "Adres van afbeelding kopiëren", en plak dat adres.' };
+    r = haal(beeld);
+  }
+  if (r && r.code === 429) return { ok: false, fout: 'Google laat vandaag geen vragen naar buiten meer toe (daglimiet). Probeer het morgen opnieuw, of neem een foto.' };
+  if (!r || !r.code || r.code >= 300) return { ok: false, fout: 'Deze link opent niet' + (r && r.code ? ' (code ' + r.code + ')' : '') + '. Probeer een andere link, of neem een foto.' };
+  var mime = String(r.type || '').split(';')[0].trim().toLowerCase();
+  if (mime === 'image/jpg') mime = 'image/jpeg';
+  if (!FOTO_TYPES[mime]) return { ok: false, fout: 'Achter deze link zit geen JPG, PNG of WebP. Kopieer het adres van de afbeelding zelf.' };
+  if (String(r.data || '').length * 0.75 > LINK_MAX_BYTES) return { ok: false, fout: 'Deze afbeelding is te groot. Neem een kleinere, of maak een foto.' };
+  var link = bewaar(String(boek.boek_id) + '.' + FOTO_TYPES[mime], r.data, mime);
+  if (!/^https:\/\//.test(String(link || ''))) return { ok: false, fout: 'Bewaren op Google Drive lukte niet.' };
+  wijzig(boek, { cover_url: link, cover_bron: 'link' });
+  staat.catalogusGewijzigd = true;
+  staat.log.push(['cover-link', String(boek.boek_id)]);
+  return { ok: true, tekst: 'De afbeelding is de cover van "' + schoon(boek.titel) + '".', cover_url: link };
+}
+
 /** "1 dag" of "5 dagen". */
 function dagenTekst(n) {
   return n + (n === 1 ? ' dag' : ' dagen');
@@ -2374,6 +2450,20 @@ function draaiboekAanvullen(inst, faqRijen) {
     vragen++;
   });
   return { openen: openen, sluiten: sluiten, punten: punten, vragen: vragen };
+}
+
+/** Haalt uit een link van Google Afbeeldingen of een doorverwijzing van Google het echte adres. */
+function echteAfbeeldingLink(url) {
+  var u = schoon(url).replace(/^http:\/\//i, 'https://');
+  var m = u.match(/^https:\/\/(?:www\.)?google\.[a-z.]+\/(?:imgres|url)\?(.*)$/i);
+  if (m) {
+    var param = m[1].split('&').map(function (p) { return p.split('='); })
+      .filter(function (p) { return p[0] === 'imgurl' || p[0] === 'url' || p[0] === 'q'; })[0];
+    if (param && param[1]) {
+      try { u = decodeURIComponent(param[1]).replace(/^http:\/\//i, 'https://'); } catch (e) { /* laat zoals het is */ }
+    }
+  }
+  return u;
 }
 
 /** De eerste niet-lege waarde uit een lijst mogelijke veldnamen. */
@@ -2846,6 +2936,21 @@ function gsmNummersOpmaken(leners) {
 }
 
 /* ---------- Grenzen ---------- */
+
+/** Haalt een link op voor coverVanLink (enkel in Apps Script). */
+function haalCoverLink(url) {
+  var a;
+  try {
+    a = haalExtern(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': 'Mozilla/5.0 (Project Madrigal)' } });
+  } catch (e) {
+    return { code: isDaglimietFout(e) ? 429 : 0, type: '' };
+  }
+  var type = String((a.getHeaders() || {})['Content-Type'] || (a.getHeaders() || {})['content-type'] || '');
+  var uit = { code: a.getResponseCode(), type: type };
+  if (/^image\//i.test(type)) uit.data = Utilities.base64Encode(a.getBlob().getBytes());
+  else if (/html/i.test(type)) uit.tekst = a.getContentText().slice(0, 300000);
+  return uit;
+}
 
 /** Vraag naar buiten (zoals UrlFetchApp.fetch). Bij de daglimiet: noteren en de lopende taak over 6 uur herstarten. */
 function haalExtern(url, opties) {
@@ -3625,6 +3730,10 @@ function isFilmTip(rij) {
   return isFilm(rij) && jaNee(rij.film_tip) === 'ja';
 }
 
+function isGemarkeerd(lener) {
+  return !!lener && !isLeeg(lener.markering);
+}
+
 function isGoogleCover(url) {
   return /^https:\/\/(books\.google\.[a-z.]+|books\.googleusercontent\.com|[a-z0-9-]+\.googleusercontent\.com)\//.test(String(url || ''));
 }
@@ -4150,6 +4259,12 @@ function lenerAanpassen(staat, invoer) {
     actief: invoer.actief === false ? 'nee' : 'ja'
   };
   if (invoer.hasOwnProperty('notitie')) velden.notitie = tekstInvoer(invoer.notitie, 500);
+  if (invoer.hasOwnProperty('markering')) {
+    var reden = tekstInvoer(invoer.markering, 300);
+    if (reden && isLeeg(l.markering)) velden.markering_sinds = staat.vandaag;
+    if (!reden) velden.markering_sinds = '';
+    velden.markering = reden;
+  }
   wijzig(l, velden);
   staat.log.push(['lener aangepast', 'lener ' + l.lenersnummer]);
   return { ok: true, tekst: 'Lener ' + l.lenersnummer + ' is bijgewerkt.' };
@@ -5541,10 +5656,6 @@ function reservatieVan(staat, reservatieId) {
   return staat.reservaties.filter(function (r) { return String(r.reservatie_id) === String(reservatieId); })[0] || null;
 }
 
-/**
- * Reserveren: zet een lener in de wachtrij voor een boek.
- * invoer: { boek_id, lenersnummer }
- */
 function reserveren(staat, invoer) {
   var boek = boekVan(staat, invoer.boek_id);
   if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
@@ -5552,6 +5663,7 @@ function reserveren(staat, invoer) {
   var lener = lenerVan(staat, invoer.lenersnummer);
   if (!lener) return { ok: false, fout: 'Er is geen lener met nummer ' + tekstInvoer(invoer.lenersnummer, 10) + '.' };
   if (jaNee(lener.actief) === 'nee') return { ok: false, fout: 'Deze lener staat op inactief.' };
+  if (isGemarkeerd(lener)) return { ok: false, gemarkeerd: true, fout: MARKERING_TEKST };
   var actief = actieveReservaties(staat, boek.boek_id);
   if (actief.some(function (r) { return String(r.lenersnummer) === String(lener.lenersnummer); })) {
     return { ok: false, fout: 'Deze lener staat al in de wachtrij voor dit boek.' };
@@ -6332,6 +6444,7 @@ function uitlenen(staat, invoer) {
   var lener = lenerVan(staat, invoer.lenersnummer);
   if (!lener) return { ok: false, fout: 'Er is geen lener met nummer ' + tekstInvoer(invoer.lenersnummer, 10) + '.' };
   if (jaNee(lener.actief) === 'nee') return { ok: false, fout: 'Deze lener staat op inactief. Vraag het bestuur om de lener weer actief te zetten.' };
+  if (isGemarkeerd(lener)) return { ok: false, gemarkeerd: true, fout: MARKERING_TEKST };
   var borg = bedragInvoer(invoer.borg);
   var gift = bedragInvoer(invoer.gift);
   if (borg === null) return { ok: false, fout: 'Vul een geldig bedrag in voor de borg.' };
@@ -6534,6 +6647,14 @@ function verlengen(staat, invoer) {
   var stop = behandelGrenzen(staat, 'verlengen', { uitlening: u, boek: boekVan(staat, u.boek_id), lener: lenerVan(staat, u.lenersnummer) }, invoer);
   if (stop) return stop;
   var nieuw = berekenVerlenging(u.vervaldatum, staat.inst);
+  // Zelf een datum gekozen aan de balie (bv. de lener kan pas later komen)? Dan die, op een openingsdag.
+  if (!isLeeg(invoer.tot)) {
+    var gekozen = parseerDatum(invoer.tot);
+    if (!gekozen) return { ok: false, fout: 'Deze datum klopt niet. Kies een datum in de kalender.' };
+    if (gekozen <= staat.vandaag) return { ok: false, fout: 'Kies een datum na vandaag.' };
+    if (gekozen > telMaandenOp(staat.vandaag, 6)) return { ok: false, fout: 'Kies een datum binnen de 6 maanden. Langer kan enkel het bestuur afspreken.' };
+    nieuw = staat.inst.terugbrengdatum_op_openingsdag ? volgendeOpeningsdag(gekozen, staat.inst, true) : gekozen;
+  }
   wijzig(u, {
     vervaldatum: nieuw,
     vorige_vervaldatum: u.vervaldatum,
@@ -7211,6 +7332,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;
       case 'beheerIaCoversWissen': antwoord = iaCoversWissen(staat, invoer); break;
       case 'beheerCoverUpload': antwoord = coverUploaden(staat, invoer, bewaarFotoInDrive); break;
+      case 'beheerCoverVanLink': antwoord = coverVanLink(staat, invoer, haalCoverLink, bewaarFotoInDrive); break;
       case 'beheerBoekBewaren': antwoord = boekAanpassen(staat, invoer); break;
       case 'beheerLeeslijstBoeken': antwoord = leeslijstBoeken(staat, invoer); break;
       case 'beheerBoekToevoegen':
@@ -7221,6 +7343,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'lenerAanpassen':
         var lenerInvoer = { lenersnummer: invoer.lenersnummer, voornaam: invoer.voornaam, achternaam: invoer.achternaam, telefoon: invoer.telefoon, email: invoer.email, actief: invoer.actief !== false };
         if (invoer.hasOwnProperty('notitie')) lenerInvoer.notitie = invoer.notitie;
+        if (invoer.hasOwnProperty('markering')) lenerInvoer.markering = invoer.markering;
         antwoord = lenerAanpassen(staat, lenerInvoer);
         break;
     }

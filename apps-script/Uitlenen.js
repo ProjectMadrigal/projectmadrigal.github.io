@@ -258,6 +258,7 @@ function uitlenen(staat, invoer) {
   var lener = lenerVan(staat, invoer.lenersnummer);
   if (!lener) return { ok: false, fout: 'Er is geen lener met nummer ' + tekstInvoer(invoer.lenersnummer, 10) + '.' };
   if (jaNee(lener.actief) === 'nee') return { ok: false, fout: 'Deze lener staat op inactief. Vraag het bestuur om de lener weer actief te zetten.' };
+  if (isGemarkeerd(lener)) return { ok: false, gemarkeerd: true, fout: MARKERING_TEKST };
   var borg = bedragInvoer(invoer.borg);
   var gift = bedragInvoer(invoer.gift);
   if (borg === null) return { ok: false, fout: 'Vul een geldig bedrag in voor de borg.' };
@@ -453,6 +454,14 @@ function verlengen(staat, invoer) {
   var stop = behandelGrenzen(staat, 'verlengen', { uitlening: u, boek: boekVan(staat, u.boek_id), lener: lenerVan(staat, u.lenersnummer) }, invoer);
   if (stop) return stop;
   var nieuw = berekenVerlenging(u.vervaldatum, staat.inst);
+  // Zelf een datum gekozen aan de balie (bv. de lener kan pas later komen)? Dan die, op een openingsdag.
+  if (!isLeeg(invoer.tot)) {
+    var gekozen = parseerDatum(invoer.tot);
+    if (!gekozen) return { ok: false, fout: 'Deze datum klopt niet. Kies een datum in de kalender.' };
+    if (gekozen <= staat.vandaag) return { ok: false, fout: 'Kies een datum na vandaag.' };
+    if (gekozen > telMaandenOp(staat.vandaag, 6)) return { ok: false, fout: 'Kies een datum binnen de 6 maanden. Langer kan enkel het bestuur afspreken.' };
+    nieuw = staat.inst.terugbrengdatum_op_openingsdag ? volgendeOpeningsdag(gekozen, staat.inst, true) : gekozen;
+  }
   wijzig(u, {
     vervaldatum: nieuw,
     vorige_vervaldatum: u.vervaldatum,
@@ -544,6 +553,17 @@ function annuleerVerlenging(staat, invoer) {
  * Reserveren: zet een lener in de wachtrij voor een boek.
  * invoer: { boek_id, lenersnummer }
  */
+/*
+ * Een lener markeren: het bestuur houdt een lener tegen, bv. omdat een boek al lang niet terug is.
+ * Uitlenen en reserveren kunnen dan niet, tot het bestuur de markering weghaalt. De balie ziet een
+ * neutrale, vriendelijke zin. De reden ziet enkel het bestuur.
+ */
+var MARKERING_TEKST = 'Voor deze lener kan je nu niets uitlenen of reserveren. Vraag vriendelijk om contact op te nemen met het bestuur. Je hoeft de reden niet te kennen.';
+
+function isGemarkeerd(lener) {
+  return !!lener && !isLeeg(lener.markering);
+}
+
 function reserveren(staat, invoer) {
   var boek = boekVan(staat, invoer.boek_id);
   if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
@@ -551,6 +571,7 @@ function reserveren(staat, invoer) {
   var lener = lenerVan(staat, invoer.lenersnummer);
   if (!lener) return { ok: false, fout: 'Er is geen lener met nummer ' + tekstInvoer(invoer.lenersnummer, 10) + '.' };
   if (jaNee(lener.actief) === 'nee') return { ok: false, fout: 'Deze lener staat op inactief.' };
+  if (isGemarkeerd(lener)) return { ok: false, gemarkeerd: true, fout: MARKERING_TEKST };
   var actief = actieveReservaties(staat, boek.boek_id);
   if (actief.some(function (r) { return String(r.lenersnummer) === String(lener.lenersnummer); })) {
     return { ok: false, fout: 'Deze lener staat al in de wachtrij voor dit boek.' };
@@ -646,6 +667,12 @@ function lenerAanpassen(staat, invoer) {
     actief: invoer.actief === false ? 'nee' : 'ja'
   };
   if (invoer.hasOwnProperty('notitie')) velden.notitie = tekstInvoer(invoer.notitie, 500);
+  if (invoer.hasOwnProperty('markering')) {
+    var reden = tekstInvoer(invoer.markering, 300);
+    if (reden && isLeeg(l.markering)) velden.markering_sinds = staat.vandaag;
+    if (!reden) velden.markering_sinds = '';
+    velden.markering = reden;
+  }
   wijzig(l, velden);
   staat.log.push(['lener aangepast', 'lener ' + l.lenersnummer]);
   return { ok: true, tekst: 'Lener ' + l.lenersnummer + ' is bijgewerkt.' };

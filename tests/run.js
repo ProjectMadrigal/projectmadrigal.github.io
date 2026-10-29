@@ -1420,7 +1420,7 @@ test('instellingen: per groep, codes nooit zichtbaar of aanpasbaar', () => {
   assert.strictEqual(rijen[3].waarde, 'vrijdag 18-22');
 });
 test('beheeracties: bestuur, behalve de lijst voor het vrijwilligersscherm', () => {
-  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload', 'beheerCoverLinks', 'beheerTekstUitFoto'];
+  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload', 'beheerCoverVanLink', 'beheerCoverLinks', 'beheerTekstUitFoto'];
   Object.keys(M.ACTIES).filter((a) => /^beheer/.test(a)).forEach((a) => assert.strictEqual(M.ACTIES[a], vrijwilliger.indexOf(a) > -1 ? 'vrijwilliger' : 'bestuur', a));
 });
 test('rollen: drie codes, elke rol mag wat de rol ervoor mag', () => {
@@ -1621,6 +1621,30 @@ test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', 
   gelijk(bewaard, [['B0001.jpg', 'image/jpeg']]);
   gelijk([s.catalogus[0].cover_url, s.catalogus[0].cover_bron], ['https://lh3.googleusercontent.com/d/test123', 'foto in de bib']);
   assert.strictEqual(M.ACTIES.beheerCoverUpload, 'vrijwilliger');
+});
+test('cover via een link: afbeelding, webpagina (og:image) en Google Afbeeldingen', () => {
+  gelijk(M.echteAfbeeldingLink('https://www.google.com/imgres?imgurl=https%3A%2F%2Fvoorbeeld.test%2Fcover.jpg&imgrefurl=x'), 'https://voorbeeld.test/cover.jpg');
+  gelijk(M.echteAfbeeldingLink('http://voorbeeld.test/a.png'), 'https://voorbeeld.test/a.png');
+  gelijk(M.afbeeldingUitHtml('<meta property="og:image" content="/img/c.jpg">', 'https://winkel.test/boek/1'), 'https://winkel.test/img/c.jpg');
+  gelijk(M.afbeeldingUitHtml('<meta content="//cdn.test/c.webp" property="og:image">', 'https://winkel.test/'), 'https://cdn.test/c.webp');
+  const s = maakStaat();
+  const opgehaald = [];
+  const web = {
+    'https://winkel.test/boek/1': { code: 200, type: 'text/html; charset=utf-8', tekst: '<meta property="og:image" content="https://winkel.test/c.jpg">' },
+    'https://winkel.test/c.jpg': { code: 200, type: 'image/jpeg', data: 'QUJD' },
+    'https://winkel.test/leeg': { code: 200, type: 'text/html', tekst: '<p>niets</p>' },
+    'https://winkel.test/pdf': { code: 200, type: 'application/pdf' }
+  };
+  const haal = (url) => { opgehaald.push(url); return web[url] || { code: 404, type: '' }; };
+  const bewaar = (naam, data, mime) => 'https://lh3.googleusercontent.com/d/' + naam;
+  let r = M.coverVanLink(s, { boek_id: 'B0001', url: 'https://winkel.test/boek/1' }, haal, bewaar);
+  gelijk([r.ok, s.catalogus[0].cover_url, s.catalogus[0].cover_bron], [true, 'https://lh3.googleusercontent.com/d/B0001.jpg', 'link']);
+  gelijk(opgehaald, ['https://winkel.test/boek/1', 'https://winkel.test/c.jpg']);
+  assert.ok(/geen afbeelding/.test(M.coverVanLink(s, { boek_id: 'B0001', url: 'https://winkel.test/leeg' }, haal, bewaar).fout));
+  assert.ok(/geen JPG/.test(M.coverVanLink(s, { boek_id: 'B0001', url: 'https://winkel.test/pdf' }, haal, bewaar).fout));
+  assert.ok(/opent niet \(code 404\)/.test(M.coverVanLink(s, { boek_id: 'B0001', url: 'https://winkel.test/weg' }, haal, bewaar).fout));
+  assert.strictEqual(M.coverVanLink(s, { boek_id: 'B0001', url: 'ftp://x' }, haal, bewaar).ok, false);
+  assert.strictEqual(M.ACTIES.beheerCoverVanLink, 'vrijwilliger');
 });
 test('bol.com: beste afbeelding uit een onbekend antwoord, sleutels nooit zichtbaar op de site', () => {
   const antwoord = { images: [
@@ -2246,6 +2270,37 @@ test('te vervangen: verloren exemplaren, niet bij Terug te zetten, vervangen of 
   gelijk([r.ok, M.boekStatus(s.catalogus.find((b) => b.boek_id === 'B0004')), M.teVervangen(s, true).length], [true, 'verloren', 0]);
   assert.strictEqual(M.boekVervangen(s, { sleutel: 'B:B0004', keuze: 'iets' }).ok, false);
   assert.strictEqual(M.isVerlorenUitlening(s.uitleningen[0]), true, 'Blijft een verloren uitlening voor de cijfers');
+});
+
+test('lener markeren: uitlenen en reserveren kunnen niet, de balie ziet de reden nooit', () => {
+  const s = maakStaat();
+  s.uitleningen = [];
+  let r = M.lenerAanpassen(s, { lenersnummer: '1', voornaam: 'Sam', telefoon: '0470 00 00 01', markering: 'boek van maart nog niet terug' });
+  const l = s.leners.find((x) => String(x.lenersnummer) === '1');
+  gelijk([r.ok, l.markering, l.markering_sinds], [true, 'boek van maart nog niet terug', '2026-10-23']);
+  r = uitleen(s, 'B0001', '1');
+  gelijk([r.ok, r.gemarkeerd, /contact op te nemen met het bestuur/.test(r.fout), /maart/.test(r.fout)], [false, true, true, false]);
+  assert.strictEqual(M.reserveren(s, { boek_id: 'B0001', lenersnummer: '1' }).gemarkeerd, true);
+  const balie = M.balieGegevens(s).leners.find((x) => String(x.n) === '1');
+  gelijk(balie, { n: '1', v: 'Sam', m: 1 }, 'Enkel dat er een markering is');
+  assert.ok(!JSON.stringify(M.balieGegevens(s)).includes('maart'), 'De reden staat nergens in de gegevens van de balie');
+  assert.ok(!JSON.stringify(M.vrijwilligerGegevens(s, [])).includes('maart'), 'Ook niet bij de vrijwilligers');
+  gelijk(M.bestuurGegevens(s, []).leners.find((x) => String(x.lenersnummer) === '1').markering, 'boek van maart nog niet terug');
+  // Weghalen: dan kan het weer.
+  M.lenerAanpassen(s, { lenersnummer: '1', voornaam: 'Sam', telefoon: '0470 00 00 01', markering: '' });
+  gelijk([l.markering, l.markering_sinds, uitleen(s, 'B0001', '1').ok], ['', '', true]);
+});
+
+test('verlengen met een zelf gekozen datum, op een openingsdag', () => {
+  const s = maakStaat();
+  s.uitleningen = [];
+  uitleen(s, 'B0001', '1');
+  const u = s.uitleningen[0];
+  assert.strictEqual(M.verlengen(s, { uitlening_id: u.uitlening_id, tot: '2026-10-20' }).ok, false, 'Niet in het verleden');
+  assert.strictEqual(M.verlengen(s, { uitlening_id: u.uitlening_id, tot: '2027-06-01' }).ok, false, 'Niet verder dan 6 maanden');
+  assert.strictEqual(M.verlengen(s, { uitlening_id: u.uitlening_id, tot: 'morgen' }).ok, false);
+  const r = M.verlengen(s, { uitlening_id: u.uitlening_id, tot: '2026-12-29' });
+  gelijk([r.ok, u.vervaldatum, Number(u.aantal_verlengingen)], [true, '2027-01-01', 1], 'Dinsdag schuift naar vrijdag');
 });
 
 test('uitlening aanpassen: termijn met dagen verschuiven, verlenging en uitlening annuleren', () => {

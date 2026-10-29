@@ -146,13 +146,26 @@
     var telaat = lopend.filter(function (u) { return u.status && u.status.code === 'telaat'; }).length;
     return el('button', { type: 'button', class: 'knop keuzeknop', onclick: function () { kies(l); } },
       el('strong', {}, l.n + ' · ' + l.v),
-      el('span', {}, lopend.length + (lopend.length === 1 ? ' boek' : ' boeken') + ' in huis' + (telaat ? ', ' + telaat + ' te laat' : '')));
+      el('span', {}, lopend.length + (lopend.length === 1 ? ' boek' : ' boeken') + ' in huis' + (telaat ? ', ' + telaat + ' te laat' : '')),
+      l.m ? el('span', { class: 'hulptekst' }, 'Eerst contact met het bestuur') : null);
+  }
+
+  /**
+   * Een lener die het bestuur markeerde: een rustige, neutrale melding. Geen rode waarschuwing en
+   * geen reden, zodat niemand aan de balie meer te weten komt dan nodig.
+   */
+  function markeringMelding(l) {
+    if (!l || !l.m) return null;
+    return el('div', { class: 'melding info', role: 'status' },
+      el('p', {}, 'Voor deze lener kan je nu niets uitlenen of reserveren. Vraag vriendelijk om contact op te nemen met het bestuur.'),
+      el('p', { class: 'hulptekst' }, 'Je hoeft de reden niet te kennen. Zeg het rustig en discreet, liefst niet waar anderen meeluisteren. Terugbrengen kan wel.'));
   }
 
   function lenerBlok(l) {
     var lopend = lopendVanLener(l.n);
     return el('div', {},
       el('p', {}, el('strong', {}, 'Lener ' + l.n + ' · ' + l.v)),
+      markeringMelding(l),
       lopend.length ? el('ul', { class: 'kaartlijst', style: 'margin-top:.5rem' }, lopend.map(function (u) {
         return el('li', { class: 'kaart ' + u.status.code }, el('h3', {}, u.titel), B.uitleenStatus(u));
       })) : el('p', {}, 'Heeft nu geen boeken in huis.'));
@@ -318,7 +331,7 @@
           el('input', { type: 'number', id: 'uit-gift', min: '0', step: '0.5', inputmode: 'decimal' })) : null);
     }
 
-    function controleer() { bevestig.disabled = !(keuze.boek && keuze.lener); }
+    function controleer() { bevestig.disabled = !(keuze.boek && keuze.lener && !keuze.lener.m); }
 
     bevestig.addEventListener('click', function () {
       var gekozenWijze = werkvlak.querySelector('input[name="betaalwijze"]:checked');
@@ -418,16 +431,24 @@
       id: 'verleng-zoek', label: 'Zoek het boek of de lener', hulp: '(titel, nummer op het etiket, lenersnummer of voornaam)',
       zoek: zoekLopend, toon: uitleningKnop, kies: bevestigVerlengen, leeg: 'Geen lopende uitlening gevonden.'
     });
-    scherm('Verlengen', el('p', {}, 'Een lener vraagt meestal per mail om te verlengen. Het boek krijgt er 4 weken bij, tot een openingsdag.'), k);
+    scherm('Verlengen', el('p', {}, 'Een lener vraagt meestal per mail om te verlengen. Kies het boek. Daarna zie je de nieuwe terugbrengdatum, die je nog kan aanpassen.'), k);
     k.toon();
     focusOp('verleng-zoek');
 
     function bevestigVerlengen(u) {
       var fout = foutVak();
       var knop = el('button', { type: 'button', class: 'knop breed' }, 'Bevestig de verlenging');
+      // De voorgestelde datum: de huidige vervaldatum plus de termijn. Een andere datum kiezen mag.
+      var weken = Number((data.instellingen || {}).verlengingstermijn_weken) || 4;
+      var basis = new Date(String(u.vervaldatum) + 'T12:00:00Z');
+      basis.setUTCDate(basis.getUTCDate() + weken * 7);
+      var voorstel = basis.toISOString().slice(0, 10);
+      var datum = el('input', { type: 'date', id: 'verleng-datum', value: voorstel });
       knop.addEventListener('click', function () {
         var klaar = bezig(knop);
-        B.voerUit('verlengen', { uitlening_id: u.uitlening_id }, klaar).then(function (r) {
+        var invoer = { uitlening_id: u.uitlening_id };
+        if (datum.value && datum.value !== voorstel) invoer.tot = datum.value;
+        B.voerUit('verlengen', invoer, klaar).then(function (r) {
           klaar();
           if (r.geannuleerd) return;
           if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
@@ -441,6 +462,8 @@
       });
       scherm('Verlengen',
         gekozenVak(el('div', {}, el('p', {}, el('strong', {}, u.titel), el('br'), 'lener ' + u.lenersnummer + ' (' + u.voornaam + ')'), B.uitleenStatus(u)), toonVerlengen),
+        el('div', { class: 'veld' }, el('label', { for: 'verleng-datum' }, 'Nieuwe terugbrengdatum ',
+          el('span', { class: 'hulptekst' }, '(' + weken + ' weken erbij. Kan de lener pas later komen? Kies een andere datum. Ze schuift naar een openingsdag.)')), datum),
         fout, el('div', { class: 'knoppen' }, knop));
     }
   }
@@ -477,18 +500,18 @@
             b.st === 'gevoelig' ? el('span', {}, 'Gevoelige inhoud') : null,
             el('span', {}, b.st === 'verloren' ? 'Verloren' : !b.u ? 'Niet uitleenbaar' : vrij > 0 ? vrij + ' van ' + b.x + ' in de kast: je kan het meteen uitlenen' : 'Alle exemplaren zijn uitgeleend of apart gelegd'));
         },
-        kies: function (b) { keuze.boek = b; tekenBoek(); knop.disabled = !(keuze.boek && keuze.lener); focusOp('res-lener'); }
+        kies: function (b) { keuze.boek = b; tekenBoek(); knop.disabled = !(keuze.boek && keuze.lener && !keuze.lener.m); focusOp('res-lener'); }
       }));
     }
     function tekenLener() {
       if (keuze.lener) {
-        D.vervang(lenerStap, el('h3', {}, '2. Lener'), gekozenVak(el('p', {}, el('strong', {}, 'Lener ' + keuze.lener.n + ' · ' + keuze.lener.v)),
+        D.vervang(lenerStap, el('h3', {}, '2. Lener'), gekozenVak(el('div', {}, el('p', {}, el('strong', {}, 'Lener ' + keuze.lener.n + ' · ' + keuze.lener.v)), markeringMelding(keuze.lener)),
           function () { keuze.lener = null; tekenLener(); knop.disabled = true; }));
         return;
       }
       D.vervang(lenerStap, el('h3', {}, '2. Lener'), kiezer({
         id: 'res-lener', label: 'Lenersnummer of voornaam', zoek: zoekLeners, toon: knopLener,
-        kies: function (l) { keuze.lener = l; tekenLener(); knop.disabled = !(keuze.boek && keuze.lener); }
+        kies: function (l) { keuze.lener = l; tekenLener(); knop.disabled = !(keuze.boek && keuze.lener && !keuze.lener.m); }
       }));
     }
     knop.addEventListener('click', function () {
@@ -523,7 +546,7 @@
           reservaties.length ? el('div', { class: 'stap' }, el('h3', {}, 'Reservaties'),
             el('ul', {}, reservaties.map(function (r) { return el('li', {}, '"' + r.titel + '": ' + r.tekst); }))) : null,
           el('div', { class: 'knoppen' },
-            el('button', { type: 'button', class: 'knop', onclick: function () { toonUitlenen(l); } }, 'Boek uitlenen aan ' + l.v),
+            l.m ? null : el('button', { type: 'button', class: 'knop', onclick: function () { toonUitlenen(l); } }, 'Boek uitlenen aan ' + l.v),
             el('button', { type: 'button', class: 'knop tweede', onclick: toonLenerOpzoeken }, 'Andere lener zoeken')));
       }
     });
