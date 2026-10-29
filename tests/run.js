@@ -1681,7 +1681,13 @@ test('Google: de test toont in gewone woorden of Google Books werkt', () => {
   const leeg = { items: [], fout: '', limiet: false };
   assert.strictEqual(M.googleTestTekst('9780000000002', boek, 'k', true), 'Google Books werkt.\nISBN 9780000000002: "Verzonnen roman", cover ja, beschrijving ja.');
   assert.strictEqual(M.googleTestTekst('9780000000002', leeg, 'k', true), 'Google Books werkt, maar kent ISBN 9780000000002 niet.');
-  assert.ok(/werkt niet: Google kent zelfs/.test(M.googleTestTekst('9780000000002', leeg, 'k', false)));
+  assert.ok(/geen enkel boek terug/.test(M.googleTestTekst('9780000000002', leeg, 'k', false)));
+  // De controle met bekende boeken: werkt bij het tweede boek, geeft de fout van Google door, of niets.
+  gelijk(M.googleBooksControle('k', (isbn) => isbn === '9780061120084' ? boek : leeg), { werkt: true, fout: null });
+  const limiet = { items: [], fout: 'Quota exceeded', limiet: true, code: 429 };
+  gelijk(M.googleBooksControle('k', () => limiet), { werkt: false, fout: limiet });
+  gelijk(M.googleBooksControle('k', () => leeg), { werkt: false, fout: null });
+  assert.ok(/daglimiet van je sleutel is op/.test(M.googleTestTekst('9780000000002', M.googleBooksControle('k', () => limiet).fout, 'k', false)));
   assert.ok(/daglimiet van je sleutel is op/.test(M.googleTestTekst('9780000000002', { items: [], fout: 'Quota', limiet: true }, 'k', false)));
   assert.ok(/Google meldt: API key not valid/.test(M.googleTestTekst('9780000000002', { items: [], fout: 'API key not valid', limiet: false }, 'k', false)));
   assert.ok(/geen google_books_api_key/.test(M.googleTestTekst('9780000000002', boek, '', true)));
