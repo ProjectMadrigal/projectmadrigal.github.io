@@ -608,6 +608,93 @@ function coverUploaden(staat, invoer, bewaar) {
   return { ok: true, tekst: 'De foto is de cover van "' + schoon(boek.titel) + '".', cover_url: url };
 }
 
+/*
+ * Een cover via een link. Een link naar een webpagina (bol.com, een uitgeverij, Goodreads) of uit
+ * Google Afbeeldingen is geen afbeelding: het script zoekt de afbeelding erachter (bij Google de
+ * parameter imgurl, op een webpagina de og:image), haalt ze op en bewaart ze op Google Drive,
+ * net als een foto. Zo blijft de cover werken, ook als de andere site de link verandert.
+ */
+
+var LINK_MAX_BYTES = 4000000;
+
+/** Haalt uit een link van Google Afbeeldingen of een doorverwijzing van Google het echte adres. */
+function echteAfbeeldingLink(url) {
+  var u = schoon(url).replace(/^http:\/\//i, 'https://');
+  var m = u.match(/^https:\/\/(?:www\.)?google\.[a-z.]+\/(?:imgres|url)\?(.*)$/i);
+  if (m) {
+    var param = m[1].split('&').map(function (p) { return p.split('='); })
+      .filter(function (p) { return p[0] === 'imgurl' || p[0] === 'url' || p[0] === 'q'; })[0];
+    if (param && param[1]) {
+      try { u = decodeURIComponent(param[1]).replace(/^http:\/\//i, 'https://'); } catch (e) { /* laat zoals het is */ }
+    }
+  }
+  return u;
+}
+
+/** Zoekt in de HTML van een webpagina de afbeelding die de pagina zelf als voorbeeld geeft. */
+function afbeeldingUitHtml(html, paginaUrl) {
+  var patronen = [
+    /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/i,
+    /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+    /<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i
+  ];
+  for (var i = 0; i < patronen.length; i++) {
+    var m = String(html || '').match(patronen[i]);
+    if (!m) continue;
+    var link = m[1].replace(/&amp;/g, '&');
+    if (/^\/\//.test(link)) link = 'https:' + link;
+    else if (/^\//.test(link)) link = String(paginaUrl).replace(/^(https?:\/\/[^\/]+).*$/, '$1') + link;
+    return link.replace(/^http:\/\//i, 'https://');
+  }
+  return '';
+}
+
+/**
+ * Bewaart de afbeelding achter een link als cover van een boek.
+ * invoer: { boek_id, url }
+ * haal: functie (url) -> { code, type, data (base64), tekst (bij HTML) }. bewaar: zoals bij coverUploaden.
+ */
+function coverVanLink(staat, invoer, haal, bewaar) {
+  var boek = boekVan(staat, invoer.boek_id);
+  if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  var url = echteAfbeeldingLink(invoer.url);
+  if (!/^https:\/\/[^\s"'<>]+$/.test(url)) return { ok: false, fout: 'Plak een link die begint met https://' };
+  var r = haal(url);
+  if (r && r.code < 300 && /^text\/html/i.test(r.type || '')) {
+    var beeld = afbeeldingUitHtml(r.tekst, url);
+    if (!beeld) return { ok: false, fout: 'Op deze pagina vond ik geen afbeelding. Klik met de rechtermuisknop op de cover en kies "Adres van afbeelding kopiëren", en plak dat adres.' };
+    r = haal(beeld);
+  }
+  if (r && r.code === 429) return { ok: false, fout: 'Google laat vandaag geen vragen naar buiten meer toe (daglimiet). Probeer het morgen opnieuw, of neem een foto.' };
+  if (!r || !r.code || r.code >= 300) return { ok: false, fout: 'Deze link opent niet' + (r && r.code ? ' (code ' + r.code + ')' : '') + '. Probeer een andere link, of neem een foto.' };
+  var mime = String(r.type || '').split(';')[0].trim().toLowerCase();
+  if (mime === 'image/jpg') mime = 'image/jpeg';
+  if (!FOTO_TYPES[mime]) return { ok: false, fout: 'Achter deze link zit geen JPG, PNG of WebP. Kopieer het adres van de afbeelding zelf.' };
+  if (String(r.data || '').length * 0.75 > LINK_MAX_BYTES) return { ok: false, fout: 'Deze afbeelding is te groot. Neem een kleinere, of maak een foto.' };
+  var link = bewaar(String(boek.boek_id) + '.' + FOTO_TYPES[mime], r.data, mime);
+  if (!/^https:\/\//.test(String(link || ''))) return { ok: false, fout: 'Bewaren op Google Drive lukte niet.' };
+  wijzig(boek, { cover_url: link, cover_bron: 'link' });
+  staat.catalogusGewijzigd = true;
+  staat.log.push(['cover-link', String(boek.boek_id)]);
+  return { ok: true, tekst: 'De afbeelding is de cover van "' + schoon(boek.titel) + '".', cover_url: link };
+}
+
+/** Haalt een link op voor coverVanLink (enkel in Apps Script). */
+function haalCoverLink(url) {
+  var a;
+  try {
+    a = haalExtern(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': 'Mozilla/5.0 (Project Madrigal)' } });
+  } catch (e) {
+    return { code: isDaglimietFout(e) ? 429 : 0, type: '' };
+  }
+  var type = String((a.getHeaders() || {})['Content-Type'] || (a.getHeaders() || {})['content-type'] || '');
+  var uit = { code: a.getResponseCode(), type: type };
+  if (/^image\//i.test(type)) uit.data = Utilities.base64Encode(a.getBlob().getBytes());
+  else if (/html/i.test(type)) uit.tekst = a.getContentText().slice(0, 300000);
+  return uit;
+}
+
 /** Bewaart een foto in de map voor covers op Google Drive en geeft een publieke link terug. */
 function bewaarFotoInDrive(bestandsnaam, base64, mime) {
   var naam = leesInstellingen().cover_map || 'Project Madrigal covers';

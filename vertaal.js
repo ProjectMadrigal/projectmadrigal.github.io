@@ -18,6 +18,26 @@
   var HANDLEIDING = 'madrigal_handleiding_taal';
 
   var TEKST = {
+   "Voor deze lener kan je nu niets uitlenen of reserveren. Vraag vriendelijk om contact op te nemen met het bestuur": "You cannot lend or reserve anything for this borrower right now. Kindly ask them to contact the board",
+   "Voor deze lener kan je nu niets uitlenen of reserveren. Vraag vriendelijk om contact op te nemen met het bestuur. Je hoeft de reden niet te kennen": "You cannot lend or reserve anything for this borrower right now. Kindly ask them to contact the board. You do not need to know the reason",
+   "Je hoeft de reden niet te kennen. Zeg het rustig en discreet, liefst niet waar anderen meeluisteren. Terugbrengen kan wel": "You do not need to know the reason. Say it calmly and discreetly, preferably not where others can hear. Returning books is still possible",
+   "Eerst contact met het bestuur": "First contact the board",
+   "Nieuwe terugbrengdatum": "New return date",
+   "Een lener vraagt meestal per mail om te verlengen. Kies het boek. Daarna zie je de nieuwe terugbrengdatum, die je nog kan aanpassen": "A borrower usually asks by email to extend. Choose the book. Then you see the new return date, which you can still change",
+   "Deze datum klopt niet. Kies een datum in de kalender": "This date is not valid. Choose a date in the calendar",
+   "Kies een datum na vandaag": "Choose a date after today",
+   "Kies een datum binnen de 6 maanden. Langer kan enkel het bestuur afspreken": "Choose a date within 6 months. Only the board can agree on longer",
+   "Foto of link van de cover": "Photo or link for the cover",
+   "Of plak een link": "Or paste a link",
+   "naar een afbeelding, een webpagina zoals bol.com, of uit Google Afbeeldingen": "to an image, a web page such as bol.com, or from Google Images",
+   "Gebruik deze link": "Use this link",
+   "Afbeelding ophalen": "Fetching image",
+   "Afbeelding verkleinen": "Resizing image",
+   "Plak eerst een link": "Paste a link first",
+   "Ziet het er goed uit? Klik dan op Gebruik deze foto als cover": "Does it look good? Then click Use this photo as cover",
+   "Op deze pagina vond ik geen afbeelding. Klik met de rechtermuisknop op de cover en kies \"Adres van afbeelding kopiëren\", en plak dat adres": "I found no image on this page. Right-click the cover, choose \"Copy image address\" and paste that address",
+   "Achter deze link zit geen JPG, PNG of WebP. Kopieer het adres van de afbeelding zelf": "This link is not a JPG, PNG or WebP. Copy the address of the image itself",
+   "Plak een link die begint met https://": "Paste a link that starts with https://",
    "Giften per jaar": "Donations per year",
    "Alle bewaarde uitleningen, ook die ouder dan 12 maanden": "All stored loans, including those older than 12 months",
    "Jaar": "Year",
@@ -867,6 +887,10 @@
     [/^(\S+)((?: · ISBN \S+)?) · verloren op (\S+)((?: · lener \d+)?)((?: · borg (?:ingehouden|terugbetaald))?)$/, function (m, ex, isbn, d, l, b) {
       return ex + isbn + ' · lost on ' + d + l.replace('lener', 'borrower') + b.replace('borg ingehouden', 'deposit kept').replace('borg terugbetaald', 'deposit paid back');
     }],
+    [/^De afbeelding is de cover van (".+")\.(.*)$/, function (m, t, rest) { return 'The image is the cover of ' + t + '.' + rest.replace(' De website toont ze binnen enkele minuten.', ' The website shows it within a few minutes.'); }],
+    [/^Deze link opent niet( \(code \d+\))?\. Probeer een andere link, of neem een foto\.$/, 'This link does not open$1. Try another link, or take a photo.'],
+    [/^\((\d+) weken erbij\. Kan de lener pas later komen\? Kies een andere datum\. Ze schuift naar een openingsdag\.\)$/, '($1 more weeks. Can the borrower only come later? Choose another date. It moves to an opening day.)'],
+    [/^Nieuwe datum: breng terug tegen (.+)$/, 'New date: return by $1'],
     // Uitleenscherm.
     [/^Aan de balie: (.+)$/, 'At the desk: $1'],
     [/^Te laat sinds (.+) \((\d+) dagen?\)$/, function (m, d, n) { return 'Overdue since ' + d + ' (' + n + (n === '1' ? ' day' : ' days') + ')'; }],
