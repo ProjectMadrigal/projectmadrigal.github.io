@@ -1693,6 +1693,18 @@ test('Google: de test toont in gewone woorden of Google Books werkt', () => {
   assert.ok(/geen google_books_api_key/.test(M.googleTestTekst('9780000000002', boek, '', true)));
 });
 
+test('Google: een onleesbaar antwoord telt als storing, en de test toont wat Google antwoordde', () => {
+  const oud = M.haalJson;
+  try {
+    M.haalJson = () => ({ code: 200, data: null });
+    let r = M.googleBooksVraag('https://voorbeeld.test');
+    gelijk([r.code, /onleesbaar/.test(r.fout), r.info], [502, true, 'code 200, onleesbaar']);
+    const antwoorden = [{ code: 200, data: { totalItems: 0 } }, { code: 200, data: { totalItems: 0 } }];
+    M.haalJson = () => antwoorden.shift();
+    r = M.googleBooksZoek('9780141439518', 'k');
+    gelijk([r.fout, r.items.length, r.pogingen], ['', 0, ['code 200, 0 gevonden', 'code 200, 0 gevonden']]);
+  } finally { M.haalJson = oud; }
+});
 test('Google: het Logboek zegt waarom een ronde stopte en wanneer het verdergaat', () => {
   assert.strictEqual(M.googleRondeReden(false, true, 'Service temporarily unavailable. (backendFailed)', 888), ' (storing bij Google, gaat over 15 minuten vanzelf verder)');
   assert.strictEqual(M.googleRondeReden(true, false, 'Quota exceeded (rateLimitExceeded)', 5), ' (daglimiet van Google bereikt, gaat vanzelf verder rond 9 uur in de ochtend)');

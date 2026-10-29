@@ -57,21 +57,31 @@ function googleBooksZoek(isbn, sleutel, land) {
   // uitgave met precies dat ISBN. Levert dat niets op, dan als reserve de vorm "isbn:…".
   var r = googleBooksVraag(googleBooksUrl(isbn, sleutel, land, 'vrij'));
   if (!r.fout) r.items = googleItemsMetIsbn(r.items, isbn);
+  r.pogingen = [r.info];
   if (r.limiet || r.items.length) return r;
   var reserve = googleBooksVraag(googleBooksUrl(isbn, sleutel, land));
+  reserve.pogingen = [r.info, reserve.info];
   // Is de daglimiet op bij de tweede vraag, dan moet het script dat ook weten (anders lijkt het boek onbekend).
   if (!reserve.fout || reserve.limiet) return reserve;
-  return r.fout ? r : { code: 200, items: [], limiet: false, fout: '' };
+  return r.fout ? r : { code: 200, items: [], limiet: false, fout: '', pogingen: reserve.pogingen };
 }
 
-/** Eén vraag aan Google Books. Geeft { code, items, limiet, fout }. */
+/**
+ * Eén vraag aan Google Books. Geeft { code, items, limiet, fout, info }.
+ * info: kort wat Google antwoordde (code en aantal resultaten), voor de test.
+ * Een antwoord dat geen JSON is (bv. een webpagina van Google), telt als storing (code 502).
+ */
 function googleBooksVraag(url) {
   var a = haalJson(url);
   var r = { code: a.code, items: (a.data && a.data.items) || [], limiet: false, fout: '' };
   if (a.code >= 400) {
     r.fout = googleFout(a.data) || ('code ' + a.code);
     r.limiet = isGoogleLimiet(a.code, r.fout);
+  } else if (!a.data) {
+    r.fout = 'Google gaf een onleesbaar antwoord (code ' + a.code + ', geen JSON)';
+    r.code = 502;
   }
+  r.info = 'code ' + a.code + (a.data ? ', ' + (Number(a.data.totalItems) || 0) + ' gevonden' : ', onleesbaar');
   return r;
 }
 
