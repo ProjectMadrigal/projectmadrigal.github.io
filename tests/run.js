@@ -832,6 +832,13 @@ test('bezoekers uit GoatCounter: adres, periode en omzetten', () => {
   const alles = M.gcUitkomst({}, [M.gcFoutRegel('totaal', 404, '{"error":"not found"}')], 7, 'x');
   gelijk([alles.ok, /totaal: 404 \(\{"error":"not found"\}\)/.test(alles.fout)], [false, true]);
   assert.ok(/kent de code x niet/.test(M.gcUitkomst({}, [M.gcFoutRegel('totaal', 400, '{"error":"no site at this domain (\\"x.goatcounter.com\\")"}')], 7, 'x').fout));
+  // Het totaal ontbreekt (404): een schatting uit de pagina's, zonder waarschuwing.
+  const zonder = M.gcUitkomst({ paginas: { hits: [
+    { path: '/', count: 5, stats: [{ day: '2026-10-28', daily: 2 }, { day: '2026-10-29', daily: 3 }] },
+    { path: '/boeken.html', count: 4, stats: [{ day: '2026-10-29', daily: 4 }] },
+    { path: 'klik', event: true, count: 9, stats: [{ day: '2026-10-29', daily: 9 }] }] } }, ['totaal: 404 (Error!)'], 7, 'x');
+  gelijk([zonder.ok, zonder.cijfers.geschat, zonder.cijfers.totaal, zonder.cijfers.verloop, zonder.waarschuwing],
+    [true, true, 9, [{ dag: '2026-10-28', n: 2 }, { dag: '2026-10-29', n: 7 }], undefined]);
   const deel = M.gcUitkomst({ totaal: { total: 3, stats: [] } }, ['landen: 404 (not found)'], 7, 'x');
   gelijk([deel.ok, deel.cijfers.totaal, deel.waarschuwing], [true, 3, 'Niet alles kwam binnen: landen: 404 (not found)']);
   const jaar = M.verwerkGoatcounter({ totaal: { total: 1, stats: Array.from({ length: 14 }, (_, i) => ({ day: '2026-01-' + String(i + 1).padStart(2, '0'), daily: 1 })) } }, 365);

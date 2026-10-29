@@ -51,6 +51,19 @@ var GC_TOESTELLEN = {
  */
 function verwerkGoatcounter(antwoorden, dagen) {
   var t = antwoorden.totaal || {};
+  var geschat = false;
+  // Kwam het totaal niet binnen? Dan een schatting uit de meest bekeken pagina's (hun aantallen per dag).
+  if (!antwoorden.totaal && antwoorden.paginas && antwoorden.paginas.hits) {
+    geschat = true;
+    var dagen0 = {};
+    var som = 0;
+    antwoorden.paginas.hits.forEach(function (h) {
+      if (h.event) return;
+      som += Number(h.count) || 0;
+      (h.stats || []).forEach(function (s) { var d = String(s.day || ''); dagen0[d] = (dagen0[d] || 0) + (Number(s.daily) || 0); });
+    });
+    t = { total: som, stats: Object.keys(dagen0).map(function (d) { return { day: d, daily: dagen0[d] }; }) };
+  }
   var perDag = (t.stats || []).map(function (s) { return { dag: String(s.day || ''), n: Number(s.daily) || 0 }; })
     .filter(function (s) { return /^\d{4}-\d{2}-\d{2}$/.test(s.dag); })
     .sort(function (a, b) { return a.dag.localeCompare(b.dag); });
@@ -72,6 +85,7 @@ function verwerkGoatcounter(antwoorden, dagen) {
   };
   return {
     totaal: Number(t.total) || 0,
+    geschat: geschat,
     perWeek: dagen > 60,
     verloop: verloop,
     paginas: ((antwoorden.paginas && antwoorden.paginas.hits) || []).filter(function (h) { return !h.event; }).map(function (h) {
@@ -100,10 +114,20 @@ function bezoekersCijfers(invoer) {
   var antwoorden;
   try {
     antwoorden = UrlFetchApp.fetchAll(sleutels.map(function (k) {
-      return { url: vragen[k], headers: { Authorization: 'Bearer ' + sleutel }, muteHttpExceptions: true };
+      return { url: vragen[k], headers: { Authorization: 'Bearer ' + sleutel, 'Content-Type': 'application/json' }, muteHttpExceptions: true };
     }));
   } catch (e) {
     return { ok: false, fout: 'GoatCounter is niet bereikbaar. Probeer het later opnieuw.' };
+  }
+  // Het totaal geeft soms 404. Nog één keer, met als einde het huidige uur in plaats van het einde van de dag.
+  var iTotaal = sleutels.indexOf('totaal');
+  if (iTotaal > -1 && antwoorden[iTotaal].getResponseCode() === 404) {
+    var nu = new Date();
+    var einde = Utilities.formatDate(new Date(nu.getTime() - nu.getTime() % 3600000), 'UTC', "yyyy-MM-dd'T'HH:mm:ss'Z'");
+    try {
+      antwoorden[iTotaal] = UrlFetchApp.fetch(vragen.totaal.replace(/end=[^&]+/, 'end=' + encodeURIComponent(einde)),
+        { headers: { Authorization: 'Bearer ' + sleutel, 'Content-Type': 'application/json' }, muteHttpExceptions: true });
+    } catch (e) { /* dan blijft het de eerste 404 */ }
   }
   var data = {}, mislukt = [];
   for (var i = 0; i < sleutels.length; i++) {
@@ -144,6 +168,8 @@ function gcUitkomst(data, mislukt, dagen, code) {
     };
   }
   var r = { ok: true, cijfers: verwerkGoatcounter(data, dagen) };
-  if (mislukt.length) r.waarschuwing = 'Niet alles kwam binnen: ' + mislukt.join('; ');
+  // Enkel het totaal ontbrak en de schatting lukte: geen waarschuwing, wel een woordje uitleg in het scherm.
+  var rest = mislukt.filter(function (m) { return !(r.cijfers.geschat && /^totaal:/.test(m)); });
+  if (rest.length) r.waarschuwing = 'Niet alles kwam binnen: ' + rest.join('; ');
   return r;
 }
