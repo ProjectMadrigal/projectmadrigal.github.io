@@ -9,6 +9,8 @@
  *     zodra er weer internet is. Elke verkoop heeft een eigen code, zodat ze nooit dubbel telt.
  *     Open het scherm thuis met internet: dan staan de gegevens en de pagina zelf op de gsm.
  *   - Afsluiten: het standje komt bij de afgesloten standjes, met de omzet.
+ *   - Voorraad beheren (enkel met de code van het bestuur): een boek uit de Catalogus kiezen en
+ *     het aantal te koop, de prijs en onderhandelbaar invullen. Enkel met internet.
  */
 (function (root) {
   'use strict';
@@ -26,6 +28,8 @@
   var huidig = null;        // standje_id
   var weergave = 'verkopen'; // 'klaarzetten', 'verkopen' of 'overzicht'
   var bezigMetSturen = false;
+  var catalogus = null;     // voor Voorraad beheren: alle boeken, pas geladen als het bestuur het opent
+  var opVoorraad = false;   // het bestuur werkt in Voorraad beheren
 
   function lees(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
   function bewaar(k, w) { try { if (w) localStorage.setItem(k, w); else localStorage.removeItem(k); } catch (e) { /* vol of geblokkeerd */ } }
@@ -100,6 +104,7 @@
     toonVerbinding();
     $('verkoop-info').textContent = 'Aangemeld als ' + B.sessie.wie + (navigator.onLine ? '' : ' · zonder internet');
     if (!data) { D.vervang($('werkvlak'), el('p', {}, 'Gegevens laden...')); return; }
+    if (opVoorraad) { toonVoorraad(); return; }
     var s = huidig ? standjeVan(huidig) : null;
     if (s) toonStandje(s); else toonLijst();
   }
@@ -118,7 +123,9 @@
     D.vervang($('werkvlak'),
       el('h2', { tabindex: '-1' }, 'Standjes'),
       el('p', {}, 'Kies een standje, of maak een nieuw. Zet de boeken klaar voor je vertrekt, en verkoop op het standje zelf.'),
-      knoppen(el('button', { type: 'button', class: 'knop', onclick: toonNieuwStandje }, '+ Nieuw standje')),
+      knoppen(el('button', { type: 'button', class: 'knop', onclick: toonNieuwStandje }, '+ Nieuw standje'),
+        B.sessie.rol === 'bestuur' ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { opVoorraad = true; teken(); } }, 'Voorraad beheren') : null),
+      B.sessie.rol === 'bestuur' ? null : el('p', { class: 'hulptekst' }, 'Boeken aan de voorraad toevoegen kan enkel met de code van het bestuur.'),
       open.length ? el('ul', { class: 'kaartlijst' }, open.map(kaart)) : el('p', {}, 'Er is nog geen standje gepland.'),
       dicht.length ? [el('h3', { style: 'margin-top:1.5rem' }, 'Afgesloten'), el('ul', { class: 'kaartlijst' }, dicht.map(kaart))] : null);
   }
@@ -219,6 +226,66 @@
   }
 
   function Z() { return root.MadrigalZoeken; }
+
+  /* ---------- Voorraad beheren (enkel het bestuur) ---------- */
+
+  function toonVoorraad() {
+    var terug = knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { opVoorraad = false; teken(); } }, '← Alle standjes'));
+    if (!catalogus) {
+      D.vervang($('werkvlak'), terug, el('h2', { tabindex: '-1' }, 'Voorraad beheren'), el('p', {}, 'De catalogus laden...'));
+      if (!navigator.onLine) { D.vervang($('werkvlak'), terug, el('h2', {}, 'Voorraad beheren'), el('p', {}, 'Dit kan enkel met internet.')); return; }
+      B.voerUit('voorraadCatalogus').then(function (r) {
+        if (!r.ok) { D.vervang($('werkvlak'), terug, el('h2', {}, 'Voorraad beheren'), el('p', { class: 'melding fout' }, r.fout || 'De catalogus kon niet laden.')); return; }
+        catalogus = r.boeken;
+        if (opVoorraad) toonVoorraad();
+      });
+      return;
+    }
+    var zoek = el('input', { type: 'search', id: 'vr-zoek', autocomplete: 'off', placeholder: 'Titel, auteur of ISBN' });
+    var lijst = el('div', { 'aria-live': 'polite' });
+    function rij(b) {
+      var idAantal = 'vr-aantal-' + b.id, idPrijs = 'vr-prijs-' + b.id, idO = 'vr-o-' + b.id;
+      var fout = el('div', { 'aria-live': 'assertive' });
+      var aantal = el('input', { type: 'number', id: idAantal, min: '0', step: '1', value: String(b.stock), class: 'kort', inputmode: 'numeric' });
+      var prijs = el('input', { type: 'text', id: idPrijs, inputmode: 'decimal', value: b.prijs === null ? '' : String(b.prijs).replace('.', ','), class: 'kort' });
+      var o = el('input', { type: 'checkbox', id: idO });
+      o.checked = b.o;
+      var knop = el('button', { type: 'button', class: 'knop tweede' }, 'Bewaar');
+      knop.addEventListener('click', function () {
+        if (!navigator.onLine) { B.melding(fout, 'fout', 'Dit kan enkel met internet.'); return; }
+        knop.disabled = true;
+        B.voerUit('voorraadZetten', { boek_id: b.id, te_koop_aantal: aantal.value, prijs: prijs.value, onderhandelbaar: o.checked }).then(function (r) {
+          knop.disabled = false;
+          if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
+          b.stock = Number(aantal.value); b.prijs = prijs.value ? Number(String(prijs.value).replace(',', '.')) : null; b.o = o.checked;
+          if (r.data) gebruik(r.data);
+          B.melding(fout, 'ok', r.tekst);
+        });
+      });
+      return el('li', { class: 'kaart' },
+        el('p', {}, el('strong', {}, b.t), b.a ? ' (' + b.a + ')' : ''),
+        el('div', { class: 'knoppen' },
+          el('label', { for: idAantal }, 'Aantal te koop '), aantal,
+          el('label', { for: idPrijs }, 'Prijs in euro '), prijs,
+          el('label', { for: idO }, o, ' Onderhandelbaar'), knop),
+        fout);
+    }
+    function tekenLijst() {
+      var q = Z().normaliseer(zoek.value);
+      var boeken = catalogus.filter(function (b) {
+        return q ? Z().normaliseer(b.t + ' ' + b.a + ' ' + b.i).indexOf(q) > -1 : b.stock > 0;
+      }).slice(0, 30);
+      D.vervang(lijst, boeken.length ? el('ul', { class: 'kaartlijst' }, boeken.map(rij))
+        : el('p', {}, q ? 'Geen boek gevonden in de Catalogus.' : 'Er is nog niets te koop. Zoek een boek om het toe te voegen.'));
+    }
+    zoek.addEventListener('input', tekenLijst);
+    tekenLijst();
+    D.vervang($('werkvlak'), terug,
+      el('h2', { tabindex: '-1' }, 'Voorraad beheren'),
+      el('p', {}, 'Zoek een boek uit de Catalogus en vul in hoeveel exemplaren te koop zijn en aan welke prijs. Zet het aantal op 0 om een boek uit de verkoop te halen. Zonder zoekterm zie je wat nu te koop is.'),
+      el('div', { class: 'veld' }, el('label', { for: 'vr-zoek' }, 'Zoek een boek'), zoek),
+      lijst);
+  }
 
   /* ---------- Verkopen ---------- */
 

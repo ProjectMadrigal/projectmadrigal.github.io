@@ -59,6 +59,9 @@ var ACTIES = {
   standjeBoekZetten: 'vrijwilliger',
   verkopenDoorsturen: 'vrijwilliger',
   standjeStatus: 'vrijwilliger',
+  // Boeken aan de voorraad toevoegen vanuit het verkoopscherm: enkel het bestuur.
+  voorraadCatalogus: 'bestuur',
+  voorraadZetten: 'bestuur',
   briefjeWeg: 'vrijwilliger',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
@@ -280,9 +283,9 @@ function voerActieUit(actie, invoer, rol) {
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
     if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
     if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
-    if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus'].indexOf(actie) > -1) {
+    if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus', 'voorraadCatalogus', 'voorraadZetten'].indexOf(actie) > -1) {
       var verkoop = verkoopActie(actie, invoer, wie);
-      if (verkoop.ok && actie === 'verkopenDoorsturen' && verkoop.nieuw) leegCache();
+      if (verkoop.ok && ((actie === 'verkopenDoorsturen' && verkoop.nieuw) || actie === 'voorraadZetten')) leegCache();
       return verkoop;
     }
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {

@@ -123,6 +123,8 @@ function antwoord(rol, actie, vraag) {
     annuleerUitlening: { ok: true, tekst: 'De uitlening van "Twee kasten vol" is geannuleerd. Geef de borg van 5 euro terug.' },
     beheerCoverVanLink: { ok: true, tekst: 'De afbeelding is de cover van "Stille lichten".', cover_url: 'https://lh3.googleusercontent.com/d/test' },
     verkoopData: { ok: true, data: VERKOOP },
+    voorraadCatalogus: { ok: true, boeken: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', i: '', stock: 3, prijs: 8, o: true }, { id: 'B0002', t: 'Stille lichten', a: 'Fictief, Kim', i: '9780000000002', stock: 0, prijs: null, o: false }] },
+    voorraadZetten: { ok: true, tekst: '"Stille lichten": 2 te koop aan 7,50 euro.', data: VERKOOP },
     verkopenDoorsturen: { ok: true, bewaard: ((vraag || {}).verkopen || []).map((v) => v.verkoop_id), nieuw: ((vraag || {}).verkopen || []).length, fouten: [], data: VERKOOP },
     boekVervangen: { ok: true, tekst: '"Stille lichten": vervangen. Het staat weer gewoon in de catalogus.' },
     boekVerloren: { ok: true, tekst: '"Twee kasten vol" staat als verloren. De uitlening is afgesloten, de borg van 5 euro is ingehouden.' },
@@ -808,6 +810,31 @@ async function meldAan(page, basis, pagina) {
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('verkoopscherm: het bestuur zet een boek uit de Catalogus in de voorraad, een vrijwilliger niet', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await meldAan(page, basis, 'verkoop.html');
+    await page.click('#werkvlak button:has-text("Voorraad beheren")');
+    await page.waitForSelector('#vr-zoek');
+    verwacht(/De verzonnen zee/.test(await page.textContent('#werkvlak')) && !/Stille lichten/.test(await page.textContent('#werkvlak')), 'Zonder zoekterm: enkel wat te koop is');
+    await page.fill('#vr-zoek', '9780000000002');
+    await page.fill('#vr-aantal-B0002', '2');
+    await page.fill('#vr-prijs-B0002', '7,50');
+    await page.check('#vr-o-B0002');
+    await page.click('#werkvlak li:has-text("Stille lichten") button:has-text("Bewaar")');
+    await page.waitForSelector('text=2 te koop aan 7,50 euro');
+    const v = vragen.filter((x) => x.actie === 'voorraadZetten').pop();
+    verwacht(v && v.boek_id === 'B0002' && v.te_koop_aantal === '2' && v.prijs === '7,50' && v.onderhandelbaar === true, 'Doorgestuurd: ' + JSON.stringify(v));
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await ctx.close();
+    const vw = await nieuweContext(browser, { rol: 'vrijwilliger' });
+    await meldAan(vw.page, basis, 'verkoop.html');
+    await vw.page.waitForSelector('text=Boeken aan de voorraad toevoegen kan enkel met de code van het bestuur.');
+    verwacht(!(await vw.page.$('#werkvlak button:has-text("Voorraad beheren")')), 'Een vrijwilliger ziet de knop niet');
+    await vw.ctx.close();
+    verwacht(!fouten.length && !vw.fouten.length, fouten.concat(vw.fouten).join(' | '));
   });
   await test('cover via een link: plakken en bewaren', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });

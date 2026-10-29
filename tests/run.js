@@ -1714,6 +1714,26 @@ test('voorraad: wat te koop is en wat al verkocht werd, met totalen', () => {
   gelijk(v.totaal, [3, 25, 3, 24]);
 });
 
+test('voorraad beheren: aantal, prijs en onderhandelbaar zetten vanuit het verkoopscherm', () => {
+  const catalogus = [
+    { boek_id: 'B0002', titel: 'Zee van glas', auteur: 'Vera Verzonnen', isbn: '9780000000002', te_koop_aantal: '', prijs: '' },
+    { boek_id: 'B0001', titel: 'Atlas van niets', auteur: 'Noor Bedacht', te_koop_aantal: 2, prijs: 8, onderhandelbaar: 'ja' },
+    { boek_id: 'F0001', titel: 'Verzonnen film', soort: 'film', type: 'film' }
+  ];
+  const lijst = M.voorraadCatalogus(catalogus);
+  gelijk(lijst.map((b) => [b.id, b.stock, b.prijs, b.o]), [['B0001', 2, 8, true], ['B0002', 0, null, false]], 'Geen films, op titel');
+  const b = catalogus[0];
+  assert.strictEqual(M.voorraadZetten(catalogus, { boek_id: 'B9999', te_koop_aantal: 1, prijs: 5 }).ok, false);
+  assert.strictEqual(M.voorraadZetten(catalogus, { boek_id: 'B0002', te_koop_aantal: 'twee', prijs: 5 }).ok, false);
+  assert.strictEqual(M.voorraadZetten(catalogus, { boek_id: 'B0002', te_koop_aantal: 1.5, prijs: 5 }).ok, false);
+  assert.strictEqual(M.voorraadZetten(catalogus, { boek_id: 'B0002', te_koop_aantal: 2, prijs: '' }).ok, false, 'Prijs nodig als er iets te koop is');
+  assert.strictEqual(M.voorraadZetten(catalogus, { boek_id: 'B0002', te_koop_aantal: 2, prijs: 'veel' }).ok, false);
+  let r = M.voorraadZetten(catalogus, { boek_id: 'B0002', te_koop_aantal: '3', prijs: '12,50', onderhandelbaar: true });
+  gelijk([r.ok, r.tekst, b.te_koop_aantal, b.prijs, b.onderhandelbaar], [true, '"Zee van glas": 3 te koop aan 12,50 euro.', 3, 12.5, 'ja']);
+  r = M.voorraadZetten(catalogus, { boek_id: 'B0002', te_koop_aantal: 0, prijs: '' });
+  gelijk([r.ok, r.tekst, b.te_koop_aantal, b.onderhandelbaar], [true, '"Zee van glas" is niet meer te koop.', 0, 'nee']);
+});
+
 console.log('\nFoto van de cover en bol.com');
 test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', () => {
   const s = maakStaat();

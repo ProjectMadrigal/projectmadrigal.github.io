@@ -339,6 +339,7 @@ Een nieuwe code maken? Maak de cel `code_vrijwilliger` leeg en kies **Madrigal >
 ### Verkopen op een standje
 
 - **Je voorraad staat in de Catalogus.** Vul per boek dat te koop is `te_koop_aantal` (hoeveel exemplaren), `prijs` (in euro) en `onderhandelbaar` (`ja` of `nee`) in. Die exemplaren staan los van de uitleenbare in `aantal`.
+- **Sneller: Voorraad beheren in het verkoopscherm.** Meld je in `verkoop.html` aan met de code van het bestuur. Kies **Voorraad beheren**, zoek een boek uit de Catalogus en vul het aantal te koop, de prijs en onderhandelbaar in. Aantal 0 haalt een boek uit de verkoop. Vrijwilligers zien die knop niet.
 - **Tabblad Voorraad:** een overzicht dat het script zelf schrijft: wat te koop is, de waarde, wat al verkocht werd en wat dat opbracht. Pas er niets in aan. Het volgt vanzelf na elke verkoop en als je in de Catalogus `te_koop_aantal`, `prijs` of `onderhandelbaar` wijzigt. Klopt het niet? **Madrigal > Verkoop > Werk de voorraad bij.**
 - **Standjes, Standje boeken en Verkopen** vult het verkoopscherm (`verkoop.html`). Je vult ze niet zelf in.
 
