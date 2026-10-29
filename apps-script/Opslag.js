@@ -76,11 +76,14 @@ var KOLOMMEN = {
 };
 
 /** Kolommen met een getal. Staat er per ongeluk datumopmaak op, dan leest leesTabel toch het getal. */
-var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal', 'te_koop_aantal', 'mee'];
+// prijs: een nieuwe kolom erft soms de datumopmaak van de kolom ernaast. Dan wordt 7,50 de datum 6/1/1900 12:00.
+var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal', 'te_koop_aantal', 'mee', 'prijs'];
 
 /** Het getal achter een datum in de spreadsheet: het aantal dagen sinds 30 december 1899. */
 function datumNaarGetal(d) {
-  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+  // Met het uur erbij: een prijs van 7,50 is een halve dag (12:00). Afgerond op centen.
+  var ms = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()) - Date.UTC(1899, 11, 30);
+  return Math.round(ms / 864000) / 100;
 }
 
 /** Kolommen met een datum. Die schrijven we als echte datum in de spreadsheet. */

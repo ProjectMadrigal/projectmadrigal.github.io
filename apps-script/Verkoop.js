@@ -271,6 +271,9 @@ function schrijfVoorraad(catalogus, verkopen) {
 
 /** Menu: Madrigal > Verkoop > Werk de voorraad bij. */
 function voorraadBijwerkenMenu() {
+  // Stond er datumopmaak op prijs (7,50 werd 6/1/1900)? Dan eerst terug een getal maken.
+  zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['te_koop_aantal']);
+  zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['prijs'], '0.00');
   var verkopen = spreadsheet().getSheetByName('Verkopen') ? leesTabel('Verkopen').rijen : [];
   var v = schrijfVoorraad(leesTabel('Catalogus').rijen, verkopen);
   meld('De Voorraad is bijgewerkt: ' + v.rijen.length + ' boeken, ' + v.totaal[0] + ' exemplaren te koop.');

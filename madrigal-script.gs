@@ -540,7 +540,9 @@ var KOLOMMEN = {
 };
 
 /** Kolommen met een getal. Staat er per ongeluk datumopmaak op, dan leest leesTabel toch het getal. */
-var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal', 'te_koop_aantal', 'mee'];
+
+// prijs: een nieuwe kolom erft soms de datumopmaak van de kolom ernaast. Dan wordt 7,50 de datum 6/1/1900 12:00.
+var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal', 'te_koop_aantal', 'mee', 'prijs'];
 
 // wiki_gezocht staat er bewust niet bij: die datum bewaren we als tekst (zie herstelKolom in Wikipedia.js).
 var DATUMKOLOMMEN = [
@@ -2388,7 +2390,9 @@ function dagVolgorde(id, dag) {
 
 /** Het getal achter een datum in de spreadsheet: het aantal dagen sinds 30 december 1899. */
 function datumNaarGetal(d) {
-  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+  // Met het uur erbij: een prijs van 7,50 is een halve dag (12:00). Afgerond op centen.
+  var ms = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()) - Date.UTC(1899, 11, 30);
+  return Math.round(ms / 864000) / 100;
 }
 
 /** Kolommen met een datum. Die schrijven we als echte datum in de spreadsheet. */
@@ -3617,7 +3621,10 @@ function installeer() {
 
   // Tekstopmaak voor kolommen die tekst moeten blijven (ISBN, telefoon, lenersnummer).
   zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id', 'wiki_gezocht']);
-  zetGetalopmaak(ss.getSheetByName('Catalogus'), ['duur']);
+  zetGetalopmaak(ss.getSheetByName('Catalogus'), ['duur', 'te_koop_aantal']);
+  zetGetalopmaak(ss.getSheetByName('Catalogus'), ['prijs'], '0.00');
+  zetGetalopmaak(ss.getSheetByName('Standje boeken'), ['prijs'], '0.00');
+  zetGetalopmaak(ss.getSheetByName('Verkopen'), ['prijs'], '0.00');
   zetTekstopmaak(ss.getSheetByName('Leners'), ['telefoon']);
 
   // Niet-publieke kolommen van de Catalogus grijs markeren.
@@ -7733,6 +7740,9 @@ function voorgesteldeBoeken(rijen) {
 
 /** Menu: Madrigal > Verkoop > Werk de voorraad bij. */
 function voorraadBijwerkenMenu() {
+  // Stond er datumopmaak op prijs (7,50 werd 6/1/1900)? Dan eerst terug een getal maken.
+  zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['te_koop_aantal']);
+  zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['prijs'], '0.00');
   var verkopen = spreadsheet().getSheetByName('Verkopen') ? leesTabel('Verkopen').rijen : [];
   var v = schrijfVoorraad(leesTabel('Catalogus').rijen, verkopen);
   meld('De Voorraad is bijgewerkt: ' + v.rijen.length + ' boeken, ' + v.totaal[0] + ' exemplaren te koop.');
@@ -8471,8 +8481,9 @@ function zelfdeTekst(a, b) {
 /**
  * Zet de opmaak van kolommen op een gewoon getal. Een nieuwe kolom erft soms de datumopmaak van de
  * kolom ernaast: dan wordt 96 minuten 5/4/1900. Een datum die er al staat, wordt terug het getal.
+ * opmaak: '0' (standaard, gehele getallen) of bv. '0.00' voor een prijs.
  */
-function zetGetalopmaak(blad, kolommen) {
+function zetGetalopmaak(blad, kolommen, opmaak) {
   if (!blad || blad.getLastRow() < 2) return;
   var kop = blad.getRange(1, 1, 1, blad.getLastColumn()).getValues()[0].map(schoon);
   kolommen.forEach(function (k) {
@@ -8482,7 +8493,7 @@ function zetGetalopmaak(blad, kolommen) {
     var waarden = bereik.getValues();
     var anders = false;
     waarden.forEach(function (r) { if (isDatumObject(r[0])) { r[0] = datumNaarGetal(r[0]); anders = true; } });
-    bereik.setNumberFormat('0');
+    bereik.setNumberFormat(opmaak || '0');
     if (anders) bereik.setValues(waarden);
   });
 }
