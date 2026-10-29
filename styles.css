@@ -651,3 +651,7 @@ html.groot-lettertype { font-size: 118.75%; }
   #afdruk table { width: 100%; border-collapse: collapse; font-size: 10pt; }
   #afdruk th, #afdruk td { border-bottom: 1px solid #999; padding: 3pt 4pt; text-align: left; }
 }
+
+/* Uitleenscherm: de knop terug naar het menu, in het midden. */
+.knoppen.midden { justify-content: center; }
+.menu-knop { min-width: min(100%, 18rem); font-size: 1.05rem; }

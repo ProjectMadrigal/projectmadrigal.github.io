@@ -1037,6 +1037,7 @@
 
   /* ---------- Start ---------- */
 
+  var gestart = false;
   $('vernieuw').addEventListener('click', function () { W.vergeet(); bezoekCijfers = {}; cijfers = null; bezigSindsCache = false; laad(); });
   $('afmelden').addEventListener('click', B.afmelden);
 
@@ -1047,9 +1048,17 @@
     // Met de bestuurscode in het vrijwilligersscherm zie je precies wat een vrijwilliger ziet.
     alsRol: VRIJWILLIGER ? 'vrijwilliger' : '',
     afmeldenNaInactiviteit: true,
+    // Met een bewaarde code: meteen laden, tegelijk met de controle van de code.
+    snelStart: function () { gestart = true; laad(); },
     bijAangemeld: function () {
       if (VRIJWILLIGER && B.sessie.echteRol === 'bestuur') $('als-vrijwilliger').hidden = false;
-      laad();
+      if (!gestart) laad();
+      gestart = true;
+      // Bestuur: de gegevens van het vrijwilligersscherm alvast ophalen zodra je naar Bekijk als vrijwilliger wijst.
+      var als = document.querySelector('a[href="vrijwilliger.html"]');
+      if (!VRIJWILLIGER && als) ['pointerenter', 'focus', 'touchstart'].forEach(function (n) {
+        als.addEventListener(n, function () { B.haalAlvastOp('vrijwilligerData', 'madrigal_data_vrijwilliger'); }, { passive: true });
+      });
     }
   });
 })();

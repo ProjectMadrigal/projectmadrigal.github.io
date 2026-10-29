@@ -87,6 +87,7 @@ function balieGegevens(staat) {
       checklist_uitlenen: checklistPunten(staat.inst.tekst_checklist_uitlenen)
     },
     privacy: staat.inst.tekst_privacy,
+    privacy_en: staat.inst.tekst_privacy_en,
     boeken: baliecatalogus(staat),
     leners: staat.leners.filter(function (l) { return jaNee(l.actief) !== 'nee'; }).map(function (l) {
       // m: de lener is gemarkeerd. Enkel dat, nooit de reden.
