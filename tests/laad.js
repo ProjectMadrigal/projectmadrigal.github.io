@@ -43,6 +43,7 @@ const SCRIPTS = [
   'apps-script/Backup.js',
   'apps-script/Aanvragen.js',
   'apps-script/Vrijwilligers.js',
+  'apps-script/Verkoop.js',
   'apps-script/Privacy.js',
   'apps-script/Overzetten.js',
   'apps-script/OudeSite.js',
