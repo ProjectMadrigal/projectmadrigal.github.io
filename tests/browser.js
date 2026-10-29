@@ -908,6 +908,7 @@ async function meldAan(page, basis, pagina) {
     await meldAan(page, basis, 'bestuur.html');
     await page.click('#sectienav button:has-text("Aankooplijst")');
     await page.waitForSelector('text=1 boek aangeduid voor aankoop');
+    verwacht((await page.textContent('#ak-totaal')) === '2 boeken te kopen, samen € 19,99 (1 boek nog zonder prijs).', 'Totaal: ' + await page.textContent('#ak-totaal'));
     // Aanduiden
     await page.check('#ak-kies-K0001');
     await page.waitForSelector('text=2 boeken aangeduid voor aankoop');
