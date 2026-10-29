@@ -322,6 +322,8 @@ var GB_TALEN = { nl: 'Nederlands', en: 'Engels', fr: 'Frans', de: 'Duits', es: '
 // Boeken die Google zeker kent: Pride and Prejudice (Penguin Classics) en To Kill a Mockingbird (Harper Perennial).
 var GB_CONTROLE_ISBNS = ['9780141439518', '9780061120084'];
 
+var GB_CONTROLE_BOEKEN = { '9780141439518': { titel: 'Pride and Prejudice', auteur: 'Austen, Jane' }, '9780061120084': { titel: 'To Kill a Mockingbird', auteur: 'Lee, Harper' } };
+
 var GRENZEN = [
   {
     id: 'max_boeken',
@@ -1507,8 +1509,8 @@ function beschikbaarheid(staat, boek) {
 }
 
 /** Beschrijving via Google Books. Geeft { tekst } of { limiet: true }. */
-function beschrijvingUitGoogleBooks(isbn, sleutel) {
-  var r = googleBooksZoek(isbn, sleutel);
+function beschrijvingUitGoogleBooks(isbn, sleutel, boek) {
+  var r = googleBooksZoek(isbn, sleutel, undefined, boek);
   if (r.code === 429 || r.code === 403 || r.code === 400) return { limiet: true, fout: r.fout };
   var items = r.items;
   for (var i = 0; i < items.length; i++) {
@@ -3218,7 +3220,7 @@ function goodreadsWaarde(rij, kolommen) {
  * zoek(isbn): standaard googleBooksZoek met de sleutel (een andere functie kan in de tests).
  */
 function googleBooksControle(sleutel, zoek) {
-  zoek = zoek || function (isbn) { return googleBooksZoek(isbn, sleutel); };
+  zoek = zoek || function (isbn) { return googleBooksZoek(isbn, sleutel, undefined, GB_CONTROLE_BOEKEN[isbn]); };
   for (var i = 0; i < GB_CONTROLE_ISBNS.length; i++) {
     var r = zoek(GB_CONTROLE_ISBNS[i]);
     // Vond Google iets (ook een andere uitgave), dan werken de verbinding en de sleutel.
@@ -3260,16 +3262,17 @@ function googleBooksVraag(url) {
 
 /**
  * Zoekt een ISBN op bij Google Books. Geeft { code, items, limiet, fout } terug.
+ * boek (optioneel): { titel, auteur } uit de Catalogus. Dan telt ook een andere uitgave van hetzelfde boek.
  *   limiet: Google zegt dat de daglimiet op is (dan later opnieuw proberen);
  *   fout:   wat Google zelf als reden geeft, bv. "API not enabled" of een probleem met de sleutel.
  */
-function googleBooksZoek(isbn, sleutel, land) {
+function googleBooksZoek(isbn, sleutel, land, boek) {
   // Eerst op het ISBN als gewoon getal: dat werkt bij Google het best. We nemen enkel een
   // uitgave met precies dat ISBN. Levert dat niets op, dan als reserve de vorm "isbn:…".
   var r = googleBooksVraag(googleBooksUrl(isbn, sleutel, land, 'vrij'));
   if (!r.fout) {
-    r.items = googleItemsMetIsbn(r.items, isbn);
-    r.info += ', ' + r.items.length + ' met dit ISBN';
+    r.items = googleItemsMetIsbn(r.items, isbn, boek);
+    r.info += ', ' + r.items.length + ' bruikbaar';
   }
   r.pogingen = [r.info];
   if (r.limiet || r.items.length) return r;
@@ -3293,10 +3296,11 @@ function googleFout(data) {
 
 /**
  * De uitgaven met precies dit ISBN (13 of 10 cijfers). Is er geen, dan de uitgaven zonder enig ISBN:
- * Google vond die op het nummer, maar toont het niet (dat gebeurt soms). Een uitgave met een ander
- * ISBN nemen we nooit: dat is een ander boek of een andere uitgave.
+ * Google vond die op het nummer, maar toont het niet (dat gebeurt soms). Is er ook die niet en kennen
+ * we het boek (boek: { titel, auteur }), dan een andere uitgave met dezelfde titel en auteur: de cover
+ * en de beschrijving van dezelfde roman in een andere uitgave. Een ander boek nemen we nooit.
  */
-function googleItemsMetIsbn(items, isbn) {
+function googleItemsMetIsbn(items, isbn, boek) {
   var gezocht = [String(isbn), isbn13Naar10(isbn)].filter(Boolean);
   function isbns(it) {
     return ((it && it.volumeInfo && it.volumeInfo.industryIdentifiers) || []).filter(function (id) { return /^ISBN/.test(String(id.type || '')); })
@@ -3304,7 +3308,9 @@ function googleItemsMetIsbn(items, isbn) {
   }
   var juist = (items || []).filter(function (it) { return isbns(it).some(function (i) { return gezocht.indexOf(i) > -1; }); });
   if (juist.length) return juist;
-  return (items || []).filter(function (it) { return !isbns(it).length; });
+  var zonder = (items || []).filter(function (it) { return !isbns(it).length; });
+  if (zonder.length || !boek || !boek.titel) return zonder;
+  return (items || []).filter(function (it) { return zelfdeBoek(it.volumeInfo || {}, boek); });
 }
 
 /** Waarom een ronde stopte en wanneer het script verdergaat, voor het Logboek. Leeg als het gewoon doorloopt. */
@@ -6761,8 +6767,16 @@ function testGoogleBooks() {
   var sleutel = leesInstellingen().google_books_api_key;
   // Wat Google op elke vraag antwoordde, onderaan in de melding: zo zie je wat er gebeurt.
   var details = [];
+  // De titel en auteur: van een bekend boek, of uit de Catalogus (dan telt ook een andere uitgave).
+  var titels = Object.assign({}, GB_CONTROLE_BOEKEN);
+  if (!titels[isbn]) {
+    try {
+      var rij = leesTabel('Catalogus').rijen.filter(function (b) { return normaliseerIsbn(b.isbn).isbn === isbn; })[0];
+      if (rij) titels[isbn] = { titel: rij.titel, auteur: rij.auteur };
+    } catch (e) { /* zonder titel */ }
+  }
   var zoek = function (x) {
-    var antwoord = googleBooksZoek(x, sleutel);
+    var antwoord = googleBooksZoek(x, sleutel, undefined, titels[x]);
     details.push(x + ': ' + (antwoord.pogingen || []).join(' / '));
     return antwoord;
   };
@@ -6915,6 +6929,11 @@ function teVerwijderenBackups(bestanden, bewaren) {
 /** Tijdzone van het script, voor datums van vandaag. */
 function tijdzone() {
   return Session.getScriptTimeZone() || 'Europe/Brussels';
+}
+
+/** Titel zonder ondertitel en zonder wat tussen haakjes staat, voor een vergelijking. */
+function titelKern(titel) {
+  return normaliseerTekst(String(titel || '').replace(/\(.*?\)/g, ' ').split(':')[0]);
 }
 
 /**
@@ -8349,7 +8368,7 @@ function vulAanUitGoogleBooks() {
     for (var i = 0; i < teDoen.length; i++) {
       if (Date.now() - start > GB_MAX_LOOPTIJD_MS) break;
       var boek = teDoen[i];
-      var antwoord = googleBooksZoek(boek.isbn, sleutel); // zie Beschrijvingen.js
+      var antwoord = googleBooksZoek(boek.isbn, sleutel, undefined, boek); // zie Beschrijvingen.js
       var code = antwoord.code;
       if (code >= 400) fout = antwoord.fout;
       if (antwoord.limiet || code === 403 || code === 400) { limiet = true; break; } // daglimiet, of Google weigert (zie fout)
@@ -8496,7 +8515,7 @@ function vulBeschrijvingenAan() {
       var enkelGoogle = wachtOpGoogle(boek);
       if (enkelGoogle && gbLimiet) break; // Google weigert nog: de rest wacht
       // Zit Google aan zijn daglimiet, dan zoeken we verder bij Open Library alleen.
-      var r = gbLimiet ? { tekst: '' } : beschrijvingUitGoogleBooks(boek.isbn, sleutel);
+      var r = gbLimiet ? { tekst: '' } : beschrijvingUitGoogleBooks(boek.isbn, sleutel, boek);
       if (r.limiet) { gbLimiet = true; limiet = true; gbFout = r.fout || ''; r = { tekst: '' }; if (enkelGoogle) break; }
       if (!r.tekst && !enkelGoogle) { Utilities.sleep(1000); r = beschrijvingUitOpenLibrary(boek.isbn); }
       if (r.limiet) break; // Open Library vraagt om te wachten
@@ -8883,6 +8902,15 @@ function woorden(waarde) {
   var alle = normaliseerTekst(waarde).split(' ').filter(function (w) { return w; });
   var zonder = alle.filter(function (w) { return LIDWOORDEN.indexOf(w) === -1; });
   return zonder.length ? zonder : alle;
+}
+
+/** Is deze uitgave van Google (volumeInfo) hetzelfde boek: (bijna) dezelfde titel, en dezelfde achternaam als we een auteur kennen? */
+function zelfdeBoek(info, boek) {
+  var a = titelKern(info.title), b = titelKern(boek.titel);
+  if (!a || !b || gelijkenis(a, b) < 0.85) return false;
+  var naam = achternaam(boek.auteur);
+  if (!naam) return true;
+  return (info.authors || []).some(function (x) { return achternaam(x) === naam; });
 }
 
 /** Is deze naam van wie aangemeld is? Op de voornaam, zonder hoofdletters of accenten. */
