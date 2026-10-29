@@ -474,9 +474,37 @@
         melding.textContent = r.tekst + ' De website toont ze binnen enkele minuten.';
       });
     });
-    return el('fieldset', { class: 'blok' }, el('legend', {}, 'Foto van de cover'),
+    // Of een link: naar een afbeelding, een webpagina (bv. bol.com) of uit Google Afbeeldingen.
+    var link = el('input', { type: 'url', id: 'bb-cover-link', inputmode: 'url', autocomplete: 'off', placeholder: 'https://...' });
+    var linkKnop = el('button', { type: 'button', class: 'knop tweede' }, 'Gebruik deze link');
+    linkKnop.addEventListener('click', function () {
+      var url = link.value.trim();
+      if (!url) { melding.textContent = 'Plak eerst een link.'; return; }
+      if (/^data:image\//.test(url)) {
+        // Uit Google Afbeeldingen komt soms de afbeelding zelf mee: die verkleinen we zoals een foto.
+        melding.textContent = 'Afbeelding verkleinen...';
+        fetch(url).then(function (a) { return a.blob(); }).then(function (blob) { return verkleinFoto(blob); }).then(function (u) {
+          dataUrl = u; voorbeeld.src = u; voorbeeld.hidden = false; knop.disabled = false;
+          melding.textContent = 'Ziet het er goed uit? Klik dan op Gebruik deze foto als cover.';
+        }, function (e) { melding.textContent = e.message; });
+        return;
+      }
+      var klaar = bezig(linkKnop, 'Afbeelding ophalen...');
+      B.voerUit('beheerCoverVanLink', { boek_id: boek.boek_id, url: url }).then(function (r) {
+        klaar();
+        if (!r.ok) { melding.textContent = r.fout; return; }
+        if (coverVeld) { coverVeld.invoer.value = r.cover_url; coverVeld.oud = r.cover_url; coverVeld.invoer.dispatchEvent(new Event('input')); }
+        (ctx.data.boeken || []).forEach(function (b) { if (b.id === String(boek.boek_id)) b.c = true; });
+        if (coverLinksBelofte) coverLinksBelofte.then(function (l) { l[String(boek.boek_id)] = r.cover_url; });
+        voorbeeld.src = r.cover_url; voorbeeld.hidden = false; link.value = '';
+        melding.textContent = r.tekst + ' De website toont ze binnen enkele minuten.';
+      });
+    });
+    return el('fieldset', { class: 'blok' }, el('legend', {}, 'Foto of link van de cover'),
       el('p', { class: 'hulptekst' }, 'Neem met je gsm een foto van de voorkant, of kies een foto. De site verkleint ze en bewaart ze op Google Drive.'),
-      el('div', { class: 'veld' }, el('label', { for: 'bb-foto' }, 'Foto nemen of kiezen'), invoer), voorbeeld, melding, knoppen(knop));
+      el('div', { class: 'veld' }, el('label', { for: 'bb-foto' }, 'Foto nemen of kiezen'), invoer), voorbeeld, knoppen(knop),
+      el('div', { class: 'veld' }, el('label', { for: 'bb-cover-link' }, 'Of plak een link ', el('span', { class: 'hulptekst' }, '(naar een afbeelding, een webpagina zoals bol.com, of uit Google Afbeeldingen)')), link),
+      knoppen(linkKnop), melding);
   }
 
   /**

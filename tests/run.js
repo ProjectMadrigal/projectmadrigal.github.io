@@ -1401,7 +1401,7 @@ test('instellingen: per groep, codes nooit zichtbaar of aanpasbaar', () => {
   assert.strictEqual(rijen[3].waarde, 'vrijdag 18-22');
 });
 test('beheeracties: bestuur, behalve de lijst voor het vrijwilligersscherm', () => {
-  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload', 'beheerCoverLinks', 'beheerTekstUitFoto'];
+  const vrijwilliger = ['beheerLeeslijstBoeken', 'beheerInhoud', 'beheerInhoudBewaren', 'beheerCoversLijst', 'beheerCoversBewaren', 'beheerCoverUpload', 'beheerCoverVanLink', 'beheerCoverLinks', 'beheerTekstUitFoto'];
   Object.keys(M.ACTIES).filter((a) => /^beheer/.test(a)).forEach((a) => assert.strictEqual(M.ACTIES[a], vrijwilliger.indexOf(a) > -1 ? 'vrijwilliger' : 'bestuur', a));
 });
 test('rollen: drie codes, elke rol mag wat de rol ervoor mag', () => {
@@ -1602,6 +1602,30 @@ test('foto: enkel een afbeelding, niet te groot, en de link komt in cover_url', 
   gelijk(bewaard, [['B0001.jpg', 'image/jpeg']]);
   gelijk([s.catalogus[0].cover_url, s.catalogus[0].cover_bron], ['https://lh3.googleusercontent.com/d/test123', 'foto in de bib']);
   assert.strictEqual(M.ACTIES.beheerCoverUpload, 'vrijwilliger');
+});
+test('cover via een link: afbeelding, webpagina (og:image) en Google Afbeeldingen', () => {
+  gelijk(M.echteAfbeeldingLink('https://www.google.com/imgres?imgurl=https%3A%2F%2Fvoorbeeld.test%2Fcover.jpg&imgrefurl=x'), 'https://voorbeeld.test/cover.jpg');
+  gelijk(M.echteAfbeeldingLink('http://voorbeeld.test/a.png'), 'https://voorbeeld.test/a.png');
+  gelijk(M.afbeeldingUitHtml('<meta property="og:image" content="/img/c.jpg">', 'https://winkel.test/boek/1'), 'https://winkel.test/img/c.jpg');
+  gelijk(M.afbeeldingUitHtml('<meta content="//cdn.test/c.webp" property="og:image">', 'https://winkel.test/'), 'https://cdn.test/c.webp');
+  const s = maakStaat();
+  const opgehaald = [];
+  const web = {
+    'https://winkel.test/boek/1': { code: 200, type: 'text/html; charset=utf-8', tekst: '<meta property="og:image" content="https://winkel.test/c.jpg">' },
+    'https://winkel.test/c.jpg': { code: 200, type: 'image/jpeg', data: 'QUJD' },
+    'https://winkel.test/leeg': { code: 200, type: 'text/html', tekst: '<p>niets</p>' },
+    'https://winkel.test/pdf': { code: 200, type: 'application/pdf' }
+  };
+  const haal = (url) => { opgehaald.push(url); return web[url] || { code: 404, type: '' }; };
+  const bewaar = (naam, data, mime) => 'https://lh3.googleusercontent.com/d/' + naam;
+  let r = M.coverVanLink(s, { boek_id: 'B0001', url: 'https://winkel.test/boek/1' }, haal, bewaar);
+  gelijk([r.ok, s.catalogus[0].cover_url, s.catalogus[0].cover_bron], [true, 'https://lh3.googleusercontent.com/d/B0001.jpg', 'link']);
+  gelijk(opgehaald, ['https://winkel.test/boek/1', 'https://winkel.test/c.jpg']);
+  assert.ok(/geen afbeelding/.test(M.coverVanLink(s, { boek_id: 'B0001', url: 'https://winkel.test/leeg' }, haal, bewaar).fout));
+  assert.ok(/geen JPG/.test(M.coverVanLink(s, { boek_id: 'B0001', url: 'https://winkel.test/pdf' }, haal, bewaar).fout));
+  assert.ok(/opent niet \(code 404\)/.test(M.coverVanLink(s, { boek_id: 'B0001', url: 'https://winkel.test/weg' }, haal, bewaar).fout));
+  assert.strictEqual(M.coverVanLink(s, { boek_id: 'B0001', url: 'ftp://x' }, haal, bewaar).ok, false);
+  assert.strictEqual(M.ACTIES.beheerCoverVanLink, 'vrijwilliger');
 });
 test('bol.com: beste afbeelding uit een onbekend antwoord, sleutels nooit zichtbaar op de site', () => {
   const antwoord = { images: [

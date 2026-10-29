@@ -78,6 +78,7 @@ var ACTIES = {
   beheerCoversLijst: 'vrijwilliger',
   beheerCoversBewaren: 'vrijwilliger',
   beheerCoverUpload: 'vrijwilliger',
+  beheerCoverVanLink: 'vrijwilliger',
   beheerTekstUitFoto: 'vrijwilliger',
   beheerIaCovers: 'bestuur',
   beheerIaCoversWissen: 'bestuur'
@@ -351,6 +352,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'beheerIaCovers': antwoord = iaCoversLijst(staat); break;
       case 'beheerIaCoversWissen': antwoord = iaCoversWissen(staat, invoer); break;
       case 'beheerCoverUpload': antwoord = coverUploaden(staat, invoer, bewaarFotoInDrive); break;
+      case 'beheerCoverVanLink': antwoord = coverVanLink(staat, invoer, haalCoverLink, bewaarFotoInDrive); break;
       case 'beheerBoekBewaren': antwoord = boekAanpassen(staat, invoer); break;
       case 'beheerLeeslijstBoeken': antwoord = leeslijstBoeken(staat, invoer); break;
       case 'beheerBoekToevoegen':

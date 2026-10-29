@@ -113,6 +113,7 @@ function antwoord(rol, actie, vraag) {
     vervaldatumAanpassen: { ok: true, tekst: '"Twee kasten vol" moet nu terug tegen vrijdag 25 oktober.' },
     annuleerVerlenging: { ok: true, tekst: 'De verlenging van "Twee kasten vol" is geannuleerd.' },
     annuleerUitlening: { ok: true, tekst: 'De uitlening van "Twee kasten vol" is geannuleerd. Geef de borg van 5 euro terug.' },
+    beheerCoverVanLink: { ok: true, tekst: 'De afbeelding is de cover van "Stille lichten".', cover_url: 'https://lh3.googleusercontent.com/d/test' },
     boekVervangen: { ok: true, tekst: '"Stille lichten": vervangen. Het staat weer gewoon in de catalogus.' },
     boekVerloren: { ok: true, tekst: '"Twee kasten vol" staat als verloren. De uitlening is afgesloten, de borg van 5 euro is ingehouden.' },
     briefjeMaken: { ok: true, tekst: 'Je briefje staat bij Vandaag voor de volgende shift.' },
@@ -771,6 +772,20 @@ async function meldAan(page, basis, pagina) {
     await page.waitForSelector('#naar-scherm');
     verwacht((await page.getAttribute('#naar-scherm', 'href')) === 'vrijwilliger.html', 'Verkeerde link');
     await ctx.close();
+  });
+  await test('cover via een link: plakken en bewaren', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await meldAan(page, basis, 'vrijwilliger.html');
+    await page.click('#sectienav button:has-text("Boeken zonder cover")');
+    await page.click('#sectie [data-id]');
+    await page.fill('#bb-cover-link', 'https://winkel.test/boek/1');
+    await page.click('button:has-text("Gebruik deze link")');
+    await page.waitForSelector('text=De afbeelding is de cover van');
+    verwacht(vragen.some((v) => v.actie === 'beheerCoverVanLink' && v.url === 'https://winkel.test/boek/1'), 'Link niet verstuurd');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
   });
   await test('uitleenscherm: checklist, handleiding en de knop English', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'balie' });
