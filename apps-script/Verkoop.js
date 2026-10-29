@@ -35,12 +35,28 @@ function stockVan(boek) {
   return Math.max(0, Math.round(verkoopGetal(boek.te_koop_aantal) || 0));
 }
 
-/** Het overzicht voor het verkoopscherm. tabellen: { catalogus, standjes, standjeBoeken, verkopen } (rijen). */
+var VERKOOP_BESCHRIJVING_MAX = 400; // genoeg om een koper iets te vertellen, en klein genoeg voor de gsm zonder internet
+
+/**
+ * Wat het verkoopscherm toont zoals op de website: cover (c), korte beschrijving (d) en thema's (g).
+ * vertaal: de vertaaltabel Onderwerpen (zie vertaalTabel).
+ */
+function verkoopKaart(b, vertaal) {
+  return {
+    c: veiligeCoverUrl(b.cover_url),
+    d: kortAfOpZin(schoonMetRegels(b.beschrijving), VERKOOP_BESCHRIJVING_MAX),
+    g: filtergroepenVan(b, vertaal),
+    s: normaliseerTekst(b.soort) === 'zine' ? 'zine' : ''
+  };
+}
+
+/** Het overzicht voor het verkoopscherm. tabellen: { catalogus, standjes, standjeBoeken, verkopen, onderwerpen? } (rijen). */
 function verkoopOverzicht(tabellen) {
+  var vertaal = vertaalTabel(tabellen.onderwerpen || []);
   var perBoek = {};
   tabellen.catalogus.forEach(function (b) { if (!isLeeg(b.boek_id)) perBoek[String(b.boek_id)] = b; });
   var teKoop = tabellen.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && stockVan(b) > 0; }).map(function (b) {
-    return { id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), prijs: verkoopGetal(b.prijs), o: jaNee(b.onderhandelbaar) === 'ja', stock: stockVan(b) };
+    return Object.assign({ id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), prijs: verkoopGetal(b.prijs), o: jaNee(b.onderhandelbaar) === 'ja', stock: stockVan(b) }, verkoopKaart(b, vertaal));
   }).sort(function (a, b) { return a.t.localeCompare(b.t); });
 
   var standjes = tabellen.standjes.filter(function (s) { return !isLeeg(s.standje_id); }).map(function (s) {
@@ -58,13 +74,13 @@ function verkoopOverzicht(tabellen) {
       var verkocht = verkopen.filter(function (v) { return String(v.boek_id) === String(r.boek_id); })
         .reduce(function (som, v) { return som + (verkoopGetal(v.aantal) || 1); }, 0);
       var prijs = verkoopGetal(r.prijs);
-      return {
+      return Object.assign({
         boek_id: String(r.boek_id), t: schoon(b.titel) || String(r.boek_id), a: schoon(b.auteur),
         mee: verkoopGetal(r.mee), verkocht: verkocht,
         prijs: prijs === null ? verkoopGetal(b.prijs) : prijs,
         o: isLeeg(r.onderhandelbaar) ? jaNee(b.onderhandelbaar) === 'ja' : jaNee(r.onderhandelbaar) === 'ja',
         stock: stockVan(b)
-      };
+      }, verkoopKaart(b, vertaal));
     }).sort(function (a, b) { return a.t.localeCompare(b.t); });
     return {
       standje_id: id, naam: schoon(s.naam), thema: schoon(s.thema), datum: parseerDatum(s.datum) || '', locatie: schoon(s.locatie),
@@ -290,6 +306,8 @@ function verkoopActie(actie, invoer, wie) {
     catalogus: catalogus.rijen, standjes: leesTabel('Standjes'), standjeBoeken: leesTabel('Standje boeken'), verkopen: leesTabel('Verkopen')
   };
   var rijen = { catalogus: catalogus.rijen, standjes: tabellen.standjes.rijen, standjeBoeken: tabellen.standjeBoeken.rijen, verkopen: tabellen.verkopen.rijen };
+  // De thema's zoals op de website (vertaaltabel Onderwerpen). Ontbreekt het tabblad, dan zonder thema's.
+  rijen.onderwerpen = spreadsheet().getSheetByName('Onderwerpen') ? leesTabel('Onderwerpen').rijen : [];
   var betaalwijzen = leesInstellingen().borg_betaalwijzen;
   if (actie === 'verkoopData') return { ok: true, data: Object.assign(verkoopOverzicht(rijen), { betaalwijzen: betaalwijzen }) };
   if (actie === 'voorraadCatalogus') return { ok: true, boeken: voorraadCatalogus(rijen.catalogus) };
