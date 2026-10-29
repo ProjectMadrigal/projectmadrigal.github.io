@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Verkoop · Project Madrigal</title>
+  <meta name="theme-color" content="#1b1b1c">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icoon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="overslaan" href="#inhoud">Ga naar de inhoud</a>
+  <header class="kop">
+    <div class="kop-binnen">
+      <img class="logo" src="assets/logo.svg" alt="" width="44" height="44">
+      <div>
+        <h1>Verkoop</h1>
+        <p class="ondertitel">Project Madrigal, boeken verkopen op een standje</p>
+      </div>
+    </div>
+  </header>
+
+  <main id="inhoud" tabindex="-1">
+    <section id="aanmelden" class="blok" hidden aria-labelledby="aanmelden-titel">
+      <h2 id="aanmelden-titel">Aanmelden</h2>
+      <p>Vul de code voor vrijwilligers in. Open dit scherm thuis met internet voor je naar het standje gaat: daarna werkt het ook zonder internet.</p>
+      <form id="aanmeldformulier" novalidate>
+        <div class="veld">
+          <label for="code">Code voor vrijwilligers</label>
+          <input type="password" id="code" autocomplete="off" required>
+        </div>
+        <div class="veld">
+          <label for="wie">Jouw voornaam</label>
+          <input type="text" id="wie" autocomplete="given-name" maxlength="40" required>
+        </div>
+        <div id="aanmeld-melding" class="melding fout" role="alert" hidden></div>
+        <button type="submit" class="knop breed">Aanmelden</button>
+      </form>
+    </section>
+
+    <section id="app" hidden>
+      <div class="bovenbalk">
+        <p id="verkoop-info">Gegevens laden...</p>
+        <div class="knoppen klein">
+          <a class="knop tweede" href="vrijwilliger.html">Naar het vrijwilligersscherm</a>
+          <button type="button" class="knop tweede" id="vernieuw">Vernieuw</button>
+          <button type="button" class="knop tweede" id="afmelden">Afmelden</button>
+        </div>
+      </div>
+      <div id="verbinding" aria-live="polite"></div>
+      <div id="melding" aria-live="polite"></div>
+      <div id="werkvlak" class="blok"></div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="dom.js"></script>
+  <script src="zoeken.js"></script>
+  <script src="vertaal.js?v=4"></script>
+  <script src="beheer.js?v=19"></script>
+  <script src="verkoop.js?v=1"></script>
+</body>
+</html>

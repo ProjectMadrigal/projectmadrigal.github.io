@@ -1140,6 +1140,50 @@ test('oud uitleenblad: zelf het boek kiezen voor een lopende uitlening', () => {
   gelijk([u.boek_id, u.datum_uit, u.vervaldatum, u.datum_terug, u.bron], ['B0002', '2026-09-11', '2026-10-09', '', 'oud blad rij 2']);
 });
 
+console.log('\nVerkoop op standjes');
+
+test('verkoop: standje, boeken klaarzetten, verkopen (ook dubbel doorgestuurd), stock en omzet', () => {
+  const t = {
+    catalogus: [
+      { boek_id: 'B0001', titel: 'De verzonnen zee', auteur: 'Verbeek, Mira', prijs: '8', onderhandelbaar: 'ja', te_koop_aantal: 3 },
+      { boek_id: 'B0002', titel: 'Twee kasten vol', auteur: 'Dewit, Rein', prijs: '12,50', onderhandelbaar: 'nee', te_koop_aantal: 1 },
+      { boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Aerts, Noor', prijs: '', te_koop_aantal: '' }
+    ],
+    standjes: [], standjeBoeken: [], verkopen: []
+  };
+  let n = 0;
+  assert.strictEqual(M.standjeBewaren(t.standjes, { naam: '', datum: '2026-06-01' }, () => 'S0001').ok, false);
+  let r = M.standjeBewaren(t.standjes, { naam: 'Pride Antwerpen', thema: 'Pride', datum: '2026-08-08', locatie: 'Groenplaats' }, () => 'S' + String(++n).padStart(4, '0'));
+  gelijk([r.ok, r.standje_id, t.standjes[0].status], [true, 'S0001', 'voorbereiding']);
+  // Klaarzetten: niet meer dan de stock, prijs mag anders voor dit standje.
+  assert.ok(/maar 1 exemplaren/.test(M.standjeBoekZetten(t, { standje_id: 'S0001', boek_id: 'B0002', mee: 2 }).fout));
+  gelijk(M.standjeBoekZetten(t, { standje_id: 'S0001', boek_id: 'B0001', mee: 2 }).ok, true);
+  gelijk(M.standjeBoekZetten(t, { standje_id: 'S0001', boek_id: 'B0002', mee: 1, prijs: '10' }).ok, true);
+  gelijk(M.standjeBoekZetten(t, { standje_id: 'S0001', boek_id: 'B0002', mee: 1, prijs: '10' }).ok, true, 'Opnieuw: dezelfde rij');
+  gelijk(t.standjeBoeken.length, 2);
+  let o = M.verkoopOverzicht(t);
+  gelijk(o.teKoop.map((b) => [b.id, b.prijs, b.o, b.stock]), [['B0001', 8, true, 3], ['B0002', 12.5, false, 1]]);
+  gelijk(o.standjes[0].boeken.map((b) => [b.boek_id, b.mee, b.prijs, b.verkocht]), [['B0001', 2, 8, 0], ['B0002', 1, 10, 0]]);
+  // Verkopen: dezelfde verkoop twee keer doorgestuurd telt één keer. De stock gaat omlaag.
+  const v1 = { verkoop_id: 'v-1730000000-a1', standje_id: 'S0001', boek_id: 'B0001', aantal: 1, prijs: 6, betaalwijze: 'cash', tijdstip: '2026-08-08T14:00' };
+  const v2 = { verkoop_id: 'v-1730000001-b2', standje_id: 'S0001', boek_id: 'B0002', aantal: 1, prijs: 10, betaalwijze: 'QR', tijdstip: '2026-08-08T14:05' };
+  r = M.verkopenToevoegen(t, [v1, v2, { verkoop_id: 'x', standje_id: 'S0001', boek_id: 'B0001', prijs: 1 }], 'Kim');
+  gelijk([r.nieuw, r.bewaard, r.fouten.length], [2, ['v-1730000000-a1', 'v-1730000001-b2'], 1]);
+  r = M.verkopenToevoegen(t, [v1], 'Kim');
+  gelijk([r.nieuw, r.bewaard], [0, ['v-1730000000-a1']], 'Al bekend: niet dubbel');
+  gelijk([t.catalogus[0].te_koop_aantal, t.catalogus[1].te_koop_aantal], [2, 0]);
+  o = M.verkoopOverzicht(t);
+  gelijk(o.standjes[0].boeken.map((b) => [b.boek_id, b.verkocht, b.stock]), [['B0001', 1, 2], ['B0002', 1, 0]]);
+  gelijk(o.standjes[0].omzet, { totaal: 16, perBetaalwijze: { cash: 6, QR: 10 } });
+  gelijk(o.teKoop.map((b) => b.id), ['B0001'], 'Uitverkocht: niet meer bij de boeken te koop');
+  // Afsluiten: daarna kan je niets meer klaarzetten.
+  gelijk(M.standjeStatus(t.standjes, { standje_id: 'S0001', status: 'afgesloten' }).ok, true);
+  assert.ok(/afgesloten/.test(M.standjeBoekZetten(t, { standje_id: 'S0001', boek_id: 'B0001', mee: 1 }).fout));
+  // Een verkoop die pas later doorkomt (geen internet), telt toch nog mee.
+  gelijk(M.verkopenToevoegen(t, [Object.assign({}, v1, { verkoop_id: 'v-1730000099-c3' })], 'Kim').nieuw, 1);
+  gelijk(t.catalogus[0].te_koop_aantal, 1);
+});
+
 console.log('\nWebsite');
 
 test('startpagina: enkel publieke rijen, nieuwste nieuws, komend en vorig event, vragen op volgorde', () => {

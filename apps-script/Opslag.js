@@ -18,6 +18,8 @@ var KOLOMMEN = {
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
     // Films (zie Films.js): land, speelduur, kijktip. te_koop werkt voor elk boek of elke film.
     'land', 'duur', 'film_tip', 'te_koop',
+    // Verkoop op standjes (Verkoop.js): prijs in euro, onderhandelbaar ja/nee, aantal exemplaren te koop.
+    'prijs', 'onderhandelbaar', 'te_koop_aantal',
     // De titel in de oorspronkelijke taal, als die verschilt (vooral films en vertaalde boeken).
     'originele_titel',
     // Vanaf hier: nooit publiek.
@@ -65,11 +67,16 @@ var KOLOMMEN = {
   'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek', 'bron_id'],
   // Leeslijsten (thema's). Welke boeken erin staan, zet je in de kolom leeslijsten van de Catalogus.
   // zichtbaar_vanaf en zichtbaar_tot: een geplande lijst verschijnt en verdwijnt vanzelf.
-  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek', 'zichtbaar_vanaf', 'zichtbaar_tot']
+  'Leeslijsten': ['volgorde', 'naam', 'naam_en', 'uitleg', 'uitleg_en', 'publiek', 'zichtbaar_vanaf', 'zichtbaar_tot'],
+  // Verkoop op standjes (Verkoop.js). Een standje: voorbereiding, bezig of afgesloten.
+  'Standjes': ['standje_id', 'naam', 'thema', 'datum', 'locatie', 'status', 'notitie'],
+  'Standje boeken': ['standje_id', 'boek_id', 'mee', 'prijs', 'onderhandelbaar'],
+  // verkoop_id maakt de gsm zelf (ook zonder internet): zo telt een verkoop nooit dubbel.
+  'Verkopen': ['verkoop_id', 'standje_id', 'boek_id', 'aantal', 'prijs', 'betaalwijze', 'tijdstip', 'vrijwilliger']
 };
 
 /** Kolommen met een getal. Staat er per ongeluk datumopmaak op, dan leest leesTabel toch het getal. */
-var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal'];
+var GETALKOLOMMEN = ['duur', 'jaartal', 'paginas', 'aantal', 'te_koop_aantal', 'mee'];
 
 /** Het getal achter een datum in de spreadsheet: het aantal dagen sinds 30 december 1899. */
 function datumNaarGetal(d) {

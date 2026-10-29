@@ -13,13 +13,15 @@
  */
 'use strict';
 
-var VERSIE = 'madrigal-v4';
+var VERSIE = 'madrigal-v5';
 var VASTE_BESTANDEN = [
   './', 'index.html', 'boeken.html', 'films.html', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html',
   'styles.css', 'config.js', 'i18n.js', 'layout.js', 'api.js', 'dom.js', 'zoeken.js', 'filters.js',
   'app.js', 'home.js', 'agenda.js', 'doemee.js', 'peperfabriek.js', 'overons.js',
   'assets/logo.svg', 'assets/fonts/Geist-Variable.woff2', 'assets/fonts/GeistMono-Variable.ttf',
-  'manifest.json', 'icons/icoon-192.png', 'icons/icoon-512.png', 'favicon.ico'
+  'manifest.json', 'icons/icoon-192.png', 'icons/icoon-512.png', 'favicon.ico',
+  // Het verkoopscherm moet op een standje ook zonder internet openen.
+  'verkoop.html', 'verkoop.js', 'beheer.js', 'vertaal.js'
 ];
 
 self.addEventListener('install', function (e) {

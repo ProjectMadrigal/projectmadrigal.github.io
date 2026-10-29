@@ -54,6 +54,11 @@ var ACTIES = {
   meldingMaken: 'vrijwilliger',
   meldingAfhandelen: 'bestuur',
   briefjeMaken: 'vrijwilliger',
+  verkoopData: 'vrijwilliger',
+  standjeBewaren: 'vrijwilliger',
+  standjeBoekZetten: 'vrijwilliger',
+  verkopenDoorsturen: 'vrijwilliger',
+  standjeStatus: 'vrijwilliger',
   briefjeWeg: 'vrijwilliger',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
@@ -275,6 +280,11 @@ function voerActieUit(actie, invoer, rol) {
     if (actie === 'aanvraagAfhandelen') return beheerAanvraagAfhandelen(invoer, wie);
     if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
     if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
+    if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus'].indexOf(actie) > -1) {
+      var verkoop = verkoopActie(actie, invoer, wie);
+      if (verkoop.ok && actie === 'verkopenDoorsturen' && verkoop.nieuw) leegCache();
+      return verkoop;
+    }
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {
       var gewijzigd = actie === 'beheerInhoudBewaren' ? beheerInhoudBewaren(invoer, wie, rol) : beheerInstellingBewaren(invoer, wie);
       if (gewijzigd.ok) leegCache();
