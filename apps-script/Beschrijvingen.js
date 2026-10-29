@@ -90,7 +90,18 @@ function googleBooksVraag(url) {
   }
   r.totaal = a.data ? Number(a.data.totalItems) || 0 : 0;
   r.info = 'code ' + a.code + (a.data ? ', ' + r.totaal + ' gevonden' : ', onleesbaar');
+  // Welke boeken Google teruggaf (hoogstens 3), zodat de test toont waarom een uitgave niet bruikbaar is.
+  if (r.items.length) r.info += ' (' + r.items.slice(0, 3).map(googleItemKort).join('; ') + ')';
   return r;
+}
+
+/** Een uitgave van Google kort: "Titel, Auteur, ISBN 978...". */
+function googleItemKort(it) {
+  var v = (it && it.volumeInfo) || {};
+  var isbn = (v.industryIdentifiers || []).filter(function (id) { return id.type === 'ISBN_13'; })[0] ||
+    (v.industryIdentifiers || [])[0];
+  return [schoon(v.title) || '?', (v.authors || []).map(schoon).join(' & '), isbn ? String(isbn.type || '') + ' ' + String(isbn.identifier || '') : 'geen ISBN']
+    .filter(Boolean).join(', ').slice(0, 120);
 }
 
 /** ISBN-13 (978…) naar ISBN-10. Geeft '' als dat niet kan. */

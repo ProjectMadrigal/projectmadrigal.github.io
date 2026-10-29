@@ -1715,11 +1715,12 @@ test('Google: een onleesbaar antwoord telt als storing, en de test toont wat Goo
     r = M.googleBooksZoek('9780141439518', 'k');
     gelijk([r.fout, r.items.length, r.pogingen], ['', 0, ['code 200, 0 gevonden, 0 bruikbaar', 'code 200, 0 gevonden']]);
     // Google vond een andere uitgave en de tweede vraag haperde: niet gevonden, maar Google werkt wel.
-    const andere = { totalItems: 2, items: [{ volumeInfo: { industryIdentifiers: [{ type: 'ISBN_13', identifier: '9780141199078' }] } }] };
+    const andere = { totalItems: 2, items: [{ volumeInfo: { title: 'Ander boek', authors: ['Kim Fictief'], industryIdentifiers: [{ type: 'ISBN_13', identifier: '9780141199078' }] } }] };
     const meer = [{ code: 200, data: andere }, { code: 503, data: { error: { message: 'Service temporarily unavailable.' } } }, { code: 200, data: andere }, { code: 200, data: { totalItems: 0 } }];
     M.haalJson = () => meer.shift();
     r = M.googleBooksZoek('9780141439518', 'k');
     gelijk([r.fout, r.totaal], ['', 2]);
+    gelijk(r.pogingen[0], 'code 200, 2 gevonden (Ander boek, Kim Fictief, ISBN_13 9780141199078), 0 bruikbaar', 'De test toont welke boeken Google gaf');
     gelijk(M.googleBooksControle('k').werkt, true, 'Google vond iets: de sleutel werkt');
   } finally { M.haalJson = oud; }
 });
