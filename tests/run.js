@@ -2356,6 +2356,10 @@ test('films: duur in een kolom met datumopmaak blijft het aantal minuten', () =>
   // 96 in een cel met datumopmaak geeft in Apps Script een datum: 5 april 1900.
   assert.strictEqual(M.datumNaarGetal(new Date(1900, 3, 5)), 96);
   assert.strictEqual(M.datumNaarGetal(new Date(1900, 0, 1)), 2);
+  // Een prijs met datumopmaak: 7,50 is 6/1/1900 om 12:00, 12,25 is 11/1/1900 om 6:00.
+  assert.strictEqual(M.datumNaarGetal(new Date(1900, 0, 6, 12, 0)), 7.5);
+  assert.strictEqual(M.datumNaarGetal(new Date(1900, 0, 11, 6, 0)), 12.25);
+  assert.ok(M.GETALKOLOMMEN.indexOf('prijs') > -1);
   assert.ok(M.GETALKOLOMMEN.indexOf('duur') > -1);
 });
 

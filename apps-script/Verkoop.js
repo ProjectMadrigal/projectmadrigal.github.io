@@ -271,6 +271,9 @@ function schrijfVoorraad(catalogus, verkopen) {
 
 /** Menu: Madrigal > Verkoop > Werk de voorraad bij. */
 function voorraadBijwerkenMenu() {
+  // Stond er datumopmaak op prijs (7,50 werd 6/1/1900)? Dan eerst terug een getal maken.
+  zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['te_koop_aantal']);
+  zetGetalopmaak(spreadsheet().getSheetByName('Catalogus'), ['prijs'], '0.00');
   var verkopen = spreadsheet().getSheetByName('Verkopen') ? leesTabel('Verkopen').rijen : [];
   var v = schrijfVoorraad(leesTabel('Catalogus').rijen, verkopen);
   meld('De Voorraad is bijgewerkt: ' + v.rijen.length + ' boeken, ' + v.totaal[0] + ' exemplaren te koop.');
@@ -329,6 +332,8 @@ function verkoopActie(actie, invoer, wie) {
     r = voorraadZetten(rijen.catalogus, invoer);
     if (r.ok) {
       bewaarTabel(catalogus);
+      // Staat er datumopmaak op de kolom prijs (dan toont de spreadsheet 7,50 als 6/1/1900)? Meteen rechtzetten.
+      try { zetGetalopmaak(catalogus.blad, ['prijs'], '0.00'); } catch (e) { /* enkel opmaak */ }
       try { schrijfVoorraad(rijen.catalogus, rijen.verkopen); } catch (e) { /* het overzicht is een extraatje */ }
     }
   } else if (actie === 'standjeStatus') {
