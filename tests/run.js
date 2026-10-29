@@ -1666,6 +1666,12 @@ test('Google: tweede zoekvorm neemt enkel een uitgave met precies dit ISBN', () 
     { volumeInfo: { title: 'Zonder ISBN', industryIdentifiers: [{ type: 'OTHER', identifier: 'UOM:39015' }] } }];
   gelijk(M.googleItemsMetIsbn(zonder, '9780141439518').map((i) => i.volumeInfo.title), ['Zonder ISBN']);
   gelijk(M.googleItemsMetIsbn(zonder.slice(0, 1), '9780141439518'), []);
+  // Een andere uitgave van hetzelfde boek telt enkel als we titel en auteur kennen.
+  const ander = [{ volumeInfo: { title: 'Pride and Prejudice (Vintage Classics)', authors: ['Jane Austen'], industryIdentifiers: [{ type: 'ISBN_13', identifier: '9780099589334' }] } },
+    { volumeInfo: { title: 'Pride and Prejudice and Zombies', authors: ['Seth Grahame-Smith'], industryIdentifiers: [{ type: 'ISBN_13', identifier: '9781594743344' }] } }];
+  gelijk(M.googleItemsMetIsbn(ander, '9780141439518'), [], 'Zonder titel: niets');
+  gelijk(M.googleItemsMetIsbn(ander, '9780141439518', { titel: 'Pride and prejudice', auteur: 'Austen, Jane' }).map((i) => i.volumeInfo.title), ['Pride and Prejudice (Vintage Classics)']);
+  gelijk(M.googleItemsMetIsbn(ander, '9780141439518', { titel: 'Pride and Prejudice', auteur: 'Verzonnen, Vera' }), [], 'Andere auteur: niets');
   assert.ok(M.googleBooksUrl('9780141439518', 'k', 'BE', 'vrij').includes('?q=9780141439518&country=BE&key=k'));
 });
 
@@ -1707,7 +1713,7 @@ test('Google: een onleesbaar antwoord telt als storing, en de test toont wat Goo
     const antwoorden = [{ code: 200, data: { totalItems: 0 } }, { code: 200, data: { totalItems: 0 } }];
     M.haalJson = () => antwoorden.shift();
     r = M.googleBooksZoek('9780141439518', 'k');
-    gelijk([r.fout, r.items.length, r.pogingen], ['', 0, ['code 200, 0 gevonden, 0 met dit ISBN', 'code 200, 0 gevonden']]);
+    gelijk([r.fout, r.items.length, r.pogingen], ['', 0, ['code 200, 0 gevonden, 0 bruikbaar', 'code 200, 0 gevonden']]);
     // Google vond een andere uitgave en de tweede vraag haperde: niet gevonden, maar Google werkt wel.
     const andere = { totalItems: 2, items: [{ volumeInfo: { industryIdentifiers: [{ type: 'ISBN_13', identifier: '9780141199078' }] } }] };
     const meer = [{ code: 200, data: andere }, { code: 503, data: { error: { message: 'Service temporarily unavailable.' } } }, { code: 200, data: andere }, { code: 200, data: { totalItems: 0 } }];

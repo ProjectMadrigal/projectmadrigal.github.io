@@ -540,7 +540,7 @@
       var titel = waarde('titel'), auteur = waarde('auteur');
       if (!/^\d{13}$/.test(isbn) && !titel) { melding.textContent = 'Vul eerst een ISBN of een titel in.'; return; }
       var klaar = bezig(knop, 'Bezig met zoeken...');
-      var google = /^\d{13}$/.test(isbn) ? vraagGoogle(isbn, sleutel) : vraagGoogleTitel(titel, auteur, sleutel);
+      var google = /^\d{13}$/.test(isbn) ? vraagGoogle(isbn, sleutel, titel, auteur) : vraagGoogleTitel(titel, auteur, sleutel);
       var voorstel = {}, googleFout = '';
       google.then(function (a) {
         if (a.fout) googleFout = a.fout;
@@ -967,24 +967,35 @@
   }
 
   /** Enkel uitgaven met precies dit ISBN. */
-  /** Uitgaven met precies dit ISBN, anders uitgaven zonder enig ISBN (zoals googleItemsMetIsbn in het script). */
-  function metIsbn(items, isbn) {
+  /**
+   * Uitgaven met precies dit ISBN, anders uitgaven zonder enig ISBN, anders (als we titel en auteur kennen)
+   * een andere uitgave van hetzelfde boek. Zoals googleItemsMetIsbn in het script.
+   */
+  function metIsbn(items, isbn, titel, auteur) {
     var gezocht = [isbn, isbn13Naar10(isbn)].filter(Boolean);
     function isbns(it) {
       return ((it.volumeInfo || {}).industryIdentifiers || []).filter(function (id) { return /^ISBN/.test(String(id.type || '')); })
         .map(function (id) { return String(id.identifier || '').replace(/[^0-9X]/gi, '').toUpperCase(); });
     }
     var juist = (items || []).filter(function (it) { return isbns(it).some(function (i) { return gezocht.indexOf(i) > -1; }); });
-    return juist.length ? juist : (items || []).filter(function (it) { return !isbns(it).length; });
+    if (juist.length) return juist;
+    var zonder = (items || []).filter(function (it) { return !isbns(it).length; });
+    if (zonder.length || !titel) return zonder;
+    var naam = achternaam(auteur);
+    return (items || []).filter(function (it) {
+      var v = it.volumeInfo || {};
+      return gelijkenis(titelSleutel(v.title), titelSleutel(titel)) >= 0.85 &&
+        (!naam || (v.authors || []).some(function (x) { return achternaam(x) === naam; }));
+    });
   }
 
   /**
    * Vraagt één ISBN op. Eerst op het ISBN als gewoon getal (dat werkt bij Google het best),
    * en we nemen enkel een uitgave met precies dat ISBN. Levert dat niets op, dan als reserve "isbn:…".
    */
-  function vraagGoogle(isbn, sleutel) {
+  function vraagGoogle(isbn, sleutel, titel, auteur) {
     return vraagGoogleUrl(encodeURIComponent(isbn), sleutel).then(function (a) {
-      if (!a.fout) a = { items: metIsbn(a.items, isbn) };
+      if (!a.fout) a = { items: metIsbn(a.items, isbn, titel, auteur) };
       if (a.limiet || (a.items && a.items.length)) return a;
       return vraagGoogleUrl('isbn:' + encodeURIComponent(isbn), sleutel).then(function (b) {
         if (!b.fout || b.limiet) return b;
@@ -1158,7 +1169,7 @@
       /** Google met tot 5 pogingen bij een storing. */
       function google(b) {
         function probeer(poging) {
-          return vraagGoogle(b.isbn, sleutel).then(function (a) {
+          return vraagGoogle(b.isbn, sleutel, b.t, b.a).then(function (a) {
             if (a.storing && poging < 5 && !stop) {
               toon('Google hapert, nieuwe poging ' + (poging + 1) + ' van 5...');
               return wacht(1000 * Math.pow(2, poging)).then(function () { return probeer(poging + 1); });

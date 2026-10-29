@@ -76,8 +76,16 @@ function testGoogleBooks() {
   var sleutel = leesInstellingen().google_books_api_key;
   // Wat Google op elke vraag antwoordde, onderaan in de melding: zo zie je wat er gebeurt.
   var details = [];
+  // De titel en auteur: van een bekend boek, of uit de Catalogus (dan telt ook een andere uitgave).
+  var titels = Object.assign({}, GB_CONTROLE_BOEKEN);
+  if (!titels[isbn]) {
+    try {
+      var rij = leesTabel('Catalogus').rijen.filter(function (b) { return normaliseerIsbn(b.isbn).isbn === isbn; })[0];
+      if (rij) titels[isbn] = { titel: rij.titel, auteur: rij.auteur };
+    } catch (e) { /* zonder titel */ }
+  }
   var zoek = function (x) {
-    var antwoord = googleBooksZoek(x, sleutel);
+    var antwoord = googleBooksZoek(x, sleutel, undefined, titels[x]);
     details.push(x + ': ' + (antwoord.pogingen || []).join(' / '));
     return antwoord;
   };
@@ -119,6 +127,7 @@ function googleRondeReden(limiet, storing, fout, rest) {
 
 // Boeken die Google zeker kent: Pride and Prejudice (Penguin Classics) en To Kill a Mockingbird (Harper Perennial).
 var GB_CONTROLE_ISBNS = ['9780141439518', '9780061120084'];
+var GB_CONTROLE_BOEKEN = { '9780141439518': { titel: 'Pride and Prejudice', auteur: 'Austen, Jane' }, '9780061120084': { titel: 'To Kill a Mockingbird', auteur: 'Lee, Harper' } };
 
 /**
  * Kent Google Books een boek dat het zeker kent? Zo weten we of de verbinding en de sleutel werken.
@@ -126,7 +135,7 @@ var GB_CONTROLE_ISBNS = ['9780141439518', '9780061120084'];
  * zoek(isbn): standaard googleBooksZoek met de sleutel (een andere functie kan in de tests).
  */
 function googleBooksControle(sleutel, zoek) {
-  zoek = zoek || function (isbn) { return googleBooksZoek(isbn, sleutel); };
+  zoek = zoek || function (isbn) { return googleBooksZoek(isbn, sleutel, undefined, GB_CONTROLE_BOEKEN[isbn]); };
   for (var i = 0; i < GB_CONTROLE_ISBNS.length; i++) {
     var r = zoek(GB_CONTROLE_ISBNS[i]);
     // Vond Google iets (ook een andere uitgave), dan werken de verbinding en de sleutel.
@@ -191,7 +200,7 @@ function vulAanUitGoogleBooks() {
     for (var i = 0; i < teDoen.length; i++) {
       if (Date.now() - start > GB_MAX_LOOPTIJD_MS) break;
       var boek = teDoen[i];
-      var antwoord = googleBooksZoek(boek.isbn, sleutel); // zie Beschrijvingen.js
+      var antwoord = googleBooksZoek(boek.isbn, sleutel, undefined, boek); // zie Beschrijvingen.js
       var code = antwoord.code;
       if (code >= 400) fout = antwoord.fout;
       if (antwoord.limiet || code === 403 || code === 400) { limiet = true; break; } // daglimiet, of Google weigert (zie fout)
