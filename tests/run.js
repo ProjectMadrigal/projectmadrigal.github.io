@@ -1848,12 +1848,39 @@ test('oude website: boeken terugvinden ook met ondertitel, lidwoord, tikfout, me
   gelijk(zoek('Atlas van niets', 'Kim Fictief'), 'B0002 kern', 'Zonder lidwoord');
   gelijk(zoek('Iets anders', 'Iemand', '9780306406157'), 'B0003 isbn', 'Oud ISBN uit isbn_origineel');
   gelijk(zoek('Gedichten voor de nachtt', 'Vera Verzonnen'), 'B0004 bijna', 'Tikfout');
-  gelijk(zoek('Een unieke titel', 'Kim Fictief'), 'B0005 enkel titel', 'Geen auteur in de catalogus');
+  gelijk(zoek('Een unieke titel', 'Kim Fictief'), null, 'Andere auteur: niet in ronde 1 (wel in ronde 2, zie verder)');
   gelijk(zoek('Liedjes', 'Vera Verzonnen'), null, 'Zelfde titel, andere auteur: niet');
   gelijk(zoek('Gedichten', 'Vera Verzonnen'), null, 'Te weinig gelijk');
   gelijk(M.oudeAchternamen('Verzonnen, Vera; Noor Bedacht & Kim Fictief'), ['verzonnen', 'bedacht', 'fictief']);
   gelijk(M.oudVoorstel({ titel: 'Gedichten voor nacht' }, catalogus).boek_id, 'B0004', 'Voorstel voor Na te kijken');
   gelijk(M.oudBoekUitRij({ id: 1, title: 'X', authors: [{ name: 'Vera Verzonnen' }, { name: 'Noor Bedacht' }] }, 'https://x').auteur, 'Vera Verzonnen; Noor Bedacht');
+});
+
+test('oude website ronde 2: vertaling, auteur anders geschreven, uitgever als auteur, & en and', () => {
+  const catalogus = [
+    { boek_id: 'B0001', titel: 'Nachtzee', auteur: 'Verzonnen, Vera', isbn: '' },
+    { boek_id: 'B0002', titel: 'Liefde ontwortelt alles', auteur: 'Eiland, Dichteres van', isbn: '' },
+    { boek_id: 'B0003', titel: 'Rechten in het verzonnen land', auteur: 'Bedacht & Fictief', isbn: '' },
+    { boek_id: 'B0004', titel: 'Noor & Kim', auteur: 'Schrijver, Sam', isbn: '' },
+    { boek_id: 'B0005', titel: 'Van ver gekomen', auteur: 'Hammerechts, Lien', isbn: '' },
+    { boek_id: 'B0006', titel: 'De partij in volgevlucht', auteur: 'Partij', isbn: '' },
+    { boek_id: 'B0007', titel: 'Gedichten', auteur: 'Twee, Iemand', isbn: '' },
+    { boek_id: 'B0008', titel: 'Gedichten', auteur: 'Drie, Iemand', isbn: '' }
+  ];
+  const oud = [
+    { titel: 'Nightsea', auteur: 'Vera Verzonnen', isbn: '9780306406157' },
+    { titel: 'Liefde ontwortelt alles', auteur: 'Dichteres', isbn: '' },
+    { titel: 'Rechten in het Verzonnen Land', auteur: 'Uitgeverij.be', isbn: '' },
+    { titel: 'Noor and Kim', auteur: 'Sam Schrijver', isbn: '' },
+    { titel: 'Van ver gekomen', auteur: 'Lien Hemmerechts', isbn: '' },
+    { titel: 'Partij in Vogelvlucht', auteur: 'Uitgever.be', isbn: '' },
+    { titel: 'Gedichten', auteur: 'Iemand Anders', isbn: '' }
+  ].map((o) => Object.assign({ ondertitel: '', beschrijving: 'Tekst.', cover: '', id: o.titel }, o));
+  const uit = M.oudeBoekenToepassen(catalogus, oud, { beschrijving: {}, cover: {} });
+  gelijk(catalogus.map((c) => c.boek_id + ':' + (c.beschrijving ? 'ja' : '')), ['B0001:ja', 'B0002:ja', 'B0003:ja', 'B0004:ja', 'B0005:ja', 'B0006:ja', 'B0007:', 'B0008:']);
+  gelijk(uit.hoe, { 'auteur uniek': 1, titel: 2, 'titel uniek': 1, kern: 1, 'titel bijna': 1 });
+  gelijk(uit.nietGevonden.map((b) => b.titel), ['Gedichten'], 'Titel twee keer in de catalogus: niet raden');
+  gelijk([M.auteursDelen('Sappho', 'Lesbos, Sappho van'), M.auteursDelen('Chagoll Lydia', 'Chagoll, Lydia'), M.auteursDelen('Lien Hemmerechts', 'Hammerechts, Lien'), M.auteursDelen('Vera van Dijk', 'Noor van Damme')], [true, true, true, false]);
 });
 
 console.log('\nAankooplijst');

@@ -644,6 +644,9 @@ var OUD_STANDAARD_MIN = 3;          // dezelfde cover bij zoveel boeken: een sta
 
 var OUD_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
+// Woorden in een naam die niets zeggen over wie het is.
+var NAAM_STOPWOORDEN = ['van', 'der', 'den', 'het', 'von', 'and', 'een', 'etc', 'the', 'les', 'des', 'del', 'della', 'ter', 'ten'];
+
 var OUDE_SITE = 'https://www.projectmadrigal.be/';
 
 var PF_EIGENSCHAP = 'peperfabriek_programma';
@@ -1253,6 +1256,22 @@ function auteurAchternaamEerst(naam) {
   var delen = n.split(' ');
   if (delen.length < 2) return n;
   return delen.pop() + ', ' + delen.join(' ');
+}
+
+/**
+ * Delen twee auteurs een naam? De achternaam van de ene moet een van de namen van de andere zijn:
+ * zo telt "Sappho" en "Lesbos, Sappho van", en "Chagoll Lydia" en "Chagoll, Lydia", maar niet
+ * twee verschillende mensen met dezelfde voornaam.
+ */
+function auteursDelen(a, b) {
+  var wa = auteurWoorden(a), wb = auteurWoorden(b);
+  var past = function (namen, woorden) { return namen.some(function (n) { return woorden.some(function (w) { return oudZelfdeNaam(n, w); }); }); };
+  return past(oudeAchternamen(a), wb) || past(oudeAchternamen(b), wa);
+}
+
+/** Alle woorden van de auteurs (vanaf 3 letters): "Lesbos, Sappho van" geeft ["lesbos", "sappho"]. */
+function auteurWoorden(auteur) {
+  return normaliseerTekst(auteur).split(' ').filter(function (w) { return w.length >= 3 && NAAM_STOPWOORDEN.indexOf(w) === -1 && !/^\d+$/.test(w); });
 }
 
 /** De map voor de back-ups. Bestaat ze nog niet, dan maken we ze. */
@@ -6007,14 +6026,23 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
   var standaard = oudeStandaardCovers(oudeBoeken);
   var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, nietGevonden: [], hoe: {} };
   var gezien = {};
+  // Ronde 1: de zekere manieren. Ronde 2: ruimer, enkel voor wat overblijft en enkel als het uniek is.
+  var paren = [], rest = [];
   oudeBoeken.forEach(function (oud) {
-    var gevonden = zoekOudBoek(oud, index);
-    if (!gevonden) { uit.nietGevonden.push(oud); return; }
+    var g = zoekOudBoek(oud, index);
+    if (g && !gezien[String(g.boek.boek_id)]) { gezien[String(g.boek.boek_id)] = true; paren.push([oud, g]); }
+    else if (!g) rest.push(oud);
+  });
+  rest.slice().forEach(function (oud) {
+    var g = zoekOudBoekRuim(oud, index, gezien, rest);
+    if (g) { gezien[String(g.boek.boek_id)] = true; paren.push([oud, g]); rest.splice(rest.indexOf(oud), 1); }
+  });
+  uit.nietGevonden = rest;
+  paren.forEach(function (paar) {
+    var oud = paar[0], gevonden = paar[1];
     uit.hoe[gevonden.hoe] = (uit.hoe[gevonden.hoe] || 0) + 1;
     var boek = gevonden.boek;
     var id = String(boek.boek_id);
-    if (gezien[id]) return; // twee oude boeken bij hetzelfde boek: het eerste telt
-    gezien[id] = true;
     var velden = {};
     if (oud.beschrijving) {
       if (eigen.beschrijving[id]) uit.eigen++;
@@ -6112,7 +6140,7 @@ function oudeTerugDatums(o, inst) {
 
 /** Zoekt een boek van de oude website in de Catalogus. index: van oudIndex. */
 function oudIndex(catalogus) {
-  var isbn = {}, titel = {}, kern = {}, perNaam = {};
+  var isbn = {}, titel = {}, kern = {}, perWoord = {}, alle = [];
   catalogus.forEach(function (c) {
     if (isLeeg(c.boek_id) || isFilm(c)) return;
     [c.isbn, c.isbn_origineel].forEach(function (w) {
@@ -6121,16 +6149,31 @@ function oudIndex(catalogus) {
     });
     var t = normaliseerTekst(c.titel), k = oudTitelKern(c.titel);
     if (!t) return;
+    alle.push(c);
     (titel[t] = titel[t] || []).push(c);
     if (k) (kern[k] = kern[k] || []).push(c);
-    oudeAchternamen(c.auteur).forEach(function (n) { (perNaam[n] = perNaam[n] || []).push(c); });
+    auteurWoorden(c.auteur).forEach(function (w) { if ((perWoord[w] = perWoord[w] || []).indexOf(c) === -1) perWoord[w].push(c); });
   });
-  return { isbn: isbn, titel: titel, kern: kern, perNaam: perNaam };
+  return { isbn: isbn, titel: titel, kern: kern, perWoord: perWoord, alle: alle };
 }
 
-/** De titel om te vergelijken: zonder ondertitel (na ":" of " - "), zonder haakjes en lidwoorden. */
+/** De boeken in de Catalogus die een auteur delen met dit oude boek. */
+function oudKandidatenPerAuteur(oud, index) {
+  var uit = [];
+  auteurWoorden(oud.auteur).forEach(function (w) {
+    Object.keys(index.perWoord).forEach(function (x) {
+      if (!oudZelfdeNaam(w, x)) return;
+      index.perWoord[x].forEach(function (c) { if (uit.indexOf(c) === -1 && auteursDelen(oud.auteur, c.auteur)) uit.push(c); });
+    });
+  });
+  return uit;
+}
+
+/** De titel om te vergelijken: zonder ondertitel (na ":" of " - "), zonder haakjes, lidwoorden en "en", "and" of "&". */
 function oudTitelKern(titel) {
-  return titelSleutel(String(titel || '').split(/\s[-\u2013\u2014]\s/)[0]);
+  var k = titelSleutel(String(titel || '').split(/\s[-–—]\s/)[0]);
+  var zonder = k.split(' ').filter(function (w) { return ['en', 'and', 'und', 'et'].indexOf(w) === -1; }).join(' ');
+  return zonder || k;
 }
 
 /** Uur uit een ISO-tijdstip, in de tijdzone van Brussel ("19:30"). Leeg als het middernacht is. */
@@ -6151,6 +6194,11 @@ function oudVoorstel(oud, catalogus) {
     if (g > score) { score = g; best = c; }
   });
   return score >= 0.6 ? best : null;
+}
+
+/** Zelfde naam, of een tikfout in een lange naam (Hemmerechts en Hammerechts). */
+function oudZelfdeNaam(x, y) {
+  return x === y || (x.length >= 6 && y.length >= 6 && gelijkenis(x, y) >= 0.85);
 }
 
 /**
@@ -9620,20 +9668,15 @@ function zoekIaVanVandaagOpnieuw() {
 }
 
 /**
- * Zoekt het boek in de Catalogus, van zeker naar minder zeker. Geeft { boek, hoe } of null.
- *   isbn:       zelfde ISBN (ook isbn_origineel);
- *   titel:      zelfde titel en een gemeenschappelijke auteur;
- *   kern:       zelfde titel zonder ondertitel en lidwoorden, en een gemeenschappelijke auteur;
- *   bijna:      een gemeenschappelijke auteur en een titel die voor 85% gelijk is (tikfouten, spelling);
- *   enkel titel: zelfde titel zonder auteur aan een van beide kanten, en die titel staat maar één keer in de Catalogus.
+ * Ronde 1: zoekt het boek in de Catalogus, van zeker naar minder zeker. Geeft { boek, hoe } of null.
+ *   isbn:   zelfde ISBN (ook isbn_origineel);
+ *   titel:  zelfde titel en een gemeenschappelijke auteur (ook "Sappho" en "Lesbos, Sappho van");
+ *   kern:   zelfde titel zonder ondertitel, lidwoorden en "en/and/&", en een gemeenschappelijke auteur;
+ *   bijna:  een gemeenschappelijke auteur en een titel die voor 85% gelijk is (tikfouten, spelling).
  */
 function zoekOudBoek(oud, index) {
   if (oud.isbn && index.isbn[oud.isbn]) return { boek: index.isbn[oud.isbn], hoe: 'isbn' };
-  var namen = oudeAchternamen(oud.auteur);
-  var deeltAuteur = function (c) {
-    var hun = oudeAchternamen(c.auteur);
-    return namen.some(function (n) { return hun.indexOf(n) > -1; });
-  };
+  var deeltAuteur = function (c) { return auteursDelen(oud.auteur, c.auteur); };
   var t = normaliseerTekst(oud.titel), k = oudTitelKern(oud.titel);
   var titels = [t];
   if (oud.ondertitel) titels.push(normaliseerTekst(oud.titel + ' ' + oud.ondertitel));
@@ -9643,18 +9686,42 @@ function zoekOudBoek(oud, index) {
   }
   var kernZelfde = k ? (index.kern[k] || []).filter(deeltAuteur) : [];
   if (kernZelfde.length) return { boek: kernZelfde[0], hoe: 'kern' };
-  // Bijna dezelfde titel bij dezelfde auteur.
   var best = null, score = 0;
-  namen.forEach(function (n) {
-    (index.perNaam[n] || []).forEach(function (c) {
-      var g = gelijkenis(k, oudTitelKern(c.titel));
-      if (g > score) { score = g; best = c; }
-    });
+  oudKandidatenPerAuteur(oud, index).forEach(function (c) {
+    var g = gelijkenis(k, oudTitelKern(c.titel));
+    if (g > score) { score = g; best = c; }
   });
   if (best && score >= 0.85) return { boek: best, hoe: 'bijna' };
-  // Geen auteur aan een van beide kanten: enkel bij een titel die maar één keer voorkomt.
-  var kandidaten = index.kern[k] || [];
-  if (k && kandidaten.length === 1 && (!namen.length || !oudeAchternamen(kandidaten[0].auteur).length)) return { boek: kandidaten[0], hoe: 'enkel titel' };
+  return null;
+}
+
+/**
+ * Ronde 2, enkel voor wat ronde 1 niet vond, en enkel bij boeken in de Catalogus die nog vrij zijn
+ * (bezet: { boek_id: true }). Telkens moet het antwoord uniek zijn, anders laten we het voor Na te kijken.
+ *   titel uniek:  zelfde titel (kern), en die titel staat maar één keer bij de vrije boeken én bij de
+ *                 overgebleven oude boeken. Ook als de auteur anders is (bv. de uitgever stond als auteur).
+ *   titel bijna:  één enkel vrij boek met een titel die voor 85% gelijk is (tikfout), minstens 10 letters.
+ *   auteur uniek: dezelfde auteur heeft maar één vrij boek in de Catalogus en maar één overgebleven oud boek
+ *                 (bv. een vertaling: "Nightwood" en "Nachtwoud" van Djuna Barnes).
+ * rest: de oude boeken die na ronde 1 overblijven (om te tellen).
+ */
+function zoekOudBoekRuim(oud, index, bezet, rest) {
+  var vrij = function (c) { return !bezet[String(c.boek_id)]; };
+  var k = oudTitelKern(oud.titel);
+  if (k && k.length >= 8) {
+    var zelfde = (index.kern[k] || []).filter(vrij);
+    var oudZelfde = rest.filter(function (o) { return oudTitelKern(o.titel) === k; });
+    if (zelfde.length === 1 && oudZelfde.length === 1) return { boek: zelfde[0], hoe: 'titel uniek' };
+  }
+  if (k && k.length >= 10) {
+    var bijna = index.alle.filter(function (c) { return vrij(c) && gelijkenis(k, oudTitelKern(c.titel)) >= 0.85; });
+    if (bijna.length === 1) return { boek: bijna[0], hoe: 'titel bijna' };
+  }
+  var vanAuteur = oudKandidatenPerAuteur(oud, index).filter(vrij);
+  if (vanAuteur.length === 1) {
+    var oudVanAuteur = rest.filter(function (o) { return auteursDelen(o.auteur, oud.auteur); });
+    if (oudVanAuteur.length === 1) return { boek: vanAuteur[0], hoe: 'auteur uniek' };
+  }
   return null;
 }
 
