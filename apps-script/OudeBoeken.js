@@ -101,7 +101,10 @@ function oudZelfdeNaam(x, y) {
 function auteursDelen(a, b) {
   var wa = auteurWoorden(a), wb = auteurWoorden(b);
   var past = function (namen, woorden) { return namen.some(function (n) { return woorden.some(function (w) { return oudZelfdeNaam(n, w); }); }); };
-  return past(oudeAchternamen(a), wb) || past(oudeAchternamen(b), wa);
+  if (past(oudeAchternamen(a), wb) || past(oudeAchternamen(b), wa)) return true;
+  // Aan elkaar geschreven: "Jane DeLynn" en "Lynn, Jane De" (alle letters van de naam, in alfabetische volgorde).
+  var letters = function (x) { return normaliseerTekst(x).replace(/ /g, '').split('').sort().join(''); };
+  return !!normaliseerTekst(a) && !/[;&\/]/.test(a + b) && letters(a).length >= 8 && letters(a) === letters(b);
 }
 
 /** De titel om te vergelijken: zonder ondertitel (na ":" of " - "), zonder haakjes, lidwoorden en "en", "and" of "&". */
@@ -109,6 +112,43 @@ function oudTitelKern(titel) {
   var k = titelSleutel(String(titel || '').split(/\s[-–—]\s/)[0]);
   var zonder = k.split(' ').filter(function (w) { return ['en', 'and', 'und', 'et'].indexOf(w) === -1; }).join(' ');
   return zonder || k;
+}
+
+// Woorden die niets zeggen over welk boek het is (naast de lidwoorden).
+var TITEL_STOPWOORDEN = ['van', 'and', 'en', 'of', 'in', 'op', 'the', 'een', 'novel', 'roman', 'met', 'for', 'voor'];
+
+/** De woorden van de volledige titel, zonder lidwoorden, nummers en de naam van de auteur ("Flo #7 EGO" geeft "flo ego"). */
+function oudTitelWoorden(titel, auteur) {
+  var namen = auteurWoorden(auteur);
+  return woorden(titel).filter(function (w) { return !/^\d+$/.test(w) && namen.indexOf(w) === -1; });
+}
+
+/**
+ * Hoe gelijk zijn twee titels, van 0 tot 1. De hoogste van:
+ *   - de kern (zonder ondertitel), en de volledige titel zonder nummers en auteursnaam;
+ *   - dezelfde, zonder spaties ("killer condom" en "killerkondoom");
+ *   - 0,9 als alle betekenisvolle woorden van de kortste titel in de langste staan (minstens twee):
+ *     "House Rules" en "House of Rules", "Critical Reception of James Baldwin, 1963-2010" en "The Critical Reception of James Baldwin";
+ *   - 0,82 als ze minstens twee woorden van 5 letters of meer delen ("Autobiography of Alice B. Toklas" en "De autobriografie van Alice B. Toklas").
+ */
+function oudTitelGelijk(oud, c) {
+  var ka = oudTitelKern(oud.titel), kb = oudTitelKern(c.titel);
+  var wa = oudTitelWoorden(oud.titel, oud.auteur), wb = oudTitelWoorden(c.titel, c.auteur);
+  var va = wa.join(' '), vb = wb.join(' ');
+  var score = Math.max(gelijkenis(ka, kb), va && vb ? gelijkenis(va, vb) : 0,
+    gelijkenis(ka.replace(/ /g, ''), kb.replace(/ /g, '')), va && vb ? gelijkenis(va.replace(/ /g, ''), vb.replace(/ /g, '')) : 0);
+  var zin = function (lijst) { return lijst.filter(function (w) { return w.length >= 3 && TITEL_STOPWOORDEN.indexOf(w) === -1; }); };
+  var za = zin(wa), zb = zin(wb);
+  // Ook met enkel de kern (zonder ondertitel): "Out of Control - Bi-sexual Erotica" en "Out of Control The Zone 2".
+  var kza = zin(ka.split(' ')), kzb = zin(kb.split(' '));
+  var bevat = function (x, y) {
+    var kort = x.length <= y.length ? x : y, lang = x.length <= y.length ? y : x;
+    return kort.length >= 2 && kort.every(function (w) { return lang.indexOf(w) > -1; });
+  };
+  if (bevat(za, zb) || bevat(kza, zb) || bevat(za, kzb) || bevat(kza, kzb)) score = Math.max(score, 0.9);
+  var gedeeld = za.filter(function (w) { return w.length >= 5 && zb.indexOf(w) > -1; });
+  if (gedeeld.length >= 2) score = Math.max(score, 0.82);
+  return score;
 }
 
 /** Zoekt een boek van de oude website in de Catalogus. index: van oudIndex. */
@@ -135,7 +175,8 @@ function oudIndex(catalogus) {
  *   isbn:   zelfde ISBN (ook isbn_origineel);
  *   titel:  zelfde titel en een gemeenschappelijke auteur (ook "Sappho" en "Lesbos, Sappho van");
  *   kern:   zelfde titel zonder ondertitel, lidwoorden en "en/and/&", en een gemeenschappelijke auteur;
- *   bijna:  een gemeenschappelijke auteur en een titel die voor 85% gelijk is (tikfouten, spelling).
+ *   bijna:  een gemeenschappelijke auteur en een gelijkende titel (zie oudTitelGelijk), duidelijk de beste;
+ *   titel zonder auteur: geen auteur op de oude website, en de titel staat maar één keer in de Catalogus.
  */
 function zoekOudBoek(oud, index) {
   if (oud.isbn && index.isbn[oud.isbn]) return { boek: index.isbn[oud.isbn], hoe: 'isbn' };
@@ -149,12 +190,15 @@ function zoekOudBoek(oud, index) {
   }
   var kernZelfde = k ? (index.kern[k] || []).filter(deeltAuteur) : [];
   if (kernZelfde.length) return { boek: kernZelfde[0], hoe: 'kern' };
-  var best = null, score = 0;
+  // Bijna dezelfde titel bij dezelfde auteur. Twee boeken van die auteur even gelijk: dan niet raden.
+  var best = null, score = 0, tweede = 0;
   oudKandidatenPerAuteur(oud, index).forEach(function (c) {
-    var g = gelijkenis(k, oudTitelKern(c.titel));
-    if (g > score) { score = g; best = c; }
+    var g = oudTitelGelijk(oud, c);
+    if (g > score) { tweede = score; score = g; best = c; } else if (g > tweede) tweede = g;
   });
-  if (best && score >= 0.85) return { boek: best, hoe: 'bijna' };
+  if (best && score >= 0.8 && score - tweede >= 0.05) return { boek: best, hoe: 'bijna' };
+  // Geen auteur op de oude website: zelfde titel, als die maar één keer in de Catalogus staat.
+  if (!auteurWoorden(oud.auteur).length && k && (index.kern[k] || []).length === 1) return { boek: index.kern[k][0], hoe: 'titel zonder auteur' };
   return null;
 }
 
@@ -175,26 +219,29 @@ function oudKandidatenPerAuteur(oud, index) {
  * (bezet: { boek_id: true }). Telkens moet het antwoord uniek zijn, anders laten we het voor Na te kijken.
  *   titel uniek:  zelfde titel (kern), en die titel staat maar één keer bij de vrije boeken én bij de
  *                 overgebleven oude boeken. Ook als de auteur anders is (bv. de uitgever stond als auteur).
- *   titel bijna:  één enkel vrij boek met een titel die voor 85% gelijk is (tikfout), minstens 10 letters.
+ *   titel bijna:  één enkel vrij boek met een gelijkende titel (oudTitelGelijk vanaf 0,85), minstens 10 letters.
  *   auteur uniek: dezelfde auteur heeft maar één vrij boek in de Catalogus en maar één overgebleven oud boek
  *                 (bv. een vertaling: "Nightwood" en "Nachtwoud" van Djuna Barnes).
  * rest: de oude boeken die na ronde 1 overblijven (om te tellen).
  */
 function zoekOudBoekRuim(oud, index, bezet, rest) {
   var vrij = function (c) { return !bezet[String(c.boek_id)]; };
+  // Een boek dat twee keer op de oude website stond (zelfde titel en auteur), telt als één.
+  var sleutel = function (o) { return oudTitelKern(o.titel) + '|' + normaliseerTekst(o.auteur); };
+  var uniek = function (lijst) { var gezien = {}; return lijst.filter(function (o) { var x = sleutel(o); return gezien[x] ? false : (gezien[x] = true); }); };
   var k = oudTitelKern(oud.titel);
   if (k && k.length >= 8) {
     var zelfde = (index.kern[k] || []).filter(vrij);
-    var oudZelfde = rest.filter(function (o) { return oudTitelKern(o.titel) === k; });
+    var oudZelfde = uniek(rest.filter(function (o) { return oudTitelKern(o.titel) === k; }));
     if (zelfde.length === 1 && oudZelfde.length === 1) return { boek: zelfde[0], hoe: 'titel uniek' };
   }
   if (k && k.length >= 10) {
-    var bijna = index.alle.filter(function (c) { return vrij(c) && gelijkenis(k, oudTitelKern(c.titel)) >= 0.85; });
+    var bijna = index.alle.filter(function (c) { return vrij(c) && oudTitelGelijk(oud, c) >= 0.85; });
     if (bijna.length === 1) return { boek: bijna[0], hoe: 'titel bijna' };
   }
   var vanAuteur = oudKandidatenPerAuteur(oud, index).filter(vrij);
   if (vanAuteur.length === 1) {
-    var oudVanAuteur = rest.filter(function (o) { return auteursDelen(o.auteur, oud.auteur); });
+    var oudVanAuteur = uniek(rest.filter(function (o) { return auteursDelen(o.auteur, oud.auteur); }));
     if (oudVanAuteur.length === 1) return { boek: vanAuteur[0], hoe: 'auteur uniek' };
   }
   return null;
@@ -234,9 +281,15 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
     if (g && !gezien[String(g.boek.boek_id)]) { gezien[String(g.boek.boek_id)] = true; paren.push([oud, g]); }
     else if (!g) rest.push(oud);
   });
+  var zelfdeOud = function (a, b) { return oudTitelKern(a.titel) === oudTitelKern(b.titel) && normaliseerTekst(a.auteur) === normaliseerTekst(b.auteur); };
   rest.slice().forEach(function (oud) {
+    if (rest.indexOf(oud) === -1) return;
     var g = zoekOudBoekRuim(oud, index, gezien, rest);
-    if (g) { gezien[String(g.boek.boek_id)] = true; paren.push([oud, g]); rest.splice(rest.indexOf(oud), 1); }
+    if (!g) return;
+    gezien[String(g.boek.boek_id)] = true;
+    paren.push([oud, g]);
+    // Stond het boek twee keer op de oude website, dan is het tweede exemplaar ook gevonden.
+    rest = rest.filter(function (o) { return !zelfdeOud(o, oud); });
   });
   uit.nietGevonden = rest;
   paren.forEach(function (paar) {
