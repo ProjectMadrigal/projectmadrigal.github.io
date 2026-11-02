@@ -3615,7 +3615,7 @@ function deelBoekenInAutomatisch() {
 
 /** Menu: Boeken > Deel de boeken in op titel en beschrijving. */
 function deelBoekenInMenu() {
-  installeer(); // zorgt voor de kolom zoekwoorden en het tabblad Indeling
+  zorgVoorTabbladen(['Catalogus', 'Categorieën en trefwoorden', 'Indeling']);
   var tekst = indelingTekst(deelBoekenInUitvoeren('boeken'), 'boeken');
   logboek('menu', 'deelBoekenIn', tekst);
   meld(tekst);
@@ -3651,7 +3651,7 @@ function deelBoekenInUitvoeren(welke) {
 
 /** Menu: Films > Deel de films in op titel en beschrijving (trefwoorden). */
 function deelFilmsInMenu() {
-  installeer();
+  zorgVoorTabbladen(['Catalogus', 'Categorieën en trefwoorden', 'Indeling']);
   var tekst = indelingTekst(deelBoekenInUitvoeren('films'), 'films');
   logboek('menu', 'deelFilmsIn', tekst);
   meld(tekst);
@@ -6705,7 +6705,7 @@ function nDeWeekdag(jaar, maand, dag, n) {
 
 /** Menu: neemt de rijen van Na te kijken over met overnemen = ja (zie oudeAangeduideOvernemen). */
 function neemAangeduideOudeBoekenOver() {
-  installeer(); // zorgt voor de kolom overnemen
+  zorgVoorTabbladen(['Catalogus', 'Na te kijken']); // kolom overnemen
   var db = vindOudeDatabank();
   var oud = haalOudeBoeken(db);
   if (!oud.rijen.length) { meld('Ik kon de boeken van de oude website niet lezen. Er is niets veranderd.'); return; }
@@ -6778,7 +6778,7 @@ function neemFilmsOverUitTabblad() {
 
 /** Menu: stap 1. Neemt de beschrijvingen over en zet de covers klaar om te kopiëren. */
 function neemOudeBoekenOver() {
-  installeer(); // zorgt voor de kolom oude_cover
+  zorgVoorTabbladen(['Catalogus', 'Na te kijken', 'Categorieën en trefwoorden']); // kolommen oude_cover, categorieen, ...
   var db = vindOudeDatabank();
   var oud = haalOudeBoeken(db);
   if (!oud.rijen.length) { meld('Ik kon de boeken van de oude website niet lezen. Er is niets veranderd.'); return; }
@@ -12097,4 +12097,29 @@ function zoekWikipedia(boek, taal) {
 /** Een lijst namen zonder de namen van een thema (Feminisme, Poëzie, ...): die staan al bij de thema's. */
 function zonderThemas(namen) {
   return (namen || []).filter(function (n) { return !themaExact(n); });
+}
+
+/**
+ * Lichte versie van installeer: maakt enkel de genoemde tabbladen aan en voegt ontbrekende kolommen toe.
+ * Andere tabbladen blijven onaangeroerd (installeer ordent en herschikt alles, dat duurt en springt rond).
+ */
+function zorgVoorTabbladen(namen) {
+  var ss = spreadsheet();
+  namen.forEach(function (naam) {
+    var kolommen = KOLOMMEN[naam];
+    if (!kolommen) return;
+    var blad = ss.getSheetByName(naam);
+    if (!blad) {
+      blad = ss.insertSheet(naam);
+      blad.getRange(1, 1, 1, kolommen.length).setValues([kolommen]);
+      opmaakKop(blad, kolommen.length);
+      return;
+    }
+    var kop = blad.getLastRow() > 0 ? blad.getRange(1, 1, 1, Math.max(1, blad.getLastColumn())).getValues()[0].map(schoon) : [];
+    var ontbrekend = kolommen.filter(function (k) { return kop.indexOf(k) === -1; });
+    if (!ontbrekend.length) return;
+    var start = kop.some(function (k) { return k; }) ? blad.getLastColumn() + 1 : 1;
+    blad.getRange(1, start, 1, ontbrekend.length).setValues([ontbrekend]);
+    opmaakKop(blad, blad.getLastColumn());
+  });
 }

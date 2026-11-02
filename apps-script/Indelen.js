@@ -233,7 +233,7 @@ function indelingTekst(uit, welke) {
 
 /** Menu: Boeken > Deel de boeken in op titel en beschrijving. */
 function deelBoekenInMenu() {
-  installeer(); // zorgt voor de kolom zoekwoorden en het tabblad Indeling
+  zorgVoorTabbladen(['Catalogus', 'Categorieën en trefwoorden', 'Indeling']);
   var tekst = indelingTekst(deelBoekenInUitvoeren('boeken'), 'boeken');
   logboek('menu', 'deelBoekenIn', tekst);
   meld(tekst);
@@ -241,7 +241,7 @@ function deelBoekenInMenu() {
 
 /** Menu: Films > Deel de films in op titel en beschrijving (trefwoorden). */
 function deelFilmsInMenu() {
-  installeer();
+  zorgVoorTabbladen(['Catalogus', 'Categorieën en trefwoorden', 'Indeling']);
   var tekst = indelingTekst(deelBoekenInUitvoeren('films'), 'films');
   logboek('menu', 'deelFilmsIn', tekst);
   meld(tekst);
