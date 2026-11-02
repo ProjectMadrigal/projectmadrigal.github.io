@@ -83,7 +83,8 @@ var KOLOMMEN = {
   // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
   'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
-  'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken'],
+  'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken', 'zoekwoorden'],
+  'Indeling': ['boek_id', 'titel', 'themas', 'categorieen', 'trefwoorden'],
   'Onderwerpen nakijken': ['boek_id', 'titel', 'auteur', 'genre', 'voorstel', 'onderwerp_nieuw', 'toepassen'],
   'Titelcontrole': ['boek_id', 'titel_nu', 'auteur_nu', 'titel_stock', 'auteur_stock', 'titel_oud', 'auteur_oud', 'status', 'wie', 'datum'],
   'Aankooplijst': ['aankoop_id', 'datum', 'titel', 'auteur', 'isbn', 'genre', 'prijs', 'link', 'reden', 'voorgesteld_door', 'status', 'gekozen', 'boek_id', 'datum_binnen', 'bron']
