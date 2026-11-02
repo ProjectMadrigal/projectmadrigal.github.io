@@ -94,7 +94,8 @@
   }
 
   function toon(vak, ctx) {
-    if (lijst) teken(vak, ctx); else laad(vak, ctx);
+    // Telkens vers: de lijst kan intussen opnieuw gemaakt zijn (ook via het menu in de spreadsheet).
+    laad(vak, ctx);
   }
 
   function teken(vak, ctx, okTekst) {
