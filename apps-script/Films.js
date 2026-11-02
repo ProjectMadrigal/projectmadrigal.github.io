@@ -60,10 +60,7 @@ function filmGroepen(rij) {
 
 /* ---------- Letterboxd ---------- */
 
-function htmlTekst(t) {
-  return String(t || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(Number(n)); }).trim();
-}
+// htmlTekst staat in Hulp.js.
 
 /**
  * Leest de films uit één pagina van een lijst bij Letterboxd. Geeft [{ slug, titel, jaar }].

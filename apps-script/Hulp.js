@@ -237,3 +237,19 @@ function veiligeCel(waarde) {
 function splitsLijst(waarde) {
   return schoon(waarde).split(/[,;\n]+/).map(schoon).filter(function (x) { return x; });
 }
+
+/* ---------- Tekst uit HTML ---------- */
+
+/**
+ * Tekst uit HTML: zonder tags, en tekens zoals &amp;, &#39;, &#x27; en &rsquo; terug naar gewone tekens.
+ * Gebruikt voor Letterboxd (Films.js) en bol.com (Aankoop.js).
+ */
+var HTML_NAMEN = { amp: '&', quot: '"', apos: "'", nbsp: ' ', lt: '<', gt: '>', rsquo: '\u2019', lsquo: '\u2018', rdquo: '\u201d', ldquo: '\u201c', hellip: '\u2026', eacute: '\u00e9', euml: '\u00eb' };
+
+function htmlTekst(t) {
+  // &amp; eerst: zo wordt ook een dubbel gecodeerd teken (&amp;#x27;) goed. Daarna &#39;, &#x27; en namen zoals &rsquo;.
+  return schoon(String(t || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&')
+    .replace(/&#x([0-9a-f]{1,6});/gi, function (m, n) { return String.fromCharCode(parseInt(n, 16)); })
+    .replace(/&#(\d{1,7});/g, function (m, n) { return String.fromCharCode(Number(n)); })
+    .replace(/&([a-z]+);/gi, function (m, n) { return HTML_NAMEN.hasOwnProperty(n.toLowerCase()) ? HTML_NAMEN[n.toLowerCase()] : m; }));
+}
