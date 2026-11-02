@@ -465,6 +465,11 @@
 
     var deelKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { deel(b); } }, t(FILM ? 'deelFilm' : 'deelBoek'));
     var reservatie = reservatieBlok(b);
+    // Aangemeld als bestuur op dit toestel? Dan kan je het boek hier meteen aanpassen (zie snel-bewerken.js).
+    var SB = window.MadrigalSnelBewerken;
+    var bewerkKnop = !FILM && SB && SB.actief() ? el('button', { type: 'button', class: 'knop tweede', onclick: function () {
+      SB.open(b, function (velden, tekst) { pasBoekAan(b, velden); toonDetail(b.id); if (tekst) $('deel-melding').textContent = tekst; });
+    } }, 'Bewerk dit boek') : null;
 
     D.vervang($('detail-scherm'), terug, el('article', { class: 'blok detail' },
       el('div', {}, cover(b, true)),
@@ -486,11 +491,18 @@
           ' (', el('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/deed.nl', target: '_blank', rel: 'noopener' }, 'CC BY-SA 4.0'), ')' + (T.taal() === 'en' ? '' : t('bronVertaald'))) : null,
         el('dl', { class: 'gegevens' }, rijen.map(function (r) { return [el('dt', {}, r[0]), el('dd', {}, String(r[1]))]; })),
         onderwerpen.length ? el('div', {}, el('h2', { class: 'klein' }, t(FILM ? 'genres' : 'onderwerpen')), el('ul', { class: 'labels' }, onderwerpen)) : null,
-        el('div', { class: 'knoppen' }, reservatie ? reservatie.knop : null, deelKnop),
+        el('div', { class: 'knoppen' }, reservatie ? reservatie.knop : null, deelKnop, bewerkKnop),
         reservatie ? reservatie.vak : null,
         el('p', { class: 'hulptekst', id: 'deel-melding', 'aria-live': 'polite' }))),
       leesOok(b));
     document.title = b.t + ' · Project Madrigal';
+  }
+
+  /** Na Bewerk dit boek: de nieuwe waarden (velden van de Catalogus) meteen in het boek op de website. */
+  var KORT = { titel: 't', auteur: 'a', originele_titel: 'ot', uitgeverij: 'u', jaartal: 'j', taal: 'l', paginas: 'p', uitvoering: 'v', isbn: 'i', beschrijving: 'd', beschrijving_en: 'de', cover_url: 'c' };
+  function pasBoekAan(b, velden) {
+    Object.keys(velden).forEach(function (k) { if (KORT[k]) b[KORT[k]] = String(velden[k] || '').trim(); });
+    if (velden.hasOwnProperty('beschrijving') && !velden.hasOwnProperty('beschrijving_en')) b.de = '';
   }
 
   /** "Lees ook": boeken die op dit boek lijken (zie filters.js). */

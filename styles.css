@@ -408,6 +408,7 @@ dialog {
   border: 0; border-radius: var(--hoek); padding: 1.2rem; max-width: 34rem; width: calc(100% - 2rem);
   box-shadow: 0 10px 40px rgba(0, 0, 0, .35); color: var(--kleur-tekst); background: var(--kleur-vlak);
 }
+dialog.snel-bewerken { max-width: 40rem; max-height: 90vh; overflow: auto; }
 dialog::backdrop { background: rgba(30, 20, 10, .55); }
 dialog h2 { margin-top: 0; }
 
@@ -566,6 +567,9 @@ main.website { max-width: none; padding: 0; }
 .team .geen-foto { width: 100%; aspect-ratio: 4 / 5; border-radius: 4px; background: var(--kleur-plaatshouder); display: grid; place-items: center; color: var(--kleur-plaatshouder-tekst); font-size: 2.4rem; font-weight: 700; }
 .team .naam { display: block; font-size: 1.2rem; margin-top: .6rem; }
 .team .vnw { display: inline-block; background: var(--kleur-donker); color: var(--kleur-op-donker); padding: 0 .4rem; font-size: .85rem; }
+/* Een cover kiezen en bijsnijden (dom.js, coverUitFoto): zo ziet de cover er ook uit op de website. */
+.cover-voorbeeld { display: block; width: 10rem; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 4px; border: 1px solid var(--kleur-rand); margin-top: .5rem; background: var(--kleur-neutraal-vlak); }
+.cover-bijsnijder input[type="range"] { width: 100%; max-width: 20rem; accent-color: var(--kleur-accent); }
 .team .rol { display: block; font-size: .9rem; color: var(--kleur-tekst-zacht); }
 .duo { display: grid; gap: 1rem; grid-template-columns: 1fr; }
 .duo figure { margin: 0; }

@@ -294,6 +294,10 @@ Enkel wie de code van het bestuur heeft, kan dit. Wil je later vrijwilligers bv.
 - Tegen misbruik: hoogstens 30 aanvragen per uur, 3 open aanvragen per contact, en een verborgen veld dat enkel robots invullen.
 - Privacy: na `aanvragen_bewaren_dagen` (standaard 60) wist de nachtelijke opruiming de aanvraag. Vermeld online reserveren in je privacytekst voor je het aanzet.
 
+### Een boek aanpassen op de website zelf
+
+Ben je op dit toestel aangemeld in het bestuursscherm, dan staat op elke boekpagina van de website de knop **Bewerk dit boek**. Daar pas je titel, auteur, de gegevens (uitgeverij, jaartal, taal, pagina's, ISBN) en de beschrijving aan, en de cover. Een foto wordt bijgesneden tot de vorm van een cover (2 op 3, 600 bij 900 pixels): met de schuifbalk kies je welk stuk je houdt. Bezoekers zien die knop nooit. Na Afmelden in het bestuursscherm verdwijnt hij ook.
+
 ### Antwerp Queer Bookclub
 
 De bookclub komt op een vaste dag in de bib samen. De eerstvolgende keer staat vanzelf in de agenda op de startpagina, met "Zet in mijn agenda". Op de pagina Over ons staat een blok met hun tekst, de volgende datums en een knop naar hun Instagram.

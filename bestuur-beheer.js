@@ -447,23 +447,26 @@
 
   function fotoBlok(boek, coverVeld, ctx) {
     var invoer = el('input', { type: 'file', id: 'bb-foto', accept: 'image/*', capture: 'environment' });
-    var voorbeeld = el('img', { alt: 'Voorbeeld van de foto', hidden: true, style: 'max-width:12rem;border-radius:.4rem;margin-top:.5rem' });
+    // De foto wordt bijgesneden tot 2 op 3, zoals de covers op de website (zie coverUitFoto in dom.js).
+    var voorbeeld = el('div');
     var melding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
     var knop = el('button', { type: 'button', class: 'knop', disabled: true }, 'Gebruik deze foto als cover');
-    var dataUrl = '';
-    invoer.addEventListener('change', function () {
-      var bestand = invoer.files && invoer.files[0];
-      knop.disabled = true; voorbeeld.hidden = true; melding.textContent = '';
-      if (!bestand) return;
-      melding.textContent = 'Foto verkleinen...';
-      verkleinFoto(bestand).then(function (url) {
-        dataUrl = url; voorbeeld.src = url; voorbeeld.hidden = false; knop.disabled = false;
+    var snijder = null;
+    function toonSnijder(bestand) {
+      melding.textContent = 'Foto bijsnijden...';
+      return D.coverUitFoto(bestand, 'bb-foto').then(function (s) {
+        snijder = s; D.vervang(voorbeeld, s.vak); knop.disabled = false;
         melding.textContent = 'Ziet het er goed uit? Klik dan op de knop.';
       }, function (e) { melding.textContent = e.message; });
+    }
+    invoer.addEventListener('change', function () {
+      var bestand = invoer.files && invoer.files[0];
+      knop.disabled = true; D.vervang(voorbeeld); melding.textContent = '';
+      if (bestand) toonSnijder(bestand);
     });
     knop.addEventListener('click', function () {
       var klaar = bezig(knop, 'Bezig met bewaren...');
-      B.voerUit('beheerCoverUpload', { boek_id: boek.boek_id, data: dataUrl.split(',')[1], mime: 'image/jpeg' }).then(function (r) {
+      B.voerUit('beheerCoverUpload', { boek_id: boek.boek_id, data: snijder.dataUrl().split(',')[1], mime: 'image/jpeg' }).then(function (r) {
         klaar();
         if (!r.ok) { melding.textContent = r.fout; return; }
         if (coverVeld) { coverVeld.invoer.value = r.cover_url; coverVeld.oud = r.cover_url; coverVeld.invoer.dispatchEvent(new Event('input')); }
@@ -481,12 +484,8 @@
       var url = link.value.trim();
       if (!url) { melding.textContent = 'Plak eerst een link.'; return; }
       if (/^data:image\//.test(url)) {
-        // Uit Google Afbeeldingen komt soms de afbeelding zelf mee: die verkleinen we zoals een foto.
-        melding.textContent = 'Afbeelding verkleinen...';
-        fetch(url).then(function (a) { return a.blob(); }).then(function (blob) { return verkleinFoto(blob); }).then(function (u) {
-          dataUrl = u; voorbeeld.src = u; voorbeeld.hidden = false; knop.disabled = false;
-          melding.textContent = 'Ziet het er goed uit? Klik dan op Gebruik deze foto als cover.';
-        }, function (e) { melding.textContent = e.message; });
+        // Uit Google Afbeeldingen komt soms de afbeelding zelf mee: die snijden we bij zoals een foto.
+        fetch(url).then(function (a) { return a.blob(); }).then(toonSnijder);
         return;
       }
       var klaar = bezig(linkKnop, 'Afbeelding ophalen...');
@@ -496,7 +495,7 @@
         if (coverVeld) { coverVeld.invoer.value = r.cover_url; coverVeld.oud = r.cover_url; coverVeld.invoer.dispatchEvent(new Event('input')); }
         (ctx.data.boeken || []).forEach(function (b) { if (b.id === String(boek.boek_id)) b.c = true; });
         if (coverLinksBelofte) coverLinksBelofte.then(function (l) { l[String(boek.boek_id)] = r.cover_url; });
-        voorbeeld.src = r.cover_url; voorbeeld.hidden = false; link.value = '';
+        D.vervang(voorbeeld, el('img', { src: r.cover_url, alt: 'De nieuwe cover', class: 'cover-voorbeeld' })); link.value = '';
         melding.textContent = r.tekst + ' De website toont ze binnen enkele minuten.';
       });
     });
