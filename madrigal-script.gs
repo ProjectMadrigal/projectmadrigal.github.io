@@ -645,6 +645,8 @@ var OUD_STANDAARD_MIN = 3;          // dezelfde cover bij zoveel boeken: een sta
 
 var OUD_MAX_LOOPTIJD_MS = 4 * 60 * 1000; // ruim onder de 6 minuten die Google een taak geeft
 
+var OUD_RONDE_SLEUTEL = 'oude_covers_ronde_start';
+
 // Woorden in een naam die niets zeggen over wie het is.
 var NAAM_STOPWOORDEN = ['van', 'der', 'den', 'het', 'von', 'and', 'een', 'etc', 'the', 'les', 'des', 'del', 'della', 'ter', 'ten'];
 
@@ -4543,6 +4545,15 @@ function kopieerOudeCovers() {
   }
   // Vangnet: stopt Google deze ronde onderweg (te lang bezig, of een fout van Drive), dan start ze vanzelf opnieuw.
   planTaak('kopieerOudeCovers', 10 * 60 * 1000);
+  // Een ronde die Google afbreekt, schrijft niets meer weg. Daarom noteren we de start: staat die er nog, dan
+  // werd de vorige ronde onderbroken en zegt het Logboek dat.
+  var props = PropertiesService.getScriptProperties();
+  var vorige = Number(props.getProperty(OUD_RONDE_SLEUTEL)) || 0;
+  if (vorige) {
+    logboek('systeem', 'kopieerOudeCovers', 'De vorige ronde (gestart om ' + Utilities.formatDate(new Date(vorige), Session.getScriptTimeZone(), 'HH:mm') +
+      ') werd onderbroken door Google, wellicht omdat ze te lang duurde. Het kopiëren gaat nu verder.');
+  }
+  props.setProperty(OUD_RONDE_SLEUTEL, String(start));
   var gekopieerd = 0, zonder = 0, rest = 0, storing = false, fout = '', daglimiet = false;
   try {
     var tabel = leesTabel('Catalogus');
@@ -4576,6 +4587,7 @@ function kopieerOudeCovers() {
     rest = tabel.rijen.filter(heeftOudeCoverNodig).length;
   } finally {
     stopAchtergrond('kopieerOudeCovers');
+    props.deleteProperty(OUD_RONDE_SLEUTEL);
   }
   verwijderTriggers('kopieerOudeCovers');
   // Daglimiet van Google Drive: over 6 uur. Andere storing: over 15 minuten. Anders: over een minuut.
