@@ -1018,6 +1018,7 @@ async function meldAan(page, basis, pagina) {
     verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Aaron William', 'Aaron, Willem'))) === 'Aaron, William', 'Achternaam vooraan');
     verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Rein De Wit', 'Dewit, Rein'))) === 'Rein De Wit', 'Niet raden');
     verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Kim van Dam; Jo Bos', 'Van Dam, Kim; Bos, Jo'))) === 'van Dam, Kim; Bos, Jo', 'Twee auteurs met tussenvoegsel');
+    verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Kim van Dam & Jo Bos', 'Van Dam, Kim & Bos, Jo'))) === 'van Dam, Kim & Bos, Jo', 'Twee auteurs met &');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await page.selectOption('#tc-kast', 'Maatschappij');
     await page.click('button:has-text("Niet in de kast")');

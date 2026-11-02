@@ -34,40 +34,63 @@ function controleAuteurSleutel(auteur) {
   return uniek.sort().join(' ');
 }
 
-/** Dezelfde naam twee keer in één veld ("J.R. Ackerley; J. R. Ackerley") wordt één keer. */
-function controleAuteurZonderDubbels(auteur) {
-  var gezien = [];
-  return String(auteur || '').split(/\s*;\s*/).filter(function (deel) {
+// Tussen twee auteurs: ; of & of "en" (and, et, und). Een komma hoort bij "Achternaam, Voornaam".
+var CONTROLE_AUTEUR_SCHEIDING = /(\s*;\s*|\s*&\s*|\s+(?:en|and|et|und)\s+)/i;
+
+/** De namen in een veld, elk als sleutel (zie controleAuteurSleutel), zonder dubbels. */
+function controleNamen(auteur) {
+  var uit = [];
+  String(auteur || '').split(CONTROLE_AUTEUR_SCHEIDING).forEach(function (deel, i) {
+    if (i % 2) return; // de scheidingstekens
     var k = controleAuteurSleutel(deel);
-    if (!k || gezien.indexOf(k) > -1) return false;
+    if (k && uit.indexOf(k) === -1) uit.push(k);
+  });
+  return uit;
+}
+
+/** Dezelfde naam twee keer in één veld ("J.R. Ackerley; J. R. Ackerley") wordt één keer. De scheidingstekens blijven. */
+function controleAuteurZonderDubbels(auteur) {
+  var stukken = String(auteur || '').split(CONTROLE_AUTEUR_SCHEIDING);
+  var gezien = [], uit = '';
+  for (var i = 0; i < stukken.length; i += 2) {
+    var k = controleAuteurSleutel(stukken[i]);
+    if (!k || gezien.indexOf(k) > -1) continue;
     gezien.push(k);
-    return true;
-  }).map(schoon).join('; ');
+    uit += (uit ? (i ? stukken[i - 1] : '; ') : '') + schoon(stukken[i]);
+  }
+  return schoon(uit);
 }
 
 /** Staat elke naam in de vorm "Achternaam, Voornaam"? (Een naam uit één woord telt als goed.) */
 function controleAuteurGoedeVorm(auteur) {
-  var delen = String(auteur || '').split(/\s*;\s*/).filter(function (d) { return schoon(d); });
+  var delen = String(auteur || '').split(CONTROLE_AUTEUR_SCHEIDING).filter(function (d, i) { return !(i % 2) && schoon(d); });
   return delen.length > 0 && delen.every(function (d) { return /,/.test(d) || schoon(d).split(' ').length === 1; });
 }
 
+/** Staan alle namen van a ook in b? */
+function controleNamenIn(a, b) {
+  var na = controleNamen(a), nb = controleNamen(b);
+  return na.length > 0 && na.every(function (k) { return nb.indexOf(k) > -1; });
+}
+
 /**
- * De auteur in de juiste vorm, als de bronnen dezelfde naam geven maar anders geschreven: "Achternaam, Voornaam",
- * elke naam één keer. We nemen de vorm van de stocklijst of de oude website als die al juist is. Anders enkel de
- * dubbels eruit (de achternaam raden we niet: van, de, ... maken dat onzeker). Geeft '' als er niets te verbeteren valt.
+ * De auteur in de juiste vorm, als de bronnen dezelfde namen geven maar anders geschreven: "Achternaam, Voornaam",
+ * elke naam één keer. Geeft een andere bron alle namen van nu (en eventueel meer: een tweede auteur die nu ontbreekt)
+ * in de juiste vorm, dan nemen we die. Anders enkel de dubbels eruit (de achternaam raden we niet: van, de, ...
+ * maken dat onzeker). Geeft '' als er niets te verbeteren valt.
  */
 function controleAuteurVerbeterd(nu, anderen) {
   var schoonNu = controleAuteurZonderDubbels(nu);
   if (!schoonNu) return '';
-  var sleutel = controleAuteurSleutel(nu);
-  var beste = controleAuteurGoedeVorm(schoonNu) ? schoonNu : '';
-  if (!beste) {
-    (anderen || []).some(function (a) {
-      var v = controleAuteurZonderDubbels(a);
-      if (v && controleAuteurSleutel(v) === sleutel && controleAuteurGoedeVorm(v)) { beste = v; return true; }
-      return false;
-    });
-  }
+  var beste = '';
+  (anderen || []).forEach(function (a) {
+    var v = controleAuteurZonderDubbels(a);
+    if (!v || !controleAuteurGoedeVorm(v) || !controleNamenIn(schoonNu, v)) return;
+    // De vollediger versie wint (meer namen). Bij gelijk aantal: de eerste (de stocklijst).
+    if (!beste || controleNamen(v).length > controleNamen(beste).length) beste = v;
+  });
+  // Nu is al goed en volledig: niets te doen.
+  if (controleAuteurGoedeVorm(schoonNu) && (!beste || controleNamen(beste).length === controleNamen(schoonNu).length)) beste = schoonNu;
   if (!beste) beste = schoonNu;
   return beste !== schoon(nu) ? beste : '';
 }
@@ -81,10 +104,13 @@ function controleTitelGelijk(a, b) {
   return kortA === y || kortB === x;
 }
 
-/** Zijn twee auteurs gelijk? Een lege auteur telt niet als verschil. */
+/**
+ * Zijn twee auteurs gelijk? Een lege auteur telt niet als verschil. Staan bij de ene bron minder namen, maar zijn
+ * die allemaal ook bij de andere, dan is dat geen verschil ("Gea van Beuningen" en "Beuningen, Gea van & Bossche, Tinne").
+ */
 function controleAuteurGelijk(a, b) {
   var x = controleAuteurSleutel(a), y = controleAuteurSleutel(b);
-  return !x || !y || x === y;
+  return !x || !y || x === y || controleNamenIn(a, b) || controleNamenIn(b, a);
 }
 
 /**
