@@ -2048,7 +2048,7 @@ test('indelen op titel en beschrijving: thema, categorie en trefwoord erbij, noo
   gelijk([cat[4].trefwoorden, !cat[4].categorieen, !cat[4].extra_onderwerpen], ['Lesbisch', true, true], 'een film krijgt enkel trefwoorden');
   gelijk([cat[0].categorieen, cat[0].trefwoorden], ['Roman, Crime', 'Eigen woord'], 'moord en rechercheur: Crime, en het eigen trefwoord blijft');
   gelijk([cat[1].categorieen, cat[1].trefwoorden], ['Sport', 'Lesbisch'], 'lesbiennes in de titel telt dubbel');
-  gelijk([cat[2].trefwoorden], ['Zee'], 'eigen zoekwoorden tellen, Queer staat op weg, lesbisch één keer is te weinig');
+  gelijk([cat[2].trefwoorden], ['Lesbisch, Zee'], 'eigen zoekwoorden tellen, Queer staat op weg, lesbisch één keer is genoeg');
   gelijk(!cat[3].categorieen, true, 'een film krijgt geen categorie');
   gelijk(M.deelBoekenIn(cat, namen).length, 0, 'opnieuw: niets dubbel');
   // Enkel boeken of enkel films (de menu's Boeken en Films).
@@ -2070,10 +2070,10 @@ test('indelen van films: één treffer genoeg, genre telt mee, AIDS/HIV als twee
   ];
   M.deelBoekenIn(films, namen, 'films');
   gelijk(films.map((f) => f.trefwoorden || ''), ['Lesbisch', 'AIDS/HIV', 'Sekswerk', 'Coming-out', 'Oorlog', '']);
-  // Een boek heeft nog altijd twee treffers nodig voor een trefwoord.
-  const boek = [{ boek_id: 'B1', titel: 'Zee', beschrijving: 'Een roman met één lesbisch personage.' }];
+  // Boeken: ook één treffer genoeg.
+  const boek = [{ boek_id: 'B1', titel: 'Zee', beschrijving: 'Een roman over hiv en een lesbisch personage in de oorlog.' }];
   M.deelBoekenIn(boek, namen, 'boeken');
-  gelijk(!boek[0].trefwoorden, true);
+  gelijk(boek[0].trefwoorden, 'Lesbisch, AIDS/HIV, Oorlog');
 });
 
 test('Politiek is een apart thema, los van Maatschappij', () => {

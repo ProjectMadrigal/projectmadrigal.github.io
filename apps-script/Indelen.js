@@ -6,16 +6,16 @@
  *   - Categorieën en trefwoorden komen uit het tabblad Categorieën en trefwoorden (soort categorie of trefwoord).
  *     Een naam telt als hij in de tekst staat, of een van zijn zoekwoorden (kolom zoekwoorden in dat tabblad,
  *     of de ingebouwde lijst INDELEN_ZOEKWOORDEN hieronder).
- *   - Een woord in de titel telt dubbel. Een categorie heeft genoeg aan één treffer ("deze roman"),
- *     een trefwoord heeft er minstens twee nodig.
+ *   - Eén treffer in de titel of de beschrijving is genoeg, voor een categorie ("deze roman") en een trefwoord.
+ *     Zet een naam die te vaak raak is (Queer, LGBTQIA+) op weg in het tabblad.
  *   - Thema's: zie ONDERWERP_TEKST_WOORDEN (OnderwerpRaden.js). Elk thema dat minstens ONDERWERP_ZEKER_MIN keer
  *     voorkomt, komt erbij.
  *   - Wat erbij kwam, staat daarna in het tabblad Indeling.
  */
 
 var INDELEN_MIN_CATEGORIE = 1;
-var INDELEN_MIN_TREFWOORD = 2;
-var INDELEN_MIN_TREFWOORD_FILM = 1; // een filmbeschrijving is kort: één treffer is genoeg
+var INDELEN_MIN_TREFWOORD = 1;      // één treffer is genoeg: een beschrijving noemt een onderwerp vaak maar één keer
+var INDELEN_MIN_TREFWOORD_FILM = 1;
 
 /*
  * Ingebouwde zoekwoorden per naam (de sleutel is genreSleutel van de naam). Een woord telt als een woord in de

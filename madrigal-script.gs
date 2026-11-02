@@ -430,9 +430,9 @@ var HTML_NAMEN = { amp: '&', quot: '"', apos: "'", nbsp: ' ', lt: '<', gt: '>', 
 
 var INDELEN_MIN_CATEGORIE = 1;
 
-var INDELEN_MIN_TREFWOORD = 2;
+var INDELEN_MIN_TREFWOORD = 1;      // één treffer is genoeg: een beschrijving noemt een onderwerp vaak maar één keer
 
-var INDELEN_MIN_TREFWOORD_FILM = 1; // een filmbeschrijving is kort: één treffer is genoeg
+var INDELEN_MIN_TREFWOORD_FILM = 1;
 
 /*
  * Ingebouwde zoekwoorden per naam (de sleutel is genreSleutel van de naam). Een woord telt als een woord in de
