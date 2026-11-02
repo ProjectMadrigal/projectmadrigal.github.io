@@ -724,6 +724,8 @@ var TITELCONTROLE_STATUSSEN = ['klopt', 'aangepast', 'niet in de kast'];
 // Tussen twee auteurs: ; of & of "en" (and, et, und). Een komma hoort bij "Achternaam, Voornaam".
 var CONTROLE_AUTEUR_SCHEIDING = /(\s*;\s*|\s*&\s*|\s+(?:en|and|et|und)\s+)/i;
 
+var CONTROLE_TUSSENVOEGSELS = ['van', 'de', 'der', 'den', 'het', 'ten', 'ter', 'te', 'von', 'zu', 'la', 'le', 'du', 'da', 'di', 'del', 'des', 'dos', 'el', 'al', 'bin', 'ibn', 'mc'];
+
 // Een reeksaanduiding achter de titel: "XXX (Ype, #6)", "Zee (Verhalen #2)".
 var CONTROLE_REEKS = /^(.*?)\s*\(([^()]*?)[,;]?\s*#\s*(\d+(?:[.,]\d+)?)\)\s*$/;
 
@@ -2628,6 +2630,13 @@ function checklistPunten(tekst) {
     .filter(Boolean).slice(0, 30);
 }
 
+/** Is de auteur nu leeg? Dan die van de stocklijst, anders van de oude website, in de vorm "Achternaam, Voornaam". */
+function controleAuteurAangevuld(nu, anderen) {
+  if (schoon(nu)) return '';
+  var bron = (anderen || []).filter(function (a) { return schoon(a); })[0];
+  return bron ? controleAuteurOmgedraaid(controleAuteurZonderDubbels(bron)) : '';
+}
+
 /**
  * Zijn twee auteurs gelijk? Een lege auteur telt niet als verschil. Staan bij de ene bron minder namen, maar zijn
  * die allemaal ook bij de andere, dan is dat geen verschil ("Gea van Beuningen" en "Beuningen, Gea van & Bossche, Tinne").
@@ -2647,6 +2656,24 @@ function controleAuteurGelijk(a, b) {
 function controleAuteurGoedeVorm(auteur) {
   var delen = String(auteur || '').split(CONTROLE_AUTEUR_SCHEIDING).filter(function (d, i) { return !(i % 2) && schoon(d); });
   return delen.length > 0 && delen.every(function (d) { return /,/.test(d) || schoon(d).split(' ').length === 1; });
+}
+
+/**
+ * Een naam zonder komma in de vorm "Achternaam, Voornaam": het laatste woord is de achternaam, tussenvoegsels
+ * komen achter de voornaam ("Gea van Beuningen" wordt "Beuningen, Gea van", zoals in de stocklijst).
+ * Een naam met een komma of uit één woord blijft zoals hij is. Per naam in het veld.
+ */
+function controleAuteurOmgedraaid(auteur) {
+  return schoon(String(auteur || '').split(CONTROLE_AUTEUR_SCHEIDING).map(function (deel, i) {
+    if (i % 2) return deel;
+    var naam = schoon(deel);
+    var woorden = naam.split(' ');
+    if (!naam || naam.indexOf(',') > -1 || woorden.length < 2) return naam;
+    var achternaam = woorden.pop();
+    var tussen = [];
+    while (woorden.length > 1 && CONTROLE_TUSSENVOEGSELS.indexOf(woorden[woorden.length - 1].toLowerCase()) > -1) tussen.unshift(woorden.pop());
+    return achternaam + ', ' + woorden.concat(tussen).join(' ');
+  }).join(''));
 }
 
 /** Sleutel om auteurs te vergelijken: de woorden in alfabetische volgorde ("Melchior, Willem" = "Willem Melchior"). */
@@ -8011,6 +8038,8 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     var beter = controleAuteurVerbeterd(b.auteur, [st && st.auteur, oud && oud.auteur]);
     // Voorletters voluit als een andere bron de voornaam geeft.
     beter = controleAuteurVoluit(beter || b.auteur, [st && st.auteur, oud && oud.auteur]) || beter;
+    // Geen auteur in de Catalogus: die van een andere bron.
+    beter = beter || controleAuteurAangevuld(b.auteur, [st && st.auteur, oud && oud.auteur]);
     // Dezelfde titel, met een ondertitel op de oude website: de ondertitel erbij in de Catalogus.
     // Uit de oude website, anders uit de stocklijst: een titel met ondertitel wint altijd.
     var aangevuld = controleTitelReeks(b.titel, oudeTitel) || controleTitelReeks(b.titel, st && st.titel) ||

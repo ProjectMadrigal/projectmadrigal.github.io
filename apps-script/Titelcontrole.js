@@ -14,6 +14,8 @@
  *   - Een naam die volledig in een andere naam zit ("Aurora" en "Aurora Staff"), is geen verschil.
  *   - Voorletters worden voluit geschreven als een andere bron de voornaam geeft ("Bade, H." wordt "Bade, Hermanus").
  *   - Iets tussen haakjes of na een komma achter dezelfde titel telt ook als ondertitel en komt erbij.
+ *   - Staat er geen auteur in de Catalogus, dan komt die van de stocklijst of de oude website erbij, als
+ *     "Achternaam, Voornaam" (het laatste woord is de achternaam, tussenvoegsels achter de voornaam).
  *   - Een reeksaanduiding ("XXX (Ype, #6)") met dezelfde woorden als nu ("Ype XXX") wordt overgenomen.
  *   - De vorm "Achternaam, Voornaam" wint altijd: een auteur zonder die vorm telt niet als verschil met een auteur
  *     die wel in die vorm staat.
@@ -112,6 +114,33 @@ function controleAuteurVerbeterd(nu, anderen) {
   if (controleAuteurGoedeVorm(schoonNu) && (!beste || controleNamen(beste).length === controleNamen(schoonNu).length)) beste = schoonNu;
   if (!beste) beste = schoonNu;
   return beste !== schoon(nu) ? beste : '';
+}
+
+var CONTROLE_TUSSENVOEGSELS = ['van', 'de', 'der', 'den', 'het', 'ten', 'ter', 'te', 'von', 'zu', 'la', 'le', 'du', 'da', 'di', 'del', 'des', 'dos', 'el', 'al', 'bin', 'ibn', 'mc'];
+
+/**
+ * Een naam zonder komma in de vorm "Achternaam, Voornaam": het laatste woord is de achternaam, tussenvoegsels
+ * komen achter de voornaam ("Gea van Beuningen" wordt "Beuningen, Gea van", zoals in de stocklijst).
+ * Een naam met een komma of uit één woord blijft zoals hij is. Per naam in het veld.
+ */
+function controleAuteurOmgedraaid(auteur) {
+  return schoon(String(auteur || '').split(CONTROLE_AUTEUR_SCHEIDING).map(function (deel, i) {
+    if (i % 2) return deel;
+    var naam = schoon(deel);
+    var woorden = naam.split(' ');
+    if (!naam || naam.indexOf(',') > -1 || woorden.length < 2) return naam;
+    var achternaam = woorden.pop();
+    var tussen = [];
+    while (woorden.length > 1 && CONTROLE_TUSSENVOEGSELS.indexOf(woorden[woorden.length - 1].toLowerCase()) > -1) tussen.unshift(woorden.pop());
+    return achternaam + ', ' + woorden.concat(tussen).join(' ');
+  }).join(''));
+}
+
+/** Is de auteur nu leeg? Dan die van de stocklijst, anders van de oude website, in de vorm "Achternaam, Voornaam". */
+function controleAuteurAangevuld(nu, anderen) {
+  if (schoon(nu)) return '';
+  var bron = (anderen || []).filter(function (a) { return schoon(a); })[0];
+  return bron ? controleAuteurOmgedraaid(controleAuteurZonderDubbels(bron)) : '';
 }
 
 /** Zijn twee titels gelijk? Ook als de ene een ondertitel heeft (na ":" of " - ") en de andere niet. */
@@ -275,6 +304,8 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     var beter = controleAuteurVerbeterd(b.auteur, [st && st.auteur, oud && oud.auteur]);
     // Voorletters voluit als een andere bron de voornaam geeft.
     beter = controleAuteurVoluit(beter || b.auteur, [st && st.auteur, oud && oud.auteur]) || beter;
+    // Geen auteur in de Catalogus: die van een andere bron.
+    beter = beter || controleAuteurAangevuld(b.auteur, [st && st.auteur, oud && oud.auteur]);
     // Dezelfde titel, met een ondertitel op de oude website: de ondertitel erbij in de Catalogus.
     // Uit de oude website, anders uit de stocklijst: een titel met ondertitel wint altijd.
     var aangevuld = controleTitelReeks(b.titel, oudeTitel) || controleTitelReeks(b.titel, st && st.titel) ||
