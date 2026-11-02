@@ -423,6 +423,8 @@ function geefNieuweBoekenEenId() {
 function verwerkNieuweBoekenAutomatisch() {
   // Elk uur ook even kijken of het kopiëren van de oude covers niet stilviel (zie OudeBoeken.js).
   try { waakOverOudeCovers(); } catch (e) { /* volgend uur opnieuw */ }
+  // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
+  try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
   var aantal = geefNieuweBoekenEenId();
