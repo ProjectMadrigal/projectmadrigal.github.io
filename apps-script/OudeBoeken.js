@@ -665,7 +665,7 @@ function haalOudeBoeken(db) {
 
 /** Menu: stap 1. Neemt de beschrijvingen over en zet de covers klaar om te kopiëren. */
 function neemOudeBoekenOver() {
-  installeer(); // zorgt voor de kolom oude_cover
+  zorgVoorTabbladen(['Catalogus', 'Na te kijken', 'Categorieën en trefwoorden']); // kolommen oude_cover, categorieen, ...
   var db = vindOudeDatabank();
   var oud = haalOudeBoeken(db);
   if (!oud.rijen.length) { meld('Ik kon de boeken van de oude website niet lezen. Er is niets veranderd.'); return; }
@@ -712,7 +712,7 @@ function neemOudeBoekenOver() {
 
 /** Menu: neemt de rijen van Na te kijken over met overnemen = ja (zie oudeAangeduideOvernemen). */
 function neemAangeduideOudeBoekenOver() {
-  installeer(); // zorgt voor de kolom overnemen
+  zorgVoorTabbladen(['Catalogus', 'Na te kijken']); // kolom overnemen
   var db = vindOudeDatabank();
   var oud = haalOudeBoeken(db);
   if (!oud.rijen.length) { meld('Ik kon de boeken van de oude website niet lezen. Er is niets veranderd.'); return; }

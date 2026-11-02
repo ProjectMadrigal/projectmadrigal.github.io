@@ -10,6 +10,31 @@
 /** Instellingen met een toegangscode: leeg betekent bij het installeren een nieuwe willekeurige code. */
 var CODE_INSTELLINGEN = ['toegangscode_balie', 'code_vrijwilliger', 'code_bestuur'];
 
+/**
+ * Lichte versie van installeer: maakt enkel de genoemde tabbladen aan en voegt ontbrekende kolommen toe.
+ * Andere tabbladen blijven onaangeroerd (installeer ordent en herschikt alles, dat duurt en springt rond).
+ */
+function zorgVoorTabbladen(namen) {
+  var ss = spreadsheet();
+  namen.forEach(function (naam) {
+    var kolommen = KOLOMMEN[naam];
+    if (!kolommen) return;
+    var blad = ss.getSheetByName(naam);
+    if (!blad) {
+      blad = ss.insertSheet(naam);
+      blad.getRange(1, 1, 1, kolommen.length).setValues([kolommen]);
+      opmaakKop(blad, kolommen.length);
+      return;
+    }
+    var kop = blad.getLastRow() > 0 ? blad.getRange(1, 1, 1, Math.max(1, blad.getLastColumn())).getValues()[0].map(schoon) : [];
+    var ontbrekend = kolommen.filter(function (k) { return kop.indexOf(k) === -1; });
+    if (!ontbrekend.length) return;
+    var start = kop.some(function (k) { return k; }) ? blad.getLastColumn() + 1 : 1;
+    blad.getRange(1, start, 1, ontbrekend.length).setValues([ontbrekend]);
+    opmaakKop(blad, blad.getLastColumn());
+  });
+}
+
 function installeer() {
   var ss = spreadsheet();
 
