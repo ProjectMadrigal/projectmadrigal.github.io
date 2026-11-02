@@ -14,6 +14,7 @@
  *   - Een naam die volledig in een andere naam zit ("Aurora" en "Aurora Staff"), is geen verschil.
  *   - Voorletters worden voluit geschreven als een andere bron de voornaam geeft ("Bade, H." wordt "Bade, Hermanus").
  *   - Iets tussen haakjes of na een komma achter dezelfde titel telt ook als ondertitel en komt erbij.
+ *   - Een reeksaanduiding ("XXX (Ype, #6)") met dezelfde woorden als nu ("Ype XXX") wordt overgenomen.
  *   - De vorm "Achternaam, Voornaam" wint altijd: een auteur zonder die vorm telt niet als verschil met een auteur
  *     die wel in die vorm staat.
  *   - De lijst staat in het tabblad Titelcontrole. In het bestuurs- en vrijwilligersscherm (Titels en auteurs
@@ -117,7 +118,37 @@ function controleAuteurVerbeterd(nu, anderen) {
 function controleTitelGelijk(a, b) {
   var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
   if (!x || !y || x === y) return true;
-  return controleTitelSleutel(controleTitelKort(a)) === y || controleTitelSleutel(controleTitelKort(b)) === x;
+  if (controleTitelSleutel(controleTitelKort(a)) === y || controleTitelSleutel(controleTitelKort(b)) === x) return true;
+  // Dezelfde titel met de reeks ervoor of tussen haakjes erachter: "Ype XXX" en "XXX (Ype, #6)".
+  var ra = controleReeksWoorden(a), rb = controleReeksWoorden(b);
+  return (!!ra && ra === controleWoordenSet(b)) || (!!rb && rb === controleWoordenSet(a));
+}
+
+// Een reeksaanduiding achter de titel: "XXX (Ype, #6)", "Zee (Verhalen #2)".
+var CONTROLE_REEKS = /^(.*?)\s*\(([^()]*?)[,;]?\s*#\s*(\d+(?:[.,]\d+)?)\)\s*$/;
+
+/** De woorden van een tekst, elk één keer, alfabetisch. */
+function controleWoordenSet(tekst) {
+  var uniek = [];
+  normaliseerTekst(tekst).split(' ').forEach(function (w) { if (w && uniek.indexOf(w) === -1) uniek.push(w); });
+  return uniek.sort().join(' ');
+}
+
+/** De woorden van titel en reeks samen (zonder het volumenummer), als de titel een reeksaanduiding heeft. Anders ''. */
+function controleReeksWoorden(titel) {
+  var m = schoon(titel).match(CONTROLE_REEKS);
+  return m ? controleWoordenSet(m[1] + ' ' + m[2]) : '';
+}
+
+/**
+ * Heeft de andere titel dezelfde woorden met een reeksaanduiding ("XXX (Ype, #6)") en nu niet ("Ype XXX")?
+ * Dan de titel met de reeksaanduiding. Geeft '' als dat niet zo is.
+ */
+function controleTitelReeks(nu, ander) {
+  nu = schoon(nu); ander = schoon(ander);
+  if (!nu || !ander || CONTROLE_REEKS.test(nu)) return '';
+  var r = controleReeksWoorden(ander);
+  return r && r === controleWoordenSet(nu) ? ander : '';
 }
 
 // Tussen titel en ondertitel: een dubbelpunt, een streepje met spaties, een punt of komma gevolgd door meer tekst,
@@ -246,7 +277,8 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     beter = controleAuteurVoluit(beter || b.auteur, [st && st.auteur, oud && oud.auteur]) || beter;
     // Dezelfde titel, met een ondertitel op de oude website: de ondertitel erbij in de Catalogus.
     // Uit de oude website, anders uit de stocklijst: een titel met ondertitel wint altijd.
-    var aangevuld = controleTitelAangevuld(b.titel, oudeTitel, b.taal, namen) || controleTitelAangevuld(b.titel, st && st.titel, b.taal, namen);
+    var aangevuld = controleTitelReeks(b.titel, oudeTitel) || controleTitelReeks(b.titel, st && st.titel) ||
+      controleTitelAangevuld(b.titel, oudeTitel, b.taal, namen) || controleTitelAangevuld(b.titel, st && st.titel, b.taal, namen);
     if (verbeterd && (beter || aangevuld)) {
       var velden = {};
       if (beter) velden.auteur = beter;
