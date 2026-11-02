@@ -2,27 +2,14 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
+  <!-- Beveiliging: enkel scripts van deze site, GoatCounter en de barcodescanner (jsDelivr). Zie README.md, B3, bij een nieuwe bron. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://gc.zgo.at https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self' data: https://script.google.com https://script.googleusercontent.com https://*.goatcounter.com https://www.googleapis.com https://openlibrary.org https://covers.openlibrary.org https://archive.org; frame-src https://www.openstreetmap.org; media-src 'self' blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>Pagina niet gevonden · Project Madrigal</title>
   <meta name="theme-color" content="#1b1b1c">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <script>
-    // Adressen van de oude website sturen we door naar de nieuwe pagina's.
-    (function () {
-      var pad = location.pathname.replace(/\/+$/, '').toLowerCase();
-      var naar = {
-        '/boeken': 'boeken.html',
-        '/over-project-madrigal': 'over-ons.html',
-        '/over-ons': 'over-ons.html',
-        '/home': 'index.html'
-      };
-      var basis = location.pathname.replace(/[^\/]*\/?$/, '');
-      Object.keys(naar).forEach(function (oud) {
-        if (pad.slice(-oud.length) === oud) location.replace(basis + naar[oud]);
-      });
-    })();
-  </script>
+  <script src="/doorsturen.js"></script>
   <style>
     body { font-family: system-ui, sans-serif; background: #1b1b1c; color: #f2f2f2; text-align: center; padding: 4rem 1rem; }
     a { color: #ffcd30; }

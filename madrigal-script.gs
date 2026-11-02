@@ -120,6 +120,15 @@ var ACTIES = {
 
 /* ---------- Staat lezen en bewaren ---------- */
 
+/* Te veel foute codes: na FOUT_MAX foute codes binnen FOUT_VENSTER_S seconden weigert de web-app een tijd
+   elke aanmelding, ook de juiste (anders kan wie raadt toch nog verder). Apps Script kent het adres van de
+   bezoeker niet: de teller geldt voor iedereen samen. */
+var FOUT_MAX = 30;
+
+var FOUT_VENSTER_S = 15 * 60;
+
+var FOUT_SLEUTEL = 'foute_codes';
+
 var BACKUP_VOORVOEGSEL = 'Madrigal back-up ';
 
 /** Velden van een boek die je via de website kan aanpassen. De rest (herkomst, ...) blijft enkel in de spreadsheet. */
@@ -3035,6 +3044,11 @@ function checklistPunten(tekst) {
     .filter(Boolean).slice(0, 30);
 }
 
+/** Is het aanmelden geblokkeerd? cache: CacheService.getScriptCache() (of een nabootsing in de tests). */
+function codesGeblokkeerd(cache) {
+  return Number(cache.get(FOUT_SLEUTEL) || 0) >= FOUT_MAX;
+}
+
 /** Is de auteur nu leeg? Dan die van de stocklijst, anders van de oude website, in de vorm "Achternaam, Voornaam". */
 function controleAuteurAangevuld(nu, anderen) {
   if (schoon(nu)) return '';
@@ -3731,10 +3745,17 @@ function doPost(e) {
     }
   }
 
+  var cache = CacheService.getScriptCache();
+  if (codesGeblokkeerd(cache)) {
+    return json({ ok: false, fout: 'Er werden te veel foute codes ingegeven. Probeer het over een kwartier opnieuw.', code: 'te_veel_pogingen' });
+  }
   var rol = rolVoorCode(invoer.code, leesInstellingen());
   if (!rol) {
     // Even wachten maakt het raden van codes trager.
     Utilities.sleep(1500);
+    if (telFouteCode(cache)) {
+      logboek('systeem', 'beveiliging', FOUT_MAX + ' foute codes binnen een kwartier: het aanmelden is een kwartier geblokkeerd. Gebeurt dit vaak? Verander dan de codes in Instellingen.');
+    }
     return json({ ok: false, fout: 'De code klopt niet.', code: 'ongeldige_code' });
   }
   // Het bestuur bekijkt het vrijwilligersscherm: dan gelden de rechten van een vrijwilliger.
@@ -8850,6 +8871,13 @@ function telefoonSleutel(t) {
   if (c.indexOf('0032') === 0) c = '0' + c.slice(4);
   else if (c.indexOf('32') === 0 && c.length === 11) c = '0' + c.slice(2);
   return c;
+}
+
+/** Telt een foute code. Geeft true als de blokkering net begint (dan meldt het Logboek het). */
+function telFouteCode(cache) {
+  var n = Number(cache.get(FOUT_SLEUTEL) || 0) + 1;
+  cache.put(FOUT_SLEUTEL, String(n), FOUT_VENSTER_S);
+  return n === FOUT_MAX;
 }
 
 /** Telt een aantal maanden op (negatief mag ook). 31 maart min 1 maand wordt 28 of 29 februari. */

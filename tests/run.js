@@ -2115,6 +2115,16 @@ test('covers op titel en auteur bij Google Books: wanneer, en enkel hetzelfde bo
   gelijk(M.googleTitelVelden(boek, items.slice(0, 1)), {});
 });
 
+test('beveiliging: na 30 foute codes binnen een kwartier is het aanmelden geblokkeerd', () => {
+  const opslag = {};
+  const cache = { get: (k) => opslag[k] || null, put: (k, v) => { opslag[k] = v; } };
+  let begin = 0;
+  for (let i = 0; i < 29; i++) if (M.telFouteCode(cache)) begin++;
+  gelijk([M.codesGeblokkeerd(cache), begin], [false, 0]);
+  gelijk([M.telFouteCode(cache), M.codesGeblokkeerd(cache)], [true, true]);
+  gelijk(M.telFouteCode(cache), false, 'het Logboek meldt het maar één keer');
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
