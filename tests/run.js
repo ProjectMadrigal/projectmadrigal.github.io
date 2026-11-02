@@ -2057,6 +2057,25 @@ test('indelen op titel en beschrijving: thema, categorie en trefwoord erbij, noo
   gelijk(M.deelBoekenIn(tweede.map((x) => Object.assign({}, x)), namen, 'films').map((r) => r.boek_id), ['F9']);
 });
 
+test('indelen van films: één treffer genoeg, genre telt mee, AIDS/HIV als twee woorden', () => {
+  const namen = [{ naam: 'Lesbisch', soort: 'trefwoord' }, { naam: 'AIDS/HIV', soort: 'trefwoord' }, { naam: 'Sekswerk', soort: 'trefwoord' },
+    { naam: 'Coming-out', soort: 'trefwoord' }, { naam: 'Oorlog', soort: 'trefwoord' }];
+  const films = [
+    { boek_id: 'F1', soort: 'film', titel: 'Zomer', beschrijving_en: 'Two women fall in love in a lesbian summer camp.' },
+    { boek_id: 'F2', soort: 'film', titel: 'Act', beschrijving: 'Over de strijd tegen hiv in Parijs.' },
+    { boek_id: 'F3', soort: 'film', titel: 'Nacht', beschrijving: 'A young hustler in Los Angeles.' },
+    { boek_id: 'F4', soort: 'film', titel: 'Kast', beschrijving: 'Een tiener maakt zijn coming-out op school.' },
+    { boek_id: 'F5', soort: 'film', titel: 'Verzonnen', genre: 'Drama, War' },
+    { boek_id: 'F6', soort: 'film', titel: 'Warschau', beschrijving: 'Een stad.' }
+  ];
+  M.deelBoekenIn(films, namen, 'films');
+  gelijk(films.map((f) => f.trefwoorden || ''), ['Lesbisch', 'AIDS/HIV', 'Sekswerk', 'Coming-out', 'Oorlog', '']);
+  // Een boek heeft nog altijd twee treffers nodig voor een trefwoord.
+  const boek = [{ boek_id: 'B1', titel: 'Zee', beschrijving: 'Een roman met één lesbisch personage.' }];
+  M.deelBoekenIn(boek, namen, 'boeken');
+  gelijk(!boek[0].trefwoorden, true);
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
