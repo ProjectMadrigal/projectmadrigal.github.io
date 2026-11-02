@@ -3378,12 +3378,35 @@ test('onderwerpen raden: genre eerst, dan enkel een duidelijk thema uit de tekst
   // Toepassen
   const rij = uit.nakijken[0];
   rij.toepassen = 'ja'; rij.onderwerp_nieuw = 'Maatschappij, Geschiedenis';
-  assert.strictEqual(M.onderwerpNakijklijstToepassen(cat, uit.nakijken), 1);
+  assert.strictEqual(M.onderwerpNakijklijstToepassen(cat, uit.nakijken, onderwerpen), 1);
   assert.strictEqual(cat[2].extra_onderwerpen, 'Maatschappij, Geschiedenis');
   assert.strictEqual(rij.toepassen, 'gedaan');
   // Woorden
   assert.strictEqual(M.zekerOnderwerp(M.onderwerpScores({ titel: 'Godin', beschrijving: 'over de godin en het eeuwige' })), '', '=god en =eeuw tellen niet voor godin en eeuwig');
   gelijk(M.onderwerpScores({ titel: '', beschrijving: 'Over coming out en seksualiteit.' }), [['Seksualiteit', 2]]);
+});
+
+
+test('onderwerpen raden: de keuzelijst bevat thema\'s en genres, een genre wordt het genre van het boek', () => {
+  const onderwerpen = [{ genre: 'Politiek', filtergroepen: 'Maatschappij' }, { genre: 'Roman', filtergroepen: 'Fictie' }, { genre: 'Lokaal', filtergroepen: 'Antwerpen' }];
+  const cat = [
+    { boek_id: 'B1', soort: 'boek', titel: 'Een', genre: '', extra_onderwerpen: '' },
+    { boek_id: 'B2', soort: 'boek', titel: 'Twee', genre: 'Varia', extra_onderwerpen: 'Eigen thema' },
+    { boek_id: 'B3', soort: 'boek', titel: 'Drie', genre: '', extra_onderwerpen: '' }
+  ];
+  const k = M.onderwerpKeuzes(onderwerpen, cat);
+  assert.ok(k.lijst.includes('Politiek') && k.lijst.includes('Antwerpen') && k.lijst.includes('Eigen thema') && k.lijst.includes('Gender'));
+  assert.ok(!k.lijst.includes('Zines') && !k.lijst.includes('Klassiekers'));
+  assert.ok(k.lijst.indexOf('Gender') < k.lijst.indexOf('Politiek'), 'eerst de thema\'s, dan de genres');
+  const rijen = [
+    { boek_id: 'B1', onderwerp_nieuw: 'Politiek', toepassen: 'ja' },
+    { boek_id: 'B2', onderwerp_nieuw: 'Politiek, Gender', toepassen: 'ja' },
+    { boek_id: 'B3', onderwerp_nieuw: 'Iets nieuws', toepassen: 'ja' }
+  ];
+  assert.strictEqual(M.onderwerpNakijklijstToepassen(cat, rijen, onderwerpen), 3);
+  gelijk([cat[0].genre, cat[0].extra_onderwerpen], ['Politiek', ''], 'zonder genre: het genre wordt Politiek');
+  gelijk([cat[1].genre, cat[1].extra_onderwerpen], ['Varia', 'Eigen thema, Maatschappij, Gender'], 'met genre: de thema\'s van Politiek erbij');
+  assert.strictEqual(cat[2].extra_onderwerpen, 'Iets nieuws');
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
