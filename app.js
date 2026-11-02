@@ -17,19 +17,9 @@
 (function () {
   'use strict';
 
-  /* Elk onderwerp een eigen kleur (thema-1 tot thema-8 in styles.css). Vaste kleuren voor de vaste onderwerpen,
-     een berekende kleur voor de andere. */
-  var THEMA_KLEUREN = {
-    'Feminisme': 1, 'Pulp': 1, 'Erotica en BDSM': 1, 'Geschiedenis': 2, 'Graphic novel': 2, 'Klassiekers': 3,
-    'Religie en Spiritualiteit': 3, 'Biografie': 4, 'Young Adult': 4, 'Maatschappij': 5, 'Zines': 5,
-    'Fictie': 6, 'Kunst en Fotoboek': 6, 'Gender': 7, 'Seksualiteit': 8, 'Poëzie': 8
-  };
-  function themaKleur(naam) {
-    if (THEMA_KLEUREN[naam]) return THEMA_KLEUREN[naam];
-    var h = 0;
-    for (var i = 0; i < naam.length; i++) h = (h * 31 + naam.charCodeAt(i)) % 997;
-    return (h % 8) + 1;
-  }
+  // Zoals op de oude website: categorieën (soort boek) in geel en eerst, thema's (inhoud) in paars.
+  var CATEGORIEEN = ['Fictie', 'Klassiekers', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Zines', 'Kunst en Fotoboek'];
+  function isCategorie(naam) { return CATEGORIEEN.indexOf(naam) !== -1; }
 
   var Z = window.MadrigalZoeken;
   var F = window.MadrigalFilters;
@@ -466,8 +456,10 @@
       [t('vSoort'), b.s === 'zine' ? t('zine') : '']
     ].filter(function (r) { return r[1]; });
 
-    var onderwerpen = (b.g || []).map(function (g) {
-      return el('li', {}, el('a', { class: 'label label-onderwerp thema-' + themaKleur(g), href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
+    var onderwerpen = (b.g || []).slice().sort(function (x, y) {
+      return (isCategorie(y) ? 1 : 0) - (isCategorie(x) ? 1 : 0) || String(T.waarde(x)).localeCompare(String(T.waarde(y)));
+    }).map(function (g) {
+      return el('li', {}, el('a', { class: 'label label-onderwerp ' + (isCategorie(g) ? 'categorie' : 'thema'), href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
     });
     var uitlegStatus = {
       beschikbaar: t(FILM ? 'uitlegBeschikbaarFilm' : 'uitlegBeschikbaar'),

@@ -291,20 +291,10 @@ mark { background: var(--kleur-let-op-vlak); color: var(--kleur-tekst); text-dec
 .label-leeslijst { color: var(--kleur-lijst); background: var(--kleur-lijst-vlak); }
 .label-leeslijst::before { content: "☰"; }
 .label-onderwerp { color: var(--kleur-tekst-zacht); background: var(--kleur-vlak); border-color: var(--kleur-rand); font-weight: normal; }
-/* Onderwerpen bij een boek: elk onderwerp een eigen kleur (tekst en achtergrond, contrast in licht en donker). */
-:root { --thema-1-vlak: #fde2e1; --thema-1-tekst: #8a1c14; --thema-2-vlak: #fde9d7; --thema-2-tekst: #7f3500; --thema-3-vlak: #fff3c4; --thema-3-tekst: #5f4500; --thema-4-vlak: #dcf2df; --thema-4-tekst: #1d5e2a; --thema-5-vlak: #d6f0ee; --thema-5-tekst: #0f5751; --thema-6-vlak: #dde8fb; --thema-6-tekst: #1c4b8f; --thema-7-vlak: #ece1f7; --thema-7-tekst: #5a2d82; --thema-8-vlak: #fbe0ee; --thema-8-tekst: #8a1f55; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --thema-1-vlak: #4a1714; --thema-1-tekst: #ffd6d2; --thema-2-vlak: #4a2a10; --thema-2-tekst: #ffdcc0; --thema-3-vlak: #463a0e; --thema-3-tekst: #ffeaa0; --thema-4-vlak: #173d20; --thema-4-tekst: #c8f0cf; --thema-5-vlak: #0f3936; --thema-5-tekst: #c2ece8; --thema-6-vlak: #172e55; --thema-6-tekst: #cfe0ff; --thema-7-vlak: #34204d; --thema-7-tekst: #e5d4fb; --thema-8-vlak: #4a1832; --thema-8-tekst: #ffd3e8; }
-}
-:root[data-theme="dark"] { --thema-1-vlak: #4a1714; --thema-1-tekst: #ffd6d2; --thema-2-vlak: #4a2a10; --thema-2-tekst: #ffdcc0; --thema-3-vlak: #463a0e; --thema-3-tekst: #ffeaa0; --thema-4-vlak: #173d20; --thema-4-tekst: #c8f0cf; --thema-5-vlak: #0f3936; --thema-5-tekst: #c2ece8; --thema-6-vlak: #172e55; --thema-6-tekst: #cfe0ff; --thema-7-vlak: #34204d; --thema-7-tekst: #e5d4fb; --thema-8-vlak: #4a1832; --thema-8-tekst: #ffd3e8; }
-.label-onderwerp.thema-1 { color: var(--thema-1-tekst); background: var(--thema-1-vlak); border-color: currentColor; }
-.label-onderwerp.thema-2 { color: var(--thema-2-tekst); background: var(--thema-2-vlak); border-color: currentColor; }
-.label-onderwerp.thema-3 { color: var(--thema-3-tekst); background: var(--thema-3-vlak); border-color: currentColor; }
-.label-onderwerp.thema-4 { color: var(--thema-4-tekst); background: var(--thema-4-vlak); border-color: currentColor; }
-.label-onderwerp.thema-5 { color: var(--thema-5-tekst); background: var(--thema-5-vlak); border-color: currentColor; }
-.label-onderwerp.thema-6 { color: var(--thema-6-tekst); background: var(--thema-6-vlak); border-color: currentColor; }
-.label-onderwerp.thema-7 { color: var(--thema-7-tekst); background: var(--thema-7-vlak); border-color: currentColor; }
-.label-onderwerp.thema-8 { color: var(--thema-8-tekst); background: var(--thema-8-vlak); border-color: currentColor; }
+/* Onderwerpen bij een boek, zoals op de oude website: een categorie (soort boek) in geel, een thema in paars. */
+.label-onderwerp.categorie { color: #1B1B1C; background: #FFCD30; border-color: #FFCD30; }
+.label-onderwerp.thema { color: #FFFFFF; background: #6B3597; border-color: #6B3597; }
+.label-onderwerp.categorie:hover, .label-onderwerp.thema:hover { text-decoration-thickness: 2px; }
 
 
 /* ---------- Catalogus ---------- */
