@@ -2962,5 +2962,28 @@ test('Titels: verkeerde taal in de nakijklijst en toepassen', () => {
   gelijk(cat[1]._velden, { taal: true }, 'enkel de taal veranderd');
 });
 
+
+test('Titels: gewone woorden zijn geen namen, ook als een auteur zo heet', () => {
+  const cat = [
+    { boek_id: 'B1', titel: 'Ik Ben', taal: 'Nederlands', auteur: 'Ben Verzonnen' },
+    { boek_id: 'B2', titel: 'Alles Wat Was', taal: 'Nederlands', auteur: 'Fien Was' },
+    { boek_id: 'B3', titel: 'Wie ik ben', taal: 'Nederlands', beschrijving: 'Ik ben er niet. Wat ben je? Het was laat en het was koud. Wie was er? Jij ben het.' },
+    { boek_id: 'B4', titel: 'Een brief voor Dorian', taal: 'Nederlands', auteur: 'Kim Dorian', beschrijving: 'Een brief aan Dorian. Toen zag ik Dorian.' }
+  ];
+  const namen = M.titelNamen(cat);
+  assert.strictEqual(namen.ben, undefined);
+  assert.strictEqual(namen.was, undefined);
+  assert.strictEqual(namen.dorian, true);
+  assert.strictEqual(M.titelSchrijfwijze('Ik ben', 'Nederlands', namen), 'Ik ben');
+  assert.strictEqual(M.titelSchrijfwijze('Alles wat was', 'Nederlands', namen), 'Alles wat was');
+  assert.strictEqual(M.titelSchrijfwijze('Een Brief Voor Dorian', 'Nederlands', namen), 'Een brief voor Dorian');
+});
+
+test('Titels: een titel die een datum werd, blijft staan', () => {
+  const t = 'Mon Jul 24 2023 00:00:00 GMT+0200 (Midden-Europese zomertijd)';
+  assert.strictEqual(M.titelSchrijfwijze(t, 'Nederlands', {}), t);
+  gelijk(M.titelNakijklijst([{ boek_id: 'B1', titel: t, taal: 'Nederlands' }]), []);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
