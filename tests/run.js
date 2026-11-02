@@ -2877,5 +2877,39 @@ test('oud rooster: een tabblad per maand wordt het archief Shifts, met cijfers p
   gelijk(M.shiftCijfers(rijen, 2025).personen, []);
 });
 
+
+test('Titels: schrijfwijze per taal', () => {
+  const namen = { dorian: true, gray: true, antwerpen: true };
+  assert.strictEqual(M.titelSchrijfwijze('the picture of dorian gray', 'Engels', namen), 'The Picture of Dorian Gray');
+  assert.strictEqual(M.titelSchrijfwijze('A Room Of One\'s Own', 'Engels', namen), 'A Room of One\'s Own');
+  assert.strictEqual(M.titelSchrijfwijze('what we fight for', 'Engels', namen), 'What We Fight For');
+  assert.strictEqual(M.titelSchrijfwijze('Het Portret Van Dorian Gray', 'Nederlands', namen), 'Het portret van Dorian Gray');
+  assert.strictEqual(M.titelSchrijfwijze('ZOMER IN ANTWERPEN', 'Nederlands', namen), 'Zomer in Antwerpen');
+  assert.strictEqual(M.titelSchrijfwijze('Een Gids Voor LGBTQ Ouders', 'Nederlands', namen), 'Een gids voor LGBTQ ouders');
+  assert.strictEqual(M.titelSchrijfwijze('Thuis: Verhalen Van Hier', 'Nederlands', namen), 'Thuis: Verhalen van hier', 'ondertitel met een hoofdletter');
+  assert.strictEqual(M.titelSchrijfwijze('Brieven aan Mira', 'Nederlands', namen), 'Brieven aan Mira', 'een bewuste hoofdletter blijft');
+  assert.strictEqual(M.titelSchrijfwijze('Die Nacht Am See', 'Duits', namen), 'Die Nacht Am See', 'Duits blijft zoals het is');
+  assert.strictEqual(M.titelSchrijfwijze('Een Titel', '', namen), 'Een Titel', 'zonder taal niets');
+});
+
+test('Titels: nakijklijst en toepassen', () => {
+  const cat = [
+    { boek_id: 'B1', titel: 'De Blauwe Kamer', taal: 'Nederlands', auteur: 'Fien Verzonnen' },
+    { boek_id: 'B2', titel: 'De blauwe kamer', taal: 'Nederlands' },
+    { boek_id: 'B3', titel: 'the long road', taal: 'Engels' }
+  ];
+  const lijst = M.titelNakijklijst(cat);
+  gelijk(lijst.map((r) => [r.boek_id, r.titel_nieuw]), [['B1', 'De blauwe kamer'], ['B3', 'The Long Road']]);
+  lijst[1].toepassen = 'nee';
+  cat[0].titel = 'De Blauwe  Kamer';
+  const uit = M.titelsToepassen(cat, lijst);
+  gelijk(uit, { gedaan: 1, overgeslagen: 0 });
+  assert.strictEqual(cat[0].titel, 'De blauwe kamer');
+  assert.strictEqual(cat[2].titel, 'the long road');
+  assert.strictEqual(lijst[0].toepassen, 'gedaan');
+  const ander = [{ boek_id: 'B1', titel: 'Een heel andere titel', taal: 'Nederlands' }];
+  gelijk(M.titelsToepassen(ander, [{ boek_id: 'B1', titel_nu: 'De Blauwe Kamer', titel_nieuw: 'De blauwe kamer', toepassen: 'ja' }]), { gedaan: 0, overgeslagen: 1 });
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
