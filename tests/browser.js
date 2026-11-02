@@ -628,7 +628,9 @@ async function meldAan(page, basis, pagina) {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
     await meldAan(page, basis, 'vrijwilliger.html');
     const knoppen = await page.$$eval('#sectienav button', (x) => x.map((e) => e.textContent.replace(/ \(.*\)$/, '')));
-    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Te vervangen', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Aankooplijst', 'Titels en auteurs nakijken', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Rooster', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Reservaties', 'Terug te zetten', 'Alle uitleningen', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Titels en auteurs nakijken', 'Kastcontrole', 'Te vervangen', 'Aankooplijst', 'Nieuws en agenda', 'Leeslijsten']), 'Onderdelen: ' + knoppen.join(', '));
+    const groepen = await page.$$eval('#sectienav .navgroep-kop', (e) => e.map((x) => x.textContent));
+    verwacht(JSON.stringify(groepen) === JSON.stringify(['Start', 'Uitlenen', 'Collectie', 'Website']), 'Groepen: ' + groepen.join(', '));
     verwacht(!/Logboek/.test(await page.textContent('#sectie')), 'Vandaag toont het Logboek aan een vrijwilliger');
     await page.click('#sectienav button:has-text("Te laat")');
     verwacht(!/0400000000|Kopieer herinnering/.test(await page.textContent('#sectie')), 'Contactgegevens zichtbaar');
