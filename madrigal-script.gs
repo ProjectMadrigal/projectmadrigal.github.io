@@ -3684,15 +3684,15 @@ function filmWikiUrl(taal, titel) {
  * vertaal: object genre (genormaliseerd) -> lijst filtergroepen.
  */
 function filtergroepenVan(boek, vertaal) {
-  var groepen = (vertaal[normaliseerTekst(boek.genre)] || []).slice();
-  splitsLijst(boek.extra_onderwerpen).forEach(function (g) { groepen.push(g); });
-  if (jaNee(boek.klassieker) === 'ja') groepen.push('Klassiekers');
-  if (normaliseerTekst(boek.soort) === 'zine') groepen.push('Zines');
-  // Schrijfwijze gelijktrekken met de standaardgroepen, dubbels weg.
+  var ruw = (vertaal[normaliseerTekst(boek.genre)] || []).slice();
+  splitsLijst(boek.extra_onderwerpen).forEach(function (g) { ruw.push(g); });
+  if (jaNee(boek.klassieker) === 'ja') ruw.push('Klassiekers');
+  if (normaliseerTekst(boek.soort) === 'zine') ruw.push('Zines');
+  // Enkel de vaste thema's van de website. Een genre of andere naam wordt vertaald naar het thema
+  // (Politiek wordt Maatschappij, Intersekse wordt Gender). Wat niet te vertalen is, valt weg.
   var uniek = [];
-  groepen.forEach(function (g) {
-    var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === normaliseerTekst(g); })[0] || schoon(g);
-    if (standaard && uniek.indexOf(standaard) === -1) uniek.push(standaard);
+  ruw.forEach(function (g) {
+    themaVan(g, vertaal).forEach(function (t) { if (uniek.indexOf(t) === -1) uniek.push(t); });
   });
   return uniek;
 }
@@ -6708,25 +6708,25 @@ function olZoek(parameters) {
 }
 
 /**
- * De keuzes voor de keuzelijst onderwerp_nieuw: alle thema's (de standaardthema's van de website, de thema's uit het
- * tabblad Onderwerpen en wat al in extra_onderwerpen staat) en alle genres uit Onderwerpen (bv. Politiek).
+ * De keuzes voor de keuzelijst onderwerp_nieuw: de vaste thema's van de website en de genres uit Onderwerpen
+ * (bv. Politiek), elk één keer in de juiste schrijfwijze.
  * Geeft { themas: [...], genres: [...], lijst: [thema's en genres samen, alfabetisch] }.
  */
 function onderwerpKeuzes(onderwerpRijen, catalogus) {
-  var themas = [], genres = [];
-  var voeg = function (lijst, w) {
-    w = schoon(w);
-    if (w && !lijst.some(function (x) { return normaliseerTekst(x) === normaliseerTekst(w); })) lijst.push(w);
-  };
-  FILTERGROEPEN.forEach(function (f) { if (f !== 'Zines' && f !== 'Klassiekers') voeg(themas, f); });
-  (onderwerpRijen || []).forEach(function (r) { splitsLijst(r.filtergroepen).forEach(function (f) { voeg(themas, f); }); });
-  (catalogus || []).forEach(function (b) { if (!isFilm(b)) splitsLijst(b.extra_onderwerpen).forEach(function (f) { voeg(themas, f); }); });
-  (onderwerpRijen || []).forEach(function (r) { voeg(genres, r.genre); });
+  // Enkel de vaste thema's van de website, en de genres elk één keer in de juiste schrijfwijze (zie Genres.js).
+  var themas = FILTERGROEPEN.filter(function (f) { return f !== 'Zines' && f !== 'Klassiekers'; });
+  var genres = [], gezien = {};
+  (onderwerpRijen || []).forEach(function (r) {
+    if (isLeeg(r.genre)) return;
+    var k = genreSleutel(r.genre);
+    if (gezien[k]) return;
+    gezien[k] = true;
+    genres.push(genreMooi(r.genre));
+  });
   var sorteer = function (x, y) { return x.localeCompare(y, 'nl'); };
-  themas.sort(sorteer); genres.sort(sorteer);
+  genres.sort(sorteer);
   var alleenGenre = genres.filter(function (g) { return !themas.some(function (t) { return normaliseerTekst(t) === normaliseerTekst(g); }); });
-  // Eén lijst, alfabetisch: thema's en genres door elkaar, zo vind je alles op dezelfde plaats.
-  return { themas: themas, genres: genres, lijst: themas.concat(alleenGenre).sort(sorteer) };
+  return { themas: themas.slice().sort(sorteer), genres: genres, lijst: themas.concat(alleenGenre).sort(sorteer) };
 }
 
 /**
@@ -8586,6 +8586,21 @@ function themaTelling(onderwerpRijen, catalogus) {
   onderwerpRijen.forEach(function (r) { splitsLijst(r.filtergroepen).forEach(tel); });
   catalogus.forEach(function (b) { splitsLijst(b.extra_onderwerpen).forEach(tel); });
   return telling;
+}
+
+/** De vaste thema's (FILTERGROEPEN) van een naam: het thema zelf, de thema's van een genre, of het voorstel. */
+function themaVan(naam, vertaal) {
+  var k = normaliseerTekst(naam);
+  if (!k) return [];
+  var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === k; })[0];
+  if (standaard) return [standaard];
+  var viaGenre = [];
+  (vertaal && vertaal[k] || []).forEach(function (g) {
+    var s = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === normaliseerTekst(g); })[0];
+    if (s && viaGenre.indexOf(s) === -1) viaGenre.push(s);
+  });
+  if (viaGenre.length) return viaGenre;
+  return stelFiltergroepenVoor(naam);
 }
 
 /** Tijdzone van het script, voor datums van vandaag. */

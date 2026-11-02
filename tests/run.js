@@ -211,6 +211,8 @@ test('thema\'s: Geschiedenis, Maatschappij en Religie en Spiritualiteit apart', 
 });
 
 test('filtergroepen: vertaaltabel, extra onderwerpen, klassieker en zines', () => {
+  const v2 = M.vertaalTabel([{ genre: 'Politiek', filtergroepen: 'Maatschappij' }]);
+  gelijk(M.filtergroepenVan({ genre: '', extra_onderwerpen: 'Politiek, intersex, Iets onbekends, FICTIE', soort: 'boek' }, v2), ['Maatschappij', 'Gender', 'Fictie'], 'enkel vaste thema\'s');
   const vertaal = M.vertaalTabel([{ genre: 'Roman', filtergroepen: 'Fictie' }]);
   const g = M.filtergroepenVan({ genre: 'roman', extra_onderwerpen: 'gender; Seksualiteit', klassieker: true, soort: 'boek' }, vertaal);
   gelijk(Array.from(g), ['Fictie', 'Gender', 'Seksualiteit', 'Klassiekers']);
@@ -3395,7 +3397,8 @@ test('onderwerpen raden: de keuzelijst bevat thema\'s en genres, een genre wordt
     { boek_id: 'B3', soort: 'boek', titel: 'Drie', genre: '', extra_onderwerpen: '' }
   ];
   const k = M.onderwerpKeuzes(onderwerpen, cat);
-  assert.ok(k.lijst.includes('Politiek') && k.lijst.includes('Antwerpen') && k.lijst.includes('Eigen thema') && k.lijst.includes('Gender'));
+  assert.ok(k.lijst.includes('Politiek') && k.lijst.includes('Gender'));
+  assert.ok(!k.lijst.includes('Antwerpen') && !k.lijst.includes('Eigen thema'), 'enkel de vaste thema\'s en de genres');
   assert.ok(!k.lijst.includes('Zines') && !k.lijst.includes('Klassiekers'));
   gelijk(k.lijst, k.lijst.slice().sort((a, b) => a.localeCompare(b, 'nl')), 'één lijst, alfabetisch');
   const rijen = [
