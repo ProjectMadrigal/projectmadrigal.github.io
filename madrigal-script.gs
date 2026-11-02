@@ -2820,13 +2820,14 @@ function controleNamenIn(a, b) {
 
 /**
  * De andere titel begint met dezelfde woorden als nu en heeft er meer woorden achter, zonder leesteken ertussen?
- * Geeft die extra woorden (de ondertitel), anders ''. Enkel bij een titel van minstens vier woorden en een
- * ondertitel van minstens twee: bij korte titels is dat te onzeker ("De kamer" en "De kamer van Mira").
+ * Geeft die extra woorden (de ondertitel), anders ''. Enkel bij een titel van minstens twee woorden en een
+ * ondertitel van minstens twee. Het boek op de oude website is al gekoppeld aan dit boek (ISBN, of titel en
+ * auteur): een langere titel is dan bijna altijd een ondertitel.
  */
 function controleOndertitelZonderTeken(nu, ander) {
   var woordenNu = controleTitelSleutel(nu).split(' ').filter(Boolean);
   var woorden = schoon(ander).split(' ');
-  if (woordenNu.length < 4) return '';
+  if (woordenNu.length < 2) return '';
   for (var k = 1; k < woorden.length; k++) {
     if (controleTitelSleutel(woorden.slice(0, k).join(' ')) === woordenNu.join(' ')) {
       var rest = woorden.slice(k);
