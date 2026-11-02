@@ -5390,7 +5390,7 @@ function maakTitelNakijklijst() {
   }
   var talen = lijst.filter(function (r) { return r.taal_nieuw; }).length;
   logboek('menu', 'maakTitelNakijklijst', lijst.length + ' titels met een voorstel, waarvan ' + talen + ' met een andere taal');
-  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). Kijk ze na in het tabblad ' + TITELS_TABBLAD + ': pas titel_nieuw of taal_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.' +
+  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). De rijen met een andere taal staan bovenaan en op nee: kijk na of het boek echt in die taal geschreven is en zet dan ja. Voor de andere rijen: pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.' +
     (datums.length ? ' Let op: bij ' + datums.join(', ') + ' werd de titel ooit een datum. Verbeter die titels met de hand in de Catalogus (typ een \' voor de titel, bv. \'24/7).' : ''));
 }
 
@@ -7660,10 +7660,13 @@ function titelNakijklijst(catalogus) {
     var taalNieuw = titelTaalVoorstel(b.titel, b.taal);
     var nieuw = titelSchrijfwijze(b.titel, taalNieuw || b.taal, namen);
     if (taalNieuw || (nieuw && nieuw !== schoon(b.titel))) {
-      uit.push({ boek_id: String(b.boek_id), taal: schoon(b.taal), taal_nieuw: taalNieuw, titel_nu: schoon(b.titel), titel_nieuw: nieuw, toepassen: 'ja' });
+      // Een andere taal is een gok op basis van de titel (een vertaling houdt soms de Engelse titel):
+      // die rijen staan op nee tot jij ze nakijkt. De titel hangt dan ook af van die taal.
+      uit.push({ boek_id: String(b.boek_id), taal: schoon(b.taal), taal_nieuw: taalNieuw, titel_nu: schoon(b.titel), titel_nieuw: nieuw, toepassen: taalNieuw ? 'nee' : 'ja' });
     }
   });
-  return uit;
+  // De rijen met een andere taal bovenaan, de rest in de volgorde van de Catalogus.
+  return uit.filter(function (r) { return r.taal_nieuw; }).concat(uit.filter(function (r) { return !r.taal_nieuw; }));
 }
 
 /**
