@@ -64,6 +64,8 @@ var KOLOMMEN = {
   // voorgesteld_door: voornaam van de vrijwilliger die dit voorstelde. Leeg zodra het bestuur het online zet.
   'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'online_vanaf', 'voorgesteld_door', 'bron_id'],
   'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek', 'voorgesteld_door', 'bron_id'],
+  // Uitleg bij de vaste events (tekst_vaste_events): naam zoals daar, titel op de website, uur, plaats en tekst.
+  'Vaste events': ['naam', 'titel', 'titel_en', 'uur', 'locatie', 'tekst', 'tekst_en', 'link', 'afbeelding'],
   'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek', 'bron_id'],
   // Leeslijsten (thema's). Welke boeken erin staan, zet je in de kolom leeslijsten van de Catalogus.
   // zichtbaar_vanaf en zichtbaar_tot: een geplande lijst verschijnt en verdwijnt vanzelf.

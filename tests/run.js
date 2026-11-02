@@ -2638,6 +2638,12 @@ test('vaste events: elke maand terug, in de agenda en bij het rooster', () => {
   const inst = { tekst_vaste_events: 'Leesavond: tweede vrijdag\nSoepcafé: laatste vrijdag' };
   const agenda = M.vasteEventsVoorAgenda(inst, '2026-10-25', [{ datum: '2026-10-30', titel: 'Soepcafé' }]);
   gelijk(agenda.map((e) => e.datum + ' ' + e.titel.nl), ['2026-11-13 Leesavond'], 'Eigen event vervangt de automatische datum');
+  // Met een rij in Vaste events: andere titel op de website, uur, plaats en tekst (ook in het Engels).
+  const details = [{ naam: 'leesavond', titel: 'Leesavond, georganiseerd door een verzonnen club', titel_en: 'Reading night', uur: '19u00', locatie: 'Peperfabriek', tekst: 'Lees mee.\nMail naar info@voorbeeld.test', tekst_en: '', link: 'javascript:alert(1)' }];
+  const metTekst = M.vasteEventsVoorAgenda(inst, '2026-10-25', [], details);
+  const lees = metTekst.find((e) => e.datum === '2026-11-13');
+  gelijk([lees.titel, lees.uur, lees.locatie, lees.tekst, lees.link], [{ nl: 'Leesavond, georganiseerd door een verzonnen club', en: 'Reading night' }, '19u00', 'Peperfabriek', { nl: 'Lees mee.\nMail naar info@voorbeeld.test', en: 'Lees mee.\nMail naar info@voorbeeld.test' }, '']);
+  gelijk(metTekst.find((e) => e.datum === '2026-10-30').titel.nl, 'Soepcafé', 'Zonder rij: enkel de naam');
   const avonden = M.vulVasteEventsAan([{ datum: '2026-11-13', event: '' }, { datum: '2026-11-27', event: 'Eigen event' }], inst);
   gelijk(avonden.map((a) => a.event), ['Leesavond', 'Eigen event']);
 });
