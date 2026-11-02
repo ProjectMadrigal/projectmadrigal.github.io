@@ -3409,5 +3409,36 @@ test('onderwerpen raden: de keuzelijst bevat thema\'s en genres, een genre wordt
   assert.strictEqual(cat[2].extra_onderwerpen, 'Iets nieuws');
 });
 
+
+test('genres opkuisen: varianten worden één genre, thema\'s in de juiste schrijfwijze', () => {
+  assert.strictEqual(M.genreSleutel('Romans'), M.genreSleutel('roman'));
+  assert.strictEqual(M.genreSleutel('Verhalen'), M.genreSleutel('verhaal'));
+  assert.strictEqual(M.genreSleutel('Gedichten'), M.genreSleutel('gedicht'));
+  assert.strictEqual(M.genreSleutel('Sexualiteit'), M.genreSleutel('seksualiteit'));
+  assert.strictEqual(M.genreSleutel('poëzie'), M.genreSleutel('Poezie'));
+  assert.strictEqual(M.genreSleutel('Biografieën'), M.genreSleutel('biografie'));
+  assert.notStrictEqual(M.genreSleutel('Gender'), M.genreSleutel('Genre'));
+  assert.strictEqual(M.genreMooi('poezie'), 'Poëzie');
+  assert.strictEqual(M.genreMooi('THRILLERS EN SPANNING'), 'Thrillers en spanning');
+  assert.strictEqual(M.genreMooi('bdsm'), 'BDSM');
+  const onderwerpen = [
+    { genre: 'Roman', filtergroepen: 'Fictie' }, { genre: 'romans', filtergroepen: 'fictie, Liefde' }, { genre: 'Gedichten', filtergroepen: 'Poëzie' },
+    { genre: 'gedicht', filtergroepen: '' }, { genre: 'Politiek', filtergroepen: 'maatschappij' }, { genre: 'Politiekk', filtergroepen: '' }
+  ];
+  const cat = [
+    { boek_id: 'B1', soort: 'boek', genre: 'Roman', extra_onderwerpen: '' }, { boek_id: 'B2', soort: 'boek', genre: 'Roman', extra_onderwerpen: 'GENDER' },
+    { boek_id: 'B3', soort: 'boek', genre: 'romans', extra_onderwerpen: 'liefde, Liefde' }, { boek_id: 'B4', soort: 'boek', genre: 'Gedichten', extra_onderwerpen: '' },
+    { boek_id: 'B5', soort: 'boek', genre: 'gedicht', extra_onderwerpen: '' }, { boek_id: 'B6', soort: 'boek', genre: 'Gedichten', extra_onderwerpen: '' },
+    { boek_id: 'B7', soort: 'boek', genre: 'Politiek', extra_onderwerpen: '' }, { boek_id: 'B8', soort: 'boek', genre: 'Politiekk', extra_onderwerpen: '' }
+  ];
+  const v = M.genreVoorstellen(onderwerpen, cat);
+  gelijk(v.map((r) => [r.genre_nu, r.genre_nieuw]), [['gedicht', 'Gedichten'], ['Politiekk', 'Politiek'], ['romans', 'Roman']]);
+  const uit = M.genresOpkuisen(onderwerpen, cat, v);
+  gelijk(cat.map((b) => b.genre), ['Roman', 'Roman', 'Roman', 'Gedichten', 'Gedichten', 'Gedichten', 'Politiek', 'Politiek']);
+  gelijk(onderwerpen.filter((r) => !r._verwijderen).map((r) => [r.genre, r.filtergroepen]), [['Roman', 'Fictie, Liefde'], ['Gedichten', 'Poëzie'], ['Politiek', 'Maatschappij']]);
+  gelijk([cat[1].extra_onderwerpen, cat[2].extra_onderwerpen], ['Gender', 'Liefde']);
+  gelijk([uit.genres, uit.boeken], [3, 3]);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

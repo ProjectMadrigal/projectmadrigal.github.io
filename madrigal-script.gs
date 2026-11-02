@@ -310,6 +310,17 @@ var FILM_SPARQL_KOP = 'SELECT ?film ?lb (MIN(YEAR(?datum)) AS ?jaar) (SAMPLE(?du
   '(GROUP_CONCAT(DISTINCT ?regieL; separator="|") AS ?regie) (GROUP_CONCAT(DISTINCT ?landL; separator="|") AS ?land) ' +
   '(GROUP_CONCAT(DISTINCT ?genreL; separator="|") AS ?genre) (SAMPLE(?taalL) AS ?taal) (SAMPLE(?origineel) AS ?ot) (SAMPLE(?nl) AS ?nlTitel) (SAMPLE(?en) AS ?enTitel) WHERE {\n';
 
+var GENRES_TABBLAD = 'Genres opkuisen';
+
+// Schrijfwijzen die altijd zo moeten: genre (zoals genreSleutel het maakt) -> correcte schrijfwijze. Vul gerust aan.
+var GENRE_SCHRIJFWIJZE_LIJST = {
+  'poezie': 'Poëzie', 'seksualiteit': 'Seksualiteit', 'biografie': 'Biografie', 'autobiografie': 'Autobiografie',
+  'feminisme': 'Feminisme', 'young adult': 'Young adult', 'graphic novel': 'Graphic novel', 'non fictie': 'Non-fictie',
+  'nonfictie': 'Non-fictie', 'bdsm': 'BDSM', 'lgbt': 'LGBT', 'lgbtq': 'LGBTQ', 'lgbtqia': 'LGBTQIA+', 'lhbt': 'LHBT'
+};
+
+var GENRE_SCHRIJFWIJZE_CACHE = null;
+
 /** Welke kolom van de Goodreads-export welk veld van de Catalogus aanvult. */
 var GOODREADS_VELDEN = {
   uitgeverij: ['Publisher'],
@@ -709,6 +720,8 @@ var KOLOMMEN = {
   'Verkopen': ['verkoop_id', 'standje_id', 'boek_id', 'aantal', 'prijs', 'betaalwijze', 'tijdstip', 'vrijwilliger'],
   // Boeken die de bib wil kopen (Aankoop.js). status: open of in catalogus. gekozen: ja als het bestuur het aanduidde.
   // Titels en auteurs nakijken in de bib (Titelcontrole.js).
+  // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
+  'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
   'Onderwerpen nakijken': ['boek_id', 'titel', 'auteur', 'genre', 'voorstel', 'onderwerp_nieuw', 'toepassen'],
   'Titelcontrole': ['boek_id', 'titel_nu', 'auteur_nu', 'titel_stock', 'auteur_stock', 'titel_oud', 'auteur_oud', 'status', 'wie', 'datum'],
@@ -771,7 +784,7 @@ var INSTELLING_GROEPEN = [
 
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken']],     // collectie
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken', 'Genres opkuisen']],     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
@@ -3846,6 +3859,122 @@ function gelijkenis(a, b) {
   return 1 - levenshtein(a, b) / max;
 }
 
+/** Een mooie schrijfwijze: hoofdletter vooraan, de rest zoals de meest gebruikte variant, korte afkortingen blijven groot. */
+function genreMooi(genre) {
+  var vast = genreVast(genre);
+  if (vast) return vast;
+  var t = schoon(genre);
+  // Alles in hoofdletters (behalve een afkorting): naar kleine letters.
+  if (t.length > 5 && t === t.toUpperCase()) t = t.toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** De sleutel om genres te vergelijken: kleine letters, zonder accenten, x = ks, zonder meervoud. */
+function genreSleutel(genre) {
+  return normaliseerTekst(String(genre || '').replace(/x/gi, 'ks')).split(' ').filter(Boolean).map(genreWoordStam).join(' ');
+}
+
+/**
+ * Past de opkuislijst toe. rijen: de rijen van Genres opkuisen (toepassen = ja). Daarna de thema's in de juiste
+ * schrijfwijze. Geeft { genres: aantal hernoemde genres, boeken: aantal aangepaste boeken, themas: aantal aangepaste cellen }.
+ */
+function genresOpkuisen(onderwerpRijen, catalogus, rijen) {
+  var naar = {};
+  (rijen || []).forEach(function (r) {
+    if (jaNee(r.toepassen) === 'ja' && !isLeeg(r.genre_nu) && !isLeeg(r.genre_nieuw)) naar[schoon(r.genre_nu)] = schoon(r.genre_nieuw);
+  });
+  var uit = { genres: Object.keys(naar).length, boeken: 0, themas: 0 };
+  catalogus.forEach(function (b) {
+    var nieuw = naar[schoon(b.genre)];
+    if (nieuw && nieuw !== schoon(b.genre)) { wijzig(b, { genre: nieuw }); uit.boeken++; }
+  });
+  // Onderwerpen: de varianten samen in één rij, met de thema's van allemaal.
+  var perNaam = {};
+  onderwerpRijen.forEach(function (r) {
+    if (r._verwijderen) return;
+    var naam = naar[schoon(r.genre)] || schoon(r.genre);
+    if (!naam) return;
+    var doel = perNaam[naam];
+    if (!doel) {
+      perNaam[naam] = r;
+      if (naam !== schoon(r.genre)) wijzig(r, { genre: naam });
+      return;
+    }
+    var samen = splitsLijst(doel.filtergroepen);
+    splitsLijst(r.filtergroepen).forEach(function (f) { if (samen.indexOf(f) === -1) samen.push(f); });
+    wijzig(doel, { filtergroepen: samen.join(', ') });
+    markeerVerwijderen(r);
+  });
+  // Thema's in de juiste schrijfwijze.
+  var telling = themaTelling(onderwerpRijen.filter(function (r) { return !r._verwijderen; }), catalogus);
+  onderwerpRijen.forEach(function (r) {
+    if (r._verwijderen) return;
+    var m = themasMooi(r.filtergroepen, telling);
+    if (m !== splitsLijst(r.filtergroepen).join(', ')) { wijzig(r, { filtergroepen: m }); uit.themas++; }
+  });
+  catalogus.forEach(function (b) {
+    if (isLeeg(b.extra_onderwerpen)) return;
+    var m = themasMooi(b.extra_onderwerpen, telling);
+    if (m !== splitsLijst(b.extra_onderwerpen).join(', ')) { wijzig(b, { extra_onderwerpen: m }); uit.themas++; }
+  });
+  return uit;
+}
+
+/* ---------- In Apps Script ---------- */
+
+/** De vaste schrijfwijze van een genre uit GENRE_SCHRIJFWIJZE_LIJST, of ''. */
+function genreVast(genre) {
+  if (!GENRE_SCHRIJFWIJZE_CACHE) {
+    GENRE_SCHRIJFWIJZE_CACHE = {};
+    Object.keys(GENRE_SCHRIJFWIJZE_LIJST).forEach(function (k) { GENRE_SCHRIJFWIJZE_CACHE[genreSleutel(k)] = GENRE_SCHRIJFWIJZE_LIJST[k]; });
+  }
+  return GENRE_SCHRIJFWIJZE_CACHE[genreSleutel(genre)] || '';
+}
+
+/**
+ * De voorstellen voor de genres: groepen van varianten met één naam. Geeft [{ genre_nu, aantal_boeken, genre_nieuw,
+ * toepassen }] voor elk genre dat een andere naam krijgt, gesorteerd op de nieuwe naam.
+ */
+function genreVoorstellen(onderwerpRijen, catalogus) {
+  var tel = {};
+  catalogus.forEach(function (b) { if (!isFilm(b) && !isLeeg(b.genre)) { var g = schoon(b.genre); tel[g] = (tel[g] || 0) + 1; } });
+  onderwerpRijen.forEach(function (r) { var g = schoon(r.genre); if (g && !tel[g]) tel[g] = 0; });
+  // Groepen op sleutel.
+  var groepen = {};
+  Object.keys(tel).forEach(function (g) { var k = genreSleutel(g); (groepen[k] = groepen[k] || []).push(g); });
+  // Tikfouten: een groep met weinig boeken die bijna gelijk is aan een grotere groep, gaat daarin op.
+  var sleutels = Object.keys(groepen).sort(function (a, b) { return totaal(groepen[b]) - totaal(groepen[a]); });
+  function totaal(lijst) { return lijst.reduce(function (s, g) { return s + tel[g]; }, 0); }
+  sleutels.forEach(function (k, i) {
+    if (!groepen[k]) return;
+    for (var j = 0; j < i; j++) {
+      var groot = sleutels[j];
+      if (!groepen[groot] || groot === k) continue;
+      var max = Math.min(k.length, groot.length) >= 8 ? 2 : Math.min(k.length, groot.length) >= 5 ? 1 : 0;
+      if (max && levenshtein(k, groot) <= max) { groepen[groot] = groepen[groot].concat(groepen[k]); delete groepen[k]; return; }
+    }
+  });
+  var uit = [];
+  Object.keys(groepen).forEach(function (k) {
+    var lijst = groepen[k];
+    // De naam: de meest gebruikte variant, bij gelijkspel de kortste (het enkelvoud).
+    var beste = lijst.slice().sort(function (a, b) { return tel[b] - tel[a] || a.length - b.length || a.localeCompare(b); })[0];
+    var nieuw = genreMooi(beste);
+    lijst.forEach(function (g) {
+      if (g !== nieuw) uit.push({ genre_nu: g, aantal_boeken: tel[g], genre_nieuw: nieuw, toepassen: 'ja' });
+    });
+  });
+  return uit.sort(function (a, b) { return a.genre_nieuw.localeCompare(b.genre_nieuw, 'nl') || a.genre_nu.localeCompare(b.genre_nu, 'nl'); });
+}
+
+/** Een woord zonder meervoud en met enkele klinkers: zo vallen roman/romans en verhaal/verhalen samen. */
+function genreWoordStam(w) {
+  if (w.length > 6 && /ieen$/.test(w)) w = w.slice(0, -2);        // biografieen -> biografie
+  else if (w.length > 5 && /en$/.test(w)) w = w.slice(0, -2);     // gedichten -> gedicht, verhalen -> verhal
+  else if (w.length > 4 && /s$/.test(w) && !/(ss|is|us)$/.test(w)) w = w.slice(0, -1); // romans -> roman
+  return w.replace(/aa/g, 'a').replace(/ee/g, 'e').replace(/oo/g, 'o').replace(/uu/g, 'u').replace(/(.)\1/g, '$1');
+}
+
 /** Goodreads zet ISBN's als ="0123456789". Dit haalt die tekens weg. */
 function goodreadsIsbn(waarde) {
   return normaliseerIsbn(String(waarde || '').replace(/[="]/g, '')).isbn;
@@ -5199,6 +5328,41 @@ function korteDatum(datum) {
   if (!datum) return '';
   var d = datum.split('-');
   return Number(d[2]) + '/' + Number(d[1]) + '/' + d[0];
+}
+
+/**
+ * Menu: genres en thema's meteen opkuisen. Het tabblad Genres opkuisen toont achteraf welke genres een andere naam kregen
+ * (een overzicht, geen nakijklijst).
+ */
+function kuisGenresOp() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var uit, voorstellen;
+  try {
+    var catalogus = leesTabel('Catalogus');
+    var onderwerpen = leesTabel('Onderwerpen');
+    voorstellen = genreVoorstellen(onderwerpen.rijen, catalogus.rijen);
+    uit = genresOpkuisen(onderwerpen.rijen, catalogus.rijen, voorstellen);
+    schrijfKolommen(catalogus, ['genre', 'extra_onderwerpen']);
+    bewaarTabel(onderwerpen);
+  } finally {
+    lock.releaseLock();
+  }
+  werkOnderwerpenBij(); // de aantallen in Onderwerpen opnieuw tellen
+  leegCache();
+  // Overzicht van wat veranderde.
+  var ss = spreadsheet();
+  var blad = ss.getSheetByName(GENRES_TABBLAD) || ss.insertSheet(GENRES_TABBLAD);
+  blad.clear();
+  blad.getRange(1, 1, blad.getMaxRows(), blad.getMaxColumns()).clearDataValidations();
+  var kop = ['genre_vroeger', 'aantal_boeken', 'genre_nu'];
+  var waarden = [kop].concat(voorstellen.map(function (r) { return [r.genre_nu, r.aantal_boeken, r.genre_nieuw]; }));
+  blad.getRange(1, 1, waarden.length, kop.length).setValues(waarden);
+  opmaakKop(blad, kop.length);
+  var tekst = uit.genres + ' genres samengevoegd of in de juiste schrijfwijze gezet, ' + uit.boeken + ' boeken aangepast, ' +
+    uit.themas + ' cellen met thema\'s in de juiste schrijfwijze. Het tabblad ' + GENRES_TABBLAD + ' toont welke genres veranderden.';
+  logboek('menu', 'kuisGenresOp', tekst + (voorstellen.length ? ' ' + voorstellen.map(function (r) { return r.genre_nu + ' > ' + r.genre_nieuw; }).join('; ') : ''));
+  meld(tekst + ' De website toont het binnen enkele minuten.');
 }
 
 /**
@@ -6642,7 +6806,9 @@ function onOpen() {
       .addItem('Werk de vertaaltabel Onderwerpen bij', 'werkOnderwerpenBijMenu')
       .addSeparator()
       .addItem('Onderwerpen: vul ontbrekende aan', 'vulOntbrekendeOnderwerpenMenu')
-      .addItem('Onderwerpen: pas de nakijklijst toe', 'pasOnderwerpNakijklijstToe'))
+      .addItem('Onderwerpen: pas de nakijklijst toe', 'pasOnderwerpNakijklijstToe')
+      .addSeparator()
+      .addItem('Genres en thema\'s: kuis op (zelfde schrijfwijze)', 'kuisGenresOp'))
     .addSubMenu(ui.createMenu('Titels en auteurs')
       .addItem('Schrijfwijze: maak een nakijklijst', 'maakTitelNakijklijst')
       .addItem('Schrijfwijze: pas de nakijklijst toe', 'pasTitelNakijklijstToe')
@@ -8389,6 +8555,35 @@ function teVerwijderenBackups(bestanden, bewaren) {
     .sort(function (a, b) { return a.datum < b.datum ? 1 : a.datum > b.datum ? -1 : 0; })
     .slice(n)
     .map(function (b) { return b.id; });
+}
+
+/** De juiste schrijfwijze van een thema: die van de website, anders de meest gebruikte. telling: { sleutel: { schrijfwijze: aantal } }. */
+function themaMooi(thema, telling) {
+  var k = normaliseerTekst(thema);
+  var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === k; })[0];
+  if (standaard) return standaard;
+  var vormen = telling && telling[k] ? Object.keys(telling[k]) : [schoon(thema)];
+  var beste = vormen.sort(function (a, b) { return telling[k][b] - telling[k][a] || (b === genreMooi(b) ? 1 : 0) - (a === genreMooi(a) ? 1 : 0); })[0];
+  return genreMooi(beste);
+}
+
+/** Een lijst thema's in de juiste schrijfwijze, zonder dubbels. */
+function themasMooi(waarde, telling) {
+  var uit = [];
+  splitsLijst(waarde).forEach(function (t) {
+    var m = themaMooi(t, telling);
+    if (uit.indexOf(m) === -1) uit.push(m);
+  });
+  return uit.join(', ');
+}
+
+/** Telt hoe vaak elke schrijfwijze van een thema voorkomt, in Onderwerpen en de Catalogus. */
+function themaTelling(onderwerpRijen, catalogus) {
+  var telling = {};
+  var tel = function (w) { var k = normaliseerTekst(w); if (!k) return; telling[k] = telling[k] || {}; telling[k][w] = (telling[k][w] || 0) + 1; };
+  onderwerpRijen.forEach(function (r) { splitsLijst(r.filtergroepen).forEach(tel); });
+  catalogus.forEach(function (b) { splitsLijst(b.extra_onderwerpen).forEach(tel); });
+  return telling;
 }
 
 /** Tijdzone van het script, voor datums van vandaag. */
