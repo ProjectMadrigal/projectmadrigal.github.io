@@ -3152,5 +3152,13 @@ test('Titelcontrole: ondertitel van de oude website aanvullen, een naam in een l
   gelijk(cat.map((b) => [b.titel, b.auteur]), [['Een land zonder grenzen: Een reis door bezette gebieden', 'Verzonnen, Nir'], ['Mira Love Signs: An Astrological Guide for Women', 'Aurora']]);
 });
 
+
+test('waakhond oude covers: enkel herstarten als er iets te gaan is en niets gepland of bezig', () => {
+  assert.strictEqual(M.oudeCoversHerstarten(300, false, false), true);
+  assert.strictEqual(M.oudeCoversHerstarten(0, false, false), false);
+  assert.strictEqual(M.oudeCoversHerstarten(300, true, false), false);
+  assert.strictEqual(M.oudeCoversHerstarten(300, false, true), false);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

@@ -6454,6 +6454,14 @@ function oudeBorgEnGift(o, inst) {
   return { bedrag: borg.bedrag, betaalwijze: borg.betaalwijze, gift: getal || 0 };
 }
 
+/**
+ * Moet de waakhond het kopiëren opnieuw starten? Enkel als er nog covers te gaan zijn, er geen ronde gepland staat
+ * en er geen ronde loopt.
+ */
+function oudeCoversHerstarten(teGaan, gepland, bezig) {
+  return teGaan > 0 && !gepland && !bezig;
+}
+
 /** Datum uit een ISO-tijdstip, in de tijdzone van Brussel ("2026-11-20"). */
 function oudeDatum(iso, tz) {
   var d = new Date(iso);
@@ -8879,6 +8887,8 @@ function verwerkNieuweBoeken() {
  * Catalogus typte, krijgt een boek-ID en verschijnt zo op de website en in Nieuw binnen.
  */
 function verwerkNieuweBoekenAutomatisch() {
+  // Elk uur ook even kijken of het kopiëren van de oude covers niet stilviel (zie OudeBoeken.js).
+  try { waakOverOudeCovers(); } catch (e) { /* volgend uur opnieuw */ }
   var aantal = geefNieuweBoekenEenId();
   if (!aantal) return;
   werkOnderwerpenBij();
@@ -9924,6 +9934,22 @@ function vulVasteEventsAan(avonden, inst) {
 }
 
 /* ---------- Een oud rooster overnemen (een tabblad per maand) ---------- */
+
+/**
+ * Waakhond, elk uur (via verwerkNieuweBoekenAutomatisch). Google kan een geplande ronde laten vallen, bv. als de
+ * rekentijd voor die dag op is: dan start de taak niet en plant ze ook niets meer. De waakhond ziet dat en start
+ * het kopiëren opnieuw. Een terugkerende trigger blijft wel lopen, ook na zo'n dag.
+ */
+function waakOverOudeCovers() {
+  var gepland = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'kopieerOudeCovers'; });
+  var bezig = false;
+  try { bezig = !!CacheService.getScriptCache().get('taak_kopieerOudeCovers'); } catch (e) { bezig = false; }
+  if (gepland || bezig) return;
+  var teGaan = leesTabel('Catalogus').rijen.filter(heeftOudeCoverNodig).length;
+  if (!oudeCoversHerstarten(teGaan, gepland, bezig)) return;
+  planTaak('kopieerOudeCovers', 60 * 1000);
+  logboek('systeem', 'kopieerOudeCovers', 'Het kopiëren stond stil met ' + teGaan + ' covers te gaan. De waakhond startte het opnieuw.');
+}
 
 /** Hoeveel minuten wachten na de daglimiet van Google Books. Lukt de berekening niet: 6 uur. */
 function wachtNaGoogleLimiet() {
