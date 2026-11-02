@@ -16,8 +16,8 @@
  *   - Iets tussen haakjes of na een komma achter dezelfde titel telt ook als ondertitel en komt erbij.
  *   - Staat er geen auteur in de Catalogus, dan komt die van de stocklijst of de oude website erbij, als
  *     "Achternaam, Voornaam" (het laatste woord is de achternaam, tussenvoegsels achter de voornaam).
- *   - Een ondertitel zonder leesteken ervoor (zelfde woorden, met meer erachter) telt ook, bij titels van minstens
- *     vier woorden. Die komt erbij als "Titel: Ondertitel".
+ *   - Een ondertitel zonder leesteken ervoor (zelfde woorden, met minstens twee woorden erachter) telt ook, bij
+ *     titels van minstens twee woorden. Die komt erbij als "Titel: Ondertitel".
  *   - Een verjaardageditie staat altijd achteraan: "The Latecomer, 35th Anniversary Edition".
  *   - Een reeksaanduiding ("XXX (Ype, #6)") met dezelfde woorden als nu ("Ype XXX") wordt overgenomen.
  *   - De vorm "Achternaam, Voornaam" wint altijd: een auteur zonder die vorm telt niet als verschil met een auteur
@@ -234,13 +234,14 @@ function controleTitelBijna(a, b) {
 
 /**
  * De andere titel begint met dezelfde woorden als nu en heeft er meer woorden achter, zonder leesteken ertussen?
- * Geeft die extra woorden (de ondertitel), anders ''. Enkel bij een titel van minstens vier woorden en een
- * ondertitel van minstens twee: bij korte titels is dat te onzeker ("De kamer" en "De kamer van Mira").
+ * Geeft die extra woorden (de ondertitel), anders ''. Enkel bij een titel van minstens twee woorden en een
+ * ondertitel van minstens twee. Het boek op de oude website is al gekoppeld aan dit boek (ISBN, of titel en
+ * auteur): een langere titel is dan bijna altijd een ondertitel.
  */
 function controleOndertitelZonderTeken(nu, ander) {
   var woordenNu = controleTitelSleutel(nu).split(' ').filter(Boolean);
   var woorden = schoon(ander).split(' ');
-  if (woordenNu.length < 4) return '';
+  if (woordenNu.length < 2) return '';
   for (var k = 1; k < woorden.length; k++) {
     if (controleTitelSleutel(woorden.slice(0, k).join(' ')) === woordenNu.join(' ')) {
       var rest = woorden.slice(k);

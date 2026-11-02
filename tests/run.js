@@ -3264,7 +3264,9 @@ test('Titelcontrole: een ondertitel zonder leesteken ervoor', () => {
   assert.strictEqual(M.controleOndertitelZonderTeken(nu, oud), 'lesbische vrouwen in de kerk');
   assert.strictEqual(M.controleTitelGelijk(nu, oud), true);
   assert.strictEqual(M.controleTitelAangevuld(nu, oud, 'Nederlands', {}), nu + ': Lesbische vrouwen in de kerk');
-  assert.strictEqual(M.controleOndertitelZonderTeken('De kamer', 'De kamer van Mira'), '', 'korte titel: te onzeker');
+  assert.strictEqual(M.controleOndertitelZonderTeken('Over normaal verzonnen', 'Over normaal verzonnen hedendaagse homopolitiek'), 'hedendaagse homopolitiek');
+  assert.strictEqual(M.controleTitelAangevuld('Over normaal verzonnen', 'Over normaal verzonnen hedendaagse homopolitiek', 'Nederlands', {}), 'Over normaal verzonnen: Hedendaagse homopolitiek');
+  assert.strictEqual(M.controleOndertitelZonderTeken('Zee', 'Zee van verhalen'), '', 'een titel van één woord: te onzeker');
   assert.strictEqual(M.controleOndertitelZonderTeken('Een heel lange verzonnen titel', 'Een heel lange verzonnen titel twee'), '', 'een woord erbij is te weinig');
 });
 
