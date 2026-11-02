@@ -528,6 +528,30 @@ function neemAangeduideOudeBoekenOver() {
   meld(tekst);
 }
 
+/**
+ * Moet de waakhond het kopiëren opnieuw starten? Enkel als er nog covers te gaan zijn, er geen ronde gepland staat
+ * en er geen ronde loopt.
+ */
+function oudeCoversHerstarten(teGaan, gepland, bezig) {
+  return teGaan > 0 && !gepland && !bezig;
+}
+
+/**
+ * Waakhond, elk uur (via verwerkNieuweBoekenAutomatisch). Google kan een geplande ronde laten vallen, bv. als de
+ * rekentijd voor die dag op is: dan start de taak niet en plant ze ook niets meer. De waakhond ziet dat en start
+ * het kopiëren opnieuw. Een terugkerende trigger blijft wel lopen, ook na zo'n dag.
+ */
+function waakOverOudeCovers() {
+  var gepland = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'kopieerOudeCovers'; });
+  var bezig = false;
+  try { bezig = !!CacheService.getScriptCache().get('taak_kopieerOudeCovers'); } catch (e) { bezig = false; }
+  if (gepland || bezig) return;
+  var teGaan = leesTabel('Catalogus').rijen.filter(heeftOudeCoverNodig).length;
+  if (!oudeCoversHerstarten(teGaan, gepland, bezig)) return;
+  planTaak('kopieerOudeCovers', 60 * 1000);
+  logboek('systeem', 'kopieerOudeCovers', 'Het kopiëren stond stil met ' + teGaan + ' covers te gaan. De waakhond startte het opnieuw.');
+}
+
 /** Menu: het kopiëren start op de achtergrond, zodat de spreadsheet niet minutenlang bezig is in jouw venster. */
 function startOudeCovers() {
   planTaak('kopieerOudeCovers', 60 * 1000);

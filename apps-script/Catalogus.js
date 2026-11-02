@@ -420,6 +420,8 @@ function geefNieuweBoekenEenId() {
  * Catalogus typte, krijgt een boek-ID en verschijnt zo op de website en in Nieuw binnen.
  */
 function verwerkNieuweBoekenAutomatisch() {
+  // Elk uur ook even kijken of het kopiëren van de oude covers niet stilviel (zie OudeBoeken.js).
+  try { waakOverOudeCovers(); } catch (e) { /* volgend uur opnieuw */ }
   var aantal = geefNieuweBoekenEenId();
   if (!aantal) return;
   werkOnderwerpenBij();
