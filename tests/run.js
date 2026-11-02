@@ -1965,6 +1965,30 @@ test('oude website: ISBN-10 telt, en verborgen boeken die niet gevonden worden k
   gelijk([catalogus[0].beschrijving, uit.verborgen, uit.nietGevonden.map((x) => x.titel)], ['Tekst.', 1, ['Niet verborgen']]);
 });
 
+test('oude website: categorieën en thema\'s worden thema\'s van de website, triggerwaarschuwingen niet', () => {
+  const rij = { id: 1, title: 'Zee', tags: [
+    { name: 'roman', displayName: 'Roman', isCategory: true, isTw: false, showInFrontend: true },
+    { name: 'lesbisch', displayName: 'Lesbisch', isCategory: false, isTw: false, showInFrontend: true },
+    { name: 'trans', displayName: 'Transgender', isCategory: false, isTw: false, showInFrontend: true },
+    { name: 'tw', displayName: 'Geweld', isCategory: false, isTw: true, showInFrontend: true },
+    { name: 'intern', displayName: 'Intern', isCategory: false, isTw: false, showInFrontend: false }] };
+  const oud = M.oudBoekUitRij(rij, 'https://x');
+  gelijk(oud.onderwerpen.map((o) => o.naam + (o.categorie ? '*' : '')), ['Roman*', 'Lesbisch', 'Transgender']);
+  const boek = { boek_id: 'B0001', genre: '', extra_onderwerpen: 'Gender' };
+  gelijk(M.oudeOnderwerpenVoorBoek(boek, oud.onderwerpen, {}), { extra_onderwerpen: 'Gender, Fictie, Seksualiteit' });
+  // Een categorie zonder thema wordt het genre, als er nog geen is. Non-fictie geeft geen thema.
+  const andere = [{ naam: 'Kookboek', categorie: true }, { naam: 'Non-fictie', categorie: true }];
+  gelijk(M.oudeOnderwerpenVoorBoek({ genre: '', extra_onderwerpen: '' }, andere, {}), { genre: 'Kookboek' });
+  gelijk(M.oudeOnderwerpenVoorBoek({ genre: 'Essay', extra_onderwerpen: '' }, andere, {}), {});
+  // Opnieuw uitvoeren verandert niets meer.
+  gelijk(M.oudeOnderwerpenVoorBoek({ genre: '', extra_onderwerpen: 'Gender, Fictie, Seksualiteit' }, oud.onderwerpen, {}), {});
+  // Via oudeBoekenToepassen.
+  const catalogus = [{ boek_id: 'B0001', titel: 'Zee', auteur: 'Fictief, Kim', isbn: '9780306406157', genre: '', extra_onderwerpen: '' }];
+  const lijst = [Object.assign({ titel: 'Zee', auteur: 'Kim Fictief', isbn: '9780306406157', ondertitel: '', beschrijving: '', cover: '' }, { onderwerpen: oud.onderwerpen })];
+  const uit = M.oudeBoekenToepassen(catalogus, lijst, { beschrijving: {}, cover: {} }, {});
+  gelijk([uit.onderwerpen, catalogus[0].extra_onderwerpen], [1, 'Fictie, Seksualiteit, Gender']);
+});
+
 test('oude website: een lange beschrijving die al overgenomen is, telt de volgende keer als gelijk', () => {
   const lang = 'Een verzonnen zin over een boek. '.repeat(200);
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee', auteur: 'Fictief, Kim', isbn: '9780306406157' }];

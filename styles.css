@@ -291,6 +291,11 @@ mark { background: var(--kleur-let-op-vlak); color: var(--kleur-tekst); text-dec
 .label-leeslijst { color: var(--kleur-lijst); background: var(--kleur-lijst-vlak); }
 .label-leeslijst::before { content: "☰"; }
 .label-onderwerp { color: var(--kleur-tekst-zacht); background: var(--kleur-vlak); border-color: var(--kleur-rand); font-weight: normal; }
+/* Onderwerpen bij een boek, zoals op de oude website: een categorie (soort boek) in geel, een thema in paars. */
+.label-onderwerp.categorie { color: #1B1B1C; background: #FFCD30; border-color: #FFCD30; }
+.label-onderwerp.thema { color: #FFFFFF; background: #6B3597; border-color: #6B3597; }
+.label-onderwerp.categorie:hover, .label-onderwerp.thema:hover { text-decoration-thickness: 2px; }
+
 
 /* ---------- Catalogus ---------- */
 

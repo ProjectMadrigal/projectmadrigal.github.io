@@ -219,9 +219,9 @@ var ONDERWERP_VOORSTELLEN = [
   [/gender|trans|non ?binair|interseks|intersex/, 'Gender'],
   [/seks|sexualiteit|homo|lesb|queer|lgbt|holebi|coming out|gay|polyamor|relatie/, 'Seksualiteit'],
   [/femin|vrouw/, 'Feminisme'],
-  [/roman|fictie|fiction|verhal|verhaal|proza|literatuur|thriller|detective|fantasy|science|kort/, 'Fictie'],
+  [/roman|(?<!non ?)fictie|(?<!non ?)fiction|verhal|verhaal|proza|literatuur|thriller|detective|fantasy|science|kort/, 'Fictie'],
   [/geschied|histor|kolonial|fascis|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
-  [/maatschap|politi|sociolog|activis|essay|non ?fictie|filosof|marx|ecolog|cultuur|onderzoek|anarch|racism|migrat|economi/, 'Maatschappij'],
+  [/maatschap|politi|sociolog|activis|essay|non ?fictie|non ?fiction|filosof|marx|ecolog|cultuur|onderzoek|anarch|racism|migrat|economi/, 'Maatschappij'],
   [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
   [/biogra|^bio$|memoir|dagboek/, 'Biografie'],
   [/poezie|gedicht|poetry|poem/, 'Poëzie'],
@@ -4268,7 +4268,7 @@ function haalLetterboxdLijst() {
 
 /** Alle boeken van de oude databank, per 1000. Probeert eerst de tabel books, dan de publieke views. */
 function haalOudeBoeken(db) {
-  var pogingen = [['books', '*,authors(name)'], ['books', '*'], ['books_public_view_2', '*'], ['books_public_view', '*']];
+  var pogingen = [['books', '*,authors(name),tags(*)'], ['books', '*,authors(name)'], ['books', '*'], ['books_public_view_2', '*'], ['books_public_view', '*']];
   for (var p = 0; p < pogingen.length; p++) {
     var alles = [], fout = false;
     for (var van = 0; ; van += OUD_PER_PAGINA) {
@@ -6439,7 +6439,7 @@ function neemOudeBoekenOver() {
   var uit;
   try {
     var tabel = leesTabel('Catalogus');
-    uit = oudeBoekenToepassen(tabel.rijen, oudeBoeken, eigen);
+    uit = oudeBoekenToepassen(tabel.rijen, oudeBoeken, eigen, vertaalTabel(leesTabel('Onderwerpen').rijen));
     bewaarTabel(tabel);
     // Opnieuw uitvoeren: de vorige lijst van de oude website (nog niet afgehandeld) maakt plaats voor de nieuwe.
     var naTeKijken = leesTabel('Na te kijken');
@@ -6462,7 +6462,7 @@ function neemOudeBoekenOver() {
   var velden = Object.keys(oud.rijen[0] || {}).join(', ');
   var hoe = Object.keys(uit.hoe).map(function (k) { return uit.hoe[k] + ' op ' + k; }).join(', ');
   var tekst = oudeBoeken.length + ' boeken gelezen op de oude website. Gevonden: ' + hoe + '. ' + uit.beschrijvingen + ' beschrijvingen overgenomen, ' +
-    uit.covers + ' covers klaargezet (die kopieert het script nu op de achtergrond naar Drive), ' + uit.eigen + ' keer eigen werk behouden, ' +
+    uit.covers + ' covers klaargezet (die kopieert het script nu op de achtergrond naar Drive), ' + uit.onderwerpen + ' boeken kregen thema\'s van de oude website, ' + uit.eigen + ' keer eigen werk behouden, ' +
     uit.dubbel + ' keer een tweede exemplaar of uitgave van een boek dat al gekoppeld is, ' +
     uit.verborgen + ' boeken die op de oude website verborgen waren en niet in de Catalogus staan (niet in Na te kijken), ' +
     uit.nietGevonden.length + ' boeken niet gevonden in de Catalogus (zie Na te kijken).';
@@ -7047,7 +7047,8 @@ function oudBoekUitRij(r, basis) {
     verborgen: r.hidden === true || jaNee(r.hidden) === 'ja',
     titel: titel, ondertitel: ondertitel, auteur: schoon(auteurs),
     beschrijving: htmlNaarTekst(eersteVeld(r, ['description', 'beschrijving', 'summary', 'content'])),
-    cover: cover
+    cover: cover,
+    onderwerpen: oudeOnderwerpen(r.tags)
   };
 }
 
@@ -7099,10 +7100,10 @@ function oudeAfbeelding(waarde, basis) {
   return basis ? basis + '/storage/v1/object/public/' + w.replace(/^\//, '') : w;
 }
 
-function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
+function oudeBoekenToepassen(catalogus, oudeBoeken, eigen, vertaal) {
   var standaard = oudeStandaardCovers(oudeBoeken);
   var koppeling = oudeParen(catalogus, oudeBoeken);
-  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: koppeling.dubbel, verborgen: koppeling.verborgen, nietGevonden: koppeling.rest, hoe: {}, gekoppeld: {} };
+  var uit = { beschrijvingen: 0, covers: 0, onderwerpen: 0, eigen: 0, gelijk: 0, dubbel: koppeling.dubbel, verborgen: koppeling.verborgen, nietGevonden: koppeling.rest, hoe: {}, gekoppeld: {} };
   koppeling.paren.forEach(function (paar) {
     var oud = paar[0], gevonden = paar[1];
     uit.hoe[gevonden.hoe] = (uit.hoe[gevonden.hoe] || 0) + 1;
@@ -7127,6 +7128,11 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
     if (oud.cover && !standaard[oud.cover] && schoon(boek.cover_bron) !== OUDE_COVER_BRON) {
       if (isEigenCover(boek, eigen)) uit.eigen++;
       else { velden.oude_cover = oud.cover; uit.covers++; }
+    }
+    var onderwerp = oudeOnderwerpenVoorBoek(boek, oud.onderwerpen, vertaal || {});
+    if (Object.keys(onderwerp).length) {
+      Object.keys(onderwerp).forEach(function (k) { velden[k] = onderwerp[k]; });
+      uit.onderwerpen++;
     }
     if (Object.keys(velden).length) wijzig(boek, velden);
   });
@@ -7196,6 +7202,49 @@ function oudeLener(staat, o, teller) {
     wijzig(lener, { datum_inschrijving: o.datum_uit });
   }
   return lener;
+}
+
+/**
+ * De categorieën en thema's van een oud boek (tabel tags). Triggerwaarschuwingen (isTw) en tags
+ * die de oude website niet toonde (showInFrontend false) vallen weg. Geeft [{ naam, categorie }].
+ */
+function oudeOnderwerpen(tags) {
+  if (!Array.isArray(tags)) return [];
+  var uit = [], gezien = {};
+  tags.forEach(function (t) {
+    if (!t || typeof t !== 'object' || t.isTw === true || t.showInFrontend === false) return;
+    var naam = schoon(t.displayName || t.name);
+    var k = normaliseerTekst(naam);
+    if (!k || gezien[k]) return;
+    gezien[k] = true;
+    uit.push({ naam: naam, categorie: t.isCategory === true });
+  });
+  return uit;
+}
+
+/**
+ * Zet de categorieën en thema's van de oude website om naar de Catalogus. Elk oud onderwerp wordt een
+ * thema van de website (Lesbisch wordt Seksualiteit, Roman wordt Fictie, ...) in extra_onderwerpen.
+ * Een categorie zonder thema wordt het genre, als het boek nog geen genre heeft.
+ * Geeft de velden die veranderen, of {}.
+ */
+function oudeOnderwerpenVoorBoek(boek, onderwerpen, vertaal) {
+  var lijst = splitsLijst(boek.extra_onderwerpen);
+  var bekend = {};
+  lijst.forEach(function (g) { bekend[normaliseerTekst(g)] = true; });
+  var velden = {};
+  (onderwerpen || []).forEach(function (o) {
+    // Non-fictie is te breed voor een thema: dat zegt niets over de inhoud.
+    var themas = /^non ?fict/.test(normaliseerTekst(o.naam)) ? [] : themaVan(o.naam, vertaal);
+    themas.forEach(function (t) {
+      if (bekend[normaliseerTekst(t)]) return;
+      bekend[normaliseerTekst(t)] = true;
+      lijst.push(t);
+    });
+    if (!themas.length && o.categorie && isLeeg(boek.genre) && !velden.genre) velden.genre = genreMooi(o.naam);
+  });
+  if (lijst.join(', ') !== splitsLijst(boek.extra_onderwerpen).join(', ')) velden.extra_onderwerpen = lijst.join(', ');
+  return velden;
 }
 
 /**

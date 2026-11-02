@@ -17,6 +17,10 @@
 (function () {
   'use strict';
 
+  // Zoals op de oude website: categorieën (soort boek) in geel en eerst, thema's (inhoud) in paars.
+  var CATEGORIEEN = ['Fictie', 'Klassiekers', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Zines', 'Kunst en Fotoboek'];
+  function isCategorie(naam) { return CATEGORIEEN.indexOf(naam) !== -1; }
+
   var Z = window.MadrigalZoeken;
   var F = window.MadrigalFilters;
   var D = window.MadrigalDom;
@@ -452,8 +456,10 @@
       [t('vSoort'), b.s === 'zine' ? t('zine') : '']
     ].filter(function (r) { return r[1]; });
 
-    var onderwerpen = (b.g || []).map(function (g) {
-      return el('li', {}, el('a', { class: 'label label-onderwerp', href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
+    var onderwerpen = (b.g || []).slice().sort(function (x, y) {
+      return (isCategorie(y) ? 1 : 0) - (isCategorie(x) ? 1 : 0) || String(T.waarde(x)).localeCompare(String(T.waarde(y)));
+    }).map(function (g) {
+      return el('li', {}, el('a', { class: 'label label-onderwerp ' + (isCategorie(g) ? 'categorie' : 'thema'), href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
     });
     var uitlegStatus = {
       beschikbaar: t(FILM ? 'uitlegBeschikbaarFilm' : 'uitlegBeschikbaar'),
