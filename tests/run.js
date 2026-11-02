@@ -2125,6 +2125,7 @@ test('covers bewaren in Google Drive: welke covers, en niet opnieuw na een mislu
     M.heeftCoverBewarenNodig({ cover_url: 'https://lh3.googleusercontent.com/d/abc', cover_bewaard: '2026-11-03' })], [true, false, true, false]);
   gelijk([M.coverBestandsnaam({ boek_id: 'B0012' }, 'image/png'), M.coverBestandsnaam({ boek_id: 'B0012' }, 'image/jpeg')], ['B0012.png', 'B0012.jpg']);
   gelijk([M.coverGrootGenoeg({ breedte: 1, hoogte: 1 }), M.coverGrootGenoeg({ breedte: 128, hoogte: 190 }), M.coverGrootGenoeg(null)], [false, true, true]);
+});
 
 test('beveiliging: na 30 foute codes binnen een kwartier is het aanmelden geblokkeerd', () => {
   const opslag = {};
