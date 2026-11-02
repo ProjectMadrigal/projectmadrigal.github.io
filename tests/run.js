@@ -3297,5 +3297,24 @@ test('Titelcontrole: & en and zijn hetzelfde, ook bij het aanvullen van de onder
   assert.strictEqual(cat[0].titel, 'Verzonnen Ethics & Mira: Listening to Scripture');
 });
 
+
+test('standaardafbeeldingen: dezelfde afbeelding bij drie boeken weg, ook een link naar LibraryThing', () => {
+  const st = M.standaardBestanden([{ id: 'a', hash: 'h1' }, { id: 'b', hash: 'h1' }, { id: 'c', hash: 'h1' }, { id: 'd', hash: 'h2' }, { id: 'e', hash: 'h2' }]);
+  gelijk(Object.keys(st.ids).sort(), ['a', 'b', 'c']);
+  gelijk(st.hashes, ['h1']);
+  assert.strictEqual(M.driveIdUitCover('https://lh3.googleusercontent.com/d/a'), 'a');
+  assert.strictEqual(M.driveIdUitCover('https://voorbeeld.test/cover.jpg'), '');
+  const cat = [
+    { boek_id: 'B1', cover_url: 'https://lh3.googleusercontent.com/d/a', cover_bron: 'oude website', gb_gecontroleerd: 'ja' },
+    { boek_id: 'B2', cover_url: 'https://lh3.googleusercontent.com/d/d', cover_bron: 'oude website' },
+    { boek_id: 'B3', cover_url: 'https://pics.librarything.test/picsizes/x.jpg', cover_bron: 'link' },
+    { boek_id: 'B4', cover_url: '', oude_cover: 'https://covers.librarything.test/x.jpg' }
+  ];
+  gelijk(M.wisStandaardCovers(cat, st.ids), ['B1', 'B3', 'B4']);
+  gelijk(cat.map((b) => b.cover_url), ['', 'https://lh3.googleusercontent.com/d/d', '', '']);
+  assert.strictEqual(cat[0].gb_gecontroleerd, '', 'Google Books zoekt opnieuw');
+  assert.strictEqual(cat[3].oude_cover, '');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
