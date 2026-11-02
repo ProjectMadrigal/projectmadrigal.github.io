@@ -1012,8 +1012,8 @@ async function meldAan(page, basis, pagina) {
     // Volgende boek, in een andere kast
     verwacht((await page.inputValue('#tc-titel')) === 'Twee kasten vol', 'Volgende boek');
     verwacht(/Rein De Wit/.test(await page.textContent('#sectie table')), 'Versie van de oude website');
-    // De stocklijst is hier gelijk aan nu: geen knop. Enkel de auteur van de oude website is anders.
-    verwacht(/Zelfde als nu/.test(await page.textContent('#sectie table')), 'Gelijke versie zonder knop');
+    // De stocklijst is hier gelijk aan nu: die rij staat er niet. Enkel de auteur van de oude website is anders.
+    verwacht(!/Stocklijst/.test(await page.textContent('#sectie table')), 'De stocklijst gelijk aan nu wordt niet getoond');
     verwacht((await page.$$('#sectie table button')).length === 1 && (await page.$$('#sectie table .status-anders')).length === 1, 'Enkel de echte verschillen');
     verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Aaron William', 'Aaron, Willem'))) === 'Aaron, William', 'Achternaam vooraan');
     verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Rein De Wit', 'Dewit, Rein'))) === 'Rein De Wit', 'Niet raden');

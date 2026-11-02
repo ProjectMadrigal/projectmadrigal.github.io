@@ -213,7 +213,10 @@
       el('div', { class: 'tabel-wrap' }, el('table', { class: 'tabel' },
         el('caption', {}, 'Zo staat het in elke bron'),
         el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Bron'), el('th', { scope: 'col' }, 'Titel'), el('th', { scope: 'col' }, 'Auteur'), el('td', {}))),
-        el('tbody', {}, versie('Nu op de website', x.nu, true), versie('Stocklijst', x.stock), versie('Oude website', x.oud)))),
+        el('tbody', {}, versie('Nu op de website', x.nu, true),
+          // De stocklijst enkel als ze iets anders zegt dan nu: meestal is ze gelijk (de Catalogus kwam eruit).
+          x.stock && zelfdeTitel(x.stock.t, x.nu.t) && zelfdeAuteur(x.stock.a, x.nu.a) ? null : versie('Stocklijst', x.stock),
+          versie('Oude website', x.oud)))),
       el('p', { class: 'hulptekst' }, 'Hoofdletters, leestekens en de volgorde van de namen tellen niet als verschil.'),
       el('p', {}, 'Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem titel over of Neem auteur over, of typ het zelf, en klik op Bewaar, volgende.'),
       el('div', { class: 'veld' }, el('label', { for: 'tc-titel' }, 'Titel zoals op het boek'), titel),
