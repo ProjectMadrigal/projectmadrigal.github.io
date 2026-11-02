@@ -102,7 +102,7 @@
     el.innerHTML =
       '<div class="site-voet-binnen">' +
       '  <p data-i18n="voetTekst"></p>' +
-      '  <p><a href="boeken.html#/privacy" data-i18n="privacy"></a> · <a href="balie.html" data-i18n="vrijwilligers"></a></p>' +
+      '  <p><a href="toegankelijkheid.html" data-i18n="toegankelijkheid"></a> · <a href="boeken.html#/privacy" data-i18n="privacy"></a> · <a href="balie.html" data-i18n="vrijwilligers"></a></p>' +
       '  <p><a class="sociaal" href="' + INSTAGRAM + '" target="_blank" rel="noopener" data-i18n-aria-label="instagramLabel">' + ICOON.instagram + '<span>@ProjectMadrigal</span></a></p>' +
       '</div>';
   }

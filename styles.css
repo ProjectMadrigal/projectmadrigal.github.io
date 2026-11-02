@@ -178,6 +178,13 @@ input.kort { max-width: 5rem; }
 .checklist .vinkje { min-height: 2.75rem; }
 .welkom .knoppen { margin-top: .5rem; }
 .meer-opties { margin-top: .5rem; }
+/* Pagina Bereikbaarheid en toegankelijkheid */
+.toegankelijkheid { max-width: 46rem; }
+.toegankelijkheid h2 { margin-top: 2rem; }
+.toegankelijkheid h2:first-child { margin-top: 0; }
+.toegankelijkheid figure { margin: 1rem 0; }
+.toegankelijkheid img { max-width: 100%; height: auto; border-radius: var(--hoek); display: block; }
+.toegankelijkheid figcaption { color: var(--kleur-tekst-zacht); font-size: .9rem; margin-top: .4rem; }
 .voorbije-events { margin-top: 1rem; }
 /* Een event kort: een eigen kaartje met de datum op een regel en de titel vet eronder, open te klikken. */
 .event-kort { background: var(--kleur-vlak); color: var(--kleur-tekst); border-radius: var(--hoek); padding: .5rem 1rem; margin-top: .75rem; }

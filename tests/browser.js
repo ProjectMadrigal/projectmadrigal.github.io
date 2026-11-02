@@ -208,7 +208,7 @@ async function meldAan(page, basis, pagina) {
 
   console.log('\nPublieke pagina\'s');
   for (const thema of ['light', 'dark']) {
-    for (const pagina of ['index.html', 'boeken.html', 'boeken.html#/boek/B0008', 'boeken.html#/leeslijsten', 'films.html', 'films.html#/film/F0002', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html']) {
+    for (const pagina of ['index.html', 'boeken.html', 'boeken.html#/boek/B0008', 'boeken.html#/leeslijsten', 'films.html', 'films.html#/film/F0002', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html', 'toegankelijkheid.html']) {
       await test(pagina + ' (' + (thema === 'light' ? 'licht' : 'donker') + '): laadt zonder fouten, geen ernstige toegankelijkheidsfouten', async () => {
         const { ctx, page, fouten } = await nieuweContext(browser, { context: { colorScheme: thema } });
         await page.goto(basis + '/' + pagina);
@@ -368,6 +368,27 @@ async function meldAan(page, basis, pagina) {
       await ctx.close();
       verwacht(!fouten.length, fouten.join(' | '));
     }
+  });
+
+  await test('toegankelijkheid: titels, punten en een foto uit de tekst, link in de voet en op de startpagina', async () => {
+    const site = JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/site.json')));
+    site.toegankelijkheid.nl += '\n![De rode deur naar de bib](https://voorbeeld.test/deur.jpg)\n![Geen foto](javascript:alert(1))';
+    const { ctx, page, fouten } = await nieuweContext(browser, {});
+    await page.route('**/voorbeeld/site.json', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(site) }));
+    await page.route('https://voorbeeld.test/**', (r) => r.fulfill({ contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64') }));
+    await page.goto(basis + '/toegankelijkheid.html');
+    await page.waitForSelector('#toegankelijkheid h2');
+    const titels = await page.$$eval('#toegankelijkheid h2', (h) => h.map((x) => x.textContent));
+    verwacht(titels[0] === 'Welkom' && titels.includes('Toiletten') && titels.includes('In de bib'), 'Titels: ' + titels.join(', '));
+    verwacht((await page.$$('#toegankelijkheid ul li')).length >= 8, 'Opsommingspunten');
+    verwacht((await page.getAttribute('#toegankelijkheid figure img', 'alt')) === 'De rode deur naar de bib', 'Foto met beschrijving');
+    verwacht((await page.$$('#toegankelijkheid img')).length === 1, 'Een onveilige link mag geen foto worden');
+    verwacht(await page.$('#site-voet a[href="toegankelijkheid.html"]'), 'Link in de voet');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await page.goto(basis + '/index.html');
+    await page.waitForSelector('main a[href="toegankelijkheid.html"]');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
   });
 
   await test('startpagina: voorbije events ingeklapt, een bezoeker kan ze openklikken', async () => {
