@@ -462,6 +462,8 @@
       tip: t('uitlegTip'),
       niet_uitleenbaar: ''
     }[b.b.c] || '';
+    // Heeft het boek een beschrijving, dan laten we "Kom langs in de bib om dit boek te lenen" weg: het label Beschikbaar zegt genoeg.
+    if (b.d && b.b.c === 'beschikbaar') uitlegStatus = '';
 
     var deelKnop = el('button', { type: 'button', class: 'knop tweede', onclick: function () { deel(b); } }, t(FILM ? 'deelFilm' : 'deelBoek'));
     var reservatie = reservatieBlok(b);

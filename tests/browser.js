@@ -338,6 +338,17 @@ async function meldAan(page, basis, pagina) {
     verwacht(!fouten.length, fouten.join(' | '));
   });
 
+  await test('boekpagina: "Kom langs in de bib" enkel bij een beschikbaar boek zonder beschrijving', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, {});
+    await page.goto(basis + '/boeken.html#/boek/B0001');
+    await page.waitForSelector('.detail h1');
+    verwacht(!/Kom langs in de bib om dit boek te lenen/.test(await page.textContent('.detail')), 'Zin staat er bij een boek met beschrijving');
+    await page.goto(basis + '/boeken.html#/boek/B0002');
+    await page.waitForFunction(() => /Kom langs in de bib om dit boek te lenen/.test(document.querySelector('.detail') ? document.querySelector('.detail').textContent : ''));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+
   console.log('\nAfgeschermde schermen (nagebootste web-app)');
   await test('bestuursscherm: alle onderdelen openen zonder fouten', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
