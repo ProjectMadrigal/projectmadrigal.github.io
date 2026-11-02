@@ -2030,6 +2030,27 @@ test('categorieën en trefwoorden: de soort in het tabblad deelt de namen opnieu
   gelijk(M.categorieenHerindelen(cat, soortVan).length, 0, 'opnieuw: niets meer te doen');
 });
 
+test('indelen op titel en beschrijving: thema, categorie en trefwoord erbij, nooit iets weg', () => {
+  const namen = [
+    { naam: 'Roman', soort: 'categorie' }, { naam: 'Crime', soort: 'categorie' }, { naam: 'Sport', soort: 'categorie' },
+    { naam: 'Lesbisch', soort: 'trefwoord' }, { naam: 'Coming-out', soort: 'trefwoord' }, { naam: 'Zee', soort: 'trefwoord', zoekwoorden: 'vuurtoren, =golven' },
+    { naam: 'Queer', soort: 'weg' }
+  ];
+  const cat = [
+    { boek_id: 'B1', titel: 'De verzonnen moord', beschrijving: 'Een spannende roman over een rechercheur in een kleine stad.', trefwoorden: 'Eigen woord' },
+    { boek_id: 'B2', titel: 'Twee lesbiennes op het veld', beschrijving: 'Een verhaal over voetbal en liefde tussen twee lesbische speelsters.' },
+    { boek_id: 'B3', titel: 'Licht', beschrijving: 'Een vuurtorenwachter ziet de golven en de vuurtoren elke nacht. Queer en lesbisch.' },
+    { boek_id: 'B4', titel: 'Film', soort: 'film', beschrijving: 'Een roman.' }
+  ];
+  const uit = M.deelBoekenIn(cat, namen);
+  gelijk(uit.map((r) => r.boek_id), ['B1', 'B2', 'B3']);
+  gelijk([cat[0].categorieen, cat[0].trefwoorden], ['Roman, Crime', 'Eigen woord'], 'moord en rechercheur: Crime, en het eigen trefwoord blijft');
+  gelijk([cat[1].categorieen, cat[1].trefwoorden], ['Sport', 'Lesbisch'], 'lesbiennes in de titel telt dubbel');
+  gelijk([cat[2].trefwoorden], ['Zee'], 'eigen zoekwoorden tellen, Queer staat op weg, lesbisch één keer is te weinig');
+  gelijk(!cat[3].categorieen, true, 'films niet');
+  gelijk(M.deelBoekenIn(cat, namen).length, 0, 'opnieuw: niets dubbel');
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);

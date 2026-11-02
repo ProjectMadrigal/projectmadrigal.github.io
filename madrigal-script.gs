@@ -428,6 +428,79 @@ var LIDWOORDEN = ['de', 'het', 'een', 'the', 'a', 'an', 'le', 'la', 'les', 'l', 
  */
 var HTML_NAMEN = { amp: '&', quot: '"', apos: "'", nbsp: ' ', lt: '<', gt: '>', rsquo: '\u2019', lsquo: '\u2018', rdquo: '\u201d', ldquo: '\u201c', hellip: '\u2026', eacute: '\u00e9', euml: '\u00eb' };
 
+var INDELEN_MIN_CATEGORIE = 1;
+
+var INDELEN_MIN_TREFWOORD = 2;
+
+/*
+ * Ingebouwde zoekwoorden per naam (de sleutel is genreSleutel van de naam). Een woord telt als een woord in de
+ * tekst ermee begint (lesbi telt voor lesbisch en lesbienne). Met = vooraan: enkel precies dat woord.
+ * Met een spatie: twee woorden na elkaar. Een eigen kolom zoekwoorden in het tabblad komt hier bovenop.
+ */
+var INDELEN_ZOEKWOORDEN = {
+  'lesbisch': ['lesbi', 'lesbo', 'sapph', 'saffisch'],
+  'lesbian': ['lesbi', 'lesbo', 'sapph', 'saffisch'],
+  'homo': ['homoseks', 'homofiel', '=homo', '=homos', '=gay', 'gay man', 'gay men'],
+  'gay': ['homoseks', 'homofiel', '=homo', '=homos', '=gay'],
+  'biseksueel': ['biseks', 'bisexu', 'biseksualiteit', '=bi'],
+  'bisexual': ['biseks', 'bisexu', '=bi'],
+  'trans': ['transgender', 'transvrouw', 'transman', 'transitie', 'transition', '=trans'],
+  'transgender': ['transgender', 'transvrouw', 'transman', 'transitie', 'transition', '=trans'],
+  'non binair': ['nonbinair', 'non binair', 'nonbinary', 'non binary', 'genderqueer', 'genderfluid'],
+  'non binary': ['nonbinair', 'non binair', 'nonbinary', 'non binary', 'genderqueer', 'genderfluid'],
+  'interseks': ['interseks', 'intersex'],
+  'intersekse': ['interseks', 'intersex'],
+  'aseksueel': ['aseks', 'asexu', 'aromantisch', 'aromantic', '=ace'],
+  'asexual': ['aseks', 'asexu', 'aromantic', '=ace'],
+  'coming out': ['coming out', 'comingout', 'uit de kast'],
+  'aids': ['=aids', '=hiv', 'aidsepidemie', 'aids epidemie'],
+  'hiv': ['=aids', '=hiv'],
+  'crime': ['misdaad', 'detective', 'thriller', 'moord', 'murder', 'rechercheur', 'politieonderzoek'],
+  'misdaad': ['misdaad', 'detective', 'thriller', 'moord', 'murder', 'rechercheur', 'crime'],
+  'thriller': ['thriller', 'spanning', 'suspense'],
+  'comic': ['strip', 'comic', 'graphic novel', 'manga', 'beeldroman'],
+  'strip': ['strip', 'comic', 'graphic novel', 'manga', 'beeldroman'],
+  'manga': ['manga'],
+  'roman': ['roman', 'novel', 'debuutroman'],
+  'novel': ['roman', 'novel'],
+  'verhal': ['verhalenbundel', 'kortverhal', 'short stor', 'verhalen'],
+  'short story': ['verhalenbundel', 'kortverhal', 'short stor'],
+  'essay': ['essay', 'essaybundel'],
+  'kinderbok': ['kinderboek', 'prentenboek', 'voorlezen', 'kleuter', 'picture book', 'children'],
+  'children': ['kinderboek', 'prentenboek', 'picture book', 'children'],
+  'young adult': ['young adult', 'tiener', 'teen', 'puber', 'middelbare school', 'high school'],
+  'sport': ['sport', 'voetbal', 'football', 'soccer', 'atleet', 'athlete', 'olympisch', 'olympic', 'wielren', 'tennis', 'boks', 'zwemm'],
+  'fotografie': ['fotograf', 'photograph', 'fotoboek', 'foto s'],
+  'kunst': ['kunst', 'kunstenaar', 'schilder', 'artist', '=art'],
+  'muziek': ['muziek', 'music', 'muzikant', 'zanger', 'singer', 'opera'],
+  'film': ['=film', '=films', 'cinema', 'regisseur', 'filmmaker'],
+  'theater': ['theater', 'toneel', 'theatre', 'cabaret'],
+  'drag': ['=drag', 'dragqueen', 'drag queen', 'dragking', 'drag king'],
+  'romance': ['romance', 'liefdesverhaal', 'liefdesroman', 'love story', 'verliefd', 'falls in love'],
+  'liefde': ['liefdesverhaal', 'liefdesroman', 'love story', 'verliefd', 'falls in love'],
+  'fantasy': ['fantasy', 'magie', 'magic', 'draken', 'dragon', 'tovenaar', 'wizard', 'elfen'],
+  'science fiction': ['science fiction', 'sciencefiction', 'sci fi', 'scifi', 'ruimteschip', 'spaceship', 'dystop'],
+  'horror': ['horror', 'griezel', 'spook', 'ghost', 'vampier', 'vampire'],
+  'humor': ['humor', 'humour', 'grappig', 'funny', 'hilarisch', 'hilarious', 'komisch'],
+  'mentale gezondheid': ['depressie', 'depression', 'angststoornis', 'anxiety', 'mentale gezondheid', 'mental health', 'therapie', 'therapy', 'zelfmoord', 'suicide', 'psychisch', 'trauma'],
+  'gezondheid': ['gezondheid', 'health', 'ziekte', 'illness', 'medisch', 'medical'],
+  'familie': ['familie', 'gezin', 'family', 'ouderschap', 'parenting', 'regenboogfamilie', 'regenbooggezin', 'adoptie', 'adoption'],
+  'ouderschap': ['ouderschap', 'parenting', 'regenboogfamilie', 'regenbooggezin', 'adoptie', 'adoption', 'zwanger', 'pregnan'],
+  'relatie': ['relatie', 'relationship', 'huwelijk', 'marriage', 'trouwen', 'scheiding', 'divorce'],
+  'polyamorie': ['polyamor', '=poly', 'open relatie', 'open relationship'],
+  'racisme': ['racism', 'racist', 'kolonial', 'colonial', 'dekolonis', 'decolonis'],
+  'migratie': ['migratie', 'migrant', 'vluchteling', 'refugee', 'asiel', 'asylum', 'diaspora'],
+  'reizen': ['reis', 'reizen', 'travel', 'reisgids', 'roadtrip'],
+  'kookbok': ['kookboek', 'recept', 'recipe', 'koken', 'cooking'],
+  'sprookje': ['sprookje', 'fairy tale', 'fairytale'],
+  'oorlog': ['oorlog', 'war', 'wereldoorlog', 'world war', 'holocaust', 'nazi'],
+  'activisme': ['activis', 'protest', 'betoging', 'demonstratie', 'pride', 'stonewall'],
+  'religie': ['religie', 'religion', 'geloof', 'faith', 'kerk', 'church', 'bijbel', 'bible', 'islam', 'joods', 'jewish', 'christen', 'christelijk', 'christian'],
+  'bdsm': ['bdsm', 'kink', 'fetish', 'fetisj', 'dominant', 'submissive', 'bondage', '=leder', 'leather'],
+  'erotiek': ['erotisch', 'erotiek', 'erotic', 'seks', 'sex'],
+  'seks': ['seks', 'sex', 'seksualiteit', 'sexuality']
+};
+
 var STANDAARD_INSTELLINGEN = [
   ['uitleentermijn_weken', 4, 'Hoeveel weken een lener een boek mag houden.'],
   ['verlengingstermijn_weken', 4, 'Hoeveel weken er bij een verlenging bijkomen.'],
@@ -735,7 +808,8 @@ var KOLOMMEN = {
   // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
   'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
-  'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken'],
+  'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken', 'zoekwoorden'],
+  'Indeling': ['boek_id', 'titel', 'themas', 'categorieen', 'trefwoorden'],
   'Onderwerpen nakijken': ['boek_id', 'titel', 'auteur', 'genre', 'voorstel', 'onderwerp_nieuw', 'toepassen'],
   'Titelcontrole': ['boek_id', 'titel_nu', 'auteur_nu', 'titel_stock', 'auteur_stock', 'titel_oud', 'auteur_oud', 'status', 'wie', 'datum'],
   'Aankooplijst': ['aankoop_id', 'datum', 'titel', 'auteur', 'isbn', 'genre', 'prijs', 'link', 'reden', 'voorgesteld_door', 'status', 'gekozen', 'boek_id', 'datum_binnen', 'bron']
@@ -798,7 +872,7 @@ var INSTELLING_GROEPEN = [
 
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Categorieën en trefwoorden', 'Onderwerpen nakijken', 'Genres opkuisen']],     // collectie
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Categorieën en trefwoorden', 'Indeling', 'Onderwerpen nakijken', 'Genres opkuisen']],     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
@@ -3470,6 +3544,79 @@ function datumTekst(datum, vandaag) {
   return tekst;
 }
 
+/**
+ * Deelt de boeken in. catalogus wordt aangepast (wijzig). namen: rijen van het tabblad Categorieën en trefwoorden
+ * ({ naam, soort, zoekwoorden }). Geeft [{ boek_id, titel, themas, categorieen, trefwoorden }] met wat erbij kwam.
+ */
+function deelBoekenIn(catalogus, namen) {
+  var kandidaten = (namen || []).filter(function (r) {
+    var s = normaliseerTekst(r.soort);
+    return (s === 'categorie' || s === 'trefwoord') && schoon(r.naam) && !themaExact(r.naam);
+  }).map(function (r) {
+    var categorie = normaliseerTekst(r.soort) === 'categorie';
+    return { naam: schoon(r.naam), kolom: categorie ? 'categorieen' : 'trefwoorden', min: categorie ? INDELEN_MIN_CATEGORIE : INDELEN_MIN_TREFWOORD,
+      zoekwoorden: indelenZoekwoorden(r.naam, r.zoekwoorden) };
+  });
+  var uit = [];
+  catalogus.forEach(function (b) {
+    if (isLeeg(b.boek_id) || isLeeg(b.titel) || isFilm(b)) return;
+    var titelWoorden = normaliseerTekst(b.titel).split(' ').filter(Boolean);
+    var tekstWoorden = normaliseerTekst([b.beschrijving, b.beschrijving_en].join(' ')).split(' ').filter(Boolean);
+    var erbij = { extra_onderwerpen: [], categorieen: [], trefwoorden: [] };
+    // Thema's: elk thema dat duidelijk voorkomt.
+    onderwerpScores(b).forEach(function (s) { if (s[1] >= ONDERWERP_ZEKER_MIN) erbij.extra_onderwerpen.push(s[0]); });
+    kandidaten.forEach(function (k) {
+      if (indelenScore(k.zoekwoorden, titelWoorden, tekstWoorden) >= k.min) erbij[k.kolom].push(k.naam);
+    });
+    var velden = {}, nieuw = {};
+    Object.keys(erbij).forEach(function (kol) {
+      var voor = splitsLijst(b[kol]);
+      var na = voegLijstToe(b[kol], erbij[kol]);
+      if (na !== voor.join(', ')) {
+        velden[kol] = na;
+        nieuw[kol] = splitsLijst(na).slice(voor.length);
+      }
+    });
+    if (!Object.keys(velden).length) return;
+    wijzig(b, velden);
+    uit.push({ boek_id: String(b.boek_id), titel: schoon(b.titel), themas: (nieuw.extra_onderwerpen || []).join(', '),
+      categorieen: (nieuw.categorieen || []).join(', '), trefwoorden: (nieuw.trefwoorden || []).join(', ') });
+  });
+  return uit;
+}
+
+/** Menu: Boeken > Deel de boeken in op titel en beschrijving. */
+function deelBoekenInMenu() {
+  installeer(); // zorgt voor de kolom zoekwoorden en het tabblad Indeling
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var uit;
+  try {
+    var catalogus = leesTabel('Catalogus');
+    var namen = leesTabel('Categorieën en trefwoorden').rijen;
+    uit = deelBoekenIn(catalogus.rijen, namen);
+    if (uit.length) schrijfKolommen(catalogus, ['extra_onderwerpen', 'categorieen', 'trefwoorden']);
+    var ss = spreadsheet();
+    var blad = ss.getSheetByName('Indeling') || ss.insertSheet('Indeling');
+    var kolommen = KOLOMMEN['Indeling'];
+    blad.clear();
+    var waarden = [kolommen].concat(uit.map(function (r) { return kolommen.map(function (k) { return r[k]; }); }));
+    blad.getRange(1, 1, waarden.length, kolommen.length).setValues(waarden);
+    opmaakKop(blad, kolommen.length);
+  } finally {
+    lock.releaseLock();
+  }
+  // Het aantal boeken per naam bijwerken in Categorieën en trefwoorden.
+  vernieuwCategorieen([]);
+  leegCache();
+  var tel = function (k) { return uit.filter(function (r) { return r[k]; }).length; };
+  var tekst = uit.length + ' boeken ingedeeld op titel en beschrijving: ' + tel('themas') + ' kregen een thema erbij, ' +
+    tel('categorieen') + ' een categorie, ' + tel('trefwoorden') + ' een trefwoord. Wat erbij kwam, staat in het tabblad Indeling. ' +
+    'Er werd niets weggehaald.';
+  logboek('menu', 'deelBoekenIn', tekst);
+  meld(tekst);
+}
+
 /** GET: de publieke catalogus. */
 function doGet(e) {
   var actie = e && e.parameter ? e.parameter.actie : '';
@@ -4794,6 +4941,45 @@ function importeerOudeSite() {
   logboek('menu', 'importeerOudeSite', 'nieuws: ' + velden(posts) + ' | events: ' + velden(events) + ' | faq: ' + velden(faq));
   meld('Overgenomen van de oude website: ' + tellers['Nieuws'] + ' nieuwsberichten, ' + tellers['Agenda'] + ' events en ' +
     tellers['Veelgestelde vragen'] + ' veelgestelde vragen. Kijk ze na in de tabbladen. De Engelse kolommen vul je zelf aan waar nodig.');
+}
+
+/** Past een zoekwoord op het woord op plaats i? Korte woorden (minder dan 4 letters) enkel precies. */
+function indelenRaak(zoekwoord, woorden, i) {
+  var w = woorden[i];
+  if (zoekwoord.charAt(0) === '=') return w === zoekwoord.slice(1);
+  if (zoekwoord.indexOf(' ') > -1) {
+    var delen = zoekwoord.split(' ');
+    for (var d = 0; d < delen.length; d++) {
+      var x = woorden[i + d];
+      if (!x || (d < delen.length - 1 ? x !== delen[d] : x.indexOf(delen[d]) !== 0)) return false;
+    }
+    return true;
+  }
+  return zoekwoord.length < 4 ? w === zoekwoord : w.indexOf(zoekwoord) === 0;
+}
+
+/** Hoeveel keer een naam voorkomt: titel dubbel, beschrijving (NL en EN) enkel. */
+function indelenScore(zoekwoorden, titelWoorden, tekstWoorden) {
+  var tel = function (woorden) {
+    var n = 0;
+    for (var i = 0; i < woorden.length; i++) {
+      if (zoekwoorden.some(function (z) { return indelenRaak(z, woorden, i); })) n++;
+    }
+    return n;
+  };
+  return 2 * tel(titelWoorden) + tel(tekstWoorden);
+}
+
+/** De zoekwoorden van een naam: de naam zelf, de ingebouwde lijst en de eigen zoekwoorden. Genormaliseerd. */
+function indelenZoekwoorden(naam, eigen) {
+  var lijst = [normaliseerTekst(naam)];
+  var stam = genreSleutel(naam);
+  if (stam && stam !== lijst[0]) lijst.push(stam);
+  (INDELEN_ZOEKWOORDEN[stam] || []).forEach(function (w) { lijst.push(w); });
+  splitsLijst(eigen).forEach(function (w) { lijst.push(w.charAt(0) === '=' ? '=' + normaliseerTekst(w.slice(1)) : normaliseerTekst(w)); });
+  var uniek = [];
+  lijst.forEach(function (w) { if (w && w !== '=' && uniek.indexOf(w) === -1) uniek.push(w); });
+  return uniek;
 }
 
 /**
@@ -6926,7 +7112,8 @@ function onOpen() {
       .addItem('Onderwerpen: pas de nakijklijst toe', 'pasOnderwerpNakijklijstToe')
       .addSeparator()
       .addItem('Genres en thema\'s: kuis op (zelfde schrijfwijze)', 'kuisGenresOp')
-      .addItem('Categorieën en trefwoorden: vernieuw de lijst en de keuzelijsten', 'vernieuwCategorieenMenu'))
+      .addItem('Categorieën en trefwoorden: vernieuw de lijst en de keuzelijsten', 'vernieuwCategorieenMenu')
+      .addItem('Deel de boeken in op titel en beschrijving (thema, categorie, trefwoord)', 'deelBoekenInMenu'))
     .addSubMenu(ui.createMenu('Titels en auteurs')
       .addItem('Schrijfwijze: maak een nakijklijst', 'maakTitelNakijklijst')
       .addItem('Schrijfwijze: pas de nakijklijst toe', 'pasTitelNakijklijstToe')
@@ -9649,8 +9836,12 @@ function vernieuwCategorieen(oudeTags) {
   Object.keys(soortVan).forEach(function (k) { if (soortVan[k] === 'weg') weg[k] = true; });
   oudeTags = (oudeTags || []).filter(function (t) { return t && !weg[normaliseerTekst(t.displayName || t.name)]; });
   var rijen = categorieenOverzicht(catalogus.rijen, bestaand.concat(oudeTags));
+  // Eigen zoekwoorden (kolom zoekwoorden, voor Boeken > Deel de boeken in) blijven bewaard.
+  var zoekwoorden = {};
+  tabRijen.forEach(function (r) { if (!isLeeg(r.zoekwoorden)) zoekwoorden[normaliseerTekst(r.naam)] = schoon(r.zoekwoorden); });
+  rijen.forEach(function (r) { r.zoekwoorden = zoekwoorden[normaliseerTekst(r.naam)] || ''; });
   // Wat op weg staat, blijft onderaan in het tabblad: zo komt het ook na opnieuw overnemen niet terug.
-  tabRijen.forEach(function (r) { if (weg[normaliseerTekst(r.naam)]) rijen.push({ naam: schoon(r.naam), soort: 'weg', aantal_boeken: 0 }); });
+  tabRijen.forEach(function (r) { if (weg[normaliseerTekst(r.naam)]) rijen.push({ naam: schoon(r.naam), soort: 'weg', aantal_boeken: 0, zoekwoorden: schoon(r.zoekwoorden) }); });
   if (!blad) blad = ss.insertSheet(naam);
   var kolommen = KOLOMMEN[naam];
   blad.clear();

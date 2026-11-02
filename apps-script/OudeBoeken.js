@@ -216,8 +216,12 @@ function vernieuwCategorieen(oudeTags) {
   Object.keys(soortVan).forEach(function (k) { if (soortVan[k] === 'weg') weg[k] = true; });
   oudeTags = (oudeTags || []).filter(function (t) { return t && !weg[normaliseerTekst(t.displayName || t.name)]; });
   var rijen = categorieenOverzicht(catalogus.rijen, bestaand.concat(oudeTags));
+  // Eigen zoekwoorden (kolom zoekwoorden, voor Boeken > Deel de boeken in) blijven bewaard.
+  var zoekwoorden = {};
+  tabRijen.forEach(function (r) { if (!isLeeg(r.zoekwoorden)) zoekwoorden[normaliseerTekst(r.naam)] = schoon(r.zoekwoorden); });
+  rijen.forEach(function (r) { r.zoekwoorden = zoekwoorden[normaliseerTekst(r.naam)] || ''; });
   // Wat op weg staat, blijft onderaan in het tabblad: zo komt het ook na opnieuw overnemen niet terug.
-  tabRijen.forEach(function (r) { if (weg[normaliseerTekst(r.naam)]) rijen.push({ naam: schoon(r.naam), soort: 'weg', aantal_boeken: 0 }); });
+  tabRijen.forEach(function (r) { if (weg[normaliseerTekst(r.naam)]) rijen.push({ naam: schoon(r.naam), soort: 'weg', aantal_boeken: 0, zoekwoorden: schoon(r.zoekwoorden) }); });
   if (!blad) blad = ss.insertSheet(naam);
   var kolommen = KOLOMMEN[naam];
   blad.clear();
