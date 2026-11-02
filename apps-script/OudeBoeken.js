@@ -15,6 +15,9 @@
  *     Zo blijven ze werken als de oude website ooit verdwijnt.
  *   - Boeken van de oude website die niet in de Catalogus staan, komen in Na te kijken.
  *   - Een cover die bij drie of meer boeken dezelfde is, is een standaardafbeelding: die nemen we niet.
+ *   - Wat van de oude website komt, krijgt de bron "oude website" (cover_bron, beschrijving_bron). De zoektochten
+ *     vullen enkel lege velden, en Zoek afgebroken beschrijvingen opnieuw slaat deze boeken over. Wil je toch
+ *     dat het script opnieuw zoekt? Maak de cel cover_url of beschrijving leeg.
  */
 
 var OUDE_COVER_BRON = 'oude website';
@@ -128,7 +131,8 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
       else {
         // Een nieuwe Nederlandse tekst: ook de Engelse vertaling opnieuw laten maken.
         velden.beschrijving = maakBeschrijvingNetjes(oud.beschrijving);
-        velden.beschrijving_bron = '';
+        // De bron "oude website": geen enkele zoektocht (Google, Wikipedia, ...) overschrijft deze tekst nog.
+        velden.beschrijving_bron = OUDE_COVER_BRON;
         velden.beschrijving_en = '';
         velden.beschrijving_vertaald = '';
         uit.beschrijvingen++;

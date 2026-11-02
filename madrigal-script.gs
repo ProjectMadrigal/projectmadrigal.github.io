@@ -5104,6 +5104,8 @@ function maakAfgebrokenLeeg(rijen) {
   rijen.forEach(function (rij) {
     var doorScript = !isLeeg(rij.beschrijving_gezocht) || !isLeeg(rij.ol_gecontroleerd) || !isLeeg(rij.gb_gecontroleerd);
     if (!doorScript || !/^\d{13}$/.test(String(rij.isbn || ''))) return;
+    // Een tekst van de oude website maken we nooit leeg (zie OudeBoeken.js).
+    if (schoon(rij.beschrijving_bron) === OUDE_COVER_BRON) return;
     if (!isAfgebroken(rij.beschrijving) && !isAfgebroken(rij.beschrijving_en)) return;
     wijzig(rij, { beschrijving: '', beschrijving_en: '', beschrijving_gezocht: '', beschrijving_vertaald: '' });
     n++;
@@ -6002,7 +6004,8 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
       else {
         // Een nieuwe Nederlandse tekst: ook de Engelse vertaling opnieuw laten maken.
         velden.beschrijving = maakBeschrijvingNetjes(oud.beschrijving);
-        velden.beschrijving_bron = '';
+        // De bron "oude website": geen enkele zoektocht (Google, Wikipedia, ...) overschrijft deze tekst nog.
+        velden.beschrijving_bron = OUDE_COVER_BRON;
         velden.beschrijving_en = '';
         velden.beschrijving_vertaald = '';
         uit.beschrijvingen++;
