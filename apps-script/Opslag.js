@@ -50,7 +50,8 @@ var KOLOMMEN = {
     'datum_klaar', 'ophalen_tot', 'datum_afgesloten', 'vrijwilliger'
   ],
   'Uitzonderingen': ['datum', 'wie', 'grens', 'lenersnummer', 'boek_id', 'exemplaar', 'reden', 'actie'],
-  'Na te kijken': ['datum', 'bron', 'boek_id', 'titel', 'veld', 'waarde_catalogus', 'waarde_bron', 'opmerking', 'afgehandeld', 'sleutel'],
+  // overnemen: ja = het voorstel klopt, het script neemt het over (enkel bij de oude website, zie OudeBoeken.js).
+  'Na te kijken': ['datum', 'bron', 'boek_id', 'titel', 'veld', 'waarde_catalogus', 'waarde_bron', 'opmerking', 'afgehandeld', 'sleutel', 'overnemen'],
   'Logboek': ['tijdstip', 'wie', 'actie', 'details'],
   // Online reserveren (Aanvragen.js). Bevat contactgegevens: nooit publiek.
   'Aanvragen': ['aanvraag_id', 'datum', 'boek_id', 'titel', 'voornaam', 'contact', 'opmerking', 'status', 'datum_afgehandeld', 'afgehandeld_door'],
