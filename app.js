@@ -475,7 +475,7 @@
     var onderwerpen = (b.g || []).slice().sort(function (x, y) {
       return String(T.waarde(x)).localeCompare(String(T.waarde(y)));
     }).map(function (g) {
-      return el('li', {}, el('a', { class: 'label label-onderwerp', href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
+      return el('li', {}, el('a', { class: 'label label-onderwerp vast', href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
     });
     var uitlegStatus = {
       beschikbaar: t(FILM ? 'uitlegBeschikbaarFilm' : 'uitlegBeschikbaar'),
