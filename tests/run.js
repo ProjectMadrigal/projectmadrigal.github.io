@@ -3072,6 +3072,9 @@ test('Titelcontrole: kiezen, aanpassen, niet in de kast', () => {
   assert.strictEqual(rijen[1].status, 'niet in de kast');
   const lijst = M.titelcontroleLijst(cat, rijen);
   gelijk([lijst.open.length, lijst.nietGevonden.map((x) => x.id), lijst.gedaan], [0, ['B2'], 1]);
+  assert.strictEqual(M.titelcontroleAantal(rijen), 0);
+  assert.strictEqual(M.titelcontroleAantal([{ boek_id: 'B1', status: '' }, { boek_id: 'B2', status: 'klopt' }, { boek_id: '', status: '' }]), 1);
+  assert.strictEqual(M.titelcontroleAantal(undefined), 0);
   M.titelcontroleToepassen(cat, rijen, { boek_id: 'B2', status: 'open' }, 'Kim', '2026-11-02');
   gelijk(M.titelcontroleLijst(cat, rijen).open.map((x) => [x.id, x.nu.t, x.oud.t, x.stock]), [['B2', 'Zee', 'De zee', null]]);
   assert.strictEqual(M.titelcontroleToepassen(cat, rijen, { boek_id: 'B1', status: 'aangepast', titel: ' ' }, 'Kim', '2026-11-02').ok, false);

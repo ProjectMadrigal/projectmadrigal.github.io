@@ -7729,6 +7729,11 @@ function tijdzone() {
   return Session.getScriptTimeZone() || 'Europe/Brussels';
 }
 
+/** Hoeveel boeken nog na te kijken zijn: voor het getal op de knop in het scherm. */
+function titelcontroleAantal(rijen) {
+  return (rijen || []).filter(function (r) { return !isLeeg(r.boek_id) && !schoon(r.status); }).length;
+}
+
 /** Acties van het scherm. titelcontroleData en titelcontroleBewaren: vrijwilligers en bestuur. titelcontroleMaken: bestuur. */
 function titelcontroleActie(actie, invoer, wie) {
   var catalogus = leesTabel('Catalogus');
@@ -9176,6 +9181,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(leesTabel('Onderwerpen').rijen));
         antwoord.data.teVervangen = teVervangen(staat, true);
+        antwoord.data.titelcontrole = titelcontroleAantal((tabelOfLeeg(TITELCONTROLE_TABBLAD) || {}).rijen);
         break;
       case 'vrijwilligerData':
         var onderwerpRijen = leesTabel('Onderwerpen').rijen;
@@ -9187,6 +9193,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.briefjes = openBriefjes(tabelOfLeeg('Briefjes') ? leesTabel('Briefjes').rijen : [], staat.vandaag);
         antwoord.data.vandaagTerug = vandaagTerug(staat, vertaalTabel(onderwerpRijen));
         antwoord.data.teVervangen = teVervangen(staat, false);
+        antwoord.data.titelcontrole = titelcontroleAantal((tabelOfLeeg(TITELCONTROLE_TABBLAD) || {}).rijen);
         antwoord.data.mijn = mijnBijdragen(voorstelRijen, tabelOfLeeg('Meldingen') ? leesTabel('Meldingen').rijen : [], staat.wie, staat.vandaag);
         break;
       case 'voorstelBeschrijving':

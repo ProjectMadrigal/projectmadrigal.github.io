@@ -77,7 +77,7 @@ const VERKOOP = {
 };
 
 function antwoord(rol, actie, vraag) {
-  const basis = { vandaagTekst: 'zondag 25 oktober', telaat: [UITLENING], binnenkort: [], lopend: [UITLENING], reservaties: [], boeken: BOEKEN };
+  const basis = { vandaagTekst: 'zondag 25 oktober', telaat: [UITLENING], binnenkort: [], lopend: [UITLENING], reservaties: [], boeken: BOEKEN, titelcontrole: 2 };
   return {
     aanmelden: { ok: true, rol: rol === 'bestuur' && (vraag || {}).alsRol === 'vrijwilliger' ? 'vrijwilliger' : rol, echteRol: rol },
     vrijwilligerData: { ok: true, data: Object.assign({}, basis, { voorgesteld: [], checklist: { openen: ['Licht aan', 'Balie openen'], sluiten: ['Licht uit'] },
@@ -989,7 +989,7 @@ async function meldAan(page, basis, pagina) {
     const vragen = [];
     page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
     await meldAan(page, basis, 'vrijwilliger.html');
-    await page.click('#sectienav button:has-text("Titels en auteurs nakijken")');
+    await page.click('#sectienav button:has-text("Titels en auteurs nakijken (2)")');
     await page.waitForSelector('#tc-titel');
     // Alle kasten: eerst Fictie (De verzonen zee), dan Maatschappij.
     verwacht((await page.inputValue('#tc-titel')) === 'De verzonen zee', 'Eerste boek: ' + await page.inputValue('#tc-titel'));
@@ -1011,6 +1011,7 @@ async function meldAan(page, basis, pagina) {
     await page.waitForSelector('text=Op de lijst voor het bestuur.');
     verwacht(vragen.some((x) => x.actie === 'titelcontroleBewaren' && x.boek_id === 'B0002' && x.status === 'niet in de kast'), 'Niet in de kast niet verstuurd');
     await page.waitForSelector('text=Alles is nagekeken');
+    verwacht(await page.$('#sectienav button:has-text("Titels en auteurs nakijken (0)")'), 'Het getal op de knop telt niet af');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });
