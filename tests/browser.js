@@ -155,11 +155,13 @@ function antwoord(rol, actie, vraag) {
 }
 
 async function nieuweContext(browser, opties) {
-  const ctx = await browser.newContext(Object.assign({ locale: 'nl-BE', serviceWorkers: 'block' }, opties.context || {}));
-  const apiUrl = opties.rol ? 'https://web-app.test/exec' : '';
+  // bypassCSP: de tests laden axe in de pagina en bootsen de web-app na op web-app.test. De beveiligingsregel
+  // (Content-Security-Policy) zelf testen we apart, met opties.csp (zie "beveiligingsregel").
+  const ctx = await browser.newContext(Object.assign({ locale: 'nl-BE', serviceWorkers: 'block', bypassCSP: !opties.csp }, opties.context || {}));
+  const apiUrl = opties.apiUrl || (opties.rol ? 'https://web-app.test/exec' : '');
   await ctx.route('**/config.js', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.MADRIGAL_CONFIG={apiUrl:' + JSON.stringify(apiUrl) + ",naam:'Project Madrigal',statistiek:''};" }));
   if (opties.rol) {
-    await ctx.route('https://web-app.test/**', (r) => {
+    await ctx.route(apiUrl.replace(/exec$/, '') + '**', (r) => {
       // De publieke catalogus (GET): het voorbeeld, met de films nog verborgen.
       if (r.request().method() === 'GET') {
         const d = JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/catalogus.json')));
@@ -205,6 +207,33 @@ async function meldAan(page, basis, pagina) {
   const server = await startServer();
   const basis = 'http://127.0.0.1:' + server.address().port;
   const browser = await chromium.launch();
+
+  console.log('\nBeveiligingsregel (Content-Security-Policy)');
+  for (const pagina of ['index.html', 'boeken.html', 'boeken.html#/boek/B0008', 'films.html', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html', 'toegankelijkheid.html', 'verkoop.html']) {
+    await test(pagina + ': de beveiligingsregel blokkeert niets van de site zelf', async () => {
+      const { ctx, page, fouten } = await nieuweContext(browser, { csp: true });
+      const geblokkeerd = [];
+      page.on('console', (m) => { if (/Content Security Policy/i.test(m.text())) geblokkeerd.push(m.text()); });
+      await page.goto(basis + '/' + pagina);
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(300);
+      await ctx.close();
+      verwacht(!geblokkeerd.length, 'Geblokkeerd: ' + geblokkeerd.join(' | '));
+      verwacht(!fouten.length, 'Fouten in de pagina: ' + fouten.join(' | '));
+    });
+  }
+  for (const pagina of ['bestuur.html', 'balie.html', 'vrijwilliger.html']) {
+    await test(pagina + ': aanmelden bij de echte web-app (script.google.com) mag van de beveiligingsregel', async () => {
+      const { ctx, page, fouten } = await nieuweContext(browser, { csp: true, rol: 'bestuur', apiUrl: 'https://script.google.com/macros/s/verzonnen/exec' });
+      const geblokkeerd = [];
+      page.on('console', (m) => { if (/Content Security Policy/i.test(m.text())) geblokkeerd.push(m.text()); });
+      await meldAan(page, basis, pagina);
+      await page.waitForTimeout(500);
+      await ctx.close();
+      verwacht(!geblokkeerd.length, 'Geblokkeerd: ' + geblokkeerd.join(' | '));
+      verwacht(!fouten.length, 'Fouten in de pagina: ' + fouten.join(' | '));
+    });
+  }
 
   console.log('\nPublieke pagina\'s');
   for (const thema of ['light', 'dark']) {

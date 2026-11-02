@@ -2,6 +2,8 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
+  <!-- Beveiliging: enkel scripts van deze site, GoatCounter en de barcodescanner (jsDelivr). Zie README.md, B3, bij een nieuwe bron. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://gc.zgo.at https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self' data: https://script.google.com https://script.googleusercontent.com https://*.goatcounter.com https://www.googleapis.com https://openlibrary.org https://covers.openlibrary.org https://archive.org; frame-src https://www.openstreetmap.org; media-src 'self' blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Films · Project Madrigal</title>
   <meta name="description" content="Films op dvd bij Project Madrigal, de queer bibliotheek van Antwerpen: leen ze zoals je een boek leent.">
@@ -25,7 +27,7 @@
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icoon-192.png">
   <link rel="stylesheet" href="styles.css">
-  <script>try { var t = localStorage.getItem('madrigal_thema'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+  <script src="thema.js"></script>
 </head>
 <body data-pagina="films" data-soort="film">
   <header id="site-kop"></header>

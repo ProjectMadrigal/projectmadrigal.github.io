@@ -108,7 +108,8 @@
           opties.bijAangemeld(r.rol);
           return;
         }
-        schrijf(opties.codeSleutel, '');
+        // Geblokkeerd na te veel foute codes (van iemand anders): de bewaarde code blijft, over een kwartier lukt het weer.
+        if (!(r && r.code === 'te_veel_pogingen')) schrijf(opties.codeSleutel, '');
         document.getElementById('app').hidden = true;
         document.getElementById('aanmelden').hidden = false;
         if (!stil) {
