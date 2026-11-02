@@ -5555,6 +5555,7 @@ function neemOudeBoekenOver() {
   var tekst = oudeBoeken.length + ' boeken gelezen op de oude website. Gevonden: ' + hoe + '. ' + uit.beschrijvingen + ' beschrijvingen overgenomen, ' +
     uit.covers + ' covers klaargezet (die kopieert het script nu op de achtergrond naar Drive), ' + uit.eigen + ' keer eigen werk behouden, ' +
     uit.dubbel + ' keer een tweede exemplaar of uitgave van een boek dat al gekoppeld is, ' +
+    uit.verborgen + ' boeken die op de oude website verborgen waren en niet in de Catalogus staan (niet in Na te kijken), ' +
     uit.nietGevonden.length + ' boeken niet gevonden in de Catalogus (zie Na te kijken).';
   logboek('menu', 'neemOudeBoekenOver', tekst + ' Bron: ' + oud.bron + ' (' + velden + ')');
   meld(tekst);
@@ -6024,7 +6025,10 @@ function oudBoekUitRij(r, basis) {
   var ondertitel = schoon(eersteVeld(r, ['subtitle', 'ondertitel']));
   return {
     id: String(eersteVeld(r, ['id', 'uuid'])),
-    isbn: normaliseerIsbn(eersteVeld(r, ['isbn', 'isbn13', 'ean'])).isbn,
+    // isbn13 eerst, anders isbn10 (dat wordt een ISBN-13).
+    isbn: normaliseerIsbn(eersteVeld(r, ['isbn', 'isbn13', 'isbn10', 'ean'])).isbn,
+    // Op de oude website verborgen (hidden): vaak een boek dat er niet meer is.
+    verborgen: r.hidden === true || jaNee(r.hidden) === 'ja',
     titel: titel, ondertitel: ondertitel, auteur: schoon(auteurs),
     beschrijving: htmlNaarTekst(eersteVeld(r, ['description', 'beschrijving', 'summary', 'content'])),
     cover: cover
@@ -6055,7 +6059,7 @@ function oudeAfbeelding(waarde, basis) {
 function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
   var index = oudIndex(catalogus);
   var standaard = oudeStandaardCovers(oudeBoeken);
-  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: 0, nietGevonden: [], hoe: {} };
+  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: 0, verborgen: 0, nietGevonden: [], hoe: {} };
   var gezien = {};
   // Ronde 1: de zekere manieren. Ronde 2: ruimer, enkel voor wat overblijft en enkel als het uniek is.
   var paren = [], rest = [];
@@ -6085,6 +6089,8 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
     if (al) uit.dubbel++;
     return !al;
   });
+  // Verborgen op de oude website en niet gevonden: niet in Na te kijken (de melding telt ze).
+  rest = rest.filter(function (oud) { if (oud.verborgen) uit.verborgen++; return !oud.verborgen; });
   uit.nietGevonden = rest;
   paren.forEach(function (paar) {
     var oud = paar[0], gevonden = paar[1];
