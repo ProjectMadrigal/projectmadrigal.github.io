@@ -717,9 +717,28 @@ var TITEL_ZINSTALEN = ['Nederlands', 'Frans', 'Spaans', 'Italiaans', 'Portugees'
 
 var TITEL_WOORD = /[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’]*/g;
 
+/*
+ * De taal raden uit de titel. Google Books en Open Library zetten soms Engels bij een Nederlands of Frans boek.
+ * Het script telt kleine woorden die typisch zijn voor een taal (het, een, van, les, und, ...). Woorden die in
+ * meer talen voorkomen (de, en, die) tellen half. Korte titels zonder zulke woorden (Giovanni's Room) blijven
+ * bij de taal uit de Catalogus.
+ */
+var TITEL_TAALWOORDEN = {
+  Nederlands: ['het', 'een', 'van', 'voor', 'op', 'zijn', 'niet', 'naar', 'uit', 'als', 'wat', 'hoe', 'mijn', 'jouw', 'door', 'bij', 'tot', 'aan', 'ook', 'dat', 'geen', 'nooit', 'meer', 'nog', 'ik', 'wij', 'jij', 'zij', 'onze', 'ons', 'hun', 'wie', 'waar', 'waarom', 'wanneer', 'tussen', 'zonder', 'leven', 'liefde', 'verhalen', 'jongen', 'meisje', 'mannen', 'vrouwen'],
+  Engels: ['the', 'of', 'and', 'to', 'with', 'for', 'my', 'your', 'his', 'her', 'our', 'their', 'is', 'are', 'how', 'what', 'why', 'who', 'from', 'about', 'when', 'this', 'that', 'you', 'we', 'they', 'it', 'not', 'an', 'be', 'love', 'life', 'story', 'stories', 'boy', 'girl', 'men', 'women', 'guide'],
+  Frans: ['le', 'la', 'les', 'des', 'du', 'une', 'et', 'est', 'pour', 'dans', 'sur', 'au', 'aux', 'avec', 'sans', 'qui', 'ne', 'pas', 'mon', 'ma', 'mes', 'ses', 'amour', 'vie', 'fille', 'garçon', 'femmes', 'hommes'],
+  Spaans: ['el', 'los', 'las', 'y', 'por', 'para', 'con', 'sin', 'mi', 'su', 'es', 'al', 'amor', 'vida', 'mujeres', 'hombres'],
+  Duits: ['der', 'das', 'und', 'ein', 'eine', 'ist', 'mit', 'für', 'von', 'zu', 'im', 'auf', 'nicht', 'ich', 'wir', 'liebe', 'leben'],
+  Italiaans: ['il', 'lo', 'gli', 'della', 'di', 'che', 'nel', 'nella', 'amore', 'vita'],
+  Portugees: ['os', 'do', 'da', 'dos', 'um', 'uma', 'em', 'com', 'não', 'amor']
+};
+
+// Woorden die in meer talen voorkomen: elke taal krijgt een halve punt.
+var TITEL_GEDEELD = { de: ['Nederlands', 'Frans', 'Spaans', 'Portugees'], en: ['Nederlands', 'Frans'], die: ['Nederlands', 'Duits'], den: ['Nederlands', 'Duits'], in: ['Nederlands', 'Engels', 'Duits', 'Italiaans'], un: ['Frans', 'Italiaans'], una: ['Spaans', 'Italiaans'], del: ['Spaans', 'Italiaans'], per: ['Italiaans'], e: ['Italiaans', 'Portugees'], o: ['Portugees'], a: ['Engels'], i: ['Engels'], que: ['Frans', 'Spaans', 'Portugees'], as: ['Engels', 'Portugees'], das: ['Duits', 'Portugees'], on: ['Engels'], no: ['Engels', 'Spaans', 'Portugees'], me: ['Engels', 'Spaans'], te: ['Nederlands', 'Spaans'], om: ['Nederlands'], er: ['Nederlands'], is: ['Engels', 'Nederlands'], was: ['Engels', 'Nederlands'], man: ['Engels', 'Nederlands'], met: ['Nederlands', 'Engels'], over: ['Nederlands', 'Engels'] };
+
 var TITELS_TABBLAD = 'Titels nakijken';
 
-var TITELS_KOLOMMEN = ['boek_id', 'taal', 'titel_nu', 'titel_nieuw', 'toepassen'];
+var TITELS_KOLOMMEN = ['boek_id', 'taal', 'taal_nieuw', 'titel_nu', 'titel_nieuw', 'toepassen'];
 
 var STATUS_WACHT = 'wacht';
 
@@ -5349,16 +5368,17 @@ function maakTitelNakijklijst() {
   var waarden = [TITELS_KOLOMMEN].concat(lijst.map(function (r) { return TITELS_KOLOMMEN.map(function (k) { return r[k]; }); }));
   blad.getRange(1, 1, waarden.length, TITELS_KOLOMMEN.length).setValues(waarden);
   opmaakKop(blad, TITELS_KOLOMMEN.length);
-  blad.setColumnWidth(3, 360);
-  blad.setColumnWidth(4, 360);
+  blad.setColumnWidth(TITELS_KOLOMMEN.indexOf('titel_nu') + 1, 360);
+  blad.setColumnWidth(TITELS_KOLOMMEN.indexOf('titel_nieuw') + 1, 360);
   if (lijst.length) {
     // Keuzelijst ja / nee in de kolom toepassen (gedaan mag ook: dat zet het script na het toepassen).
     blad.getRange(2, TITELS_KOLOMMEN.indexOf('toepassen') + 1, lijst.length, 1).setDataValidation(
       SpreadsheetApp.newDataValidation().requireValueInList(['ja', 'nee', 'gedaan'], true).setAllowInvalid(false).build());
     blad.setFrozenRows(1);
   }
-  logboek('menu', 'maakTitelNakijklijst', lijst.length + ' titels met een voorstel');
-  meld(lijst.length + ' titels hebben een andere schrijfwijze nodig. Kijk ze na in het tabblad ' + TITELS_TABBLAD + ': pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.');
+  var talen = lijst.filter(function (r) { return r.taal_nieuw; }).length;
+  logboek('menu', 'maakTitelNakijklijst', lijst.length + ' titels met een voorstel, waarvan ' + talen + ' met een andere taal');
+  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). Kijk ze na in het tabblad ' + TITELS_TABBLAD + ': pas titel_nieuw of taal_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.');
 }
 
 /**
@@ -6463,13 +6483,13 @@ function pasTitelNakijklijstToe() {
     var lijst = leesTabel(TITELS_TABBLAD);
     uit = titelsToepassen(catalogus.rijen, lijst.rijen);
     // Eén kolom in één keer schrijven: rij per rij bewaren duurt bij honderden titels langer dan 6 minuten.
-    titelsSchrijfKolom(catalogus, 'titel');
-    titelsSchrijfKolom(lijst, 'toepassen');
+    titelsSchrijfKolommen(catalogus, ['titel', 'taal']);
+    titelsSchrijfKolommen(lijst, ['toepassen']);
   } finally {
     lock.releaseLock();
   }
   leegCache();
-  var tekst = uit.gedaan + ' titels aangepast in de Catalogus.' + (uit.overgeslagen ? ' ' + uit.overgeslagen + ' overgeslagen: de titel in de Catalogus was intussen veranderd.' : '');
+  var tekst = uit.gedaan + ' boeken aangepast in de Catalogus (titel, taal of allebei).' + (uit.overgeslagen ? ' ' + uit.overgeslagen + ' overgeslagen: de titel in de Catalogus was intussen veranderd.' : '');
   logboek('menu', 'pasTitelNakijklijstToe', tekst);
   meld(tekst);
 }
@@ -7575,14 +7595,20 @@ function titelKern(titel) {
   return normaliseerTekst(String(titel || '').replace(/\(.*?\)/g, ' ').split(':')[0]);
 }
 
-/** De voorstellen: elk boek waarvan de titel volgens de regel anders zou zijn. [{ boek_id, taal, titel_nu, titel_nieuw }] */
+/**
+ * De voorstellen: elk boek waarvan de titel volgens de regel anders zou zijn, of waarvan de titel duidelijk
+ * in een andere taal staat. [{ boek_id, taal, taal_nieuw, titel_nu, titel_nieuw, toepassen }]
+ */
 function titelNakijklijst(catalogus) {
   var namen = titelNamen(catalogus);
   var uit = [];
   catalogus.forEach(function (b) {
     if (isLeeg(b.boek_id) || isLeeg(b.titel) || isFilm(b)) return;
-    var nieuw = titelSchrijfwijze(b.titel, b.taal, namen);
-    if (nieuw && nieuw !== schoon(b.titel)) uit.push({ boek_id: String(b.boek_id), taal: normaliseerTaal(b.taal), titel_nu: schoon(b.titel), titel_nieuw: nieuw, toepassen: 'ja' });
+    var taalNieuw = titelTaalVoorstel(b.titel, b.taal);
+    var nieuw = titelSchrijfwijze(b.titel, taalNieuw || b.taal, namen);
+    if (taalNieuw || (nieuw && nieuw !== schoon(b.titel))) {
+      uit.push({ boek_id: String(b.boek_id), taal: schoon(b.taal), taal_nieuw: taalNieuw, titel_nu: schoon(b.titel), titel_nieuw: nieuw, toepassen: 'ja' });
+    }
   });
   return uit;
 }
@@ -7668,27 +7694,30 @@ function titelSleutel(titel) {
   return woorden(t).join(' ');
 }
 
-/** Schrijft de gewijzigde waarden van één kolom in één keer terug naar het tabblad. */
-function titelsSchrijfKolom(tabel, kolom) {
-  var nr = tabel.kop.indexOf(kolom) + 1;
+/** Schrijft de gewijzigde waarden van enkele kolommen terug naar het tabblad, elke kolom in één keer. */
+function titelsSchrijfKolommen(tabel, kolommen) {
   var aantal = tabel.blad.getLastRow() - 1;
-  if (nr < 1 || aantal < 1) return;
-  var bereik = tabel.blad.getRange(2, nr, aantal, 1);
-  var waarden = bereik.getValues();
-  var veranderd = false;
-  tabel.rijen.forEach(function (r) {
-    if (!r._gewijzigd || !r._rij || r._rij < 2 || r._rij > aantal + 1) return;
-    waarden[r._rij - 2][0] = r[kolom];
-    r._gewijzigd = false;
-    r._velden = {};
-    veranderd = true;
+  if (aantal < 1) return;
+  kolommen.forEach(function (kolom) {
+    var nr = tabel.kop.indexOf(kolom) + 1;
+    if (nr < 1) return;
+    var bereik = tabel.blad.getRange(2, nr, aantal, 1);
+    var waarden = bereik.getValues();
+    var veranderd = false;
+    tabel.rijen.forEach(function (r) {
+      if (!r._gewijzigd || !r._velden || !r._velden[kolom] || !r._rij || r._rij < 2 || r._rij > aantal + 1) return;
+      waarden[r._rij - 2][0] = r[kolom];
+      veranderd = true;
+    });
+    if (veranderd) bereik.setValues(waarden);
   });
-  if (veranderd) bereik.setValues(waarden);
+  tabel.rijen.forEach(function (r) { if (r._gewijzigd) { r._gewijzigd = false; r._velden = {}; } });
 }
 
 /**
- * Past de nakijklijst toe: rijen met toepassen = ja en een titel_nieuw die enkel in hoofdletters of spaties
- * verschilt van de titel in de Catalogus (een andere titel nemen we niet zomaar over: dat kan een tikfout zijn).
+ * Past de nakijklijst toe: rijen met toepassen = ja. De titel enkel als titel_nieuw alleen in hoofdletters of
+ * spaties verschilt van de titel in de Catalogus (een andere titel nemen we niet zomaar over: dat kan een
+ * tikfout zijn). De taal als taal_nieuw ingevuld is.
  * Geeft { gedaan, overgeslagen }.
  */
 function titelsToepassen(catalogus, rijen) {
@@ -7698,10 +7727,17 @@ function titelsToepassen(catalogus, rijen) {
   rijen.forEach(function (r) {
     if (jaNee(r.toepassen) !== 'ja') return;
     var boek = perId[String(r.boek_id)];
+    if (!boek) return;
     var nieuw = schoon(r.titel_nieuw);
-    if (!boek || !nieuw || nieuw === schoon(boek.titel)) return;
-    if (normaliseerTekst(nieuw) !== normaliseerTekst(boek.titel) && schoon(r.titel_nu) !== schoon(boek.titel)) { uit.overgeslagen++; return; }
-    wijzig(boek, { titel: nieuw });
+    var taalNieuw = normaliseerTaal(r.taal_nieuw);
+    var velden = {};
+    if (nieuw && nieuw !== schoon(boek.titel)) {
+      if (normaliseerTekst(nieuw) !== normaliseerTekst(boek.titel) && schoon(r.titel_nu) !== schoon(boek.titel)) { uit.overgeslagen++; return; }
+      velden.titel = nieuw;
+    }
+    if (taalNieuw && taalNieuw !== normaliseerTaal(boek.taal)) velden.taal = taalNieuw;
+    if (!Object.keys(velden).length) return;
+    wijzig(boek, velden);
     wijzig(r, { toepassen: 'gedaan' });
     uit.gedaan++;
   });
@@ -7709,6 +7745,49 @@ function titelsToepassen(catalogus, rijen) {
 }
 
 /* ---------- In Apps Script ---------- */
+
+/** Punten per taal voor een titel: { Nederlands: 2, Engels: 0.5, ... }. */
+function titelTaalPunten(titel) {
+  var punten = {};
+  Object.keys(TITEL_TAALWOORDEN).forEach(function (t) { punten[t] = 0; });
+  var gezien = {};
+  String(titel || '').toLowerCase().split(/[^a-zà-öø-ÿ'’]+/).forEach(function (w) {
+    if (!w) return;
+    if (/^(l|d|qu|j|n|s|c)['’][a-zà-öø-ÿ]/.test(w)) { punten.Frans += 1; return; } // l'amour, d'une
+    w = w.replace(/['’].*$/, '');
+    if (!w || gezien[w]) return;
+    gezien[w] = true;
+    Object.keys(TITEL_TAALWOORDEN).forEach(function (t) { if (TITEL_TAALWOORDEN[t].indexOf(w) > -1) punten[t] += 1; });
+    (TITEL_GEDEELD[w] || []).forEach(function (t) { punten[t] += 0.5; });
+  });
+  return punten;
+}
+
+/**
+ * De taal van een titel, als die duidelijk is: minstens 1 punt en minstens 1 punt meer dan elke andere taal.
+ * Anders ''.
+ */
+function titelTaalRaden(titel) {
+  var punten = titelTaalPunten(titel);
+  var talen = Object.keys(punten).sort(function (a, b) { return punten[b] - punten[a]; });
+  if (punten[talen[0]] >= 1 && punten[talen[0]] - punten[talen[1]] >= 1) return talen[0];
+  return '';
+}
+
+/**
+ * Stelt een andere taal voor als de titel duidelijk in een andere taal staat dan de kolom taal zegt
+ * (of als de kolom taal leeg is). Een kolom met meer talen (Nederlands, Engels) laten we staan. Geeft '' of de taal.
+ */
+function titelTaalVoorstel(titel, taal) {
+  if (/[,;\/&]| en /.test(String(taal || ''))) return '';
+  var nu = normaliseerTaal(taal);
+  var geraden = titelTaalRaden(titel);
+  if (!geraden || geraden === nu) return '';
+  // De huidige taal moet duidelijk minder punten hebben, anders twijfelen we en laten we ze staan.
+  var punten = titelTaalPunten(titel);
+  if (nu && punten[nu] !== undefined && punten[geraden] - punten[nu] < 1) return '';
+  return geraden;
+}
 
 /**
  * Enkel de namen uit de instelling aanraders_uit_stocklijst (bv. Johanna) komen
