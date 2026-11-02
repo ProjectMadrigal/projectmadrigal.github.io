@@ -1839,6 +1839,17 @@ test('aankooplijst: tekens zoals &#x27; van bol.com worden gewone tekens', () =>
   gelijk([b.titel, b.auteur], ["The Lesbiana's", 'Vera & Noor']);
 });
 
+test('aankooplijst: titel van bol.com met auteur, ISBN en categorie erin wordt gesplitst', () => {
+  gelijk(M.bolTitelSplitsen({ titel: 'Een verzonnen roman, Kim Fictief | 9780306406157 | Boeken', auteur: '', isbn: '', genre: '' }),
+    { titel: 'Een verzonnen roman', auteur: 'Kim Fictief', isbn: '9780306406157', genre: '' });
+  gelijk(M.bolTitelSplitsen({ titel: 'Zee, wind en glas, Vera Verzonnen | Poëzie', auteur: 'Vera Verzonnen', isbn: '9781861972712', genre: '' }),
+    { titel: 'Zee, wind en glas', auteur: 'Vera Verzonnen', isbn: '9781861972712', genre: 'Poëzie' }, 'Komma in de titel blijft, gekende auteur weg');
+  gelijk(M.bolTitelSplitsen({ titel: 'Gewone titel', auteur: '' }).titel, 'Gewone titel');
+  const rijen = [{ aankoop_id: 'K0001', titel: 'Een verzonnen roman, Kim Fictief | 9780306406157 | Boeken', auteur: '', isbn: '', genre: '' }];
+  gelijk(M.aankoopTekensHerstellen(rijen), 1);
+  gelijk([rijen[0].titel, rijen[0].auteur, rijen[0].isbn], ['Een verzonnen roman', 'Kim Fictief', '9780306406157']);
+});
+
 test('aankooplijst: wat de bladwijzer op bol.com kopieerde, lezen', () => {
   const pagina1 = '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Atlas van niets &amp; meer",' +
     '"gtin13":"9780306406157","author":{"@type":"Person","name":"Noor Bedacht"},"category":"Fictie","offers":{"@type":"Offer","price":"19.99","priceCurrency":"EUR"}}</script>';

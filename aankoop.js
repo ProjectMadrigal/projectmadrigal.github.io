@@ -220,7 +220,9 @@
       vakjes.push([vakje, b]);
       return el('li', { class: 'kaart' },
         el('label', { class: 'vinkje', for: id }, vakje, el('span', {}, el('strong', {}, b.titel), b.auteur ? ' (' + b.auteur + ')' : '')),
-        el('p', { class: 'hulptekst' }, [b.genre, prijs(b.prijs), b.isbn ? 'ISBN ' + b.isbn : 'geen ISBN'].filter(Boolean).join(' · ')),
+        el('p', { class: 'hulptekst' }, b.isbn ? 'ISBN ' + b.isbn : 'geen ISBN'),
+        b.genre ? el('p', { class: 'hulptekst' }, b.genre) : null,
+        b.prijs !== '' && b.prijs !== null && b.prijs !== undefined ? el('p', {}, el('strong', {}, prijs(b.prijs))) : null,
         b.al ? el('p', { class: 'hulptekst' }, 'Staat ' + b.al + '.') : null);
     });
     var knop = el('button', { type: 'button', class: 'knop' }, 'Zet de aangevinkte op de aankooplijst');
@@ -283,7 +285,6 @@
     var bestuur = isBestuur(ctx);
     var fout = el('div', { 'aria-live': 'assertive' });
     var extra = el('div');
-    var info = [b.g, prijs(b.p), b.i ? 'ISBN ' + b.i : ''].filter(Boolean).join(' · ');
     var vakje = null;
     if (bestuur && b.s === 'open') {
       vakje = el('input', { type: 'checkbox', id: 'ak-kies-' + b.id });
@@ -294,7 +295,10 @@
     }
     return el('li', { class: 'kaart' + (b.k ? ' optijd' : '') },
       el('p', {}, el('strong', {}, b.t), b.a ? ' (' + b.a + ')' : ''),
-      info ? el('p', { class: 'hulptekst' }, info) : null,
+      // Elk op een eigen regel: ISBN, genre(s), prijs.
+      b.i ? el('p', { class: 'hulptekst' }, 'ISBN ' + b.i) : null,
+      b.g ? el('p', { class: 'hulptekst' }, b.g) : null,
+      b.p !== null && b.p !== undefined ? el('p', {}, el('strong', {}, prijs(b.p))) : null,
       b.r ? el('p', {}, b.r) : null,
       el('p', { class: 'hulptekst' }, 'Voorgesteld door ' + (b.w || 'onbekend') + (b.d ? ' op ' + D.korteDatum(b.d) : '') +
         (b.s === 'binnen' ? '. In de catalogus' + (b.b ? ' als ' + b.b : '') + (b.db ? ' sinds ' + D.korteDatum(b.db) : '') : '') + '.'),
