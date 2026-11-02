@@ -2816,6 +2816,24 @@ function controleNamenIn(a, b) {
   return na.length > 0 && na.every(function (k) { return nb.some(function (m) { return controleZelfdeNaam(k, m); }); });
 }
 
+/**
+ * De andere titel begint met dezelfde woorden als nu en heeft er meer woorden achter, zonder leesteken ertussen?
+ * Geeft die extra woorden (de ondertitel), anders ''. Enkel bij een titel van minstens vier woorden en een
+ * ondertitel van minstens twee: bij korte titels is dat te onzeker ("De kamer" en "De kamer van Mira").
+ */
+function controleOndertitelZonderTeken(nu, ander) {
+  var woordenNu = controleTitelSleutel(nu).split(' ').filter(Boolean);
+  var woorden = schoon(ander).split(' ');
+  if (woordenNu.length < 4) return '';
+  for (var k = 1; k < woorden.length; k++) {
+    if (controleTitelSleutel(woorden.slice(0, k).join(' ')) === woordenNu.join(' ')) {
+      var rest = woorden.slice(k);
+      return rest.length >= 2 ? rest.join(' ') : '';
+    }
+  }
+  return '';
+}
+
 /** De woorden van titel en reeks samen (zonder het volumenummer), als de titel een reeksaanduiding heeft. Anders ''. */
 function controleReeksWoorden(titel) {
   var m = schoon(titel).match(CONTROLE_REEKS);
@@ -2836,9 +2854,15 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
     if (!m[0].length) zoek.lastIndex++;
     if (controleTitelSleutel(ander.slice(0, m.index)) === controleTitelSleutel(nu)) { gevonden = m; break; }
   }
-  if (!gevonden) return '';
-  var teken = gevonden[0].trim();
-  var rest = schoon(ander.slice(gevonden.index + gevonden[0].length)).replace(/\s+:\s*/g, ': ');
+  var teken, rest;
+  if (gevonden) {
+    teken = gevonden[0].trim();
+    rest = schoon(ander.slice(gevonden.index + gevonden[0].length)).replace(/\s+:\s*/g, ': ');
+  } else {
+    // Een ondertitel zonder leesteken ervoor: "Wie had gedacht dat we met zovelen zijn lesbische vrouwen in de kerk".
+    teken = ':';
+    rest = controleOndertitelZonderTeken(nu, ander);
+  }
   if (!rest) return '';
   // Tussen haakjes: zoals het er staat.
   if (!teken && rest.charAt(0) === '(') return nu + ' ' + rest;
@@ -2856,6 +2880,7 @@ function controleTitelGelijk(a, b) {
   var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
   if (!x || !y || x === y) return true;
   if (controleTitelSleutel(controleTitelKort(a)) === y || controleTitelSleutel(controleTitelKort(b)) === x) return true;
+  if (controleOndertitelZonderTeken(a, b) || controleOndertitelZonderTeken(b, a)) return true;
   // Dezelfde titel met de reeks ervoor of tussen haakjes erachter: "Ype XXX" en "XXX (Ype, #6)".
   var ra = controleReeksWoorden(a), rb = controleReeksWoorden(b);
   return (!!ra && ra === controleWoordenSet(b)) || (!!rb && rb === controleWoordenSet(a));

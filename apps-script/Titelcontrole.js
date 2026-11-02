@@ -16,6 +16,8 @@
  *   - Iets tussen haakjes of na een komma achter dezelfde titel telt ook als ondertitel en komt erbij.
  *   - Staat er geen auteur in de Catalogus, dan komt die van de stocklijst of de oude website erbij, als
  *     "Achternaam, Voornaam" (het laatste woord is de achternaam, tussenvoegsels achter de voornaam).
+ *   - Een ondertitel zonder leesteken ervoor (zelfde woorden, met meer erachter) telt ook, bij titels van minstens
+ *     vier woorden. Die komt erbij als "Titel: Ondertitel".
  *   - Een verjaardageditie staat altijd achteraan: "The Latecomer, 35th Anniversary Edition".
  *   - Een reeksaanduiding ("XXX (Ype, #6)") met dezelfde woorden als nu ("Ype XXX") wordt overgenomen.
  *   - De vorm "Achternaam, Voornaam" wint altijd: een auteur zonder die vorm telt niet als verschil met een auteur
@@ -166,6 +168,7 @@ function controleTitelGelijk(a, b) {
   var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
   if (!x || !y || x === y) return true;
   if (controleTitelSleutel(controleTitelKort(a)) === y || controleTitelSleutel(controleTitelKort(b)) === x) return true;
+  if (controleOndertitelZonderTeken(a, b) || controleOndertitelZonderTeken(b, a)) return true;
   // Dezelfde titel met de reeks ervoor of tussen haakjes erachter: "Ype XXX" en "XXX (Ype, #6)".
   var ra = controleReeksWoorden(a), rb = controleReeksWoorden(b);
   return (!!ra && ra === controleWoordenSet(b)) || (!!rb && rb === controleWoordenSet(a));
@@ -208,6 +211,24 @@ function controleTitelKort(titel) {
 }
 
 /**
+ * De andere titel begint met dezelfde woorden als nu en heeft er meer woorden achter, zonder leesteken ertussen?
+ * Geeft die extra woorden (de ondertitel), anders ''. Enkel bij een titel van minstens vier woorden en een
+ * ondertitel van minstens twee: bij korte titels is dat te onzeker ("De kamer" en "De kamer van Mira").
+ */
+function controleOndertitelZonderTeken(nu, ander) {
+  var woordenNu = controleTitelSleutel(nu).split(' ').filter(Boolean);
+  var woorden = schoon(ander).split(' ');
+  if (woordenNu.length < 4) return '';
+  for (var k = 1; k < woorden.length; k++) {
+    if (controleTitelSleutel(woorden.slice(0, k).join(' ')) === woordenNu.join(' ')) {
+      var rest = woorden.slice(k);
+      return rest.length >= 2 ? rest.join(' ') : '';
+    }
+  }
+  return '';
+}
+
+/**
  * Heeft de andere titel dezelfde titel plus een ondertitel, en heeft nu nog geen ondertitel? Dan de titel van nu
  * met die ondertitel erbij: "Titel: Ondertitel". namen en taal: voor de schrijfwijze van de ondertitel (Titels.js).
  * Geeft '' als er niets aan te vullen valt.
@@ -221,9 +242,15 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
     if (!m[0].length) zoek.lastIndex++;
     if (controleTitelSleutel(ander.slice(0, m.index)) === controleTitelSleutel(nu)) { gevonden = m; break; }
   }
-  if (!gevonden) return '';
-  var teken = gevonden[0].trim();
-  var rest = schoon(ander.slice(gevonden.index + gevonden[0].length)).replace(/\s+:\s*/g, ': ');
+  var teken, rest;
+  if (gevonden) {
+    teken = gevonden[0].trim();
+    rest = schoon(ander.slice(gevonden.index + gevonden[0].length)).replace(/\s+:\s*/g, ': ');
+  } else {
+    // Een ondertitel zonder leesteken ervoor: "Wie had gedacht dat we met zovelen zijn lesbische vrouwen in de kerk".
+    teken = ':';
+    rest = controleOndertitelZonderTeken(nu, ander);
+  }
   if (!rest) return '';
   // Tussen haakjes: zoals het er staat.
   if (!teken && rest.charAt(0) === '(') return nu + ' ' + rest;
