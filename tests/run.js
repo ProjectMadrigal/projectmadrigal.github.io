@@ -2952,11 +2952,14 @@ test('Titels: verkeerde taal in de nakijklijst en toepassen', () => {
     { boek_id: 'B3', titel: 'The long road home', taal: 'Engels' }
   ];
   const lijst = M.titelNakijklijst(cat);
-  gelijk(lijst.map((r) => [r.boek_id, r.taal_nieuw, r.titel_nieuw]), [
-    ['B1', 'Nederlands', 'Het geheim van de zee'],
-    ['B2', 'Nederlands', 'Het geheim van de zee'],
-    ['B3', '', 'The Long Road Home']
+  gelijk(lijst.map((r) => [r.boek_id, r.taal_nieuw, r.titel_nieuw, r.toepassen]), [
+    ['B1', 'Nederlands', 'Het geheim van de zee', 'nee'],
+    ['B2', 'Nederlands', 'Het geheim van de zee', 'nee'],
+    ['B3', '', 'The Long Road Home', 'ja']
   ]);
+  const omgekeerd = M.titelNakijklijst([cat[2], cat[0]]);
+  gelijk(omgekeerd.map((r) => r.boek_id), ['B1', 'B3'], 'een andere taal staat bovenaan');
+  lijst[0].toepassen = 'ja'; lijst[1].toepassen = 'ja';
   gelijk(M.titelsToepassen(cat, lijst), { gedaan: 3, overgeslagen: 0 });
   gelijk(cat.map((b) => [b.titel, b.taal]), [['Het geheim van de zee', 'Nederlands'], ['Het geheim van de zee', 'Nederlands'], ['The Long Road Home', 'Engels']]);
   gelijk(cat[1]._velden, { taal: true }, 'enkel de taal veranderd');
