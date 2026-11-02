@@ -449,6 +449,10 @@ Wil iemand zijn of haar gegevens laten wissen? Zet de lener op inactief in het b
 - Wijzig een code in Instellingen als ze uitlekt, of als een vrijwilliger stopt. Op de toestellen moet je dan opnieuw aanmelden.
 - Deel de spreadsheet enkel met het bestuur.
 
+**Te veel foute codes.** Elke foute code laat 1,5 seconde wachten. Na 30 foute codes binnen een kwartier weigert de web-app een kwartier lang elke aanmelding, ook met de juiste code. Zo kan niemand codes blijven raden. Het Logboek meldt het. Gebeurt dat vaak, verander dan de codes.
+
+**Beveiligingsregel op elke pagina (Content-Security-Policy).** Elke pagina laadt enkel scripts van deze site, van GoatCounter (bezoekers tellen) en van jsDelivr (de barcodescanner). Gegevens komen enkel van de web-app, Google Books, Open Library en Internet Archive, de kaart enkel van OpenStreetMap. Gebruik je een nieuwe externe bron, voeg ze dan toe in de regel `Content-Security-Policy` bovenaan elke `.html`, anders blokkeert de browser ze. Zet nooit een script in de pagina zelf (`<script>…</script>`): zet het in een apart `.js`-bestand.
+
 **Geen gegevens in deze repository.** Zet hier nooit exports, schermafdrukken met namen, of kopieën van de spreadsheet. Het bestand `.gitignore` houdt CSV- en Excel-bestanden al tegen.
 
 ## B4. Woordenlijst
