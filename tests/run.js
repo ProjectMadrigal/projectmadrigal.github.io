@@ -1969,6 +1969,22 @@ test('oude website: een lange beschrijving die al overgenomen is, telt de volgen
   gelijk([tweede.beschrijvingen, tweede.gelijk, catalogus[0].beschrijving_en], [0, 1, 'Vertaald']);
 });
 
+test('oude website: Na te kijken met een code, al gekoppeld vermelden, en overnemen = ja', () => {
+  const catalogus = [{ boek_id: 'B0001', titel: 'Het portret van niemand', auteur: 'Verzonnen, Vera', isbn: '', beschrijving: 'Eigen tekst.', cover_url: '', cover_bron: '' },
+    { boek_id: 'B0002', titel: 'Iets anders', auteur: 'Fictief, Kim', isbn: '' }];
+  const oud = { id: '77', titel: 'De portretten van niemand', ondertitel: '', auteur: 'Vera Verzonnen', isbn: '', beschrijving: 'Oude tekst.', cover: 'https://x/c.jpg' };
+  const rij = M.oudNaTeKijkenRij(oud, catalogus, { B0001: 'Het portret van niemand' });
+  gelijk([rij.boek_id, /Al gekoppeld aan "Het portret van niemand"/.test(rij.waarde_catalogus), / \[oud 77\]$/.test(rij.waarde_bron)], ['B0001', true, true]);
+  const na = [
+    Object.assign({ bron: 'oude website', afgehandeld: 'nee', overnemen: 'ja' }, rij),
+    { bron: 'oude website', titel: 'Fout ID', boek_id: 'B9999', waarde_bron: '[oud 77]', afgehandeld: 'nee', overnemen: 'ja' },
+    { bron: 'oude website', titel: 'Niet aangeduid', boek_id: 'B0002', waarde_bron: '[oud 77]', afgehandeld: 'nee', overnemen: '' }
+  ];
+  const uit = M.oudeAangeduideOvernemen(catalogus, na, { 77: oud });
+  gelijk([uit.gedaan, uit.covers, uit.fouten.length, catalogus[0].beschrijving, catalogus[0].oude_cover, na[0].afgehandeld, na[0].overnemen, catalogus[1].beschrijving],
+    [1, 1, 1, 'Oude tekst.', 'https://x/c.jpg', 'ja', 'gedaan', undefined]);
+});
+
 console.log('\nAankooplijst');
 test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als binnen', () => {
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera', isbn: '9780306406157' }];

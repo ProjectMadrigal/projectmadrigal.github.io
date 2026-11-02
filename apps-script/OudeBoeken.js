@@ -308,7 +308,7 @@ function isEigenCover(boek, eigen) {
 function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
   var index = oudIndex(catalogus);
   var standaard = oudeStandaardCovers(oudeBoeken);
-  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: 0, verborgen: 0, nietGevonden: [], hoe: {} };
+  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: 0, verborgen: 0, nietGevonden: [], hoe: {}, gekoppeld: {} };
   var gezien = {};
   // Ronde 1: de zekere manieren. Ronde 2: ruimer, enkel voor wat overblijft en enkel als het uniek is.
   var paren = [], rest = [];
@@ -346,6 +346,7 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
     uit.hoe[gevonden.hoe] = (uit.hoe[gevonden.hoe] || 0) + 1;
     var boek = gevonden.boek;
     var id = String(boek.boek_id);
+    uit.gekoppeld[id] = oud.titel; // voor Na te kijken: aan welk oud boek dit boek al hangt
     var velden = {};
     if (oud.beschrijving) {
       if (eigen.beschrijving[id]) uit.eigen++;
@@ -366,6 +367,53 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
       else { velden.oude_cover = oud.cover; uit.covers++; }
     }
     if (Object.keys(velden).length) wijzig(boek, velden);
+  });
+  return uit;
+}
+
+/**
+ * Een rij voor Na te kijken: het oude boek, met het meest gelijkende boek uit de Catalogus als voorstel.
+ * Hangt dat boek al aan een ander oud boek, dan staat dat erbij. [oud …] is de code van de oude website.
+ */
+function oudNaTeKijkenRij(b, catalogus, gekoppeld) {
+  var voorstel = oudVoorstel(b, catalogus);
+  var al = voorstel && gekoppeld[String(voorstel.boek_id)];
+  return {
+    boek_id: voorstel ? String(voorstel.boek_id) : '', titel: b.titel + (b.ondertitel ? ': ' + b.ondertitel : ''), veld: 'boek van de oude website',
+    waarde_catalogus: voorstel ? 'misschien: ' + schoon(voorstel.titel) + (voorstel.auteur ? ' (' + schoon(voorstel.auteur) + ')' : '') +
+      (al ? '. Al gekoppeld aan "' + al + '" van de oude website: een tweede uitgave?' : '') : 'niet gevonden',
+    waarde_bron: [b.auteur, b.isbn ? 'ISBN ' + b.isbn : ''].filter(Boolean).join(', ') + ' [oud ' + b.id + ']',
+    opmerking: [b.cover ? 'Cover: ' + b.cover : '', b.beschrijving.slice(0, 400)].filter(Boolean).join('\n')
+  };
+}
+
+/**
+ * Neemt de rijen van Na te kijken over waar overnemen = ja: de beschrijving en cover van het oude boek
+ * gaan naar het boek in de kolom boek_id (dat mag je zelf aanpassen). Jouw keuze gaat voor, ook op eigen werk.
+ * oudPerId: { code van de oude website: oud boek }. Geeft { gedaan, covers, fouten: [tekst] }.
+ */
+function oudeAangeduideOvernemen(catalogus, naRijen, oudPerId) {
+  var perId = {};
+  catalogus.forEach(function (c) { if (!isLeeg(c.boek_id)) perId[String(c.boek_id).trim()] = c; });
+  var uit = { gedaan: 0, covers: 0, fouten: [] };
+  naRijen.forEach(function (r) {
+    if (schoon(r.bron) !== 'oude website' || jaNee(r.overnemen) !== 'ja' || jaNee(r.afgehandeld) === 'ja') return;
+    var code = (String(r.waarde_bron || '').match(/\[oud ([^\]]+)\]/) || [])[1];
+    var boek = perId[String(r.boek_id || '').trim()];
+    var oud = code ? oudPerId[code] : null;
+    if (!boek) { uit.fouten.push('"' + schoon(r.titel) + '": boek-ID ' + (schoon(r.boek_id) || '(leeg)') + ' staat niet in de Catalogus.'); return; }
+    if (!oud) { uit.fouten.push('"' + schoon(r.titel) + '": kies eerst nog eens Neem beschrijvingen en covers over, dan krijgt deze rij een code van de oude website.'); return; }
+    var velden = {};
+    if (oud.beschrijving) {
+      velden.beschrijving = maakBeschrijvingNetjes(oud.beschrijving);
+      velden.beschrijving_bron = OUDE_COVER_BRON;
+      velden.beschrijving_en = '';
+      velden.beschrijving_vertaald = '';
+    }
+    if (oud.cover) { velden.oude_cover = oud.cover; uit.covers++; }
+    wijzig(boek, velden);
+    wijzig(r, { afgehandeld: 'ja', overnemen: 'gedaan' });
+    uit.gedaan++;
   });
   return uit;
 }
@@ -415,17 +463,14 @@ function neemOudeBoekenOver() {
     bewaarTabel(tabel);
     // Opnieuw uitvoeren: de vorige lijst van de oude website (nog niet afgehandeld) maakt plaats voor de nieuwe.
     var naTeKijken = leesTabel('Na te kijken');
-    naTeKijken.rijen.forEach(function (r) { if (schoon(r.bron) === 'oude website' && jaNee(r.afgehandeld) !== 'ja') r._verwijderen = true; });
+    // Rijen die je al op overnemen = ja zette, blijven staan.
+    naTeKijken.rijen.forEach(function (r) { if (schoon(r.bron) === 'oude website' && jaNee(r.afgehandeld) !== 'ja' && jaNee(r.overnemen) !== 'ja') r._verwijderen = true; });
     bewaarTabel(naTeKijken);
     naTeKijken = leesTabel('Na te kijken');
-    voegNaTeKijkenToe(naTeKijken.rijen, uit.nietGevonden.map(function (b) {
-      var voorstel = oudVoorstel(b, tabel.rijen);
-      return {
-        boek_id: voorstel ? String(voorstel.boek_id) : '', titel: b.titel + (b.ondertitel ? ': ' + b.ondertitel : ''), veld: 'boek van de oude website',
-        waarde_catalogus: voorstel ? 'misschien: ' + schoon(voorstel.titel) + (voorstel.auteur ? ' (' + schoon(voorstel.auteur) + ')' : '') : 'niet gevonden',
-        waarde_bron: [b.auteur, b.isbn ? 'ISBN ' + b.isbn : ''].filter(Boolean).join(', '),
-        opmerking: [b.cover ? 'Cover: ' + b.cover : '', b.beschrijving.slice(0, 400)].filter(Boolean).join('\n')
-      };
+    var bewaard = {};
+    naTeKijken.rijen.forEach(function (r) { var m = String(r.waarde_bron || '').match(/\[oud ([^\]]+)\]/); if (m && schoon(r.bron) === 'oude website') bewaard[m[1]] = true; });
+    voegNaTeKijkenToe(naTeKijken.rijen, uit.nietGevonden.filter(function (b) { return !bewaard[b.id]; }).map(function (b) {
+      return oudNaTeKijkenRij(b, tabel.rijen, uit.gekoppeld);
     }), 'oude website', vandaagTekst());
     bewaarTabel(naTeKijken);
     naTeKijkenNieuwsteBoven();
@@ -442,6 +487,34 @@ function neemOudeBoekenOver() {
     uit.verborgen + ' boeken die op de oude website verborgen waren en niet in de Catalogus staan (niet in Na te kijken), ' +
     uit.nietGevonden.length + ' boeken niet gevonden in de Catalogus (zie Na te kijken).';
   logboek('menu', 'neemOudeBoekenOver', tekst + ' Bron: ' + oud.bron + ' (' + velden + ')');
+  meld(tekst);
+}
+
+/** Menu: neemt de rijen van Na te kijken over met overnemen = ja (zie oudeAangeduideOvernemen). */
+function neemAangeduideOudeBoekenOver() {
+  installeer(); // zorgt voor de kolom overnemen
+  var db = vindOudeDatabank();
+  var oud = haalOudeBoeken(db);
+  if (!oud.rijen.length) { meld('Ik kon de boeken van de oude website niet lezen. Er is niets veranderd.'); return; }
+  var perId = {};
+  oud.rijen.forEach(function (r) { var b = oudBoekUitRij(r, db.url); perId[b.id] = b; });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var uit;
+  try {
+    var tabel = leesTabel('Catalogus');
+    var naTeKijken = leesTabel('Na te kijken');
+    uit = oudeAangeduideOvernemen(tabel.rijen, naTeKijken.rijen, perId);
+    bewaarTabel(tabel);
+    bewaarTabel(naTeKijken);
+  } finally {
+    lock.releaseLock();
+  }
+  leegCache();
+  if (uit.covers) planTaak('kopieerOudeCovers', 60 * 1000);
+  var tekst = uit.gedaan + ' boeken overgenomen uit Na te kijken (' + uit.covers + ' covers komen op de achtergrond).' +
+    (uit.fouten.length ? ' Niet gelukt: ' + uit.fouten.join(' ') : '');
+  logboek('menu', 'neemAangeduideOudeBoekenOver', tekst);
   meld(tekst);
 }
 
