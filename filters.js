@@ -44,6 +44,21 @@
     return '';
   }
 
+  /** Duur van een film, in minuten. */
+  var DUREN = [
+    { label: 'Kort (tot 60 minuten)', tot: 60 },
+    { label: 'Gemiddeld (60 tot 90 minuten)', tot: 90 },
+    { label: 'Lang (90 tot 120 minuten)', tot: 120 },
+    { label: 'Heel lang (meer dan 120 minuten)', tot: Infinity }
+  ];
+
+  function duurVan(minuten) {
+    var m = Number(minuten);
+    if (!m || m < 1) return '';
+    for (var i = 0; i < DUREN.length; i++) if (m <= DUREN[i].tot) return DUREN[i].label;
+    return '';
+  }
+
   function alfabetisch(a, b) { return a.localeCompare(b, 'nl'); }
 
   var FILTERS = [
@@ -71,7 +86,7 @@
     { sleutel: 'lijst', labelSleutel: 'fLeeslijst', label: 'Leeslijst', waarden: function (b) { return b.ll || []; } /* volgorde: zie catalogus */ }
   ];
 
-  /** De filters van de pagina Films (films.html): genre, land, periode, taal en aanrader. */
+  /** De filters van de pagina Films (films.html): genre, land, periode, duur, taal en aanrader. */
   var FILMFILTERS = [
     { sleutel: 'genre', labelSleutel: 'fGenre', label: 'Genre', waarden: function (b) { return b.g || []; }, volgorde: alfabetisch },
     { sleutel: 'land', labelSleutel: 'fLand', label: 'Land', waarden: function (b) { return b.la ? String(b.la).split(/\s*,\s*/).filter(Boolean) : []; }, volgorde: alfabetisch },
@@ -80,6 +95,14 @@
       waarden: function (b) { var p = periodeVan(b.j); return p ? [p] : []; },
       volgorde: function (a, b) {
         var labels = PERIODES.map(function (p) { return p.label; });
+        return labels.indexOf(a) - labels.indexOf(b);
+      }
+    },
+    {
+      sleutel: 'duur', labelSleutel: 'fDuur', label: 'Duur',
+      waarden: function (b) { var d = duurVan(b.du); return d ? [d] : []; },
+      volgorde: function (a, b) {
+        var labels = DUREN.map(function (d) { return d.label; });
         return labels.indexOf(a) - labels.indexOf(b);
       }
     },
@@ -190,7 +213,7 @@
     }).slice(0, aantal || 6).map(function (x) { return x.boek; });
   }
 
-  var api = { FILTERS: FILTERS, FILMFILTERS: FILMFILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, DIKTES: DIKTES, dikteVan: dikteVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
+  var api = { FILTERS: FILTERS, FILMFILTERS: FILMFILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, DIKTES: DIKTES, dikteVan: dikteVan, DUREN: DUREN, duurVan: duurVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
   root.MadrigalFilters = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
