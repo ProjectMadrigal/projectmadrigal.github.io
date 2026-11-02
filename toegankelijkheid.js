@@ -38,7 +38,8 @@
       lijst = null;
       if (/^#\s*/.test(regel)) uit.push(el('h2', null, regel.replace(/^#\s*/, '')));
       else if (foto && veiligeLink(foto[2])) {
-        var img = el('img', { src: foto[2], alt: foto[1], loading: 'lazy' });
+        // Een foto van de eigen website (assets/...): als eigen bestand laden, dat werkt ook offline en lokaal.
+        var img = el('img', { src: foto[2].replace(/^https:\/\/projectmadrigal\.github\.io\//, ''), alt: foto[1], loading: 'lazy' });
         uit.push(el('figure', null, img, foto[1] ? el('figcaption', null, foto[1]) : null));
       } else uit.push(el('p', null, regel));
     });
