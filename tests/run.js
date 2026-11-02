@@ -2916,12 +2916,50 @@ test('Titels: nakijklijst en toepassen', () => {
   const tab = { blad, kop: ['titel', 'taal'], rijen: [{ _rij: 2, titel: 'De Blauwe Kamer' }, { _rij: 4, titel: 'the long road' }] };
   M.wijzig(tab.rijen[0], { titel: 'De blauwe kamer' });
   M.wijzig(tab.rijen[1], { titel: 'The Long Road' });
-  M.titelsSchrijfKolom(tab, 'titel');
+  M.titelsSchrijfKolommen(tab, ['titel', 'taal']);
   assert.strictEqual(schrijfbeurten, 1, 'alles in één keer');
   gelijk(cellen.map((r) => r[0]), ['titel', 'De blauwe kamer', '', 'The Long Road']);
-  gelijk(cellen.map((r) => r[1]), ['taal', 'Nederlands', '', 'Engels']);
+  gelijk(cellen.map((r) => r[1]), ['taal', 'Nederlands', '', 'Engels'], 'de taal bleef: die veranderde niet');
+  assert.strictEqual(tab.rijen[0]._gewijzigd, false);
   const ander = [{ boek_id: 'B1', titel: 'Een heel andere titel', taal: 'Nederlands' }];
   gelijk(M.titelsToepassen(ander, [{ boek_id: 'B1', titel_nu: 'De Blauwe Kamer', titel_nieuw: 'De blauwe kamer', toepassen: 'ja' }]), { gedaan: 0, overgeslagen: 1 });
+});
+
+
+test('Titels: taal raden uit de titel', () => {
+  assert.strictEqual(M.titelTaalRaden('Het geheim van de zee'), 'Nederlands');
+  assert.strictEqual(M.titelTaalRaden('Les jours et les nuits'), 'Frans');
+  assert.strictEqual(M.titelTaalRaden("L'été des garçons"), 'Frans');
+  assert.strictEqual(M.titelTaalRaden('The Long Road Home'), 'Engels');
+  assert.strictEqual(M.titelTaalRaden('Der Sommer und das Meer'), 'Duits');
+  assert.strictEqual(M.titelTaalRaden("Mira's Room"), '', 'geen kleine woorden: niet raden');
+  assert.strictEqual(M.titelTaalRaden('De zee'), '', 'de alleen is niet genoeg');
+  assert.strictEqual(M.titelTaalVoorstel('Het geheim van de zee', 'Engels'), 'Nederlands');
+  assert.strictEqual(M.titelTaalVoorstel('Het geheim van de zee', 'Nederlands'), '');
+  assert.strictEqual(M.titelTaalVoorstel('Het geheim van de zee', ''), 'Nederlands');
+  assert.strictEqual(M.titelTaalVoorstel('Het geheim van de zee', 'Nederlands, Engels'), '', 'meer talen: laten staan');
+  assert.strictEqual(M.titelTaalVoorstel('Understanding Human Puppy Play', 'Engels'), '');
+  assert.strictEqual(M.titelTaalVoorstel('A Man in Love', 'Engels'), '', 'twijfel: Engels blijft');
+  assert.strictEqual(M.titelTaalVoorstel('When Sam Met Kim', 'Engels'), '');
+  assert.strictEqual(M.titelTaalVoorstel('Over the Rainbow', 'Engels'), '');
+  assert.strictEqual(M.titelTaalVoorstel('Jongens zijn wij allemaal', 'Engels'), 'Nederlands');
+});
+
+test('Titels: verkeerde taal in de nakijklijst en toepassen', () => {
+  const cat = [
+    { boek_id: 'B1', titel: 'Het Geheim Van De Zee', taal: 'Engels' },
+    { boek_id: 'B2', titel: 'Het geheim van de zee', taal: 'Engels' },
+    { boek_id: 'B3', titel: 'The long road home', taal: 'Engels' }
+  ];
+  const lijst = M.titelNakijklijst(cat);
+  gelijk(lijst.map((r) => [r.boek_id, r.taal_nieuw, r.titel_nieuw]), [
+    ['B1', 'Nederlands', 'Het geheim van de zee'],
+    ['B2', 'Nederlands', 'Het geheim van de zee'],
+    ['B3', '', 'The Long Road Home']
+  ]);
+  gelijk(M.titelsToepassen(cat, lijst), { gedaan: 3, overgeslagen: 0 });
+  gelijk(cat.map((b) => [b.titel, b.taal]), [['Het geheim van de zee', 'Nederlands'], ['Het geheim van de zee', 'Nederlands'], ['The Long Road Home', 'Engels']]);
+  gelijk(cat[1]._velden, { taal: true }, 'enkel de taal veranderd');
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
