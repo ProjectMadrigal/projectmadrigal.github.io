@@ -464,7 +464,7 @@ var STANDAARD_INSTELLINGEN = [
   ['bookclub_week', 2, 'De hoeveelste week van de maand: 1 tot 4, of 5 voor de laatste.'],
   ['bookclub_dag', 'zondag', 'Op welke weekdag de bookclub samenkomt.'],
   ['bookclub_uur', '', 'Het uur, bv. 14:00 of 14:00 - 16:00. Leeg: enkel de datum.'],
-  ['tekst_vaste_events', 'Genderspectrum: tweede vrijdag\nT-café: derde vrijdag\nACA-volkskeuken: vierde vrijdag', 'Events die elke maand terugkomen. Een regel per event: naam, dubbelpunt, en eerste, tweede, derde, vierde of laatste plus de weekdag. Ze komen vanzelf in de agenda van de website en bij het rooster. Geen vaste events? Typ geen.'],
+  ['tekst_vaste_events', 'Genderspectrum: tweede vrijdag\nT-café: derde vrijdag\nACA-volkskeuken: vierde vrijdag', 'Events die elke maand terugkomen. Een regel per event: naam, dubbelpunt, en eerste, tweede, derde, vierde of laatste plus de weekdag. Ze komen vanzelf in de agenda van de website en bij het rooster. Een tekst, uur en plaats op de website zet je in het tabblad Vaste events, met dezelfde naam. Geen vaste events? Typ geen.'],
   ['films_tonen', 'nee', 'Ja: de pagina Films staat in het menu van de website. Nee: enkel het bestuur ziet ze, op een toestel waar het aangemeld is.'],
   ['tekst_films', 'Films over queer leven, liefde en geschiedenis. Leen een dvd zoals je een boek leent.', 'Pagina Films: de tekst bovenaan.'],
   ['tekst_films_en', 'Films about queer life, love and history. Borrow a DVD the way you borrow a book.', 'Pagina Films: de tekst bovenaan, in het Engels.'],
@@ -557,6 +557,8 @@ var KOLOMMEN = {
   // voorgesteld_door: voornaam van de vrijwilliger die dit voorstelde. Leeg zodra het bestuur het online zet.
   'Nieuws': ['datum', 'titel', 'titel_en', 'tekst', 'tekst_en', 'afbeelding', 'link', 'publiek', 'online_vanaf', 'voorgesteld_door', 'bron_id'],
   'Agenda': ['datum', 'uur', 'titel', 'titel_en', 'tekst', 'tekst_en', 'locatie', 'afbeelding', 'link', 'publiek', 'voorgesteld_door', 'bron_id'],
+  // Uitleg bij de vaste events (tekst_vaste_events): naam zoals daar, titel op de website, uur, plaats en tekst.
+  'Vaste events': ['naam', 'titel', 'titel_en', 'uur', 'locatie', 'tekst', 'tekst_en', 'link', 'afbeelding'],
   'Veelgestelde vragen': ['volgorde', 'vraag', 'vraag_en', 'antwoord', 'antwoord_en', 'publiek', 'bron_id'],
   // Leeslijsten (thema's). Welke boeken erin staan, zet je in de kolom leeslijsten van de Catalogus.
   // zichtbaar_vanaf en zichtbaar_tot: een geplande lijst verschijnt en verdwijnt vanzelf.
@@ -626,7 +628,7 @@ var INSTELLING_GROEPEN = [
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
   ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst']],     // collectie
-  ['#2a6f73', ['Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten']],       // website
+  ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
   ['#bdbdbd', ['Stock', 'Zines', 'Goodreads-export']]                            // bronnen, zelden nodig
@@ -1820,7 +1822,7 @@ function bezoekersCijfers(invoer) {
 /** Bij elke wijziging met de hand in Catalogus, Onderwerpen of Instellingen: cache leegmaken. */
 function bijWijziging(e) {
   var naam = e && e.range ? e.range.getSheet().getName() : '';
-  if (['Catalogus', 'Onderwerpen', 'Instellingen', 'Uitleningen', 'Reservaties', 'Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten'].indexOf(naam) > -1) leegCache();
+  if (['Catalogus', 'Onderwerpen', 'Instellingen', 'Uitleningen', 'Reservaties', 'Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten'].indexOf(naam) > -1) leegCache();
   if (naam === 'Catalogus') voorraadBijWijziging(e); // zie Verkoop.js
 }
 
@@ -2369,7 +2371,7 @@ function bouwSiteInhoud(staat, tabellen) {
   var bookclub = bookclubGegevens(inst, staat.vandaag, tabellen.agenda);
   if (bookclub) events = events.concat(bookclub.events);
   // De vaste events van elke maand (zie Shifts.js), telkens de eerstvolgende keer.
-  events = events.concat(vasteEventsVoorAgenda(inst, staat.vandaag, tabellen.agenda));
+  events = events.concat(vasteEventsVoorAgenda(inst, staat.vandaag, tabellen.agenda, tabellen.vasteEvents));
   var komend = events.filter(function (e) { return e.datum >= staat.vandaag; }).sort(function (a, b) { return a.datum.localeCompare(b.datum); });
   var voorbij = events.filter(function (e) { return e.datum < staat.vandaag; }).sort(function (a, b) { return b.datum.localeCompare(a.datum); });
 
@@ -6587,7 +6589,7 @@ function siteInhoudJson() {
   var lees = function (naam) {
     return spreadsheet().getSheetByName(naam) ? leesTabel(naam).rijen : [];
   };
-  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten'), peperfabriek: peperfabriekBewaard() }));
+  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), vasteEvents: lees('Vaste events'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten'), peperfabriek: peperfabriekBewaard() }));
   try { cache.put(dagSleutel(SITE_CACHE_SLEUTEL), tekst, CACHE_DUUR_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
   return tekst;
 }
@@ -7241,8 +7243,13 @@ function vasteEventsUitTekst(tekst) {
 /**
  * Voor de agenda van de website: per vast event de eerstvolgende keer, tenzij er die dag al
  * een eigen event met die naam in de Agenda staat.
+ * details: de rijen van het tabblad Vaste events. De kolom naam is de naam uit tekst_vaste_events.
+ * Daar staan de titel op de website (mag anders zijn, bv. met de organisatie erbij), uur, locatie,
+ * tekst en link, in het Nederlands en het Engels. Zonder rij: enkel de naam.
  */
-function vasteEventsVoorAgenda(inst, vandaag, agendaRijen) {
+function vasteEventsVoorAgenda(inst, vandaag, agendaRijen, details) {
+  var perNaam = {};
+  (details || []).forEach(function (r) { if (!isLeeg(r.naam)) perNaam[normaliseerTekst(r.naam)] = r; });
   var eigen = {};
   (agendaRijen || []).forEach(function (r) {
     var d = parseerDatum(r.datum);
@@ -7251,7 +7258,13 @@ function vasteEventsVoorAgenda(inst, vandaag, agendaRijen) {
   return vasteEventsUitTekst(inst.tekst_vaste_events).map(function (e) {
     var d = bookclubDatums(vandaag, e.week, e.dag, 1)[0];
     if (!d || eigen[d + '|' + normaliseerTekst(e.naam)]) return null;
-    return { datum: d, uur: '', titel: { nl: e.naam, en: e.naam }, tekst: { nl: '', en: '' }, locatie: '', afbeelding: '', link: '' };
+    var r = perNaam[normaliseerTekst(e.naam)];
+    if (!r) return { datum: d, uur: '', titel: { nl: e.naam, en: e.naam }, tekst: { nl: '', en: '' }, locatie: '', afbeelding: '', link: '' };
+    var titel = schoon(r.titel) || e.naam;
+    return {
+      datum: d, uur: schoon(r.uur), titel: { nl: titel, en: schoon(r.titel_en) || titel }, tekst: tweetaligLang(r, 'tekst'),
+      locatie: schoon(r.locatie), afbeelding: veiligeCoverUrl(r.afbeelding), link: veiligeCoverUrl(r.link)
+    };
   }).filter(Boolean);
 }
 

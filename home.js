@@ -74,13 +74,26 @@
     return el('a', { href: href, target: extern ? '_blank' : null, rel: extern ? 'noopener' : null }, tekst);
   }
 
+  /** Een tekst met e-mailadressen en webadressen als klikbare links. Geeft een lijst van stukken. */
+  function metLinks(tekst) {
+    var stukken = [], re = /([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})|(https?:\/\/[^\s<>"]+[^\s<>".,;:!?)])/g, m, vorige = 0;
+    tekst = String(tekst || '');
+    while ((m = re.exec(tekst))) {
+      stukken.push(tekst.slice(vorige, m.index));
+      stukken.push(m[1] ? el('a', { href: 'mailto:' + m[1] }, m[1]) : link(m[2], m[2]));
+      vorige = re.lastIndex;
+    }
+    stukken.push(tekst.slice(vorige));
+    return stukken;
+  }
+
   function nieuwsKaart(n) {
     return el('article', { class: 'nieuwskaart' },
       n.afbeelding ? el('img', { src: n.afbeelding, alt: '', loading: 'lazy' }) : null,
       el('div', { class: 'inhoud' },
         el('h3', null, tt(n.titel)),
         n.datum ? el('p', { class: 'datum' }, T.datum(n.datum)) : null,
-        el('div', { class: 'tekstblok' }, el('p', null, tt(n.tekst))),
+        el('div', { class: 'tekstblok' }, el('p', null, metLinks(tt(n.tekst)))),
         n.link ? el('p', null, link(n.link, T.t('meerInfo'))) : null));
   }
 
@@ -92,7 +105,7 @@
         kop ? el('p', { class: 'datum' }, kop) : null,
         el('h3', null, tt(e.titel)),
         el('p', { class: 'datum' }, wanneer + (e.locatie ? ' · ' + e.locatie : '')),
-        tt(e.tekst) ? el('div', { class: 'tekstblok' }, el('p', null, tt(e.tekst))) : null,
+        tt(e.tekst) ? el('div', { class: 'tekstblok' }, el('p', null, metLinks(tt(e.tekst)))) : null,
         e.link ? el('p', null, link(e.link, T.t('meerInfo'))) : null,
         e.datum >= vandaag() ? el('p', null, el('button', { type: 'button', class: 'knop tweede klein', onclick: function () {
           window.MadrigalAgenda.download({ datum: e.datum, uur: e.uur, titel: tt(e.titel), tekst: tt(e.tekst), locatie: e.locatie, link: e.link });

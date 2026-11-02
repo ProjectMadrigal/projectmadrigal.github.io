@@ -59,7 +59,7 @@ function bouwSiteInhoud(staat, tabellen) {
   var bookclub = bookclubGegevens(inst, staat.vandaag, tabellen.agenda);
   if (bookclub) events = events.concat(bookclub.events);
   // De vaste events van elke maand (zie Shifts.js), telkens de eerstvolgende keer.
-  events = events.concat(vasteEventsVoorAgenda(inst, staat.vandaag, tabellen.agenda));
+  events = events.concat(vasteEventsVoorAgenda(inst, staat.vandaag, tabellen.agenda, tabellen.vasteEvents));
   var komend = events.filter(function (e) { return e.datum >= staat.vandaag; }).sort(function (a, b) { return a.datum.localeCompare(b.datum); });
   var voorbij = events.filter(function (e) { return e.datum < staat.vandaag; }).sort(function (a, b) { return b.datum.localeCompare(a.datum); });
 
@@ -196,7 +196,7 @@ function siteInhoudJson() {
   var lees = function (naam) {
     return spreadsheet().getSheetByName(naam) ? leesTabel(naam).rijen : [];
   };
-  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten'), peperfabriek: peperfabriekBewaard() }));
+  var tekst = JSON.stringify(bouwSiteInhoud(staat, { nieuws: lees('Nieuws'), agenda: lees('Agenda'), vasteEvents: lees('Vaste events'), faq: lees('Veelgestelde vragen'), leeslijsten: lees('Leeslijsten'), peperfabriek: peperfabriekBewaard() }));
   try { cache.put(dagSleutel(SITE_CACHE_SLEUTEL), tekst, CACHE_DUUR_SECONDEN); } catch (e) { /* te groot: dan zonder cache */ }
   return tekst;
 }

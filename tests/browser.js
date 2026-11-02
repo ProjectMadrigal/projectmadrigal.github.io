@@ -329,6 +329,14 @@ async function meldAan(page, basis, pagina) {
     verwacht(!r.fouten.length, r.fouten.join(' | '));
   });
 
+  await test('startpagina: een e-mailadres in de tekst van een event is een link', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, {});
+    await page.goto(basis + '/index.html');
+    await page.waitForSelector('#agenda a[href="mailto:info@voorbeeld.test"]');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+
   console.log('\nAfgeschermde schermen (nagebootste web-app)');
   await test('bestuursscherm: alle onderdelen openen zonder fouten', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });

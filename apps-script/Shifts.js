@@ -39,8 +39,13 @@ function vasteEventsOp(datum, lijst) {
 /**
  * Voor de agenda van de website: per vast event de eerstvolgende keer, tenzij er die dag al
  * een eigen event met die naam in de Agenda staat.
+ * details: de rijen van het tabblad Vaste events. De kolom naam is de naam uit tekst_vaste_events.
+ * Daar staan de titel op de website (mag anders zijn, bv. met de organisatie erbij), uur, locatie,
+ * tekst en link, in het Nederlands en het Engels. Zonder rij: enkel de naam.
  */
-function vasteEventsVoorAgenda(inst, vandaag, agendaRijen) {
+function vasteEventsVoorAgenda(inst, vandaag, agendaRijen, details) {
+  var perNaam = {};
+  (details || []).forEach(function (r) { if (!isLeeg(r.naam)) perNaam[normaliseerTekst(r.naam)] = r; });
   var eigen = {};
   (agendaRijen || []).forEach(function (r) {
     var d = parseerDatum(r.datum);
@@ -49,7 +54,13 @@ function vasteEventsVoorAgenda(inst, vandaag, agendaRijen) {
   return vasteEventsUitTekst(inst.tekst_vaste_events).map(function (e) {
     var d = bookclubDatums(vandaag, e.week, e.dag, 1)[0];
     if (!d || eigen[d + '|' + normaliseerTekst(e.naam)]) return null;
-    return { datum: d, uur: '', titel: { nl: e.naam, en: e.naam }, tekst: { nl: '', en: '' }, locatie: '', afbeelding: '', link: '' };
+    var r = perNaam[normaliseerTekst(e.naam)];
+    if (!r) return { datum: d, uur: '', titel: { nl: e.naam, en: e.naam }, tekst: { nl: '', en: '' }, locatie: '', afbeelding: '', link: '' };
+    var titel = schoon(r.titel) || e.naam;
+    return {
+      datum: d, uur: schoon(r.uur), titel: { nl: titel, en: schoon(r.titel_en) || titel }, tekst: tweetaligLang(r, 'tekst'),
+      locatie: schoon(r.locatie), afbeelding: veiligeCoverUrl(r.afbeelding), link: veiligeCoverUrl(r.link)
+    };
   }).filter(Boolean);
 }
 

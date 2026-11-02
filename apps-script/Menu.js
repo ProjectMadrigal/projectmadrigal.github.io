@@ -176,7 +176,7 @@ function verversMenu() {
 /** Bij elke wijziging met de hand in Catalogus, Onderwerpen of Instellingen: cache leegmaken. */
 function bijWijziging(e) {
   var naam = e && e.range ? e.range.getSheet().getName() : '';
-  if (['Catalogus', 'Onderwerpen', 'Instellingen', 'Uitleningen', 'Reservaties', 'Nieuws', 'Agenda', 'Veelgestelde vragen', 'Leeslijsten'].indexOf(naam) > -1) leegCache();
+  if (['Catalogus', 'Onderwerpen', 'Instellingen', 'Uitleningen', 'Reservaties', 'Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten'].indexOf(naam) > -1) leegCache();
   if (naam === 'Catalogus') voorraadBijWijziging(e); // zie Verkoop.js
 }
 
