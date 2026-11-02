@@ -1833,6 +1833,29 @@ test('oude website: beschrijving en cover gaan voor, behalve eigen werk; niet ge
   gelijk([M.heeftWikiNodig(b), M.heeftBeschrijvingNodig(b), M.heeftGoogleBooksNodig(b)], [false, false, false]);
 });
 
+test('oude website: boeken terugvinden ook met ondertitel, lidwoord, tikfout, meerdere auteurs of oud ISBN', () => {
+  const catalogus = [
+    { boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera; Bedacht, Noor', isbn: '' },
+    { boek_id: 'B0002', titel: 'De atlas van niets', auteur: 'Fictief, Kim', isbn: '' },
+    { boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Fictief, Sam', isbn: '', isbn_origineel: '0-306-40615-2' },
+    { boek_id: 'B0004', titel: 'Gedichten voor de nacht', auteur: 'Verzonnen, Vera', isbn: '' },
+    { boek_id: 'B0005', titel: 'Een unieke titel', auteur: '', isbn: '' },
+    { boek_id: 'B0006', titel: 'Liedjes', auteur: 'Fictief, Sam', isbn: '' }
+  ];
+  const index = M.oudIndex(catalogus);
+  const zoek = (titel, auteur, isbn, ondertitel) => { const r = M.zoekOudBoek({ titel, auteur, isbn: isbn || '', ondertitel: ondertitel || '' }, index); return r ? r.boek.boek_id + ' ' + r.hoe : null; };
+  gelijk(zoek('Zee van glas: een roman', 'Noor Bedacht; Vera Verzonnen'), 'B0001 kern', 'Ondertitel en andere volgorde van auteurs');
+  gelijk(zoek('Atlas van niets', 'Kim Fictief'), 'B0002 kern', 'Zonder lidwoord');
+  gelijk(zoek('Iets anders', 'Iemand', '9780306406157'), 'B0003 isbn', 'Oud ISBN uit isbn_origineel');
+  gelijk(zoek('Gedichten voor de nachtt', 'Vera Verzonnen'), 'B0004 bijna', 'Tikfout');
+  gelijk(zoek('Een unieke titel', 'Kim Fictief'), 'B0005 enkel titel', 'Geen auteur in de catalogus');
+  gelijk(zoek('Liedjes', 'Vera Verzonnen'), null, 'Zelfde titel, andere auteur: niet');
+  gelijk(zoek('Gedichten', 'Vera Verzonnen'), null, 'Te weinig gelijk');
+  gelijk(M.oudeAchternamen('Verzonnen, Vera; Noor Bedacht & Kim Fictief'), ['verzonnen', 'bedacht', 'fictief']);
+  gelijk(M.oudVoorstel({ titel: 'Gedichten voor nacht' }, catalogus).boek_id, 'B0004', 'Voorstel voor Na te kijken');
+  gelijk(M.oudBoekUitRij({ id: 1, title: 'X', authors: [{ name: 'Vera Verzonnen' }, { name: 'Noor Bedacht' }] }, 'https://x').auteur, 'Vera Verzonnen; Noor Bedacht');
+});
+
 console.log('\nAankooplijst');
 test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als binnen', () => {
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera', isbn: '9780306406157' }];
