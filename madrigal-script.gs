@@ -8920,12 +8920,19 @@ function verlengen(staat, invoer) {
 /** Menu: vertaalt de beschrijvingen naar het Nederlands en het Engels, in porties. */
 function vertaalBeschrijvingen() {
   var start = Date.now();
-  if (!startAchtergrond('vertaalBeschrijvingen')) { planVertaling(5); return; } // een andere bewerking loopt: straks opnieuw
+  if (!startAchtergrond('vertaalBeschrijvingen')) {
+    // Er loopt al een vertaalronde (vaak vanzelf gestart na het zoeken van beschrijvingen): straks opnieuw.
+    planVertaling(5);
+    logboek('menu', 'vertaalBeschrijvingen', 'Er loopt al een vertaalronde. Over 5 minuten gaat het vanzelf verder.');
+    meldAlBezig('vertaalBeschrijvingen');
+    return;
+  }
   var verwerkt = 0, rest = 0, limiet = false;
   try {
     var tabel = leesTabel('Catalogus');
     if (tabel.kop.indexOf('beschrijving_vertaald') === -1 || tabel.kop.indexOf('beschrijving_en') === -1) {
       meld('De kolommen beschrijving_en en beschrijving_vertaald ontbreken nog in de Catalogus. Voer eerst "installeer" uit.');
+      logboek('menu', 'vertaalBeschrijvingen', 'Niet gestart: de kolommen beschrijving_en en beschrijving_vertaald ontbreken. Kies Madrigal > Installeer tabbladen.');
       return;
     }
     var vandaag = vandaagTekst();
