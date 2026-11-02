@@ -3316,5 +3316,23 @@ test('standaardafbeeldingen: dezelfde afbeelding bij drie boeken weg, ook een li
   assert.strictEqual(cat[3].oude_cover, '');
 });
 
+
+test('brede tabbladen: vaste kolommen, kleur, uitleg, niet publiek en ingeklapte technische kolommen', () => {
+  const kop = ['boek_id', 'soort', 'titel', 'auteur', 'isbn', 'herkomst', 'bron_sleutel', 'beschrijving', 'eigen_kolom', 'notitie', 'cover_bron', 'oude_cover'];
+  const ind = M.kolomIndeling('Catalogus', kop);
+  assert.strictEqual(ind.vast, 4, 'tot en met auteur');
+  assert.strictEqual(ind.kleuren[0], '#fff2cc');
+  assert.strictEqual(ind.kleuren[8], '', 'een eigen kolom blijft zoals ze is');
+  gelijk(ind.nietPubliek.map((p, i) => p ? kop[i] : '').filter(Boolean), ['herkomst', 'bron_sleutel', 'notitie', 'cover_bron', 'oude_cover']);
+  assert.ok(/Niet publiek/.test(ind.uitleg[9]) && /Bestuur/.test(ind.uitleg[9]));
+  assert.ok(/Achternaam, Voornaam/.test(ind.uitleg[3]));
+  gelijk(ind.groepen, [[6, 2], [11, 2]], 'notitie (bestuur) wordt niet ingeklapt');
+  assert.strictEqual(M.kolomIndeling('Catalogus', ['soort', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'titel']).vast, 0, 'titel ver naar rechts: niets vast');
+  assert.strictEqual(M.kolomIndeling('Uitleningen', ['uitlening_id', 'exemplaar', 'boek_id', 'lenersnummer']).vast, 3);
+  assert.strictEqual(M.kolomIndeling('Logboek', ['tijdstip']), null);
+  // Elke kolom van de Catalogus en Uitleningen heeft een uitleg.
+  ['Catalogus', 'Uitleningen'].forEach((t) => M.KOLOMMEN[t].forEach((k) => assert.ok(M.KOLOM_INDELING[t].kolommen[k], t + ': ' + k + ' heeft geen uitleg')));
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
