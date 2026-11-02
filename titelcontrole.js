@@ -104,8 +104,21 @@
     titel.addEventListener('input', pasKnopAan);
     auteur.addEventListener('input', pasKnopAan);
 
-    function versie(naam, v) {
+    // Gelijk zoals het script vergelijkt: hoofdletters, leestekens en de volgorde van de namen tellen niet.
+    function zelfdeTitel(a, b) { return Z.normaliseer(a) === Z.normaliseer(b); }
+    function zelfdeAuteur(a, b) {
+      var sleutel = function (t) { return Z.normaliseer(t).split(' ').filter(Boolean).sort().join(' '); };
+      return !a || !b || sleutel(a) === sleutel(b);
+    }
+    function cel(tekst, anders) {
+      return el('td', {}, tekst || '–', anders ? [' ', D.statusLabel('anders', 'anders')] : null);
+    }
+    /** Een rij per bron. Nu op de website staat al in de velden. Een andere bron krijgt enkel een knop als ze echt verschilt. */
+    function versie(naam, v, isNu) {
       if (!v) return el('tr', {}, el('th', { scope: 'row' }, naam), el('td', { colspan: '3', class: 'hulptekst' }, 'Niet gevonden in deze bron'));
+      if (isNu) return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t), cel(v.a), el('td', { class: 'hulptekst' }, 'Staat in de velden'));
+      var titelAnders = !zelfdeTitel(v.t, x.nu.t), auteurAnders = !zelfdeAuteur(v.a, x.nu.a);
+      if (!titelAnders && !auteurAnders) return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t), cel(v.a), el('td', { class: 'hulptekst' }, 'Zelfde als nu'));
       var neem = el('button', { type: 'button', class: 'knop tweede klein' }, 'Neem over');
       neem.setAttribute('aria-label', 'Neem de versie van ' + naam.toLowerCase() + ' over');
       neem.addEventListener('click', function () {
@@ -114,7 +127,7 @@
         pasKnopAan();
         titel.focus();
       });
-      return el('tr', {}, el('th', { scope: 'row' }, naam), el('td', {}, v.t || '–'), el('td', {}, v.a || '–'), el('td', {}, neem));
+      return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t, titelAnders), cel(v.a, auteurAnders), el('td', {}, neem));
     }
 
     function stuur(status, knop) {
@@ -146,7 +159,8 @@
       el('div', { class: 'tabel-wrap' }, el('table', { class: 'tabel' },
         el('caption', {}, 'Zo staat het in elke bron'),
         el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Bron'), el('th', { scope: 'col' }, 'Titel'), el('th', { scope: 'col' }, 'Auteur'), el('td', {}))),
-        el('tbody', {}, versie('Stocklijst', x.stock), versie('Oude website', x.oud), versie('Nu op de website', x.nu)))),
+        el('tbody', {}, versie('Nu op de website', x.nu, true), versie('Stocklijst', x.stock), versie('Oude website', x.oud)))),
+      el('p', {}, 'Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem over, of typ het zelf, en klik op Bewaar, volgende.'),
       el('div', { class: 'veld' }, el('label', { for: 'tc-titel' }, 'Titel zoals op het boek'), titel),
       el('div', { class: 'veld' }, el('label', { for: 'tc-auteur' }, 'Auteur zoals op het boek'), auteur),
       knoppen(bewaar, niet),

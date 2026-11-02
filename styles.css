@@ -251,6 +251,8 @@ textarea { min-height: 6rem; }
 .status-verlengd::before { content: "↻"; }
 .status-gesloten { color: var(--kleur-tekst-zacht); background: var(--kleur-neutraal-vlak); }
 .status-gesloten::before { content: "✕"; }
+.status-anders { color: var(--kleur-let-op); background: var(--kleur-let-op-vlak); }
+.status-anders::before { content: "≠"; }
 .status-tip { color: var(--kleur-aanrader); background: var(--kleur-aanrader-vlak); }
 .status-tip::before { content: "★"; }
 .rooster-avond { border-left: 6px solid var(--kleur-paars); }

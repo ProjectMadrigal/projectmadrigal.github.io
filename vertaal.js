@@ -958,7 +958,11 @@
    "Niet in de kast": "Not on the shelf",
    "‹ Vorige": "‹ Previous",
    "Sla over ›": "Skip ›",
-   "Zonder onderwerp": "Without subject"
+   "Zonder onderwerp": "Without subject",
+   "anders": "different",
+   "Staat in de velden": "Is in the fields",
+   "Zelfde als nu": "Same as now",
+   "Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem over, of typ het zelf, en klik op Bewaar, volgende": "Compare with the book. Is what is in the fields correct? Then click Correct, next. Is it different on the book? Click Take over next to the right version, or type it yourself, and click Save, next"
   };
 
   /** Zinnen met een getal, datum of naam erin. $1, $2 ... nemen dat deel over. Datums gaan mee naar het Engels. */

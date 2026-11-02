@@ -1006,6 +1006,10 @@ async function meldAan(page, basis, pagina) {
     // Volgende boek, in een andere kast
     verwacht((await page.inputValue('#tc-titel')) === 'Twee kasten vol', 'Volgende boek');
     verwacht(/Rein De Wit/.test(await page.textContent('#sectie table')), 'Versie van de oude website');
+    // De stocklijst is hier gelijk aan nu: geen knop. Enkel de auteur van de oude website is anders.
+    verwacht(/Zelfde als nu/.test(await page.textContent('#sectie table')), 'Gelijke versie zonder knop');
+    verwacht((await page.$$('#sectie table button')).length === 1 && (await page.$$('#sectie table .status-anders')).length === 1, 'Enkel de echte verschillen');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await page.selectOption('#tc-kast', 'Maatschappij');
     await page.click('button:has-text("Niet in de kast")');
     await page.waitForSelector('text=Op de lijst voor het bestuur.');
