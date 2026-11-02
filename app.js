@@ -17,9 +17,6 @@
 (function () {
   'use strict';
 
-  // Zoals op de oude website: categorieën (soort boek) in geel en eerst, thema's (inhoud) in paars.
-  var CATEGORIEEN = ['Fictie', 'Klassiekers', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Zines', 'Kunst en Fotoboek'];
-  function isCategorie(naam) { return CATEGORIEEN.indexOf(naam) !== -1; }
 
   var Z = window.MadrigalZoeken;
   var F = window.MadrigalFilters;
@@ -457,9 +454,9 @@
     ].filter(function (r) { return r[1]; });
 
     var onderwerpen = (b.g || []).slice().sort(function (x, y) {
-      return (isCategorie(y) ? 1 : 0) - (isCategorie(x) ? 1 : 0) || String(T.waarde(x)).localeCompare(String(T.waarde(y)));
+      return String(T.waarde(x)).localeCompare(String(T.waarde(y)));
     }).map(function (g) {
-      return el('li', {}, el('a', { class: 'label label-onderwerp ' + (isCategorie(g) ? 'categorie' : 'thema'), href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
+      return el('li', {}, el('a', { class: 'label label-onderwerp', href: '#/?' + (FILM ? 'genre' : 'groep') + '=' + encodeURIComponent(g) }, T.waarde(g)));
     });
     var uitlegStatus = {
       beschikbaar: t(FILM ? 'uitlegBeschikbaarFilm' : 'uitlegBeschikbaar'),
@@ -499,6 +496,16 @@
           ' (', el('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/deed.nl', target: '_blank', rel: 'noopener' }, 'CC BY-SA 4.0'), ')' + (T.taal() === 'en' ? '' : t('bronVertaald'))) : null,
         el('dl', { class: 'gegevens' }, rijen.map(function (r) { return [el('dt', {}, r[0]), el('dd', {}, String(r[1]))]; })),
         onderwerpen.length ? el('div', {}, el('h2', { class: 'klein' }, t(FILM ? 'genres' : 'onderwerpen')), el('ul', { class: 'labels' }, onderwerpen)) : null,
+        // Zoals op de oude website: categorieën in geel, thema's en trefwoorden in paars. Een klik filtert erop.
+        (b.ca || []).length ? el('div', {}, el('h2', { class: 'klein' }, t('categorieen')), el('ul', { class: 'labels' }, b.ca.map(function (w) {
+          return el('li', {}, el('a', { class: 'label label-onderwerp categorie', href: '#/?categorie=' + encodeURIComponent(w) }, w));
+        }))) : null,
+        (b.k || []).length ? el('div', {}, el('h2', { class: 'klein' }, t('trefwoorden')), el('ul', { class: 'labels' }, b.k.map(function (w) {
+          return el('li', {}, el('a', { class: 'label label-onderwerp thema', href: '#/?trefwoord=' + encodeURIComponent(w) }, w));
+        }))) : null,
+        // Triggerwaarschuwingen: dichtgeklapt, de bezoeker kiest zelf of die ze leest.
+        (b.tw || []).length ? el('details', { class: 'triggers' }, el('summary', {}, t('toonTriggers')),
+          el('ul', { class: 'labels' }, b.tw.map(function (w) { return el('li', {}, el('span', { class: 'label label-trigger' }, w)); }))) : null,
         el('div', { class: 'knoppen' }, reservatie ? reservatie.knop : null, deelKnop, bewerkKnop),
         reservatie ? reservatie.vak : null,
         el('p', { class: 'hulptekst', id: 'deel-melding', 'aria-live': 'polite' }))),

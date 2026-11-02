@@ -31,6 +31,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
   var vertaal = vertaalTabel(onderwerpRijen);
   // Leeslijsten: zie leeslijstZichtbaar. Een geplande lijst volgt haar data, de rest de instelling leeslijsten_tonen.
   var schakelaar = (staat.inst || {}).leeslijsten_tonen === true;
+  var toonTriggers = (staat.inst || {}).triggerwaarschuwingen_tonen === true;
   var lijsten = leeslijstInfo(lijstRijen, staat.vandaag, schakelaar);
   var toonLijsten = schakelaar || lijsten.geplandZichtbaar;
   // Namen in de instelling aanraders_verbergen verschijnen nergens op de website.
@@ -67,6 +68,12 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
       d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
       db: /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(schoon(rij.beschrijving_bron)) && schoonMetRegels(rij.beschrijving) ? schoon(rij.beschrijving_bron) : ''
     };
+    var categorieen = splitsLijst(rij.categorieen);
+    if (categorieen.length) boek.ca = categorieen;
+    var trefwoorden = splitsLijst(rij.trefwoorden);
+    if (trefwoorden.length) boek.k = trefwoorden;
+    var triggers = toonTriggers ? splitsLijst(rij.triggerwaarschuwingen) : [];
+    if (triggers.length) boek.tw = triggers;
     var en = schoonMetRegels(rij.beschrijving_en);
     if (en && en !== extra.d) extra.de = en;
     Object.keys(extra).forEach(function (k) { if (!isLeeg(extra[k])) boek[k] = extra[k]; });

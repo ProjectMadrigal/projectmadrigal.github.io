@@ -291,9 +291,17 @@ mark { background: var(--kleur-let-op-vlak); color: var(--kleur-tekst); text-dec
 .label-leeslijst { color: var(--kleur-lijst); background: var(--kleur-lijst-vlak); }
 .label-leeslijst::before { content: "☰"; }
 .label-onderwerp { color: var(--kleur-tekst-zacht); background: var(--kleur-vlak); border-color: var(--kleur-rand); font-weight: normal; }
-/* Onderwerpen bij een boek, zoals op de oude website: een categorie (soort boek) in geel, een thema in paars. */
+/* Categorieën en trefwoorden bij een boek, zoals op de oude website: een categorie in geel, een thema of trefwoord in paars. */
 .label-onderwerp.categorie { color: #1B1B1C; background: #FFCD30; border-color: #FFCD30; }
 .label-onderwerp.thema { color: #FFFFFF; background: #6B3597; border-color: #6B3597; }
+.label-trigger { color: var(--kleur-tekst); background: var(--kleur-let-op-vlak); border-color: var(--kleur-rand); font-weight: normal; }
+.triggers summary { cursor: pointer; font-weight: bold; padding: 0.25rem 0; }
+.triggers summary { list-style: none; }
+.triggers summary::-webkit-details-marker { display: none; }
+.triggers summary::before { content: "▸\00a0"; }
+.triggers[open] summary::before { content: "▾\00a0"; }
+.triggers summary:focus-visible { outline: 3px solid var(--kleur-focus); outline-offset: 2px; }
+.triggers ul { margin-top: 0.5rem; }
 .label-onderwerp.categorie:hover, .label-onderwerp.thema:hover { text-decoration-thickness: 2px; }
 
 

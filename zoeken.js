@@ -67,7 +67,7 @@
 
   /**
    * Maakt een zoekindex: per boek de woorden van elk veld, één keer berekend.
-   * boeken: lijst uit de publieke catalogus (korte sleutels t, a, u, i).
+   * boeken: lijst uit de publieke catalogus (korte sleutels t, a, u, i, k = trefwoorden).
    */
   function maakIndex(boeken) {
     return boeken.map(function (b) {
@@ -77,6 +77,7 @@
           { gewicht: 3, woorden: woorden(b.t) },
           { gewicht: 2, woorden: woorden(b.ot) },
           { gewicht: 2, woorden: woorden(b.a) },
+          { gewicht: 2, woorden: woorden((b.ca || []).concat(b.k || []).join(' ')) },
           { gewicht: 1, woorden: woorden(b.u) }
         ],
         isbn: String(b.i || '').replace(/[^0-9X]/gi, '')

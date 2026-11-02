@@ -64,6 +64,9 @@
 
   var FILTERS = [
     { sleutel: 'groep', labelSleutel: 'fOnderwerp', label: 'Onderwerp', waarden: function (b) { return b.g || []; } /* alfabetisch, zie opties */ },
+    // Categorieën en thema's zoals op de oude website (kolommen categorieen en trefwoorden).
+    { sleutel: 'categorie', labelSleutel: 'fCategorie', label: 'Categorie', waarden: function (b) { return b.ca || []; }, volgorde: alfabetisch },
+    { sleutel: 'trefwoord', labelSleutel: 'fTrefwoord', label: 'Trefwoord', waarden: function (b) { return b.k || []; }, volgorde: alfabetisch },
     { sleutel: 'taal', labelSleutel: 'fTaal', label: 'Taal', waarden: function (b) { return b.l ? [b.l] : []; }, volgorde: alfabetisch },
     {
       sleutel: 'dikte', labelSleutel: 'fDikte', label: 'Dikte',
