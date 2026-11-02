@@ -383,7 +383,9 @@ async function meldAan(page, basis, pagina) {
     verwacht((await page.$$('#toegankelijkheid ul li')).length >= 8, 'Opsommingspunten');
     const alts = await page.$$eval('#toegankelijkheid figure img', (i) => i.map((x) => x.alt));
     verwacht(alts.includes('De rode deur naar de bib') && alts.some((a) => /voorgevel van de Peperfabriek/.test(a)), 'Foto\'s met beschrijving: ' + alts.join(' | '));
-    verwacht(alts.length === 2, 'Een onveilige link mag geen foto worden');
+    verwacht(alts.length === 5, 'Een onveilige link mag geen foto worden: ' + alts.length);
+    const eigen = await page.$$eval('#toegankelijkheid img[src^="assets/bib/"]', (i) => i.map((x) => x.complete && x.naturalWidth > 0));
+    verwacht(eigen.length === 3 && eigen.every(Boolean), 'De foto\'s van de bib laden: ' + JSON.stringify(eigen));
     verwacht(await page.$('#site-voet a[href="toegankelijkheid.html"]'), 'Link in de voet');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await page.goto(basis + '/index.html');
