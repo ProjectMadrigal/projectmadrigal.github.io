@@ -48,6 +48,7 @@ const SCRIPTS = [
   'apps-script/OudeBoeken.js',
   'apps-script/Titels.js',
   'apps-script/Titelcontrole.js',
+  'apps-script/Kolommen.js',
   'apps-script/Privacy.js',
   'apps-script/Overzetten.js',
   'apps-script/OudeSite.js',

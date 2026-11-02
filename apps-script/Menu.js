@@ -61,17 +61,9 @@ function installeer() {
   zetGetalopmaak(ss.getSheetByName('Verkopen'), ['prijs'], '0.00');
   zetTekstopmaak(ss.getSheetByName('Leners'), ['telefoon']);
 
-  // Niet-publieke kolommen van de Catalogus grijs markeren.
+  // Kolom status: een keuzelijst, met uitleg bij de kop.
   var cat = ss.getSheetByName('Catalogus');
   var catKop = cat.getRange(1, 1, 1, cat.getLastColumn()).getValues()[0].map(schoon);
-  ['herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald', 'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht', 'notitie'].forEach(function (k) {
-    var i = catKop.indexOf(k);
-    if (i > -1) {
-      cat.getRange(1, i + 1).setBackground('#d9d9d9').setNote('Niet publiek. Deze kolom verschijnt nooit op de website.');
-    }
-  });
-
-  // Kolom status: een keuzelijst, met uitleg bij de kop.
   var si = catKop.indexOf('status');
   if (si > -1) {
     cat.getRange(2, si + 1, Math.max(1, cat.getMaxRows() - 1), 1).setDataValidation(
@@ -79,6 +71,10 @@ function installeer() {
     cat.getRange(1, si + 1).setNote('Leeg = gewoon.\nverloren: niet op de website, niet uitleenbaar.\n' +
       'gevoelig verborgen: niet op de website, wel uitleenbaar.\ngevoelig zichtbaar: op de website met het label "Gevoelige inhoud".');
   }
+
+  // Brede tabbladen overzichtelijk: vaste eerste kolommen, kleur per thema, uitleg bij elke kop,
+  // niet-publieke kolommen schuin en grijs, technische kolommen ingeklapt (Kolommen.js).
+  maakTabbladenOverzichtelijk(true);
 
   // Planning: elke nacht de privacy-opruiming, elke maandagnacht een back-up,
   // en de cache legen bij een wijziging.
@@ -113,6 +109,7 @@ function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('Madrigal')
     .addItem('Installeer tabbladen (na een nieuw script)', 'installeer')
+    .addItem('Maak de brede tabbladen overzichtelijk', 'maakTabbladenOverzichtelijk')
     .addSeparator()
     .addSubMenu(ui.createMenu('Boeken')
       .addItem('Nieuwe boeken verwerken', 'verwerkNieuweBoeken')
