@@ -9,8 +9,8 @@
  * De kolommen op _en zijn de Engelse versie. Leeg? Dan toont de site het Nederlands.
  */
 
-var SITE_CACHE_SLEUTEL = 'site_v7'; // v7: voorbije events in de agenda
-var SITE_MAX_NIEUWS = 3;
+var SITE_CACHE_SLEUTEL = 'site_v8'; // v8: tot 6 nieuwsberichten (de site toont er zoveel als naast de agenda past)
+var SITE_MAX_NIEUWS = 6; // de startpagina toont er minstens 3, en meer als ze naast de agenda passen
 var SITE_MAX_VOORBIJ = 20; // zoveel voorbije events kan een bezoeker openklikken
 var SITE_MAX_AANRADERS = 12;
 

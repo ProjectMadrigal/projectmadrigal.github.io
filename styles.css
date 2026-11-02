@@ -179,6 +179,15 @@ input.kort { max-width: 5rem; }
 .welkom .knoppen { margin-top: .5rem; }
 .meer-opties { margin-top: .5rem; }
 .voorbije-events { margin-top: 1rem; }
+/* Een event kort: datum en titel, open te klikken. */
+.event-kort { border-top: 1px solid currentColor; padding: .25rem 0; }
+.event-kort > summary { gap: .25rem .75rem; flex-wrap: wrap; font-weight: normal; }
+.event-kort-datum { font-family: var(--letter-kop); font-size: .9em; }
+.event-kort-titel { font-weight: 700; }
+.event-kort > .nieuwskaart { margin-top: .5rem; }
+/* Een + om open te klikken, een − als het open staat. */
+.event-kort > summary::after, .voorbije-events > summary::after { content: "+"; margin-left: auto; font-weight: 700; font-size: 1.2em; padding-left: .5rem; }
+.event-kort[open] > summary::after, .voorbije-events[open] > summary::after { content: "−"; }
 .voorbije-events > .kaarten { margin-top: .75rem; }
 .meer-opties summary { cursor: pointer; min-height: 2.75rem; display: flex; align-items: center; }
 .knop.gevaar { color: var(--kleur-fout); border-color: var(--kleur-fout); }
