@@ -3548,7 +3548,7 @@ function datumTekst(datum, vandaag) {
  * Deelt de boeken in. catalogus wordt aangepast (wijzig). namen: rijen van het tabblad Categorieën en trefwoorden
  * ({ naam, soort, zoekwoorden }). Geeft [{ boek_id, titel, themas, categorieen, trefwoorden }] met wat erbij kwam.
  */
-function deelBoekenIn(catalogus, namen) {
+function deelBoekenIn(catalogus, namen, welke) {
   var kandidaten = (namen || []).filter(function (r) {
     var s = normaliseerTekst(r.soort);
     return (s === 'categorie' || s === 'trefwoord') && schoon(r.naam) && !themaExact(r.naam);
@@ -3562,6 +3562,8 @@ function deelBoekenIn(catalogus, namen) {
     if (isLeeg(b.boek_id) || isLeeg(b.titel)) return;
     // Een film krijgt enkel trefwoorden: thema's en categorieën zijn voor boeken (een film heeft genres).
     var film = isFilm(b);
+    // welke: 'boeken' of 'films' (menu), leeg = allebei (vanzelf, elke dag).
+    if ((welke === 'boeken' && film) || (welke === 'films' && !film)) return;
     var titelWoorden = normaliseerTekst(b.titel).split(' ').filter(Boolean);
     var tekstWoorden = normaliseerTekst([b.beschrijving, b.beschrijving_en].join(' ')).split(' ').filter(Boolean);
     var erbij = { extra_onderwerpen: [], categorieen: [], trefwoorden: [] };
@@ -3605,20 +3607,20 @@ function deelBoekenInAutomatisch() {
 /** Menu: Boeken > Deel de boeken in op titel en beschrijving. */
 function deelBoekenInMenu() {
   installeer(); // zorgt voor de kolom zoekwoorden en het tabblad Indeling
-  var tekst = indelingTekst(deelBoekenInUitvoeren());
+  var tekst = indelingTekst(deelBoekenInUitvoeren('boeken'), 'boeken');
   logboek('menu', 'deelBoekenIn', tekst);
   meld(tekst);
 }
 
 /** Deelt in en schrijft het tabblad Indeling. Geeft de rijen van Indeling. */
-function deelBoekenInUitvoeren() {
+function deelBoekenInUitvoeren(welke) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   var uit;
   try {
     var catalogus = leesTabel('Catalogus');
     var namen = leesTabel('Categorieën en trefwoorden').rijen;
-    uit = deelBoekenIn(catalogus.rijen, namen);
+    uit = deelBoekenIn(catalogus.rijen, namen, welke);
     if (uit.length) schrijfKolommen(catalogus, ['extra_onderwerpen', 'categorieen', 'trefwoorden']);
     if (uit.length) {
       var ss = spreadsheet();
@@ -3636,6 +3638,14 @@ function deelBoekenInUitvoeren() {
   vernieuwCategorieen([]);
   leegCache();
   return uit;
+}
+
+/** Menu: Films > Deel de films in op titel en beschrijving (trefwoorden). */
+function deelFilmsInMenu() {
+  installeer();
+  var tekst = indelingTekst(deelBoekenInUitvoeren('films'), 'films');
+  logboek('menu', 'deelFilmsIn', tekst);
+  meld(tekst);
 }
 
 /** GET: de publieke catalogus. */
@@ -5003,9 +5013,9 @@ function indelenZoekwoorden(naam, eigen) {
   return uniek;
 }
 
-function indelingTekst(uit) {
+function indelingTekst(uit, welke) {
   var tel = function (k) { return uit.filter(function (r) { return r[k]; }).length; };
-  return uit.length + ' boeken en films ingedeeld op titel en beschrijving: ' + tel('themas') + ' kregen een thema erbij, ' +
+  return uit.length + ' ' + (welke === 'boeken' ? 'boeken' : welke === 'films' ? 'films' : 'boeken en films') + ' ingedeeld op titel en beschrijving: ' + tel('themas') + ' kregen een thema erbij, ' +
     tel('categorieen') + ' een categorie, ' + tel('trefwoorden') + ' een trefwoord. Wat erbij kwam, staat in het tabblad Indeling. ' +
     'Er werd niets weggehaald.';
 }
@@ -7165,7 +7175,8 @@ function onOpen() {
     .addSubMenu(ui.createMenu('Films')
       .addItem('Haal de Letterboxd-lijst op', 'haalLetterboxdLijst')
       .addItem('Neem de films over uit dit tabblad (CSV van IMDb of Letterboxd)', 'neemFilmsOverUitTabblad')
-      .addItem('Vul de films aan (Wikidata en Wikipedia)', 'vulFilmsAan'))
+      .addItem('Vul de films aan (Wikidata en Wikipedia)', 'vulFilmsAan')
+      .addItem('Deel de films in op titel en beschrijving (trefwoorden)', 'deelFilmsInMenu'))
     .addSubMenu(ui.createMenu('Verkoop')
       .addItem('Werk de voorraad bij', 'voorraadBijwerkenMenu'))
     .addSeparator()
