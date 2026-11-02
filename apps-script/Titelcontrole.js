@@ -211,6 +211,17 @@ function controleTitelKort(titel) {
 }
 
 /**
+ * Is de hoofdtitel dezelfde, of bijna (een tikfout van hoogstens twee letters, evenveel woorden)? "Amarican Homo"
+ * en "American Homo". Dan mag de ondertitel erbij. De tikfout zelf blijft een verschil op de lijst.
+ */
+function controleTitelBijna(a, b) {
+  var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  return x.split(' ').length === y.split(' ').length && Math.min(x.length, y.length) >= 6 && levenshtein(x, y) <= 2;
+}
+
+/**
  * De andere titel begint met dezelfde woorden als nu en heeft er meer woorden achter, zonder leesteken ertussen?
  * Geeft die extra woorden (de ondertitel), anders ''. Enkel bij een titel van minstens vier woorden en een
  * ondertitel van minstens twee: bij korte titels is dat te onzeker ("De kamer" en "De kamer van Mira").
@@ -240,7 +251,7 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
   var zoek = new RegExp(CONTROLE_ONDERTITEL.source, 'g'), m, gevonden = null;
   while ((m = zoek.exec(ander))) {
     if (!m[0].length) zoek.lastIndex++;
-    if (controleTitelSleutel(ander.slice(0, m.index)) === controleTitelSleutel(nu)) { gevonden = m; break; }
+    if (controleTitelBijna(ander.slice(0, m.index), nu)) { gevonden = m; break; }
   }
   var teken, rest;
   if (gevonden) {
