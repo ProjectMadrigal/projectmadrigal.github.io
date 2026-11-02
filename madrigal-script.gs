@@ -4186,8 +4186,8 @@ function installeer() {
     opmaakKop(blad, blad.getLastColumn());
   });
 
-  // Tekstopmaak voor kolommen die tekst moeten blijven (ISBN, telefoon, lenersnummer).
-  zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id', 'wiki_gezocht']);
+  // Tekstopmaak voor kolommen die tekst moeten blijven (ISBN, telefoon, lenersnummer, en titels zoals 24/7 die anders een datum worden).
+  zetTekstopmaak(ss.getSheetByName('Catalogus'), ['isbn', 'boek_id', 'wiki_gezocht', 'titel', 'originele_titel', 'auteur']);
   zetGetalopmaak(ss.getSheetByName('Catalogus'), ['duur', 'te_koop_aantal']);
   zetGetalopmaak(ss.getSheetByName('Catalogus'), ['prijs'], '0.00');
   zetGetalopmaak(ss.getSheetByName('Standje boeken'), ['prijs'], '0.00');
