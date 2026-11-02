@@ -84,7 +84,7 @@
 
   /** Wat bestuur-beheer.js nodig heeft van dit scherm. */
   function context() {
-    return { data: data, kop: kop, laad: laad, scherm: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur', toonSectie: function (naam) { toonSectie(naam, true); } };
+    return { data: data, kop: kop, laad: laad, scherm: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur', toonSectie: function (naam) { toonSectie(naam, true); }, tekenNav: tekenNav };
   }
 
   /* ---------- Gegevens en navigatie ---------- */
@@ -130,6 +130,7 @@
     if (naam === 'terugzetten') return (data.vandaagTerug || []).length;
     if (naam === 'tevervangen') return (data.teVervangen || []).length;
     if (naam === 'voorstellen') return (data.beschrijvingVoorstellen || []).length;
+    if (naam === 'titelcontrole') return typeof data.titelcontrole === 'number' ? data.titelcontrole : null;
     return null;
   }
 

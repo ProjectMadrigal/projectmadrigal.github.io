@@ -103,6 +103,11 @@ function titelcontroleLijst(catalogus, rijen) {
   return { open: open, nietGevonden: nietGevonden, gedaan: gedaan };
 }
 
+/** Hoeveel boeken nog na te kijken zijn: voor het getal op de knop in het scherm. */
+function titelcontroleAantal(rijen) {
+  return (rijen || []).filter(function (r) { return !isLeeg(r.boek_id) && !schoon(r.status); }).length;
+}
+
 /**
  * Bewaart wat iemand bij een boek koos. invoer: { boek_id, status: klopt | aangepast | niet in de kast | open, titel, auteur }.
  * Bij aangepast: titel en auteur in de Catalogus (de bron_sleutel blijft). Geeft { ok, tekst, catalogusGewijzigd } of { ok: false, fout }.

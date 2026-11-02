@@ -53,6 +53,12 @@
   }
 
   function teken(vak, ctx, okTekst) {
+    // Het getal op de knop in het menu bijwerken.
+    var aantal = lijst.leeg ? 0 : lijst.open.length;
+    if (ctx.data && ctx.data.titelcontrole !== aantal) {
+      ctx.data.titelcontrole = aantal;
+      if (ctx.tekenNav) ctx.tekenNav();
+    }
     var bestuur = isBestuur(ctx);
     var melding = el('div', { 'aria-live': 'polite' });
     if (okTekst) B.melding(melding, 'ok', okTekst);
