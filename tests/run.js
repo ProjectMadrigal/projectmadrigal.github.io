@@ -2016,6 +2016,20 @@ test('categorieën en trefwoorden: de naam van een thema staat niet dubbel', () 
   gelijk(M.categorieenOverzicht([{ categorieen: 'Roman, Fictie' }], []).map((r) => r.naam), ['Roman']);
 });
 
+test('categorieën en trefwoorden: de soort in het tabblad deelt de namen opnieuw in', () => {
+  const cat = [
+    { boek_id: 'B1', categorieen: 'Crime, Comics', trefwoorden: 'Queer, Lesbisch' },
+    { boek_id: 'B2', categorieen: 'Comics', trefwoorden: 'crime' },
+    { boek_id: 'B3', trefwoorden: 'Geweld' }
+  ];
+  const soortVan = { crime: 'trefwoord', queer: 'weg', geweld: 'triggerwaarschuwing' };
+  gelijk(Array.from(M.categorieenHerindelen(cat, soortVan)), ['B1', 'B3']);
+  gelijk([cat[0].categorieen, cat[0].trefwoorden], ['Comics', 'Lesbisch, Crime']);
+  gelijk([cat[1].categorieen, cat[1].trefwoorden], ['Comics', 'crime'], 'B2 stond al juist');
+  gelijk([cat[2].trefwoorden, cat[2].triggerwaarschuwingen], ['', 'Geweld']);
+  gelijk(M.categorieenHerindelen(cat, soortVan).length, 0, 'opnieuw: niets meer te doen');
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
@@ -3509,6 +3523,14 @@ test('genres opkuisen: vaste namen (Intersekse, Religie en Spiritualiteit, Young
   gelijk(onderwerpen.map((r) => [r.genre, r.filtergroepen]), [['Religie en Spiritualiteit', 'Religie en Spiritualiteit'], ['Intersekse', 'Gender']]);
 });
 
+
+test('sorteren op dikte en duur, zonder waarde achteraan', () => {
+  const lijst = [{ id: 'a', t: 'A', p: 300, du: 90 }, { id: 'b', t: 'B', p: 80, du: 120 }, { id: 'c', t: 'C' }, { id: 'd', t: 'D', p: 500, du: 45 }];
+  gelijk(F.sorteer(lijst, 'dikte-dun').map((b) => b.id), ['b', 'a', 'd', 'c']);
+  gelijk(F.sorteer(lijst, 'dikte-dik').map((b) => b.id), ['d', 'a', 'b', 'c']);
+  gelijk(F.sorteer(lijst, 'duur-kort').map((b) => b.id), ['d', 'a', 'b', 'c']);
+  gelijk(F.sorteer(lijst, 'duur-lang').map((b) => b.id), ['b', 'a', 'd', 'c']);
+});
 
 test('filters samen: elke keuzelijst toont enkel wat met de andere filters nog boeken geeft', () => {
   const boeken = [
