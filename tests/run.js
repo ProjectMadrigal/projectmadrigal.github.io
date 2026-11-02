@@ -2051,6 +2051,10 @@ test('indelen op titel en beschrijving: thema, categorie en trefwoord erbij, noo
   gelijk([cat[2].trefwoorden], ['Zee'], 'eigen zoekwoorden tellen, Queer staat op weg, lesbisch één keer is te weinig');
   gelijk(!cat[3].categorieen, true, 'een film krijgt geen categorie');
   gelijk(M.deelBoekenIn(cat, namen).length, 0, 'opnieuw: niets dubbel');
+  // Enkel boeken of enkel films (de menu's Boeken en Films).
+  const tweede = [{ boek_id: 'B9', titel: 'Een roman' }, { boek_id: 'F9', soort: 'film', titel: 'Lesbische lesbiennes' }];
+  gelijk(M.deelBoekenIn(tweede.map((x) => Object.assign({}, x)), namen, 'boeken').map((r) => r.boek_id), ['B9']);
+  gelijk(M.deelBoekenIn(tweede.map((x) => Object.assign({}, x)), namen, 'films').map((r) => r.boek_id), ['F9']);
 });
 
 test('Politiek is een apart thema, los van Maatschappij', () => {
