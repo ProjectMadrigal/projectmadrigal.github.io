@@ -349,6 +349,29 @@ async function meldAan(page, basis, pagina) {
     verwacht(!fouten.length, fouten.join(' | '));
   });
 
+  await test('boekpagina: bladeren naar het vorige en volgende boek, ook met de pijltjes, en terug naar dezelfde plek', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, {});
+    await page.goto(basis + '/boeken.html#/');
+    await page.waitForSelector('#resultaten .boek-titel a');
+    const titels = await page.$$eval('#resultaten .boek-titel a', (x) => x.map((e) => e.textContent));
+    await page.click('#resultaten .boek-titel a >> nth=0');
+    await page.waitForSelector('.bladeren');
+    verwacht(/^1 van \d+$/.test(await page.textContent('.bladeren .hulptekst')), 'Plaats: ' + await page.textContent('.bladeren .hulptekst'));
+    verwacht(!(await page.$('.bladeren a[rel="prev"]')), 'Vorig boek bij het eerste boek');
+    await page.click('.bladeren a[rel="next"]');
+    await page.waitForFunction((t) => document.querySelector('.detail h1').textContent === t, titels[1]);
+    await page.keyboard.press('ArrowRight');
+    await page.waitForFunction((t) => document.querySelector('.detail h1').textContent === t, titels[2]);
+    await page.keyboard.press('ArrowLeft');
+    await page.waitForFunction((t) => document.querySelector('.detail h1').textContent === t, titels[1]);
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await page.click('a.terug');
+    await page.waitForSelector('#resultaten .boek-titel a');
+    verwacht((await page.evaluate(() => document.activeElement && document.activeElement.textContent)) === titels[1], 'Focus terug op het laatst bekeken boek');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+
   console.log('\nAfgeschermde schermen (nagebootste web-app)');
   await test('bestuursscherm: alle onderdelen openen zonder fouten', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });

@@ -435,7 +435,7 @@
   function toonDetail(id) {
     var b = staat.perId[id];
     var scherm = $('detail-scherm');
-    var terug = el('a', { class: 'terug', href: staat.laatsteLijstAdres }, t(FILM ? 'terugFilms' : 'terugCatalogus'));
+    var terug = el('div', { class: 'detail-nav' }, el('a', { class: 'terug', href: staat.laatsteLijstAdres }, t(FILM ? 'terugFilms' : 'terugCatalogus')), bladerKnoppen(id));
     if (!b) {
       D.vervang(scherm, terug, el('div', { class: 'blok' },
         el('h1', { tabindex: '-1' }, t(FILM ? 'filmNietGevonden' : 'nietGevonden')),
@@ -498,6 +498,40 @@
         el('p', { class: 'hulptekst', id: 'deel-melding', 'aria-live': 'polite' }))),
       leesOok(b));
     document.title = b.t + ' · Project Madrigal';
+  }
+
+  /**
+   * Vorig en volgend boek in de lijst waar je vandaan kwam (zelfde zoekterm, filters en sortering).
+   * Zo kijk je boek na boek na, zonder telkens terug te gaan. Ook met de pijltjestoetsen links en rechts.
+   */
+  function buren(id) {
+    var lijst = resultaten();
+    for (var i = 0; i < lijst.length; i++) {
+      if (lijst[i].id === id) return { vorig: lijst[i - 1] || null, volgend: lijst[i + 1] || null, nr: i + 1, n: lijst.length };
+    }
+    return null;
+  }
+
+  function bladerKnoppen(id) {
+    var b = buren(id);
+    if (!b || b.n < 2) return null;
+    var link = function (x, sleutel, rel) {
+      return x ? el('a', { class: 'knop tweede klein', href: '#/' + PAD + '/' + encodeURIComponent(x.id), rel: rel, 'aria-label': t(sleutel) + ': ' + x.t }, t(sleutel)) : null;
+    };
+    return el('nav', { class: 'bladeren', 'aria-label': t('bladeren') },
+      link(b.vorig, FILM ? 'vorigeFilm' : 'vorigBoek', 'prev'),
+      el('span', { class: 'hulptekst' }, t('plaatsInLijst', { nr: b.nr, n: b.n })),
+      link(b.volgend, FILM ? 'volgendeFilm' : 'volgendBoek', 'next'));
+  }
+
+  /** Bladeren naar een ander boek: de lijst onthoudt de pagina en het boek, zodat Terug daar uitkomt. */
+  function onthoudPlaats(id) {
+    var b = buren(id);
+    if (!b) return;
+    staat.keuzes.pagina = Math.ceil(b.nr / PER_PAGINA);
+    staat.laatsteLijstAdres = lijstAdres();
+    staat.laatstGeopend = id;
+    staat.gebladerd = true;
   }
 
   /** Na Bewerk dit boek: de nieuwe waarden (velden van de Catalogus) meteen in het boek op de website. */
@@ -568,10 +602,14 @@
         window.scrollTo(0, staat.scrollPositie);
         var link = document.querySelector('[data-id="' + CSS.escape(staat.laatstGeopend) + '"]');
         if (link) link.focus({ preventScroll: true });
+        // Gebladerd: de plek van vroeger klopt niet meer, dus naar het laatst bekeken boek.
+        if (link && staat.gebladerd) link.scrollIntoView({ block: 'center' });
         staat.laatstGeopend = null;
+        staat.gebladerd = false;
       }
     } else if (adres.scherm === 'boek') {
       if (!staat.data) return;
+      onthoudPlaats(adres.id);
       toonDetail(adres.id);
       window.scrollTo(0, 0);
       var kop = detail.querySelector('h1');
@@ -628,6 +666,14 @@
       if (a) { staat.laatstGeopend = a.getAttribute('data-id'); staat.scrollPositie = window.scrollY; }
     });
     window.addEventListener('hashchange', toonScherm);
+    // Pijltjestoetsen op de pagina van een boek: vorig en volgend boek. Niet tijdens het typen of in een venster.
+    document.addEventListener('keydown', function (e) {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+      if (leesAdres().scherm !== 'boek' || document.querySelector('dialog[open]')) return;
+      if (/^(input|textarea|select)$/i.test((e.target && e.target.tagName) || '') || (e.target && e.target.isContentEditable)) return;
+      var knop = document.querySelector('.bladeren a[rel="' + (e.key === 'ArrowLeft' ? 'prev' : 'next') + '"]');
+      if (knop) { e.preventDefault(); location.hash = knop.getAttribute('href'); }
+    });
     // Andere taal gekozen: alles opnieuw tekenen, zonder de focus te verplaatsen.
     document.addEventListener('taalgewijzigd', function () {
       if (!staat.data) return;
