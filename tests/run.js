@@ -2040,14 +2040,16 @@ test('indelen op titel en beschrijving: thema, categorie en trefwoord erbij, noo
     { boek_id: 'B1', titel: 'De verzonnen moord', beschrijving: 'Een spannende roman over een rechercheur in een kleine stad.', trefwoorden: 'Eigen woord' },
     { boek_id: 'B2', titel: 'Twee lesbiennes op het veld', beschrijving: 'Een verhaal over voetbal en liefde tussen twee lesbische speelsters.' },
     { boek_id: 'B3', titel: 'Licht', beschrijving: 'Een vuurtorenwachter ziet de golven en de vuurtoren elke nacht. Queer en lesbisch.' },
-    { boek_id: 'B4', titel: 'Film', soort: 'film', beschrijving: 'Een roman.' }
+    { boek_id: 'B4', titel: 'Film', soort: 'film', beschrijving: 'Een roman.' },
+    { boek_id: 'F1', titel: 'Lesbische zomer', soort: 'film', beschrijving: 'Een film over voetbal en een lesbische liefde, een geschiedenis met geschiedenis en oorlog in de geschiedenis.' }
   ];
   const uit = M.deelBoekenIn(cat, namen);
-  gelijk(uit.map((r) => r.boek_id), ['B1', 'B2', 'B3']);
+  gelijk(uit.map((r) => r.boek_id), ['B1', 'B2', 'B3', 'F1']);
+  gelijk([cat[4].trefwoorden, !cat[4].categorieen, !cat[4].extra_onderwerpen], ['Lesbisch', true, true], 'een film krijgt enkel trefwoorden');
   gelijk([cat[0].categorieen, cat[0].trefwoorden], ['Roman, Crime', 'Eigen woord'], 'moord en rechercheur: Crime, en het eigen trefwoord blijft');
   gelijk([cat[1].categorieen, cat[1].trefwoorden], ['Sport', 'Lesbisch'], 'lesbiennes in de titel telt dubbel');
   gelijk([cat[2].trefwoorden], ['Zee'], 'eigen zoekwoorden tellen, Queer staat op weg, lesbisch één keer is te weinig');
-  gelijk(!cat[3].categorieen, true, 'films niet');
+  gelijk(!cat[3].categorieen, true, 'een film krijgt geen categorie');
   gelijk(M.deelBoekenIn(cat, namen).length, 0, 'opnieuw: niets dubbel');
 });
 
@@ -3544,6 +3546,13 @@ test('genres opkuisen: vaste namen (Intersekse, Religie en Spiritualiteit, Young
   gelijk(onderwerpen.map((r) => [r.genre, r.filtergroepen]), [['Religie en Spiritualiteit', 'Religie en Spiritualiteit'], ['Intersekse', 'Gender']]);
 });
 
+
+test('films: filter op trefwoord, en enkel trefwoorden die bij een film horen', () => {
+  const films = [{ id: 'F1', g: ['Drama'], k: ['Lesbisch'] }, { id: 'F2', g: ['Komedie'] }];
+  const o = F.optiesSamen(films, {}, null, F.FILMFILTERS);
+  gelijk(o.trefwoord.map((x) => x.waarde + x.aantal), ['Lesbisch1']);
+  gelijk(F.pasToe(films, { trefwoord: 'Lesbisch' }, F.FILMFILTERS).map((b) => b.id), ['F1']);
+});
 
 test('sorteren op dikte en duur, zonder waarde achteraan', () => {
   const lijst = [{ id: 'a', t: 'A', p: 300, du: 90 }, { id: 'b', t: 'B', p: 80, du: 120 }, { id: 'c', t: 'C' }, { id: 'd', t: 'D', p: 500, du: 45 }];
