@@ -17,7 +17,9 @@ var GENRES_TABBLAD = 'Genres opkuisen';
 // Schrijfwijzen die altijd zo moeten: genre (zoals genreSleutel het maakt) -> correcte schrijfwijze. Vul gerust aan.
 var GENRE_SCHRIJFWIJZE_LIJST = {
   'poezie': 'Poëzie', 'seksualiteit': 'Seksualiteit', 'biografie': 'Biografie', 'autobiografie': 'Autobiografie',
-  'feminisme': 'Feminisme', 'young adult': 'Young adult', 'graphic novel': 'Graphic novel', 'non fictie': 'Non-fictie',
+  'intersex': 'Intersekse', 'intersekse': 'Intersekse', 'religie': 'Religie en Spiritualiteit', 'religie en spiritualiteit': 'Religie en Spiritualiteit',
+  'fotoboek': 'Kunst en Fotoboek', 'kunst en fotoboek': 'Kunst en Fotoboek',
+  'feminisme': 'Feminisme', 'young adult': 'Young Adult', 'graphic novel': 'Graphic novel', 'non fictie': 'Non-fictie',
   'nonfictie': 'Non-fictie', 'bdsm': 'BDSM', 'lgbt': 'LGBT', 'lgbtq': 'LGBTQ', 'lgbtqia': 'LGBTQIA+', 'lhbt': 'LHBT'
 };
 var GENRE_SCHRIJFWIJZE_CACHE = null;

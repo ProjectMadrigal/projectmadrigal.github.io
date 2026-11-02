@@ -32,8 +32,8 @@ var ONDERWERP_TEKST_WOORDEN = [
   ['Feminisme', ['feminis', 'patriarchaat', 'patriarchy', 'vrouwenbeweging', 'vrouwenrechten', 'misogyn']],
   ['Geschiedenis', ['geschiedenis', 'history', 'historisch', 'historical', '=eeuw', '=eeuwen', '=century', '=centuries', 'oorlog', 'holocaust', 'archief']],
   ['Maatschappij', ['essay', 'politiek', 'politics', 'samenleving', 'maatschappij', 'society', 'activis', 'sociolog', 'filosof', 'philosoph', 'onderzoek', 'research']],
-  ['Religie en spiritualiteit', ['religie', 'religion', 'geloof', 'faith', 'kerk', 'church', 'bijbel', 'bible', 'islam', 'spiritualiteit', 'spiritual', 'tarot', 'heks', 'witch', '=god', '=goden', '=gods']],
-  ['Young adult', ['young adult', 'tiener', 'teen', 'jongeren', 'middelbare school', 'high school', 'puber']],
+  ['Religie en Spiritualiteit', ['religie', 'religion', 'geloof', 'faith', 'kerk', 'church', 'bijbel', 'bible', 'islam', 'spiritualiteit', 'spiritual', 'tarot', 'heks', 'witch', '=god', '=goden', '=gods']],
+  ['Young Adult', ['young adult', 'tiener', 'teen', 'jongeren', 'middelbare school', 'high school', 'puber']],
   ['Erotica en BDSM', ['erotisch', 'erotiek', 'erotic', 'bdsm', 'kink', 'fetish', '=leder', 'leather', 'dominant', 'submissive']],
   ['Seksualiteit', ['seksualiteit', 'sexuality', 'coming out', 'comingout', 'seksuele', 'sexual']]
 ];
