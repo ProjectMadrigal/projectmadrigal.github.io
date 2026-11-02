@@ -522,7 +522,12 @@ function neemAangeduideOudeBoekenOver() {
 function kopieerOudeCovers() {
   var start = Date.now();
   if (wachtOpDaglimiet('kopieerOudeCovers')) return;
-  if (!startAchtergrond('kopieerOudeCovers')) { meldAlBezig('kopieerOudeCovers'); return; }
+  if (!startAchtergrond('kopieerOudeCovers')) {
+    // Een vorige ronde loopt nog (of stopte zonder op te ruimen): later opnieuw proberen in plaats van stil te stoppen.
+    planTaak('kopieerOudeCovers', 10 * 60 * 1000);
+    meldAlBezig('kopieerOudeCovers');
+    return;
+  }
   // Vangnet: stopt Google deze ronde onderweg (te lang bezig, of een fout van Drive), dan start ze vanzelf opnieuw.
   planTaak('kopieerOudeCovers', 10 * 60 * 1000);
   var gekopieerd = 0, zonder = 0, rest = 0, storing = false, fout = '', daglimiet = false;
