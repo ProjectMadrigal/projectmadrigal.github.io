@@ -602,6 +602,8 @@ Waarom die naam? Een repository die precies `<naam van de organisatie>.github.io
 
 Kies **Madrigal > Eenmalig bij de start > Neem nieuws, agenda en vragen over**. Het script haalt alles op en zet het in de tabbladen Nieuws, Agenda en Veelgestelde vragen. Opnieuw uitvoeren maakt niets dubbel.
 
+**Beschrijvingen en covers van de boeken:** kies **Madrigal > Eenmalig bij de start > Neem beschrijvingen en covers van de boeken over van de oude website**. Het script zoekt elk boek in de Catalogus (op ISBN, anders op titel en auteur). De beschrijving en de cover van de oude website gaan voor op wat het script zelf vond, maar niet op eigen werk: een cover-foto of link die iemand toevoegde, of een beschrijving die iemand aanpaste of goedkeurde (dat staat in het Logboek). De covers kopieert het script daarna op de achtergrond naar Google Drive (taak *Covers van de oude website naar Drive*), zodat ze blijven werken als de oude website verdwijnt. Boeken die het niet terugvindt, komen in **Na te kijken**. Opnieuw uitvoeren mag.
+
 - Kijk de teksten daarna na: opmaak zoals vet en links verdwijnt.
 - De afbeeldingen blijven op de server van de oude website staan. Zet ze op een andere plaats voor je die server opzegt, en pas de link in de kolom `afbeelding` aan.
 
