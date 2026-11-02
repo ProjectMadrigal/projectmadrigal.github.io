@@ -999,6 +999,7 @@ async function meldAan(page, basis, pagina) {
     verwacht((await page.textContent('#sectie button.knop:not(.tweede)')) === 'Klopt, volgende', 'Knop zonder verandering');
     // Stocklijst: enkel de titel is anders. Oude website: enkel de auteur (hoofdletters in de titel tellen niet).
     verwacht(!(await page.$('button[aria-label="Neem de auteur van stocklijst over"]')) && !(await page.$('button[aria-label="Neem de titel van oude website over"]')), 'Knop bij iets dat niet verschilt');
+    verwacht((await page.$$eval('#sectie table mark', (m) => m.map((x) => x.textContent))).join('|') === 'verzonnen|Myra', 'Gemarkeerde woorden: ' + (await page.$$eval('#sectie table mark', (m) => m.map((x) => x.textContent))).join('|'));
     await page.click('button[aria-label="Neem de auteur van oude website over"]');
     verwacht((await page.inputValue('#tc-auteur')) === 'Verbeek, Myra', 'Auteur niet in de vorm Achternaam, Voornaam: ' + await page.inputValue('#tc-auteur'));
     verwacht((await page.inputValue('#tc-titel')) === 'De verzonen zee', 'De titel mag niet veranderen');

@@ -253,6 +253,8 @@ textarea { min-height: 6rem; }
 .status-gesloten::before { content: "✕"; }
 .status-anders { color: var(--kleur-let-op); background: var(--kleur-let-op-vlak); }
 .status-anders::before { content: "≠"; }
+/* Titels en auteurs nakijken: de woorden die verschillen. Onderlijnd én gekleurd, niet enkel kleur. */
+mark { background: var(--kleur-let-op-vlak); color: var(--kleur-tekst); text-decoration: underline; text-underline-offset: 2px; }
 .status-tip { color: var(--kleur-aanrader); background: var(--kleur-aanrader-vlak); }
 .status-tip::before { content: "★"; }
 .rooster-avond { border-left: 6px solid var(--kleur-paars); }

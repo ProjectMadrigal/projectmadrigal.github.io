@@ -42,7 +42,7 @@
   // Tussen twee auteurs: ; of & of "en". Een komma hoort bij "Achternaam, Voornaam". Zoals in apps-script/Titelcontrole.js.
   var SCHEIDING = /(\s*;\s*|\s*&\s*|\s+(?:en|and|et|und)\s+)/i;
   // Tussen titel en ondertitel: een dubbelpunt, een streepje met spaties, of een punt gevolgd door meer tekst.
-  var ONDERTITEL = /\s*:\s*|\s+[-–—]\s+|\.\s+(?=\S)/;
+  var ONDERTITEL = /\s*:\s*|\s+[-–—]\s+|\.\s+(?=\S)|\s*,\s+(?=\S)|\s+(?=\()/;
   function sleutel(t) { return Z.normaliseer(t).split(' ').filter(function (w, i, alle) { return w && alle.indexOf(w) === i; }).sort().join(' '); }
   /** Staat elke naam in de vorm "Achternaam, Voornaam"? (Een naam uit één woord telt als goed.) Zoals in Titelcontrole.js. */
   function goedeVorm(auteur) {
@@ -171,6 +171,14 @@
       // De vorm "Achternaam, Voornaam" wint altijd: een bron zonder die vorm telt niet tegen een bron met die vorm.
       return goedeVorm(a) !== goedeVorm(b);
     }
+    /** De woorden die niet in de versie van nu staan, gemarkeerd: zo zie je meteen wat verschilt (Fonker, Jonker). */
+    function gemarkeerd(tekst, nuTekst) {
+      var nuWoorden = Z.normaliseer(nuTekst).split(' ');
+      return String(tekst || '').split(/(\s+)/).map(function (w) {
+        var k = Z.normaliseer(w);
+        return k && k.split(' ').some(function (d) { return nuWoorden.indexOf(d) === -1; }) ? el('mark', {}, w) : w;
+      });
+    }
     function cel(tekst, anders, knop) {
       return el('td', {}, tekst || '–', anders ? [' ', D.statusLabel('anders', 'anders')] : null, knop ? [el('br'), knop] : null);
     }
@@ -183,12 +191,14 @@
     function versie(naam, v, isNu) {
       if (!v) return el('tr', {}, el('th', { scope: 'row' }, naam), el('td', { colspan: '3', class: 'hulptekst' }, 'Niet gevonden in deze bron'));
       if (isNu) return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t), cel(v.a), el('td', { class: 'hulptekst' }, 'Staat in de velden'));
-      var titelAnders = !!v.t && !zelfdeTitel(v.t, x.nu.t), auteurAnders = !!v.a && !zelfdeAuteur(v.a, x.nu.a);
+      // Het script zegt wat echt anders is (ta, aa). Anders vergelijkt het scherm zelf.
+      var titelAnders = typeof v.ta === 'boolean' ? v.ta : !!v.t && !zelfdeTitel(v.t, x.nu.t);
+      var auteurAnders = typeof v.aa === 'boolean' ? v.aa : !!v.a && !zelfdeAuteur(v.a, x.nu.a);
       var bron = naam.toLowerCase();
       var titelKnop = titelAnders ? neemKnop('Neem titel over', 'Neem de titel van ' + bron + ' over', function () { titel.value = v.t; titel.focus(); }) : null;
       // De auteur in de vorm Achternaam, Voornaam, met de achternaam zoals die nu op de website staat.
       var auteurKnop = auteurAnders ? neemKnop('Neem auteur over', 'Neem de auteur van ' + bron + ' over', function () { auteur.value = auteurInVorm(v.a, x.nu.a); auteur.focus(); }) : null;
-      return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t, titelAnders, titelKnop), cel(v.a, auteurAnders, auteurKnop),
+      return el('tr', {}, el('th', { scope: 'row' }, naam), cel(titelAnders ? gemarkeerd(v.t, x.nu.t) : v.t, titelAnders, titelKnop), cel(auteurAnders ? gemarkeerd(v.a, x.nu.a) : v.a, auteurAnders, auteurKnop),
         el('td', { class: 'hulptekst' }, titelAnders || auteurAnders ? '' : 'Zelfde als nu'));
     }
 
@@ -223,7 +233,7 @@
         el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Bron'), el('th', { scope: 'col' }, 'Titel'), el('th', { scope: 'col' }, 'Auteur'), el('td', {}))),
         el('tbody', {}, versie('Nu op de website', x.nu, true),
           // De stocklijst enkel als ze iets anders zegt dan nu: meestal is ze gelijk (de Catalogus kwam eruit).
-          x.stock && zelfdeTitel(x.stock.t, x.nu.t) && zelfdeAuteur(x.stock.a, x.nu.a) ? null : versie('Stocklijst', x.stock),
+          x.stock && (typeof x.stock.ta === 'boolean' ? !x.stock.ta && !x.stock.aa : zelfdeTitel(x.stock.t, x.nu.t) && zelfdeAuteur(x.stock.a, x.nu.a)) ? null : versie('Stocklijst', x.stock),
           versie('Oude website', x.oud)))),
       el('p', { class: 'hulptekst' }, 'Hoofdletters, leestekens en de volgorde van de namen tellen niet als verschil.'),
       el('p', {}, 'Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem titel over of Neem auteur over, of typ het zelf, en klik op Bewaar, volgende.'),

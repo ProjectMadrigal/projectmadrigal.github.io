@@ -724,8 +724,9 @@ var TITELCONTROLE_STATUSSEN = ['klopt', 'aangepast', 'niet in de kast'];
 // Tussen twee auteurs: ; of & of "en" (and, et, und). Een komma hoort bij "Achternaam, Voornaam".
 var CONTROLE_AUTEUR_SCHEIDING = /(\s*;\s*|\s*&\s*|\s+(?:en|and|et|und)\s+)/i;
 
-// Tussen titel en ondertitel: een dubbelpunt, een streepje met spaties, of een punt gevolgd door meer tekst.
-var CONTROLE_ONDERTITEL = /\s*:\s*|\s+[-–—]\s+|\.\s+(?=\S)/;
+// Tussen titel en ondertitel: een dubbelpunt, een streepje met spaties, een punt of komma gevolgd door meer tekst,
+// of iets tussen haakjes ("(Sinister Wisdom 102)").
+var CONTROLE_ONDERTITEL = /\s*:\s*|\s+[-–—]\s+|\.\s+(?=\S)|\s*,\s+(?=\S)|\s+(?=\()/;
 
 var TITEL_KLEIN_EN = ['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'off', 'on', 'per', 'to', 'up', 'via', 'vs', 'with', 'from', 'into', 'onto', 'over', 'than'];
 
@@ -2631,6 +2632,9 @@ function checklistPunten(tekst) {
 function controleAuteurGelijk(a, b) {
   var x = controleAuteurSleutel(a), y = controleAuteurSleutel(b);
   if (!x || !y || x === y || controleNamenIn(a, b) || controleNamenIn(b, a)) return true;
+  // Voorletters tegenover de voluit geschreven voornaam ("Bade, H." en "Bade, Hermanus"): geen verschil.
+  var voluitA = controleAuteurVoluit(a, [b]), voluitB = controleAuteurVoluit(b, [a]);
+  if ((voluitA && controleAuteurGelijk(voluitA, b)) || (voluitB && controleAuteurGelijk(a, voluitB))) return true;
   // De vorm "Achternaam, Voornaam" wint altijd: een bron die niet in die vorm staat ("Aaron William"),
   // telt niet als verschil met een bron die wel in die vorm staat ("Aaron, Willem").
   return controleAuteurGoedeVorm(a) !== controleAuteurGoedeVorm(b);
@@ -2672,6 +2676,54 @@ function controleAuteurVerbeterd(nu, anderen) {
   if (controleAuteurGoedeVorm(schoonNu) && (!beste || controleNamen(beste).length === controleNamen(schoonNu).length)) beste = schoonNu;
   if (!beste) beste = schoonNu;
   return beste !== schoon(nu) ? beste : '';
+}
+
+/**
+ * Voorletters voluit: "Bade, H." wordt "Bade, Hermanus" als een andere bron dezelfde achternaam geeft met een
+ * voornaam die met dezelfde letter begint ("Hermanus Bade" of "Bade, Hermanus"). Per naam in het veld.
+ * Geeft '' als er niets aan te vullen valt.
+ */
+function controleAuteurVoluit(nu, anderen) {
+  var stukken = String(nu || '').split(CONTROLE_AUTEUR_SCHEIDING);
+  var veranderd = false;
+  for (var i = 0; i < stukken.length; i += 2) {
+    var deel = schoon(stukken[i]);
+    if (deel.indexOf(',') === -1) continue;
+    var achternaam = schoon(deel.split(',')[0]);
+    var letters = deel.split(',').slice(1).join(' ').split(/[\s.]+/).filter(Boolean);
+    // Enkel voorletters: elk stukje hoogstens twee tekens ("H.", "J.R", "Th.").
+    if (!letters.length || letters.some(function (l) { return l.length > 2; })) continue;
+    var achterWoorden = normaliseerTekst(achternaam).split(' ');
+    var voluit = '';
+    (anderen || []).some(function (ander) {
+      return String(ander || '').split(CONTROLE_AUTEUR_SCHEIDING).some(function (naam, j) {
+        if (j % 2 || !schoon(naam)) return false;
+        var voornamen;
+        if (naam.indexOf(',') > -1) {
+          if (normaliseerTekst(naam.split(',')[0]) !== achterWoorden.join(' ')) return false;
+          voornamen = schoon(naam.split(',').slice(1).join(' ')).split(' ');
+        } else {
+          var woorden = schoon(naam).split(' ');
+          var klein = woorden.map(normaliseerTekst);
+          var p = -1;
+          for (var q = 0; q + achterWoorden.length <= klein.length; q++) {
+            if (achterWoorden.every(function (w, k) { return klein[q + k] === w; })) { p = q; break; }
+          }
+          if (p < 0) return false;
+          voornamen = woorden.slice(0, p).concat(woorden.slice(p + achterWoorden.length));
+        }
+        voornamen = voornamen.filter(Boolean);
+        // Echte voornamen (niet weer voorletters), even veel of meer dan de voorletters, met dezelfde beginletters.
+        if (!voornamen.length || voornamen.every(function (v) { return v.replace(/\./g, '').length <= 2; })) return false;
+        if (voornamen.length < letters.length) return false;
+        var past = letters.every(function (l, k) { return normaliseerTekst(voornamen[k]).charAt(0) === normaliseerTekst(l).charAt(0); });
+        if (past) voluit = achternaam + ', ' + voornamen.join(' ');
+        return past;
+      });
+    });
+    if (voluit && voluit !== deel) { stukken[i] = voluit; veranderd = true; }
+  }
+  return veranderd ? schoon(stukken.join('')) : '';
 }
 
 /** Dezelfde naam twee keer in één veld ("J.R. Ackerley; J. R. Ackerley") wordt één keer. De scheidingstekens blijven. */
@@ -2726,11 +2778,21 @@ function controleNamenIn(a, b) {
 function controleTitelAangevuld(nu, ander, taal, namen) {
   nu = schoon(nu); ander = schoon(ander);
   if (!nu || !ander || CONTROLE_ONDERTITEL.test(nu)) return '';
-  var m = ander.match(CONTROLE_ONDERTITEL);
-  if (!m) return '';
-  var kort = ander.slice(0, m.index), rest = schoon(ander.slice(m.index + m[0].length));
-  if (!rest || controleTitelSleutel(kort) !== controleTitelSleutel(nu)) return '';
+  // De eerste plaats in de andere titel waar wat ervoor staat, gelijk is aan de titel van nu.
+  var zoek = new RegExp(CONTROLE_ONDERTITEL.source, 'g'), m, gevonden = null;
+  while ((m = zoek.exec(ander))) {
+    if (!m[0].length) zoek.lastIndex++;
+    if (controleTitelSleutel(ander.slice(0, m.index)) === controleTitelSleutel(nu)) { gevonden = m; break; }
+  }
+  if (!gevonden) return '';
+  var teken = gevonden[0].trim();
+  var rest = schoon(ander.slice(gevonden.index + gevonden[0].length)).replace(/\s+:\s*/g, ': ');
+  if (!rest) return '';
+  // Tussen haakjes: zoals het er staat.
+  if (!teken && rest.charAt(0) === '(') return nu + ' ' + rest;
   var onder = titelSchrijfwijze(rest, taal, namen || {});
+  // Na een komma loopt de titel gewoon door ("Homofilie, status of stigma").
+  if (teken === ',') return nu + ', ' + (titelGroot(rest) && namen && namen[rest.split(' ')[0].toLowerCase()] ? onder : onder.charAt(0).toLowerCase() + onder.slice(1));
   return nu + ': ' + onder.charAt(0).toUpperCase() + onder.slice(1);
 }
 
@@ -7879,12 +7941,13 @@ function titelcontroleLijst(catalogus, rijen) {
     var b = perId[String(r.boek_id)];
     if (!b) return;
     var status = schoon(r.status);
-    var item = {
-      id: String(r.boek_id), isbn: schoon(b.isbn),
-      nu: { t: schoon(b.titel), a: schoon(b.auteur) },
-      stock: r.titel_stock || r.auteur_stock ? { t: schoon(r.titel_stock), a: schoon(r.auteur_stock) } : null,
-      oud: r.titel_oud || r.auteur_oud ? { t: schoon(r.titel_oud), a: schoon(r.auteur_oud) } : null
+    var nu = { t: schoon(b.titel), a: schoon(b.auteur) };
+    // ta en aa: is de titel of de auteur van deze bron echt anders dan nu (volgens dezelfde regels als de lijst)?
+    var bron = function (t, a) {
+      t = schoon(t); a = schoon(a);
+      return t || a ? { t: t, a: a, ta: !!t && !controleTitelGelijk(t, nu.t), aa: !!a && !controleAuteurGelijk(a, nu.a) } : null;
     };
+    var item = { id: String(r.boek_id), isbn: schoon(b.isbn), nu: nu, stock: bron(r.titel_stock, r.auteur_stock), oud: bron(r.titel_oud, r.auteur_oud) };
     if (!status) open.push(item);
     else if (status === 'niet in de kast') { item.wie = schoon(r.wie); item.datum = parseerDatum(r.datum) || schoon(r.datum); nietGevonden.push(item); }
     else gedaan++;
@@ -7916,6 +7979,8 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     var oudeTitel = oud ? schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : '') : '';
     // Dezelfde auteur, enkel anders geschreven: meteen in de juiste vorm in de Catalogus, niet op de lijst.
     var beter = controleAuteurVerbeterd(b.auteur, [st && st.auteur, oud && oud.auteur]);
+    // Voorletters voluit als een andere bron de voornaam geeft.
+    beter = controleAuteurVoluit(beter || b.auteur, [st && st.auteur, oud && oud.auteur]) || beter;
     // Dezelfde titel, met een ondertitel op de oude website: de ondertitel erbij in de Catalogus.
     // Uit de oude website, anders uit de stocklijst: een titel met ondertitel wint altijd.
     var aangevuld = controleTitelAangevuld(b.titel, oudeTitel, b.taal, namen) || controleTitelAangevuld(b.titel, st && st.titel, b.taal, namen);

@@ -3175,5 +3175,33 @@ test('Titelcontrole: de titel met ondertitel wint altijd', () => {
   assert.strictEqual(cat[0].titel, 'Respect is verzonnen: Durven opstaan', 'ook de ondertitel uit de stocklijst komt erbij');
 });
 
+
+test('Titelcontrole: haakjes en komma als ondertitel, voorletters voluit', () => {
+  assert.strictEqual(M.controleTitelGelijk('The Complete Works of Mira', 'The Complete Works of Mira (Verzonnen Reeks 102)'), true);
+  assert.strictEqual(M.controleTitelGelijk('Homofilie', 'Homofilie, status of stigma : een verzonnen dilemma'), true);
+  assert.strictEqual(M.controleTitelGelijk('Het dagboek van Eefje Fonker', 'Het dagboek van Eefje Jonker'), false, 'een letter anders blijft een verschil');
+  assert.strictEqual(M.controleTitelAangevuld('The Complete Works of Mira', 'The Complete Works of Mira (Verzonnen Reeks 102)', 'Engels', {}), 'The Complete Works of Mira (Verzonnen Reeks 102)');
+  assert.strictEqual(M.controleTitelAangevuld('Homofilie', 'Homofilie, Status Of Stigma : Een Verzonnen Dilemma Voor De Mens', 'Nederlands', {}), 'Homofilie, status of stigma: Een verzonnen dilemma voor de mens');
+  assert.strictEqual(M.controleTitelAangevuld('Het kan toch...', 'Het Kan Toch...', 'Nederlands', {}), '');
+  assert.strictEqual(M.controleTitelAangevuld('Zee (deel 1)', 'Zee (deel 1): verhalen', 'Nederlands', {}), '', 'nu heeft al iets tussen haakjes');
+  assert.strictEqual(M.controleAuteurVoluit('Bedacht, H.', ['Hermanus Bedacht']), 'Bedacht, Hermanus');
+  assert.strictEqual(M.controleAuteurVoluit('Bedacht, H.', ['Bedacht, Hermanus']), 'Bedacht, Hermanus');
+  assert.strictEqual(M.controleAuteurVoluit('Bedacht, J.R', ['Jan Rik Bedacht']), 'Bedacht, Jan Rik');
+  assert.strictEqual(M.controleAuteurVoluit('Bedacht, H.', ['Karel Bedacht']), '', 'andere beginletter');
+  assert.strictEqual(M.controleAuteurVoluit('Bedacht, H.', ['H. Bedacht']), '', 'ook maar voorletters');
+  assert.strictEqual(M.controleAuteurVoluit('Bedacht, Hans', ['Hermanus Bedacht']), '', 'al voluit');
+  assert.strictEqual(M.controleAuteurVoluit('Bedacht, H. & Bos, Jo', ['Hermanus Bedacht; Jo Bos']), 'Bedacht, Hermanus & Bos, Jo');
+  const stock = [{ soort: 'boek', isbn: '9780000000011', titel: 'Homofilie', auteur: 'Bedacht, H.' }];
+  const cat = [{ boek_id: 'B1', soort: 'boek', isbn: stock[0].isbn, titel: 'Homofilie', auteur: 'Bedacht, H.', taal: 'Nederlands', bron_sleutel: M.bronSleutel(stock[0]) }];
+  const oud = [{ id: '1', isbn: stock[0].isbn, titel: 'Homofilie, status of stigma : een verzonnen dilemma', ondertitel: '', auteur: 'Hermanus Bedacht' }];
+  const verbeterd = [];
+  gelijk(M.titelcontroleRijen(cat, stock, oud, [], verbeterd), []);
+  gelijk([cat[0].titel, cat[0].auteur], ['Homofilie, status of stigma: Een verzonnen dilemma', 'Bedacht, Hermanus']);
+  // Wat het scherm krijgt: per bron of titel en auteur echt anders zijn.
+  const l = M.titelcontroleLijst([{ boek_id: 'B9', titel: 'Het dagboek van Eefje Fonker', auteur: 'Anker, Rob' }],
+    [{ boek_id: 'B9', titel_stock: 'Het dagboek van Eefje Fonker', auteur_stock: 'Anker, Rob', titel_oud: 'Het Dagboek van Eefje Jonker', auteur_oud: 'Eefje Jonker', status: '' }]);
+  gelijk([l.open[0].stock.ta, l.open[0].stock.aa, l.open[0].oud.ta, l.open[0].oud.aa], [false, false, true, false]);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
