@@ -953,7 +953,11 @@ function aankoopPrijs(waarde) {
   return n === null || n < 0 || n > 1000 ? '' : Math.round(n * 100) / 100;
 }
 
-/** Titels, auteurs en genres met &#x27; of &amp; (van bol.com) terug naar gewone tekens. Geeft het aantal aangepaste rijen. */
+/**
+ * Rechtzetten wat van bol.com meekwam: tekens zoals &#x27; of &amp; terug naar gewone tekens, en een titel
+ * als "Titel, Auteur | 9780374388416 | Boeken" gesplitst in titel, auteur, ISBN en genre.
+ * Geeft het aantal aangepaste rijen.
+ */
 function aankoopTekensHerstellen(rijen) {
   var n = 0;
   rijen.forEach(function (r) {
@@ -962,6 +966,11 @@ function aankoopTekensHerstellen(rijen) {
       var w = String(r[k] || '');
       if (/&(#x?[0-9a-f]+|[a-z]+);/i.test(w)) velden[k] = htmlTekst(w);
     });
+    var titel = velden.titel || String(r.titel || '');
+    if (/\s\|\s/.test(titel)) {
+      var b = bolTitelSplitsen({ titel: titel, auteur: velden.auteur || String(r.auteur || ''), isbn: aankoopIsbn(r.isbn), genre: velden.genre || String(r.genre || '') });
+      velden.titel = b.titel; velden.auteur = b.auteur; velden.isbn = b.isbn; velden.genre = b.genre;
+    }
     if (Object.keys(velden).length) { wijzig(r, velden); n++; }
   });
   return n;
@@ -2101,6 +2110,31 @@ function bolBoekUitHtml(html, link) {
   boek.titel = htmlTekst(boek.titel);
   boek.auteur = htmlTekst(boek.auteur);
   boek.genre = htmlTekst(boek.genre);
+  return bolTitelSplitsen(boek);
+}
+
+/**
+ * bol.com zet soms alles in de titel: "Titel, Auteur | 9780374388416 | Boeken". Dan splitsen we:
+ * het ISBN en de categorie (behalve het nietszeggende "Boeken") gaan naar hun eigen veld, en de
+ * auteur na de laatste komma, als we die nog niet kenden. Geeft het boek terug.
+ */
+function bolTitelSplitsen(boek) {
+  var delen = String(boek.titel || '').split(/\s+\|\s+/);
+  if (delen.length < 2) return boek;
+  var titel = delen.shift();
+  delen.forEach(function (d) {
+    var isbn = /^[\dX -]{10,17}$/i.test(d) ? aankoopIsbn(d) : '';
+    if (isbn) { if (!boek.isbn) boek.isbn = isbn; }
+    else if (!/^(boeken|books|bol(\.com)?)$/i.test(d) && !boek.genre) boek.genre = d;
+  });
+  var komma = titel.lastIndexOf(', ');
+  if (!boek.auteur && komma > 0) {
+    boek.auteur = titel.slice(komma + 2);
+    titel = titel.slice(0, komma);
+  } else if (boek.auteur && komma > 0 && normaliseerTekst(titel.slice(komma + 2)) === normaliseerTekst(boek.auteur)) {
+    titel = titel.slice(0, komma);
+  }
+  boek.titel = titel;
   return boek;
 }
 
