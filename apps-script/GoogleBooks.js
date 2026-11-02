@@ -246,7 +246,7 @@ function vulAanUitGoogleBooks() {
   if (verdacht) {
     var waarschuwing = vreemd
       ? 'Google Books zoekt nu verkeerd: op het ISBN van een bekend boek komen andere boeken terug. Het script stopt en vinkt niets aan. Probeer het morgen opnieuw.'
-      : 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Covers > Test Google Books.';
+      : 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Testen > Test Google Books.';
     logboek('menu', 'vulAanUitGoogleBooks', waarschuwing);
     meld(waarschuwing);
     return;

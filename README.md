@@ -159,7 +159,7 @@ De startpagina heeft twee blokken met boeken: **Nieuw binnen** en daaronder **In
 
 Zet je **nee** in de kolom `startpagina`, dan staat het boek nooit op de startpagina.
 
-**Aanraders uit de oude stocklijst.** Het script neemt uit de kolom `aanrader` van de stocklijst enkel de namen over die in de instelling `aanraders_uit_stocklijst` staan (standaard `Johanna`). Andere namen uit de stocklijst, zoals Nance, neemt het niet over. Stonden die er al van bij de eerste opbouw? Kies **Madrigal > Boeken > Wis de aanraders die uit de stocklijst kwamen**. De toegelaten namen en alles wat je zelf invulde of aanpaste, blijven staan.
+**Aanraders uit de oude stocklijst.** Het script neemt uit de kolom `aanrader` van de stocklijst enkel de namen over die in de instelling `aanraders_uit_stocklijst` staan (standaard `Johanna`). Andere namen uit de stocklijst, zoals Nance, neemt het niet over. Stonden die er al van bij de eerste opbouw? Kies **Madrigal > Eenmalig bij de start > Wis de aanraders die uit de stocklijst kwamen**. De toegelaten namen en alles wat je zelf invulde of aanpaste, blijven staan.
 
 In het tabblad Instellingen, onder `── AANRADERS ──`:
 
@@ -281,7 +281,7 @@ Paste iemand dezelfde rij intussen aan in de spreadsheet, dan weigert de site te
 
 Enkel wie de code van het bestuur heeft, kan dit. Wil je later vrijwilligers bv. boeken laten toevoegen? Dat kan met een kleine aanpassing in `apps-script/Api.js` (de lijst `ACTIES`).
 
-**Back-up.** Elke maandagnacht maakt het script een kopie van de hele spreadsheet in de map **Project Madrigal back-ups** op de Google Drive van het Madrigal-account. Het bewaart de laatste 8 kopieën, de oudste gaan vanzelf naar de prullenbak. Je kan de naam van de map en het aantal aanpassen in Instellingen, onder `── BACK-UP ──`. Meteen een back-up nodig, bv. voor een grote wijziging? Kies **Madrigal > Onderhoud > Maak nu een back-up**.
+**Back-up.** Elke maandagnacht maakt het script een kopie van de hele spreadsheet in de map **Project Madrigal back-ups** op de Google Drive van het Madrigal-account. Het bewaart de laatste 8 kopieën, de oudste gaan vanzelf naar de prullenbak. Je kan de naam van de map en het aantal aanpassen in Instellingen, onder `── BACK-UP ──`. Meteen een back-up nodig, bv. voor een grote wijziging? Kies **Madrigal > Spreadsheet en onderhoud > Maak nu een back-up**.
 
 - Iets per ongeluk gewist of overschreven? Open de laatste back-up, zoek de rij en kopieer ze terug naar de echte spreadsheet.
 - Werk nooit verder in een back-up: de website leest enkel de echte spreadsheet.
@@ -320,7 +320,7 @@ De pagina **Peperfabriek** (in het menu, naast Doe mee) toont het programma van 
 
 - Het script haalt hun programma elke nacht op van het adres in de instelling `peperfabriek_url`. Vindt het niets (bijvoorbeeld omdat hun website veranderde), dan blijft het vorige programma staan.
 - De tekst bovenaan pas je aan bij `tekst_peperfabriek` en `tekst_peperfabriek_en`. Hoeveel activiteiten: `peperfabriek_aantal`.
-- **Madrigal > Onderhoud > Peperfabriek: test het ophalen** toont wat het script op hun pagina vindt, en bewaart het programma meteen. Gebruik dit na het installeren, en als de pagina leeg blijft.
+- **Madrigal > Testen > Peperfabriek: test het ophalen** toont wat het script op hun pagina vindt, en bewaart het programma meteen. Gebruik dit na het installeren, en als de pagina leeg blijft.
 
 ### Het vrijwilligersscherm
 
@@ -371,7 +371,7 @@ Films (dvd's) staan in de Catalogus, net als de boeken, met soort `film` en een 
 
 | Wat je ziet | Wat je doet |
 | --- | --- |
-| Een wijziging verschijnt niet op de website | Wacht een minuut en vernieuw met **Ctrl+F5**. Helpt dat niet: kies **Madrigal > Boeken > Ververs de publieke catalogus**. |
+| Een wijziging verschijnt niet op de website | Wacht een minuut en vernieuw met **Ctrl+F5**. Helpt dat niet: kies **Madrigal > Ververs de publieke catalogus**. |
 | Na een wijziging op GitHub zie je niets | GitHub heeft een paar minuten nodig. Vernieuw daarna met **Ctrl+F5**. |
 | De startpagina toont geen nieuws, agenda of aanraders | De web-app draait een oude versie van het script. Publiceer een nieuwe versie, zie [D1](#d1-een-nieuwe-versie-van-het-script-publiceren). |
 | "Je ziet verzonnen voorbeeldboeken" | Het adres van de web-app ontbreekt in `config.js`. Zie [C5](#c5-het-script-publiceren-als-web-app). |
@@ -517,7 +517,7 @@ Je mag "Madrigal > Installeer tabbladen" later opnieuw uitvoeren. Bestaande tabb
 
 1. **Madrigal > Eenmalig bij de start > Bouw de catalogus uit Stock en Zines.** Leest Stock en Zines en schrijft één nette lijst naar de Catalogus. Maakt ISBN's netjes (een ongeldig ISBN komt in `isbn_origineel`), geeft elk boek een vaste boek-ID, zet de herkomst in een aparte kolom die nooit publiek wordt, en vult de vertaaltabel Onderwerpen. Staat er "niet op site" in de herkomst, dan krijgt het boek `publiek = nee`. Uit de kolom `aanrader` van de stocklijst neemt het script enkel de namen uit `aanraders_uit_stocklijst` over. Zines met genre "verkoop" krijgen `uitleenbaar = nee`.
 2. **Madrigal > Eenmalig bij de start > Vul aan uit Goodreads.** Vult enkel lege velden aan: uitgeverij, jaartal en pagina's. De stocklijst wint altijd. Twijfelgevallen gaan naar **Na te kijken**.
-3. **Madrigal > Covers > Vul aan uit Open Library.** Zoekt voor boeken met een ISBN wat nog ontbreekt, en een cover. Dit werkt in porties van een paar minuten en gaat vanzelf verder. Daarna starten vanzelf:
+3. **Madrigal > Boeken > Vul gegevens aan uit Open Library.** Zoekt voor boeken met een ISBN wat nog ontbreekt, en een cover. Dit werkt in porties van een paar minuten en gaat vanzelf verder. Daarna starten vanzelf:
    - **Madrigal > Covers > Zoek covers bij Google Books**;
    - **Madrigal > Beschrijvingen > Zoek ontbrekende beschrijvingen** (Google Books, dan Open Library);
    - **Madrigal > Beschrijvingen > Vertaal de beschrijvingen** naar het Nederlands en het Engels, gratis met Google Translate. Het blijft een automatische vertaling: lees de beschrijvingen van aanraders even na.
@@ -538,7 +538,7 @@ Je mag "Madrigal > Installeer tabbladen" later opnieuw uitvoeren. Bestaande tabb
    **Nog geen cover?** Vijf extra manieren:
    - **Internet Archive.** Miljoenen ingescande boeken, ook oudere en tweedehands uitgaven. De knop in het bestuursscherm zoekt daar als derde bron, na Google en Open Library. Werkt dat niet vanuit je browser, kies dan **Madrigal > Covers > Zoek covers bij Internet Archive** in het menu. De kolom `ia_gezocht` toont welke boeken al opgezocht werden. Heeft een boek daar geen afbeelding, dan toont Internet Archive zijn logo: zo'n beeld neemt de site niet over (een cover is staand, het logo vierkant). Staan er toch logo's in de catalogus, gebruik dan **Bestuursscherm > Boeken > Controleer covers van Internet Archive**.
    - **Een foto in de bib.** Bestuursscherm > Boeken > **Boeken zonder cover**. Kies een boek en neem met je gsm een foto van de voorkant. De site verkleint de foto, bewaart ze in de map `cover_map` (standaard "Project Madrigal covers") op Google Drive en zet de link in `cover_url`. Een foto kan je ook bij elk ander boek nemen, om een slechte cover te vervangen. Tip: een effen achtergrond, goed licht en geen schaduw.
-   - **Madrigal > Covers > Zoek covers bij bol.com.** Vooral nuttig voor Nederlandstalige boeken. Je hebt een gratis partneraccount bij bol.com nodig: maak daar in de API-instellingen een Client ID en Client Secret, en zet die in Instellingen bij `bol_client_id` en `bol_client_secret`. Lees eerst de voorwaarden van het partnerprogramma na. Met **Madrigal > Covers > Test bol.com** zie je wat bol.com voor één ISBN teruggeeft.
+   - **Madrigal > Covers > Zoek covers bij bol.com.** Vooral nuttig voor Nederlandstalige boeken. Je hebt een gratis partneraccount bij bol.com nodig: maak daar in de API-instellingen een Client ID en Client Secret, en zet die in Instellingen bij `bol_client_id` en `bol_client_secret`. Lees eerst de voorwaarden van het partnerprogramma na. Met **Madrigal > Testen > Test bol.com** zie je wat bol.com voor één ISBN teruggeeft.
    - **Madrigal > Covers > Zoek covers van andere uitgaven.** Neemt de cover van een herdruk of een andere vertaling, of zoekt op titel en auteur. De kolom `cover_bron` vermeldt vanwaar de cover komt, zodat je covers van een andere uitgave kan nakijken.
    - **Bestuursscherm > Boeken > Zoek ontbrekende covers en beschrijvingen.** Google Books en Open Library weigeren vragen vanuit Apps Script vaak. Vanuit je eigen browser lukt het wel: per boek eerst Google (jouw uitgave), dan Open Library op ISBN of op titel en auteur (soms een andere uitgave). Wat gevonden wordt, komt meteen in de Catalogus. Laat het venster open tot het klaar is. Daarvoor krijgt je browser de `google_books_api_key`, dus beperk die sleutel in de Google Cloud Console tot de Books API. Dit is de snelste manier: menu 8 doet hetzelfde vanuit Apps Script, maar Open Library laat het script vaak wachten.
 4. **Het tabblad Na te kijken.** Klopt de waarde uit de bron (`waarde_bron`)? Zet ze zelf in de Catalogus. Zet daarna **ja** in de kolom `afgehandeld`.
@@ -693,7 +693,7 @@ Een wijziging in de **spreadsheet** (een boek, een instelling, een tekst) vraagt
 
 De tabbladen staan in een vaste volgorde met een kleur per groep (zie [A1](#a1-waar-staat-wat)). De instellingen staan per thema onder een tussenkop, bijvoorbeeld `── UITLENEN ──`. Een Engelse tekst staat vlak onder de Nederlandse. De tussenkoppen zijn geen instellingen.
 
-"Madrigal > Installeer tabbladen" ordent alles opnieuw. Wil je enkel ordenen, kies dan **Madrigal > Onderhoud > Orden tabbladen en instellingen**. Waarden die je invulde, blijven altijd staan. Een instelling die je zelf toevoegde, komt onder `── OVERIGE ──`.
+"Madrigal > Installeer tabbladen" ordent alles opnieuw. Wil je enkel ordenen, kies dan **Madrigal > Spreadsheet en onderhoud > Orden tabbladen en instellingen**. Waarden die je invulde, blijven altijd staan. Een instelling die je zelf toevoegde, komt onder `── OVERIGE ──`.
 
 ## D3. De website zelf aanpassen
 

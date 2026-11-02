@@ -5982,7 +5982,7 @@ function maakTitelNakijklijst() {
   }
   var talen = lijst.filter(function (r) { return r.taal_nieuw; }).length;
   logboek('menu', 'maakTitelNakijklijst', lijst.length + ' titels met een voorstel, waarvan ' + talen + ' met een andere taal');
-  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). De rijen met een andere taal staan bovenaan en op nee: kijk na of het boek echt in die taal geschreven is en zet dan ja. Voor de andere rijen: pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.' +
+  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). De rijen met een andere taal staan bovenaan en op nee: kijk na of het boek echt in die taal geschreven is en zet dan ja. Voor de andere rijen: pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Titels en auteurs > Schrijfwijze: pas de nakijklijst toe.' +
     (datums.length ? ' Let op: bij ' + datums.join(', ') + ' werd de titel ooit een datum. Verbeter die titels met de hand in de Catalogus (typ een \' voor de titel, bv. \'24/7).' : ''));
 }
 
@@ -6519,61 +6519,71 @@ function olZoek(parameters) {
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('Madrigal')
+    // Vaak nodig.
+    .addItem('Ververs de publieke catalogus', 'verversMenu')
     .addItem('Installeer tabbladen (na een nieuw script)', 'installeer')
-    .addItem('Maak de brede tabbladen overzichtelijk', 'maakTabbladenOverzichtelijk')
     .addSeparator()
+    // De collectie: boeken, titels, covers, beschrijvingen, films en verkoop.
     .addSubMenu(ui.createMenu('Boeken')
       .addItem('Nieuwe boeken verwerken', 'verwerkNieuweBoeken')
-      .addItem('Ververs de publieke catalogus', 'verversMenu')
-      .addItem('Werk de vertaaltabel Onderwerpen bij', 'werkOnderwerpenBijMenu')
-      .addItem('Verdeel Geschiedenis en maatschappij in drie thema\'s', 'verdeelOudeGroepMenu')
-      .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock')
+      .addItem('Vul gegevens aan uit Open Library', 'vulAanUitOpenLibrary')
+      .addItem('Werk de vertaaltabel Onderwerpen bij', 'werkOnderwerpenBijMenu'))
+    .addSubMenu(ui.createMenu('Titels en auteurs')
+      .addItem('Schrijfwijze: maak een nakijklijst', 'maakTitelNakijklijst')
+      .addItem('Schrijfwijze: pas de nakijklijst toe', 'pasTitelNakijklijstToe')
       .addSeparator()
-      .addItem('Titels: maak een nakijklijst', 'maakTitelNakijklijst')
-      .addItem('Titels: pas de nakijklijst toe', 'pasTitelNakijklijstToe')
       .addItem('Titelcontrole in de bib: maak de lijst', 'maakTitelcontroleMenu'))
     .addSubMenu(ui.createMenu('Covers')
-      .addItem('Vul aan uit Open Library', 'vulAanUitOpenLibrary')
       .addItem('Zoek covers bij Google Books', 'vulAanUitGoogleBooks')
-      .addItem('Zoek covers van andere uitgaven', 'zoekCoversAndereUitgaven')
-      .addItem('Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
-      .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
       .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
-      .addItem('Kopieer de covers van de oude website verder', 'startOudeCovers')
-      .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers')
+      .addItem('Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
+      .addItem('Zoek covers van andere uitgaven', 'zoekCoversAndereUitgaven')
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
-      .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
-      .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol'))
+      .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
+      .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers'))
     .addSubMenu(ui.createMenu('Beschrijvingen')
       .addItem('Zoek ontbrekende beschrijvingen', 'vulBeschrijvingenAan')
       .addItem('Zoek beschrijvingen bij Wikipedia', 'zoekBeschrijvingenWikipedia')
-      .addItem('Vertaal de beschrijvingen', 'vertaalBeschrijvingen')
-      .addItem('Zoek afgebroken beschrijvingen opnieuw', 'herstelAfgebrokenBeschrijvingen'))
+      .addItem('Zoek afgebroken beschrijvingen opnieuw', 'herstelAfgebrokenBeschrijvingen')
+      .addSeparator()
+      .addItem('Vertaal de beschrijvingen', 'vertaalBeschrijvingen'))
     .addSubMenu(ui.createMenu('Films')
       .addItem('Haal de Letterboxd-lijst op', 'haalLetterboxdLijst')
       .addItem('Neem de films over uit dit tabblad (CSV van IMDb of Letterboxd)', 'neemFilmsOverUitTabblad')
       .addItem('Vul de films aan (Wikidata en Wikipedia)', 'vulFilmsAan'))
     .addSubMenu(ui.createMenu('Verkoop')
       .addItem('Werk de voorraad bij', 'voorraadBijwerkenMenu'))
-    .addSubMenu(ui.createMenu('Onderhoud')
+    .addSeparator()
+    // De spreadsheet zelf.
+    .addSubMenu(ui.createMenu('Spreadsheet en onderhoud')
       .addItem('Orden tabbladen en instellingen', 'ordenAlles')
+      .addItem('Maak de brede tabbladen overzichtelijk', 'maakTabbladenOverzichtelijk')
+      .addSeparator()
       .addItem('Maak nu een back-up', 'maakBackupMenu')
       .addItem('Privacy-opruiming nu uitvoeren', 'ruimOp')
-      .addItem('Zet de gsm-nummers van de leners in één vorm (0495/64.48.48)', 'gsmNummersMenu')
-      .addItem('Peperfabriek: test het ophalen', 'testPeperfabriek')
+      .addItem('Zet de gsm-nummers van de leners in één vorm (0495/64.48.48)', 'gsmNummersMenu'))
+    .addSubMenu(ui.createMenu('Testen')
+      .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
+      .addItem('Test bol.com (kies eerst een cel met een ISBN)', 'testBol')
       .addItem('Wikipedia: test het opzoeken', 'testWikipedia')
-      .addItem('Wikipedia: test het bewaren', 'testWikipediaBewaren'))
+      .addItem('Wikipedia: test het bewaren', 'testWikipediaBewaren')
+      .addItem('Peperfabriek: test het ophalen', 'testPeperfabriek'))
     .addSeparator()
+    // Eenmalig: de overstap naar dit systeem en van de oude website.
     .addSubMenu(ui.createMenu('Eenmalig bij de start')
       .addItem('Bouw de catalogus uit Stock en Zines', 'maakCatalogus')
       .addItem('Vul aan uit Goodreads', 'vulAanUitGoodreads')
       .addItem('Neem de uitleningen over (lopend en historiek)', 'neemUitleningenOver')
-      .addItem('Neem nieuws, agenda en vragen over', 'importeerOudeSite')
-      .addItem('Neem beschrijvingen en covers van de boeken over van de oude website', 'neemOudeBoekenOver')
-      .addItem('Oude website: neem de rijen uit Na te kijken over met overnemen = ja', 'neemAangeduideOudeBoekenOver')
       .addItem('Neem een oud rooster over uit de tabbladen (een tabblad per maand)', 'neemRoosterOverUitTabbladen')
       .addItem('Neem het draaiboek voor vrijwilligers over (checklists en vragen)', 'neemDraaiboekOver')
+      .addItem('Verdeel Geschiedenis en maatschappij in drie thema\'s', 'verdeelOudeGroepMenu')
+      .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock')
+      .addSeparator()
+      .addItem('Oude website: neem nieuws, agenda en vragen over', 'importeerOudeSite')
+      .addItem('Oude website: neem beschrijvingen en covers van de boeken over', 'neemOudeBoekenOver')
+      .addItem('Oude website: neem de rijen uit Na te kijken over met overnemen = ja', 'neemAangeduideOudeBoekenOver')
+      .addItem('Oude website: kopieer de covers verder', 'startOudeCovers')
       .addSeparator()
       .addItem('Catalogus wissen en opnieuw opbouwen', 'herbouwCatalogus'))
     .addToUi();
@@ -7100,7 +7110,7 @@ function parseerGetal(waarde) {
 
 /** Menu: stap 2, de nakijklijst toepassen op de Catalogus. */
 function pasTitelNakijklijstToe() {
-  if (!spreadsheet().getSheetByName(TITELS_TABBLAD)) { meld('Maak eerst de nakijklijst: Madrigal > Boeken > Titels: maak een nakijklijst.'); return; }
+  if (!spreadsheet().getSheetByName(TITELS_TABBLAD)) { meld('Maak eerst de nakijklijst: Madrigal > Titels en auteurs > Schrijfwijze: maak een nakijklijst.'); return; }
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   var uit;
@@ -10150,7 +10160,7 @@ function vulAanUitGoogleBooks() {
   if (verdacht) {
     var waarschuwing = vreemd
       ? 'Google Books zoekt nu verkeerd: op het ISBN van een bekend boek komen andere boeken terug. Het script stopt en vinkt niets aan. Probeer het morgen opnieuw.'
-      : 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Covers > Test Google Books.';
+      : 'Google Books kende geen enkel boek van de eerste 20. Er klopt iets niet: het script stopt en vinkt niets aan. Kies Madrigal > Testen > Test Google Books.';
     logboek('menu', 'vulAanUitGoogleBooks', waarschuwing);
     meld(waarschuwing);
     return;

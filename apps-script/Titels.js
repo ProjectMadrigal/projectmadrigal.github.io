@@ -260,13 +260,13 @@ function maakTitelNakijklijst() {
   }
   var talen = lijst.filter(function (r) { return r.taal_nieuw; }).length;
   logboek('menu', 'maakTitelNakijklijst', lijst.length + ' titels met een voorstel, waarvan ' + talen + ' met een andere taal');
-  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). De rijen met een andere taal staan bovenaan en op nee: kijk na of het boek echt in die taal geschreven is en zet dan ja. Voor de andere rijen: pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.' +
+  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). De rijen met een andere taal staan bovenaan en op nee: kijk na of het boek echt in die taal geschreven is en zet dan ja. Voor de andere rijen: pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Titels en auteurs > Schrijfwijze: pas de nakijklijst toe.' +
     (datums.length ? ' Let op: bij ' + datums.join(', ') + ' werd de titel ooit een datum. Verbeter die titels met de hand in de Catalogus (typ een \' voor de titel, bv. \'24/7).' : ''));
 }
 
 /** Menu: stap 2, de nakijklijst toepassen op de Catalogus. */
 function pasTitelNakijklijstToe() {
-  if (!spreadsheet().getSheetByName(TITELS_TABBLAD)) { meld('Maak eerst de nakijklijst: Madrigal > Boeken > Titels: maak een nakijklijst.'); return; }
+  if (!spreadsheet().getSheetByName(TITELS_TABBLAD)) { meld('Maak eerst de nakijklijst: Madrigal > Titels en auteurs > Schrijfwijze: maak een nakijklijst.'); return; }
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   var uit;
