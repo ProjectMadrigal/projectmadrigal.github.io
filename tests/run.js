@@ -1309,6 +1309,9 @@ test('madrigal-script.gs bevat elke functie precies één keer, alfabetisch', ()
   });
   const inBundel = (fs.readFileSync(UIT, 'utf8').match(/^function ([A-Za-z0-9_$]+)/gm) || []).map((r) => r.slice(9));
   gelijk(inBundel.slice().sort(), namen.slice().sort());
+  // Twee functies met dezelfde naam in verschillende bestanden: in Apps Script wint er stilletjes één.
+  const dubbel = namen.filter((n, i) => namen.indexOf(n) !== i);
+  gelijk(dubbel, [], 'Dubbele functienamen');
   gelijk(inBundel, inBundel.slice().sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())));
   // Geen code buiten functies en vaste waarden die verloren kan gaan.
   const alleCode = fs.readdirSync(MAP).filter((f) => f.endsWith('.js'))
@@ -1824,6 +1827,16 @@ test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als bin
   r = M.aankoopVerwijderen(rijen, { ids: ['K0002'] });
   gelijk([r.ok, rijen[1]._verwijderen, M.aankoopOverzicht(rijen).length], [true, true, 1]);
   assert.strictEqual(M.aankoopVerwijderen(rijen, { aankoop_id: 'K9999' }).ok, false);
+});
+
+test('aankooplijst: tekens zoals &#x27; van bol.com worden gewone tekens', () => {
+  gelijk([M.htmlTekst('The Lesbiana&#x27;s'), M.htmlTekst('Rock &amp;amp; roll'), M.htmlTekst('Zij&rsquo;s &amp;#x27;n &lt;3'), M.htmlTekst('Caf&#233; &onbekend;')],
+    ["The Lesbiana's", 'Rock & roll', "Zij\u2019s 'n <3", 'Café &onbekend;']);
+  const rijen = [{ aankoop_id: 'K0001', titel: 'The Lesbiana&#x27;s', auteur: 'Fictief, Kim', genre: 'Fictie &amp; poëzie' }, { aankoop_id: 'K0002', titel: 'Gewoon', auteur: '', genre: '' }];
+  gelijk(M.aankoopTekensHerstellen(rijen), 1);
+  gelijk([rijen[0].titel, rijen[0].genre, rijen[1]._gewijzigd], ["The Lesbiana's", 'Fictie & poëzie', undefined]);
+  const b = M.bolBoekUitHtml('<script type="application/ld+json">{"@type":"Product","name":"The Lesbiana&#x27;s","author":{"name":"Vera &amp; Noor"}}</script>', 'l');
+  gelijk([b.titel, b.auteur], ["The Lesbiana's", 'Vera & Noor']);
 });
 
 test('aankooplijst: wat de bladwijzer op bol.com kopieerde, lezen', () => {

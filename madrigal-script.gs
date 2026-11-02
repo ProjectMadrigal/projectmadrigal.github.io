@@ -401,6 +401,12 @@ var GRENZEN = [
 /** Lidwoorden die we negeren bij zoeken en vergelijken (Nederlands, Engels, Frans, Duits). */
 var LIDWOORDEN = ['de', 'het', 'een', 'the', 'a', 'an', 'le', 'la', 'les', 'l', 'un', 'une', 'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'el', 'los', 'las'];
 
+/**
+ * Tekst uit HTML: zonder tags, en tekens zoals &amp;, &#39;, &#x27; en &rsquo; terug naar gewone tekens.
+ * Gebruikt voor Letterboxd (Films.js) en bol.com (Aankoop.js).
+ */
+var HTML_NAMEN = { amp: '&', quot: '"', apos: "'", nbsp: ' ', lt: '<', gt: '>', rsquo: '\u2019', lsquo: '\u2018', rdquo: '\u201d', ldquo: '\u201c', hellip: '\u2026', eacute: '\u00e9', euml: '\u00eb' };
+
 var STANDAARD_INSTELLINGEN = [
   ['uitleentermijn_weken', 4, 'Hoeveel weken een lener een boek mag houden.'],
   ['verlengingstermijn_weken', 4, 'Hoeveel weken er bij een verlenging bijkomen.'],
@@ -799,7 +805,9 @@ function aankoopActie(actie, invoer, wie, rol) {
   var r;
   if (actie === 'aankoopData') {
     // Boeken die intussen in de catalogus staan, vinken we meteen af.
-    if (aankoopBijwerken(tabel.rijen, catalogus, vandaag)) bewaarTabel(tabel);
+    // En tekens zoals &#x27; die van bol.com meekwamen, maken we terug gewoon.
+    var anders = aankoopBijwerken(tabel.rijen, catalogus, vandaag) + aankoopTekensHerstellen(tabel.rijen);
+    if (anders) bewaarTabel(tabel);
     return { ok: true, lijst: aankoopOverzicht(tabel.rijen) };
   }
   var nieuwId = nieuwIdVoor(tabel.rijen, 'aankoop_id', 'aankoop', 'K');
@@ -945,15 +953,29 @@ function aankoopPrijs(waarde) {
   return n === null || n < 0 || n > 1000 ? '' : Math.round(n * 100) / 100;
 }
 
+/** Titels, auteurs en genres met &#x27; of &amp; (van bol.com) terug naar gewone tekens. Geeft het aantal aangepaste rijen. */
+function aankoopTekensHerstellen(rijen) {
+  var n = 0;
+  rijen.forEach(function (r) {
+    var velden = {};
+    ['titel', 'auteur', 'genre'].forEach(function (k) {
+      var w = String(r[k] || '');
+      if (/&(#x?[0-9a-f]+|[a-z]+);/i.test(w)) velden[k] = htmlTekst(w);
+    });
+    if (Object.keys(velden).length) { wijzig(r, velden); n++; }
+  });
+  return n;
+}
+
 /**
  * Een boek voorstellen. invoer: { titel, auteur, isbn, link, reden, genre?, prijs? }
  * Geeft { ok, tekst } of { ok: false, fout }.
  */
 function aankoopToevoegen(rijen, catalogus, invoer, wie, vandaag, nieuwId, bron) {
   var boek = {
-    titel: tekstInvoer(invoer.titel, 200), auteur: tekstInvoer(invoer.auteur, 120), isbn: aankoopIsbn(invoer.isbn),
+    titel: htmlTekst(tekstInvoer(invoer.titel, 200)), auteur: htmlTekst(tekstInvoer(invoer.auteur, 120)), isbn: aankoopIsbn(invoer.isbn),
     link: aankoopLink(invoer.link), reden: schoonMetRegels(invoer.reden).slice(0, 300),
-    genre: tekstInvoer(invoer.genre, 80), prijs: aankoopPrijs(invoer.prijs)
+    genre: htmlTekst(tekstInvoer(invoer.genre, 80)), prijs: aankoopPrijs(invoer.prijs)
   };
   if (!boek.titel) return { ok: false, fout: 'Vul de titel in.' };
   if (!isLeeg(invoer.isbn) && !boek.isbn) return { ok: false, fout: 'Dit ISBN klopt niet. Laat het leeg als je het niet kent.' };
@@ -2077,6 +2099,8 @@ function bolBoekUitHtml(html, link) {
     if (genre) boek.genre = htmlTekst(genre[1]);
   }
   boek.titel = htmlTekst(boek.titel);
+  boek.auteur = htmlTekst(boek.auteur);
+  boek.genre = htmlTekst(boek.genre);
   return boek;
 }
 
@@ -2913,6 +2937,8 @@ function filmGroepen(rij) {
 }
 
 /* ---------- Letterboxd ---------- */
+
+// htmlTekst staat in Hulp.js.
 
 /** Een lijst uit een cel: "Drama, Romantiek" wordt ["Drama", "Romantiek"]. */
 function filmLijst(waarde) {
@@ -3769,15 +3795,12 @@ function htmlNaarTekst(html) {
     .trim();
 }
 
-/** Tekst uit HTML: entiteiten zoals &amp; en &#39; terug naar tekens. */
 function htmlTekst(t) {
-  return schoon(String(t || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'").replace(/&nbsp;/g, ' ').replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(Number(n)); }));
-}
-
-function htmlTekst(t) {
-  return String(t || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(Number(n)); }).trim();
+  // &amp; eerst: zo wordt ook een dubbel gecodeerd teken (&amp;#x27;) goed. Daarna &#39;, &#x27; en namen zoals &rsquo;.
+  return schoon(String(t || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&')
+    .replace(/&#x([0-9a-f]{1,6});/gi, function (m, n) { return String.fromCharCode(parseInt(n, 16)); })
+    .replace(/&#(\d{1,7});/g, function (m, n) { return String.fromCharCode(Number(n)); })
+    .replace(/&([a-z]+);/gi, function (m, n) { return HTML_NAMEN.hasOwnProperty(n.toLowerCase()) ? HTML_NAMEN[n.toLowerCase()] : m; }));
 }
 
 /** Haalt een afbeelding op en kijkt of het een staande cover is (en niet het logo van Internet Archive). */
@@ -6549,6 +6572,8 @@ function sparqlTekst(t) {
 function splitsLijst(waarde) {
   return schoon(waarde).split(/[,;\n]+/).map(schoon).filter(function (x) { return x; });
 }
+
+/* ---------- Tekst uit HTML ---------- */
 
 /** Het actieve spreadsheetbestand. */
 function spreadsheet() {
