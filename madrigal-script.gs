@@ -669,6 +669,10 @@ var TITEL_STOPWOORDEN = ['van', 'and', 'en', 'of', 'in', 'op', 'the', 'een', 'no
  */
 var GETALWOORDEN = { een: 1, one: 1, eins: 1, twee: 2, two: 2, drie: 3, three: 3, vier: 4, four: 4, vijf: 5, five: 5, zes: 6, six: 6, zeven: 7, seven: 7, acht: 8, eight: 8, negen: 9, nine: 9, tien: 10, ten: 10 };
 
+var STANDAARD_HASHES_SLEUTEL = 'standaard_cover_hashes';
+
+var STANDAARD_MIN = 3; // hetzelfde bestand bij zoveel boeken: een standaardafbeelding, geen echte cover
+
 var OUDE_SITE = 'https://www.projectmadrigal.be/';
 
 var PF_EIGENSCHAP = 'peperfabriek_programma';
@@ -2618,6 +2622,10 @@ function bronSleutel(boek) {
   return boek.soort + ':ta:' + normaliseerTekst(boek.titel) + '|' + normaliseerTekst(boek.auteur);
 }
 
+function bytesHash(bytes) {
+  return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, bytes));
+}
+
 /** Zet een waarde om naar wat we in een cel schrijven. */
 function celWaarde(kolom, waarde) {
   if (waarde === undefined || waarde === null) return '';
@@ -3278,6 +3286,12 @@ function draaiboekAanvullen(inst, faqRijen) {
     vragen++;
   });
   return { openen: openen, sluiten: sluiten, punten: punten, vragen: vragen };
+}
+
+/** Het bestand in Google Drive achter een cover_url (https://lh3.googleusercontent.com/d/ID). Geeft '' als het geen Drive-link is. */
+function driveIdUitCover(url) {
+  var m = String(url || '').match(/googleusercontent\.com\/d\/([A-Za-z0-9_-]+)/) || String(url || '').match(/drive\.google\.com\/.*(?:id=|\/d\/)([A-Za-z0-9_-]+)/);
+  return m ? m[1] : '';
 }
 
 /** Haalt uit een link van Google Afbeeldingen of een doorverwijzing van Google het echte adres. */
@@ -4783,6 +4797,14 @@ function isStaandeCover(afm) {
   return !!afm && afm.breedte > 0 && afm.hoogte >= afm.breedte * 1.15;
 }
 
+/** Is deze afbeelding (base64) een gekende standaardafbeelding? */
+function isStandaardAfbeelding(base64) {
+  var bekend = [];
+  try { bekend = JSON.parse(PropertiesService.getScriptProperties().getProperty(STANDAARD_HASHES_SLEUTEL) || '[]'); } catch (e) { bekend = []; }
+  if (!bekend.length) return false;
+  return bekend.indexOf(bytesHash(Utilities.base64Decode(base64))) > -1;
+}
+
 /** Mag het boek uitgeleend worden? Niet bij uitleenbaar = nee, verloren, te koop, of een kijktip (film die niet in de bib is). */
 function isUitleenbaar(boek) {
   return jaNee(boek.uitleenbaar) !== 'nee' && boekStatus(boek) !== 'verloren' && jaNee(boek.te_koop) !== 'ja' && !isFilmTip(boek);
@@ -4895,7 +4917,11 @@ function kopieerOudeCovers() {
       var boek = teDoen[i];
       var a = haalCoverLink(String(boek.oude_cover)); // zie Beheer.js
       if (a.code === 429 || a.code >= 500 || a.code === 0) { storing = true; break; }
-      if (a.code === 200 && a.data) {
+      if (a.code === 200 && a.data && (/librarything/i.test(String(boek.oude_cover)) || isStandaardAfbeelding(a.data))) {
+        // Een standaardafbeelding (zoals het plaatje van LibraryThing): geen cover.
+        wijzig(boek, { oude_cover: '' });
+        zonder++;
+      } else if (a.code === 200 && a.data) {
         var link;
         try {
           link = bewaarFotoInDrive('oud-' + boek.boek_id + '.jpg', a.data, a.type.split(';')[0] || 'image/jpeg');
@@ -5971,6 +5997,8 @@ function neemAangeduideOudeBoekenOver() {
   meld(tekst);
 }
 
+/* ---------- Standaardafbeeldingen (zoals het plaatje van LibraryThing) ---------- */
+
 /** Menu: neemt het draaiboek over in de checklists en de veelgestelde vragen. */
 function neemDraaiboekOver() {
   installeer(); // zorgt dat de tabbladen en de nieuwe instellingen bestaan
@@ -6339,6 +6367,7 @@ function onOpen() {
       .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
       .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
       .addItem('Kopieer de covers van de oude website verder', 'startOudeCovers')
+      .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers')
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
       .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
@@ -7632,6 +7661,19 @@ function splitsLijst(waarde) {
 /** Het actieve spreadsheetbestand. */
 function spreadsheet() {
   return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+/**
+ * Welke bestanden zijn standaardafbeeldingen? bestanden: [{ id, hash }]. Een hash die bij STANDAARD_MIN of meer
+ * bestanden voorkomt, is er een. Geeft { ids: { id: true }, hashes: [hash] }.
+ */
+function standaardBestanden(bestanden) {
+  var tel = {};
+  bestanden.forEach(function (b) { if (b.hash) tel[b.hash] = (tel[b.hash] || 0) + 1; });
+  var hashes = Object.keys(tel).filter(function (h) { return tel[h] >= STANDAARD_MIN; });
+  var ids = {};
+  bestanden.forEach(function (b) { if (hashes.indexOf(b.hash) > -1) ids[b.id] = true; });
+  return { ids: ids, hashes: hashes };
 }
 
 /** Een nieuw standje, of een bestaand aanpassen. invoer: { standje_id?, naam, thema, datum, locatie, status? } */
@@ -9257,6 +9299,57 @@ function verwerkVervallenReservatiesStil(staat) {
   }
 }
 
+/**
+ * Menu: zoekt in de map met covers de afbeeldingen die bij drie of meer boeken exact dezelfde zijn (zoals het
+ * plaatje van LibraryThing), wist die covers in de Catalogus en zet de bestanden in de prullenbak van Drive.
+ * Eerst op grootte (snel), enkel bij gelijke grootte de inhoud vergelijken.
+ */
+function verwijderStandaardCovers() {
+  var start = Date.now();
+  var naam = leesInstellingen().cover_map || 'Project Madrigal covers';
+  var mappen = DriveApp.getFoldersByName(naam);
+  if (!mappen.hasNext()) { meld('De map ' + naam + ' staat niet op Google Drive.'); return; }
+  var perGrootte = {};
+  var it = mappen.next().getFiles();
+  while (it.hasNext()) {
+    var f = it.next();
+    var g = f.getSize();
+    (perGrootte[g] = perGrootte[g] || []).push(f);
+  }
+  var bestanden = [], afgebroken = false;
+  Object.keys(perGrootte).forEach(function (g) {
+    if (perGrootte[g].length < STANDAARD_MIN || afgebroken) return;
+    perGrootte[g].forEach(function (f) {
+      if (afgebroken) return;
+      if (Date.now() - start > 4 * 60 * 1000) { afgebroken = true; return; }
+      bestanden.push({ id: f.getId(), hash: bytesHash(f.getBlob().getBytes()), bestand: f });
+    });
+  });
+  var st = standaardBestanden(bestanden);
+  // Onthouden, zodat het kopiëren van de oude covers ze voortaan overslaat.
+  var bekend = [];
+  try { bekend = JSON.parse(PropertiesService.getScriptProperties().getProperty(STANDAARD_HASHES_SLEUTEL) || '[]'); } catch (e) { bekend = []; }
+  st.hashes.forEach(function (h) { if (bekend.indexOf(h) === -1) bekend.push(h); });
+  PropertiesService.getScriptProperties().setProperty(STANDAARD_HASHES_SLEUTEL, JSON.stringify(bekend));
+  // bewaarAchtergrond neemt zelf het slot en schrijft enkel de gewiste velden.
+  var tabel = leesTabel('Catalogus');
+  var gewist = wisStandaardCovers(tabel.rijen, st.ids);
+  if (gewist.length && !bewaarAchtergrond(tabel)) { meld('Het is even druk in de spreadsheet. Probeer het over een minuut opnieuw.'); return; }
+  var weg = 0;
+  bestanden.forEach(function (b) { if (st.ids[b.id]) { try { b.bestand.setTrashed(true); weg++; } catch (e) { /* niet erg */ } } });
+  if (gewist.length) {
+    leegCache();
+    // De zoektochten naar een echte cover, na elkaar.
+    planTaak('vulAanUitGoogleBooks', 60 * 1000);
+    planTaak('zoekCoversBol', 10 * 60 * 1000);
+    planTaak('zoekCoversInternetArchive', 20 * 60 * 1000);
+  }
+  var tekst = gewist.length + ' boeken hadden een standaardafbeelding als cover (zoals het plaatje van LibraryThing). Die cover is weg, de zoektochten zoeken nu een echte cover. ' +
+    weg + ' bestanden staan in de prullenbak van Google Drive.' + (afgebroken ? ' Nog niet alles bekeken: kies dit menu nog een keer.' : '');
+  logboek('menu', 'verwijderStandaardCovers', tekst + (gewist.length ? ' Boeken: ' + gewist.join(', ') : ''));
+  meld(tekst);
+}
+
 /** Verwijdert geplande uitvoeringen van een functie. */
 function verwijderTriggers(functienaam) {
   ScriptApp.getProjectTriggers().forEach(function (t) {
@@ -10380,6 +10473,27 @@ function wisAanradersUitStockRijen(catalogusRijen, bron, inst) {
     }
   });
   return n;
+}
+
+/**
+ * Wist de covers die een standaardafbeelding zijn (Drive-bestand in ids), of een link naar LibraryThing.
+ * De cover wordt leeg, zodat de zoektochten (Google Books, Open Library, bol.com, ...) een echte cover kunnen zoeken.
+ * Geeft de boek_id's.
+ */
+function wisStandaardCovers(catalogus, ids) {
+  var gewist = [];
+  catalogus.forEach(function (b) {
+    if (isLeeg(b.boek_id)) return;
+    var velden = {};
+    if (!isLeeg(b.cover_url) && (ids[driveIdUitCover(b.cover_url)] || /librarything/i.test(String(b.cover_url)))) {
+      velden.cover_url = ''; velden.cover_bron = '';
+      // Opnieuw laten zoeken bij Google Books, bol.com en Internet Archive.
+      ['gb_gecontroleerd', 'bol_gezocht', 'ia_gezocht', 'cover_gezocht'].forEach(function (k) { if (b.hasOwnProperty(k)) velden[k] = ''; });
+    }
+    if (/librarything/i.test(String(b.oude_cover || ''))) velden.oude_cover = '';
+    if (Object.keys(velden).length) { wijzig(b, velden); gewist.push(String(b.boek_id)); }
+  });
+  return gewist;
 }
 
 /** Woorden van een tekst, zonder lidwoorden (tenzij er dan niets overblijft). */

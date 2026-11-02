@@ -132,6 +132,7 @@ function onOpen() {
       .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
       .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
       .addItem('Kopieer de covers van de oude website verder', 'startOudeCovers')
+      .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers')
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
       .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
