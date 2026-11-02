@@ -4532,7 +4532,12 @@ function kiesWikiTitels(boek, titels) {
 function kopieerOudeCovers() {
   var start = Date.now();
   if (wachtOpDaglimiet('kopieerOudeCovers')) return;
-  if (!startAchtergrond('kopieerOudeCovers')) { meldAlBezig('kopieerOudeCovers'); return; }
+  if (!startAchtergrond('kopieerOudeCovers')) {
+    // Een vorige ronde loopt nog (of stopte zonder op te ruimen): later opnieuw proberen in plaats van stil te stoppen.
+    planTaak('kopieerOudeCovers', 10 * 60 * 1000);
+    meldAlBezig('kopieerOudeCovers');
+    return;
+  }
   // Vangnet: stopt Google deze ronde onderweg (te lang bezig, of een fout van Drive), dan start ze vanzelf opnieuw.
   planTaak('kopieerOudeCovers', 10 * 60 * 1000);
   var gekopieerd = 0, zonder = 0, rest = 0, storing = false, fout = '', daglimiet = false;
@@ -6711,7 +6716,10 @@ function planTaak(naam, ms) {
   try {
     verwijderTriggers(naam);
     ScriptApp.newTrigger(naam).timeBased().after(Math.max(60 * 1000, ms)).create();
-  } catch (e) { /* lukt het niet, dan start je de taak met de hand */ }
+  } catch (e) {
+    // Lukt het niet (bv. te veel geplande taken), dan staat dat in het Logboek: start de taak dan met de hand.
+    try { logboek('fout', naam, 'Kon de volgende ronde niet plannen: ' + String(e && e.message || e).slice(0, 200) + '. Start de taak opnieuw via het menu.'); } catch (e2) { /* geen logboek */ }
+  }
 }
 
 /** Plant de vertaling over een paar minuten (één keer). */
@@ -9563,6 +9571,7 @@ function wachtOpDaglimiet(naam) {
   var wacht = wachtVoorTaak(naam, sinds, Date.now());
   if (!wacht) return false;
   planTaak(naam, wacht);
+  try { logboek('systeem', naam, 'Wacht op de daglimiet van Google. Gaat vanzelf verder over ' + Math.ceil(wacht / 60000) + ' minuten.'); } catch (e) { /* geen logboek */ }
   try { spreadsheet().toast('De daglimiet van Google voor vragen naar buiten is op. Deze taak gaat vanzelf verder over ' + Math.ceil(wacht / 3600000) + ' uur.', 'Madrigal', 15); } catch (e) { /* geen spreadsheet open */ }
   return true;
 }
