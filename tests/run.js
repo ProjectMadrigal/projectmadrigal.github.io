@@ -183,19 +183,19 @@ test('boeken zonder ISBN met dezelfde titel tot de dubbele punt blijven apart', 
 
 test('genres met andere schrijfwijze komen één keer in Onderwerpen', () => {
   const rijen = [];
-  const nieuw = M.vulOnderwerpenAan(rijen, [{ genre: 'Young Adult' }, { genre: 'Young adult' }, { genre: 'young adult' }, { genre: 'Erotica' }, { genre: 'erotica' }]);
+  const nieuw = M.vulOnderwerpenAan(rijen, [{ genre: 'Young Adult' }, { genre: 'Young Adult' }, { genre: 'young adult' }, { genre: 'Erotica' }, { genre: 'erotica' }]);
   assert.strictEqual(nieuw, 2);
   const ya = rijen.find((r) => r.genre.toLowerCase() === 'young adult');
   assert.strictEqual(ya.aantal_boeken, 3);
-  assert.strictEqual(ya.filtergroepen, 'Young adult');
+  assert.strictEqual(ya.filtergroepen, 'Young Adult');
   assert.strictEqual(rijen.find((r) => r.genre.toLowerCase() === 'erotica').filtergroepen, 'Erotica en BDSM');
 });
 
-test('thema\'s: Geschiedenis, Maatschappij en Religie en spiritualiteit apart', () => {
+test('thema\'s: Geschiedenis, Maatschappij en Religie en Spiritualiteit apart', () => {
   gelijk(M.stelFiltergroepenVoor('Geschiedenis'), ['Geschiedenis']);
   gelijk(M.stelFiltergroepenVoor('Politiek'), ['Maatschappij']);
-  gelijk(M.stelFiltergroepenVoor('Religie'), ['Religie en spiritualiteit']);
-  gelijk(M.stelFiltergroepenVoor('Spiritualiteit'), ['Religie en spiritualiteit']);
+  gelijk(M.stelFiltergroepenVoor('Religie'), ['Religie en Spiritualiteit']);
+  gelijk(M.stelFiltergroepenVoor('Spiritualiteit'), ['Religie en Spiritualiteit']);
   const rijen = [
     { genre: 'Geschiedenis', filtergroepen: 'Geschiedenis en maatschappij' },
     { genre: 'Essay', filtergroepen: 'Geschiedenis en maatschappij, Feminisme' },
@@ -205,9 +205,9 @@ test('thema\'s: Geschiedenis, Maatschappij en Religie en spiritualiteit apart', 
     { genre: 'Roman', filtergroepen: 'Fictie' }
   ];
   gelijk(M.verdeelOudeGroep(rijen), { aangepast: 5, religie: 2 });
-  gelijk(rijen.map((r) => r.filtergroepen), ['Geschiedenis', 'Feminisme, Maatschappij', 'Religie en spiritualiteit', 'Maatschappij', 'Religie en spiritualiteit', 'Fictie']);
+  gelijk(rijen.map((r) => r.filtergroepen), ['Geschiedenis', 'Feminisme, Maatschappij', 'Religie en Spiritualiteit', 'Maatschappij', 'Religie en Spiritualiteit', 'Fictie']);
   gelijk(M.verdeelOudeGroep(rijen), { aangepast: 0, religie: 0 }, 'Opnieuw: niets meer te doen');
-  assert.ok(M.FILTERGROEPEN.indexOf('Geschiedenis en maatschappij') === -1 && M.FILTERGROEPEN.indexOf('Religie en spiritualiteit') > -1);
+  assert.ok(M.FILTERGROEPEN.indexOf('Geschiedenis en maatschappij') === -1 && M.FILTERGROEPEN.indexOf('Religie en Spiritualiteit') > -1);
 });
 
 test('filtergroepen: vertaaltabel, extra onderwerpen, klassieker en zines', () => {
@@ -3438,6 +3438,16 @@ test('genres opkuisen: varianten worden één genre, thema\'s in de juiste schri
   gelijk(onderwerpen.filter((r) => !r._verwijderen).map((r) => [r.genre, r.filtergroepen]), [['Roman', 'Fictie, Liefde'], ['Gedichten', 'Poëzie'], ['Politiek', 'Maatschappij']]);
   gelijk([cat[1].extra_onderwerpen, cat[2].extra_onderwerpen], ['Gender', 'Liefde']);
   gelijk([uit.genres, uit.boeken], [3, 3]);
+});
+
+
+test('genres opkuisen: vaste namen (Intersekse, Religie en Spiritualiteit, Young Adult, Kunst en Fotoboek)', () => {
+  gelijk(['Intersex', 'religie', 'young adult', 'Fotoboeken', 'Religie en spiritualiteit'].map(M.genreMooi), ['Intersekse', 'Religie en Spiritualiteit', 'Young Adult', 'Kunst en Fotoboek', 'Religie en Spiritualiteit']);
+  const onderwerpen = [{ genre: 'Religie', filtergroepen: 'Religie en spiritualiteit' }, { genre: 'Intersex', filtergroepen: 'gender' }];
+  const cat = [{ boek_id: 'B1', soort: 'boek', genre: 'Religie', extra_onderwerpen: 'young adult' }, { boek_id: 'B2', soort: 'boek', genre: 'Intersex', extra_onderwerpen: '' }];
+  M.genresOpkuisen(onderwerpen, cat, M.genreVoorstellen(onderwerpen, cat));
+  gelijk(cat.map((b) => [b.genre, b.extra_onderwerpen]), [['Religie en Spiritualiteit', 'Young Adult'], ['Intersekse', '']]);
+  gelijk(onderwerpen.map((r) => [r.genre, r.filtergroepen]), [['Religie en Spiritualiteit', 'Religie en Spiritualiteit'], ['Intersekse', 'Gender']]);
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');

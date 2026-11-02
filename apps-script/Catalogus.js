@@ -26,7 +26,7 @@ var BRONKOLOMMEN = {
 };
 
 /** De standaard filtergroepen op de website, in deze volgorde. */
-var FILTERGROEPEN = ['Gender', 'Seksualiteit', 'Feminisme', 'Fictie', 'Klassiekers', 'Geschiedenis', 'Maatschappij', 'Religie en spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
+var FILTERGROEPEN = ['Gender', 'Seksualiteit', 'Feminisme', 'Fictie', 'Klassiekers', 'Geschiedenis', 'Maatschappij', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
 
 /** Voorstellen voor de vertaaltabel: een genre met dit woord erin gaat naar deze groep. */
 var ONDERWERP_VOORSTELLEN = [
@@ -36,11 +36,11 @@ var ONDERWERP_VOORSTELLEN = [
   [/roman|fictie|fiction|verhal|verhaal|proza|literatuur|thriller|detective|fantasy|science|kort/, 'Fictie'],
   [/geschied|histor|kolonial|fascis|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
   [/maatschap|politi|sociolog|activis|essay|non ?fictie|filosof|marx|ecolog|cultuur|onderzoek|anarch|racism|migrat|economi/, 'Maatschappij'],
-  [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en spiritualiteit'],
+  [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
   [/biogra|^bio$|memoir|dagboek/, 'Biografie'],
   [/poezie|gedicht|poetry|poem/, 'Poëzie'],
   [/graphic|strip|comic|manga/, 'Graphic novel'],
-  [/young adult|^ya$|jeugd|kinder/, 'Young adult'],
+  [/young adult|^ya$|jeugd|kinder/, 'Young Adult'],
   [/pulp/, 'Pulp'],
   [/erotic|erotiek|bdsm|kink|fetish|leder|leather/, 'Erotica en BDSM'],
   [/zine/, 'Zines']
@@ -487,12 +487,12 @@ function vulOnderwerpenAan(onderwerpRijen, catalogusRijen) {
 
 /**
  * De oude groep "Geschiedenis en maatschappij" werd drie groepen: Geschiedenis, Maatschappij en
- * Religie en spiritualiteit. Verdeelt de rijen van Onderwerpen op basis van het genre. Past een
+ * Religie en Spiritualiteit. Verdeelt de rijen van Onderwerpen op basis van het genre. Past een
  * genre in geen van de drie, dan wordt het Maatschappij. Andere groepen blijven staan.
- * Geeft { aangepast, religie } (aantal rijen, en hoeveel daarvan naar Religie en spiritualiteit gingen).
+ * Geeft { aangepast, religie } (aantal rijen, en hoeveel daarvan naar Religie en Spiritualiteit gingen).
  */
 var OUDE_GROEP = 'geschiedenis en maatschappij';
-var NIEUWE_GROEPEN = ['Geschiedenis', 'Maatschappij', 'Religie en spiritualiteit'];
+var NIEUWE_GROEPEN = ['Geschiedenis', 'Maatschappij', 'Religie en Spiritualiteit'];
 
 function verdeelOudeGroep(onderwerpRijen) {
   var aangepast = 0, religie = 0;
@@ -501,7 +501,7 @@ function verdeelOudeGroep(onderwerpRijen) {
     var g = normaliseerTekst(r.genre);
     var heeftOud = groepen.some(function (x) { return normaliseerTekst(x) === OUDE_GROEP; });
     // Een genre over religie dat nog nergens bij hoorde, krijgt ook de nieuwe groep.
-    var isReligie = stelFiltergroepenVoor(g).indexOf('Religie en spiritualiteit') > -1;
+    var isReligie = stelFiltergroepenVoor(g).indexOf('Religie en Spiritualiteit') > -1;
     var heeftReligie = groepen.some(function (x) { return normaliseerTekst(x) === 'religie en spiritualiteit'; });
     if (!heeftOud && !(isReligie && !heeftReligie)) return;
     var nieuw = stelFiltergroepenVoor(g).filter(function (x) { return NIEUWE_GROEPEN.indexOf(x) > -1; });
@@ -510,7 +510,7 @@ function verdeelOudeGroep(onderwerpRijen) {
     nieuw.forEach(function (x) { if (rest.map(normaliseerTekst).indexOf(normaliseerTekst(x)) === -1) rest.push(x); });
     wijzig(r, { filtergroepen: rest.join(', ') });
     aangepast++;
-    if (nieuw.indexOf('Religie en spiritualiteit') > -1) religie++;
+    if (nieuw.indexOf('Religie en Spiritualiteit') > -1) religie++;
   });
   return { aangepast: aangepast, religie: religie };
 }
@@ -522,7 +522,7 @@ function verdeelOudeGroepMenu() {
   if (r.aangepast) bewaarTabel(tabel);
   leegCache();
   logboek('menu', 'verdeelOudeGroep', r.aangepast + ' genres, ' + r.religie + ' naar religie');
-  meld(r.aangepast + ' genres in Onderwerpen kregen een nieuwe groep, waarvan ' + r.religie + ' bij Religie en spiritualiteit. Kijk de kolom filtergroepen na: een genre dat verkeerd staat, pas je daar zelf aan.');
+  meld(r.aangepast + ' genres in Onderwerpen kregen een nieuwe groep, waarvan ' + r.religie + ' bij Religie en Spiritualiteit. Kijk de kolom filtergroepen na: een genre dat verkeerd staat, pas je daar zelf aan.');
 }
 
 /** Stelt filtergroepen voor op basis van woorden in het genre. */
