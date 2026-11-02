@@ -573,6 +573,11 @@ function themaExact(naam) {
   return k ? alleThemas().filter(function (f) { return normaliseerTekst(f) === k; })[0] || '' : '';
 }
 
+/** Een lijst namen zonder de namen van een thema (Feminisme, Poëzie, ...): die staan al bij de thema's. */
+function zonderThemas(namen) {
+  return (namen || []).filter(function (n) { return !themaExact(n); });
+}
+
 /** De thema's van een naam: het thema zelf, de thema's van een genre, of het voorstel. */
 function themaVan(naam, vertaal) {
   var k = normaliseerTekst(naam);

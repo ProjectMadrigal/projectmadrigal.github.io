@@ -96,7 +96,8 @@ function oudeOnderwerpenVoorBoek(boek, onderwerpen, vertaal) {
   (onderwerpen || []).forEach(function (o) {
     var naam = genreMooi(o.naam);
     if (o.trigger) { triggers.push(naam); return; }
-    (o.categorie ? categorieen : trefwoorden).push(naam);
+    // Heeft de naam die van een thema (Feminisme, Poëzie, ...), dan staat hij enkel bij de thema's.
+    if (!themaExact(naam)) (o.categorie ? categorieen : trefwoorden).push(naam);
     // Non-fictie is te breed voor een thema: dat zegt niets over de inhoud.
     if (!/^non ?fict/.test(normaliseerTekst(o.naam))) themas = themas.concat(themaVan(o.naam, vertaal));
   });
@@ -116,7 +117,8 @@ function categorieenOverzicht(catalogus, oudeTags) {
   var lijst = {}, volgorde = [];
   var zet = function (naam, soort) {
     var k = normaliseerTekst(naam);
-    if (!k) return null;
+    // De naam van een thema hoort niet in dit overzicht: die staat al bij de thema's.
+    if (!k || themaExact(naam)) return null;
     if (!lijst[k]) { lijst[k] = { naam: genreMooi(naam), soort: soort, aantal_boeken: 0 }; volgorde.push(k); }
     return lijst[k];
   };
@@ -132,10 +134,35 @@ function categorieenOverzicht(catalogus, oudeTags) {
   });
 }
 
+/**
+ * Haalt de namen van thema's uit de kolommen categorieen en trefwoorden: die horen bij de thema's
+ * (extra_onderwerpen), niet dubbel. Geeft de boek_id's die veranderden.
+ */
+function categorieenZonderThemas(catalogus) {
+  var veranderd = [];
+  catalogus.forEach(function (b) {
+    var naarThema = [], velden = {};
+    ['categorieen', 'trefwoorden'].forEach(function (kol) {
+      var lijst = splitsLijst(b[kol]);
+      var rest = zonderThemas(lijst);
+      if (rest.length === lijst.length) return;
+      lijst.forEach(function (n) { if (themaExact(n)) naarThema.push(themaExact(n)); });
+      velden[kol] = rest.join(', ');
+    });
+    if (!naarThema.length) return;
+    var themas = voegLijstToe(b.extra_onderwerpen, naarThema);
+    if (themas !== splitsLijst(b.extra_onderwerpen).join(', ')) velden.extra_onderwerpen = themas;
+    wijzig(b, velden);
+    veranderd.push(String(b.boek_id));
+  });
+  return veranderd;
+}
+
 /** In Apps Script: schrijft het tabblad Categorieën en trefwoorden en zet de keuzelijsten in de Catalogus. */
 function vernieuwCategorieen(oudeTags) {
   var naam = 'Categorieën en trefwoorden';
   var catalogus = leesTabel('Catalogus');
+  if (categorieenZonderThemas(catalogus.rijen).length) schrijfKolommen(catalogus, ['categorieen', 'trefwoorden', 'extra_onderwerpen']);
   var ss = spreadsheet();
   var blad = ss.getSheetByName(naam);
   // De namen die al in het tabblad staan, blijven (ook als ze aan geen enkel boek hangen).

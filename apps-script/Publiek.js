@@ -68,9 +68,10 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
       d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
       db: /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(schoon(rij.beschrijving_bron)) && schoonMetRegels(rij.beschrijving) ? schoon(rij.beschrijving_bron) : ''
     };
-    var categorieen = splitsLijst(rij.categorieen);
+    // Een categorie of trefwoord met de naam van een thema staat al bij de thema's: niet dubbel.
+    var categorieen = zonderThemas(splitsLijst(rij.categorieen));
     if (categorieen.length) boek.ca = categorieen;
-    var trefwoorden = splitsLijst(rij.trefwoorden);
+    var trefwoorden = zonderThemas(splitsLijst(rij.trefwoorden));
     if (trefwoorden.length) boek.k = trefwoorden;
     var triggers = toonTriggers ? splitsLijst(rij.triggerwaarschuwingen) : [];
     if (triggers.length) boek.tw = triggers;

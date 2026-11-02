@@ -2003,6 +2003,19 @@ test('oude website: categorieën en thema\'s blijven bestaan (categorieen, trefw
   gelijk([uit.onderwerpen, catalogus[0].extra_onderwerpen, catalogus[0].categorieen, catalogus[0].trefwoorden], [1, 'Fictie, Seksualiteit, Gender', 'Roman', 'Lesbisch, Transgender']);
 });
 
+test('categorieën en trefwoorden: de naam van een thema staat niet dubbel', () => {
+  gelijk(Array.from(M.zonderThemas(['Roman', 'Feminisme', 'poezie', 'Lesbisch'])), ['Roman', 'Lesbisch']);
+  // Bij het overnemen: Feminisme en Poëzie enkel bij de thema's.
+  const v = M.oudeOnderwerpenVoorBoek({ extra_onderwerpen: '' }, [{ naam: 'Poëzie', categorie: true }, { naam: 'Feminisme' }, { naam: 'Lesbisch' }], {});
+  gelijk([v.extra_onderwerpen, v.categorieen, v.trefwoorden], ['Poëzie, Feminisme, Seksualiteit', undefined, 'Lesbisch']);
+  // Opkuisen van wat al in de Catalogus staat.
+  const cat = [{ boek_id: 'B1', categorieen: 'Roman, Poëzie', trefwoorden: 'feminisme, Lesbisch', extra_onderwerpen: 'Fictie' }, { boek_id: 'B2', categorieen: 'Essay' }];
+  gelijk(Array.from(M.categorieenZonderThemas(cat)), ['B1']);
+  gelijk([cat[0].categorieen, cat[0].trefwoorden, cat[0].extra_onderwerpen], ['Roman', 'Lesbisch', 'Fictie, Poëzie, Feminisme']);
+  // Het overzicht toont geen thema's.
+  gelijk(M.categorieenOverzicht([{ categorieen: 'Roman, Fictie' }], []).map((r) => r.naam), ['Roman']);
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);

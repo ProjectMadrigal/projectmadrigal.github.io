@@ -2562,9 +2562,10 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
       d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
       db: /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(schoon(rij.beschrijving_bron)) && schoonMetRegels(rij.beschrijving) ? schoon(rij.beschrijving_bron) : ''
     };
-    var categorieen = splitsLijst(rij.categorieen);
+    // Een categorie of trefwoord met de naam van een thema staat al bij de thema's: niet dubbel.
+    var categorieen = zonderThemas(splitsLijst(rij.categorieen));
     if (categorieen.length) boek.ca = categorieen;
-    var trefwoorden = splitsLijst(rij.trefwoorden);
+    var trefwoorden = zonderThemas(splitsLijst(rij.trefwoorden));
     if (trefwoorden.length) boek.k = trefwoorden;
     var triggers = toonTriggers ? splitsLijst(rij.triggerwaarschuwingen) : [];
     if (triggers.length) boek.tw = triggers;
@@ -2816,7 +2817,8 @@ function categorieenOverzicht(catalogus, oudeTags) {
   var lijst = {}, volgorde = [];
   var zet = function (naam, soort) {
     var k = normaliseerTekst(naam);
-    if (!k) return null;
+    // De naam van een thema hoort niet in dit overzicht: die staat al bij de thema's.
+    if (!k || themaExact(naam)) return null;
     if (!lijst[k]) { lijst[k] = { naam: genreMooi(naam), soort: soort, aantal_boeken: 0 }; volgorde.push(k); }
     return lijst[k];
   };
@@ -2830,6 +2832,30 @@ function categorieenOverzicht(catalogus, oudeTags) {
   return volgorde.map(function (k) { return lijst[k]; }).sort(function (a, b) {
     return orde[a.soort] - orde[b.soort] || a.naam.localeCompare(b.naam, 'nl');
   });
+}
+
+/**
+ * Haalt de namen van thema's uit de kolommen categorieen en trefwoorden: die horen bij de thema's
+ * (extra_onderwerpen), niet dubbel. Geeft de boek_id's die veranderden.
+ */
+function categorieenZonderThemas(catalogus) {
+  var veranderd = [];
+  catalogus.forEach(function (b) {
+    var naarThema = [], velden = {};
+    ['categorieen', 'trefwoorden'].forEach(function (kol) {
+      var lijst = splitsLijst(b[kol]);
+      var rest = zonderThemas(lijst);
+      if (rest.length === lijst.length) return;
+      lijst.forEach(function (n) { if (themaExact(n)) naarThema.push(themaExact(n)); });
+      velden[kol] = rest.join(', ');
+    });
+    if (!naarThema.length) return;
+    var themas = voegLijstToe(b.extra_onderwerpen, naarThema);
+    if (themas !== splitsLijst(b.extra_onderwerpen).join(', ')) velden.extra_onderwerpen = themas;
+    wijzig(b, velden);
+    veranderd.push(String(b.boek_id));
+  });
+  return veranderd;
 }
 
 /** Zet een waarde om naar wat we in een cel schrijven. */
@@ -7280,7 +7306,8 @@ function oudeOnderwerpenVoorBoek(boek, onderwerpen, vertaal) {
   (onderwerpen || []).forEach(function (o) {
     var naam = genreMooi(o.naam);
     if (o.trigger) { triggers.push(naam); return; }
-    (o.categorie ? categorieen : trefwoorden).push(naam);
+    // Heeft de naam die van een thema (Feminisme, Poëzie, ...), dan staat hij enkel bij de thema's.
+    if (!themaExact(naam)) (o.categorie ? categorieen : trefwoorden).push(naam);
     // Non-fictie is te breed voor een thema: dat zegt niets over de inhoud.
     if (!/^non ?fict/.test(normaliseerTekst(o.naam))) themas = themas.concat(themaVan(o.naam, vertaal));
   });
@@ -9567,6 +9594,7 @@ function verlengen(staat, invoer) {
 function vernieuwCategorieen(oudeTags) {
   var naam = 'Categorieën en trefwoorden';
   var catalogus = leesTabel('Catalogus');
+  if (categorieenZonderThemas(catalogus.rijen).length) schrijfKolommen(catalogus, ['categorieen', 'trefwoorden', 'extra_onderwerpen']);
   var ss = spreadsheet();
   var blad = ss.getSheetByName(naam);
   // De namen die al in het tabblad staan, blijven (ook als ze aan geen enkel boek hangen).
@@ -11753,4 +11781,9 @@ function zoekWikipedia(boek, taal) {
   if (z.code !== 200 || !z.data) return { fout: 'zoeken gaf code ' + z.code };
   if (z.data.error) return { fout: 'Wikipedia meldt ' + (z.data.error.code || 'een fout') };
   return wikiKies(boek, wikiPaginas(z.data));
+}
+
+/** Een lijst namen zonder de namen van een thema (Feminisme, Poëzie, ...): die staan al bij de thema's. */
+function zonderThemas(namen) {
+  return (namen || []).filter(function (n) { return !themaExact(n); });
 }
