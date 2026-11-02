@@ -5351,6 +5351,12 @@ function maakTitelNakijklijst() {
   opmaakKop(blad, TITELS_KOLOMMEN.length);
   blad.setColumnWidth(3, 360);
   blad.setColumnWidth(4, 360);
+  if (lijst.length) {
+    // Keuzelijst ja / nee in de kolom toepassen (gedaan mag ook: dat zet het script na het toepassen).
+    blad.getRange(2, TITELS_KOLOMMEN.indexOf('toepassen') + 1, lijst.length, 1).setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(['ja', 'nee', 'gedaan'], true).setAllowInvalid(false).build());
+    blad.setFrozenRows(1);
+  }
   logboek('menu', 'maakTitelNakijklijst', lijst.length + ' titels met een voorstel');
   meld(lijst.length + ' titels hebben een andere schrijfwijze nodig. Kijk ze na in het tabblad ' + TITELS_TABBLAD + ': pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.');
 }
