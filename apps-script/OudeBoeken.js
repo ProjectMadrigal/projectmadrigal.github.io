@@ -158,24 +158,74 @@ function categorieenZonderThemas(catalogus) {
   return veranderd;
 }
 
+var CATEGORIE_SOORTEN = ['categorie', 'trefwoord', 'triggerwaarschuwing', 'weg'];
+var CATEGORIE_KOLOM = { categorie: 'categorieen', trefwoord: 'trefwoorden', triggerwaarschuwing: 'triggerwaarschuwingen' };
+
+/**
+ * Deelt de namen in de Catalogus opnieuw in volgens de soort in het tabblad Categorieën en trefwoorden.
+ * soortVan: { genormaliseerde naam: 'categorie' | 'trefwoord' | 'triggerwaarschuwing' | 'weg' }.
+ * Zet je in het tabblad Crime op trefwoord, dan verhuist Crime bij elk boek van categorieen naar trefwoorden.
+ * Met weg verdwijnt de naam bij elk boek. Geeft de boek_id's die veranderden.
+ */
+function categorieenHerindelen(catalogus, soortVan) {
+  var veranderd = [];
+  catalogus.forEach(function (b) {
+    var nieuw = { categorieen: [], trefwoorden: [], triggerwaarschuwingen: [] };
+    // Eerst wat blijft staan, dan wat verhuist: zo blijft de volgorde in elke kolom zoals ze was.
+    [true, false].forEach(function (blijft) {
+      Object.keys(CATEGORIE_KOLOM).forEach(function (soort) {
+        splitsLijst(b[CATEGORIE_KOLOM[soort]]).forEach(function (n) {
+          var doel = soortVan[normaliseerTekst(n)] || soort;
+          if (doel === 'weg' || (doel === soort) !== blijft) return;
+          var lijst = nieuw[CATEGORIE_KOLOM[doel]];
+          if (!lijst.some(function (x) { return normaliseerTekst(x) === normaliseerTekst(n); })) lijst.push(n);
+        });
+      });
+    });
+    var velden = {};
+    Object.keys(nieuw).forEach(function (kol) {
+      if (nieuw[kol].join(', ') !== splitsLijst(b[kol]).join(', ')) velden[kol] = nieuw[kol].join(', ');
+    });
+    if (Object.keys(velden).length) { wijzig(b, velden); veranderd.push(String(b.boek_id)); }
+  });
+  return veranderd;
+}
+
 /** In Apps Script: schrijft het tabblad Categorieën en trefwoorden en zet de keuzelijsten in de Catalogus. */
 function vernieuwCategorieen(oudeTags) {
   var naam = 'Categorieën en trefwoorden';
   var catalogus = leesTabel('Catalogus');
-  if (categorieenZonderThemas(catalogus.rijen).length) schrijfKolommen(catalogus, ['categorieen', 'trefwoorden', 'extra_onderwerpen']);
   var ss = spreadsheet();
   var blad = ss.getSheetByName(naam);
-  // De namen die al in het tabblad staan, blijven (ook als ze aan geen enkel boek hangen).
-  var bestaand = blad && blad.getLastRow() > 1 ? leesTabel(naam).rijen.map(function (r) {
-    return { displayName: r.naam, isCategory: r.soort === 'categorie', isTw: r.soort === 'triggerwaarschuwing' };
-  }) : [];
-  var rijen = categorieenOverzicht(catalogus.rijen, bestaand.concat(oudeTags || []));
+  // De soort in het tabblad wint: zo deel je een naam zelf anders in (of zet je hem op weg).
+  var tabRijen = blad && blad.getLastRow() > 1 ? leesTabel(naam).rijen : [];
+  var soortVan = {};
+  tabRijen.forEach(function (r) {
+    var soort = normaliseerTekst(r.soort);
+    if (CATEGORIE_SOORTEN.indexOf(soort) > -1) soortVan[normaliseerTekst(r.naam)] = soort;
+  });
+  var anders = categorieenHerindelen(catalogus.rijen, soortVan);
+  var zonderThemas = categorieenZonderThemas(catalogus.rijen);
+  if (anders.length || zonderThemas.length) schrijfKolommen(catalogus, ['categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'extra_onderwerpen']);
+  // De namen die al in het tabblad staan, blijven (ook als ze aan geen enkel boek hangen). Wat op weg staat, valt weg.
+  var bestaand = tabRijen.filter(function (r) { return normaliseerTekst(r.soort) !== 'weg'; }).map(function (r) {
+    var soort = soortVan[normaliseerTekst(r.naam)] || 'trefwoord';
+    return { displayName: r.naam, isCategory: soort === 'categorie', isTw: soort === 'triggerwaarschuwing' };
+  });
+  var weg = {};
+  Object.keys(soortVan).forEach(function (k) { if (soortVan[k] === 'weg') weg[k] = true; });
+  oudeTags = (oudeTags || []).filter(function (t) { return t && !weg[normaliseerTekst(t.displayName || t.name)]; });
+  var rijen = categorieenOverzicht(catalogus.rijen, bestaand.concat(oudeTags));
+  // Wat op weg staat, blijft onderaan in het tabblad: zo komt het ook na opnieuw overnemen niet terug.
+  tabRijen.forEach(function (r) { if (weg[normaliseerTekst(r.naam)]) rijen.push({ naam: schoon(r.naam), soort: 'weg', aantal_boeken: 0 }); });
   if (!blad) blad = ss.insertSheet(naam);
   var kolommen = KOLOMMEN[naam];
   blad.clear();
   var waarden = [kolommen].concat(rijen.map(function (r) { return kolommen.map(function (k) { return r[k]; }); }));
   blad.getRange(1, 1, waarden.length, kolommen.length).setValues(waarden);
   opmaakKop(blad, kolommen.length);
+  if (rijen.length) blad.getRange(2, kolommen.indexOf('soort') + 1, rijen.length, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(CATEGORIE_SOORTEN, true).setAllowInvalid(false).build());
   // Keuzelijsten in de Catalogus. Ongeldige waarden mogen: meerdere namen met een komma ertussen.
   [['categorieen', 'categorie'], ['trefwoorden', 'trefwoord'], ['triggerwaarschuwingen', 'triggerwaarschuwing']].forEach(function (paar) {
     var kol = catalogus.kop.indexOf(paar[0]) + 1;
@@ -192,7 +242,7 @@ function vernieuwCategorieenMenu() {
   var rijen = vernieuwCategorieen([]);
   var tel = function (s) { return rijen.filter(function (r) { return r.soort === s; }).length; };
   var tekst = tel('categorie') + ' categorieën, ' + tel('trefwoord') + ' trefwoorden en ' + tel('triggerwaarschuwing') +
-    ' triggerwaarschuwingen in het tabblad Categorieën en trefwoorden. De kolommen in de Catalogus hebben nu een keuzelijst.';
+    ' triggerwaarschuwingen in het tabblad Categorieën en trefwoorden. De kolommen in de Catalogus volgen nu de soort in dat tabblad en hebben een keuzelijst.';
   logboek('menu', 'vernieuwCategorieen', tekst);
   meld(tekst);
 }
