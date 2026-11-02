@@ -140,6 +140,26 @@
   }
 
   /**
+   * De keuzes per filter, rekening houdend met de andere gekozen filters: zo zie je enkel wat
+   * nog samen kan (bv. Thema Biografie en Trefwoord Lesbisch), met het juiste aantal.
+   * Een gekozen waarde blijft altijd in de lijst, ook met 0 boeken.
+   */
+  function optiesSamen(boeken, keuzes, lijstVolgorde, filters) {
+    var lijst = filters || FILTERS;
+    var resultaat = {};
+    lijst.forEach(function (f) {
+      var anders = {};
+      Object.keys(keuzes).forEach(function (k) { if (k !== f.sleutel) anders[k] = keuzes[k]; });
+      var rest = pasToe(boeken, anders, lijst);
+      var o = opties(rest, null, lijstVolgorde, [f])[f.sleutel];
+      var gekozen = keuzes[f.sleutel];
+      if (gekozen && !o.some(function (x) { return x.waarde === gekozen; })) o.unshift({ waarde: gekozen, aantal: 0 });
+      resultaat[f.sleutel] = o;
+    });
+    return resultaat;
+  }
+
+  /**
    * Past de gekozen filters toe.
    * keuzes: { groep: 'Gender', taal: 'Engels', ..., beschikbaar: true }
    */
@@ -217,7 +237,7 @@
     }).slice(0, aantal || 6).map(function (x) { return x.boek; });
   }
 
-  var api = { FILTERS: FILTERS, FILMFILTERS: FILMFILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, DIKTES: DIKTES, dikteVan: dikteVan, DUREN: DUREN, duurVan: duurVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
+  var api = { FILTERS: FILTERS, FILMFILTERS: FILMFILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, DIKTES: DIKTES, dikteVan: dikteVan, DUREN: DUREN, duurVan: duurVan, opties: opties, optiesSamen: optiesSamen, pasToe: pasToe, sorteer: sorteer };
   root.MadrigalFilters = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -88,7 +88,7 @@
       leeslijstenIntro: 'Boeken rond een thema, samengesteld door de vrijwilligers van Project Madrigal.', geenLeeslijsten: 'Er zijn nog geen leeslijsten.',
       deelLijst: 'Deel deze lijst', lijstAantal1: '1 boek', lijstAantalN: '{n} boeken', leesOok: 'Lees ook', fLeeslijst: 'Leeslijst',
       deelBoek: 'Deel dit boek', linkGekopieerd: 'De link is gekopieerd.', kopieerLink: 'Kopieer deze link: {url}',
-      onderwerpen: 'Onderwerpen', trefwoorden: 'Trefwoorden', categorieen: 'Categorieën', fCategorie: 'Categorie', fTrefwoord: 'Trefwoord', toonTriggers: 'Toon de triggerwaarschuwingen', coverVan: 'Cover van {titel}',
+      onderwerpen: 'Thema\'s', trefwoorden: 'Trefwoorden', categorieen: 'Categorieën', fCategorie: 'Categorie', fTrefwoord: 'Trefwoord', toonTriggers: 'Toon de triggerwaarschuwingen', coverVan: 'Cover van {titel}',
       vJaartal: 'Jaartal', vTaal: 'Taal', vUitgeverij: 'Uitgeverij', vPaginas: "Pagina's", vUitvoering: 'Uitvoering', vStaat: 'Staat', vIsbn: 'ISBN', vSoort: 'Soort',
       nieuw: 'Nieuw', tweedehands: 'Tweedehands', zine: 'Zine',
       uitlegBeschikbaar: 'Kom langs in de bib om dit boek te lenen.',
@@ -98,7 +98,7 @@
       stUitgeleend: 'Uitgeleend', stUitgeleendTot: 'Uitgeleend, verwacht terug op {datum}',
       stGereserveerd: 'Gereserveerd', stNietUitleenbaar: 'Niet uitleenbaar', stVerloren: 'Niet meer beschikbaar', stTeKoop: 'Te koop in de bib, niet uitleenbaar',
       labels: 'Labels',
-      fOnderwerp: 'Onderwerp', fTaal: 'Taal', fDikte: 'Dikte', fStaat: 'Nieuw of tweedehands', fUitvoering: 'Uitvoering', fPeriode: 'Periode van uitgave', fAanrader: 'Aanrader',
+      fOnderwerp: 'Thema', fTaal: 'Taal', fDikte: 'Dikte', fStaat: 'Nieuw of tweedehands', fUitvoering: 'Uitvoering', fPeriode: 'Periode van uitgave', fAanrader: 'Aanrader',
       overTitel: 'Over Project Madrigal'
     },
     en: {
@@ -171,7 +171,7 @@
       leeslijstenIntro: 'Books around a theme, put together by the volunteers of Project Madrigal.', geenLeeslijsten: 'There are no reading lists yet.',
       deelLijst: 'Share this list', lijstAantal1: '1 book', lijstAantalN: '{n} books', leesOok: 'You might also like', fLeeslijst: 'Reading list',
       deelBoek: 'Share this book', linkGekopieerd: 'The link has been copied.', kopieerLink: 'Copy this link: {url}',
-      onderwerpen: 'Topics', trefwoorden: 'Keywords', categorieen: 'Categories', fCategorie: 'Category', fTrefwoord: 'Keyword', toonTriggers: 'Show trigger warnings', coverVan: 'Cover of {titel}',
+      onderwerpen: 'Themes', trefwoorden: 'Keywords', categorieen: 'Categories', fCategorie: 'Category', fTrefwoord: 'Keyword', toonTriggers: 'Show trigger warnings', coverVan: 'Cover of {titel}',
       vJaartal: 'Year', vTaal: 'Language', vUitgeverij: 'Publisher', vPaginas: 'Pages', vUitvoering: 'Format', vStaat: 'Condition', vIsbn: 'ISBN', vSoort: 'Type',
       nieuw: 'New', tweedehands: 'Second-hand', zine: 'Zine',
       uitlegBeschikbaar: 'Come by the library to borrow this book.',
@@ -181,7 +181,7 @@
       stUitgeleend: 'On loan', stUitgeleendTot: 'On loan, expected back on {datum}',
       stGereserveerd: 'Reserved', stNietUitleenbaar: 'Not for loan', stVerloren: 'No longer available', stTeKoop: 'For sale at the library, not for loan',
       labels: 'Labels',
-      fOnderwerp: 'Topic', fTaal: 'Language', fDikte: 'Length', fStaat: 'New or second-hand', fUitvoering: 'Format', fPeriode: 'Publication period', fAanrader: 'Recommendation',
+      fOnderwerp: 'Theme', fTaal: 'Language', fDikte: 'Length', fStaat: 'New or second-hand', fUitvoering: 'Format', fPeriode: 'Publication period', fAanrader: 'Recommendation',
       overTitel: 'About Project Madrigal'
     }
   };
