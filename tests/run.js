@@ -3453,5 +3453,21 @@ test('genres opkuisen: vaste namen (Intersekse, Religie en Spiritualiteit, Young
   gelijk(onderwerpen.map((r) => [r.genre, r.filtergroepen]), [['Religie en Spiritualiteit', 'Religie en Spiritualiteit'], ['Intersekse', 'Gender']]);
 });
 
+
+test('dikte: vier groepen op het aantal pagina\'s, in vaste volgorde', () => {
+  gelijk([0, 90, 150, 151, 300, 450, 501, ''].map(F.dikteVan), ['', 'Dun (tot 150 bladzijden)', 'Dun (tot 150 bladzijden)', 'Gemiddeld (150 tot 300 bladzijden)', 'Gemiddeld (150 tot 300 bladzijden)', 'Dik (300 tot 500 bladzijden)', 'Heel dik (meer dan 500 bladzijden)', '']);
+  const o = F.opties([{ p: 600 }, { p: 100 }, { p: 200 }, { p: 120 }, {}]);
+  gelijk(o.dikte.map((x) => [x.waarde, x.aantal]), [['Dun (tot 150 bladzijden)', 2], ['Gemiddeld (150 tot 300 bladzijden)', 1], ['Heel dik (meer dan 500 bladzijden)', 1]]);
+  gelijk(F.pasToe([{ id: 'a', p: 100 }, { id: 'b', p: 400 }], { dikte: 'Dun (tot 150 bladzijden)' }).map((b) => b.id), ['a']);
+});
+
+test('eigen thema\'s: Kunst en Fotoboek blijft een thema, ook als genre', () => {
+  M.verwerkInstellingen({ eigen_themas: 'Kunst en Fotoboek' });
+  const v = M.vertaalTabel([]);
+  gelijk(M.filtergroepenVan({ genre: 'Kunst en fotoboek', extra_onderwerpen: '', soort: 'boek' }, v), ['Kunst en Fotoboek']);
+  gelijk(M.filtergroepenVan({ genre: '', extra_onderwerpen: 'kunst en fotoboek, gender', soort: 'boek' }, v), ['Kunst en Fotoboek', 'Gender']);
+  assert.ok(M.onderwerpKeuzes([], []).lijst.includes('Kunst en Fotoboek'));
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
