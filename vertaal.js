@@ -937,11 +937,37 @@
    "voorstel van een vrijwilliger wacht op goedkeuring": "suggestion from a volunteer is waiting for approval",
    "voorstellen van vrijwilligers wachten op goedkeuring": "suggestions from volunteers are waiting for approval",
    "vraag van een lener": "question from a borrower",
-   "wil iets kopen": "wants to buy something"
+   "wil iets kopen": "wants to buy something",
+   "Titels en auteurs nakijken": "Check titles and authors",
+   "Boeken waarvan de titel of de auteur anders geschreven is in de stocklijst, op de oude website of nu op de website. Neem het boek uit de kast en kijk hoe het op de cover staat. Neem een versie over of typ het zelf": "Books whose title or author is written differently in the stock list, on the old website or on the website now. Take the book from the shelf and check how it is written on the cover. Take over a version or type it yourself",
+   "Lijst laden...": "Loading list...",
+   "De lijst kon niet laden": "The list could not load",
+   "Er is nog geen lijst. Vraag het bestuur om ze te maken": "There is no list yet. Ask the board to make it",
+   "Kast": "Shelf",
+   "Deze kast is klaar. Kies een andere kast": "This shelf is done. Choose another shelf",
+   "Zo staat het in elke bron": "How each source writes it",
+   "Stocklijst": "Stock list",
+   "Oude website": "Old website",
+   "Nu op de website": "Now on the website",
+   "Niet gevonden in deze bron": "Not found in this source",
+   "Neem over": "Take over",
+   "Titel zoals op het boek": "Title as on the book",
+   "Auteur zoals op het boek": "Author as on the book",
+   "Klopt, volgende": "Correct, next",
+   "Bewaar, volgende": "Save, next",
+   "Niet in de kast": "Not on the shelf",
+   "‹ Vorige": "‹ Previous",
+   "Sla over ›": "Skip ›",
+   "Zonder onderwerp": "Without subject"
   };
 
   /** Zinnen met een getal, datum of naam erin. $1, $2 ... nemen dat deel over. Datums gaan mee naar het Engels. */
   var PATRONEN = [
+    [/^Alle kasten \((\d+)\)$/, 'All shelves ($1)'],
+    [/^(.+): boek (\d+) van (\d+)\. Al nagekeken: (\d+)\.$/, '$1: book $2 of $3. Already checked: $4.'],
+    [/^Alles is nagekeken\. (\d+) boeken gedaan\. Dank je!$/, 'Everything is checked. $1 books done. Thank you!'],
+    [/^Boek (\S+), ISBN (\S+)$/, 'Book $1, ISBN $2'],
+    [/^Boek (\S+)$/, 'Book $1'],
     [/^(\d+) van (\d+) gedaan\.$/, '$1 of $2 done.'],
     [/^(\d+) van (\d+) teruggezet\.$/, '$1 of $2 put back.'],
     [/^Rondleiding, stap (\d+) van (\d+)$/, 'Tour, step $1 of $2'],

@@ -85,6 +85,10 @@ var ACTIES = {
   aankoopVerwijderen: 'bestuur',
   aankoopUitvinken: 'bestuur',
   briefjeWeg: 'vrijwilliger',
+  // Titels en auteurs nakijken in de bib (Titelcontrole.js): iedereen past aan, het bestuur maakt de lijst.
+  titelcontroleData: 'vrijwilliger',
+  titelcontroleBewaren: 'vrijwilliger',
+  titelcontroleMaken: 'bestuur',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
   // Beheer van de website (Beheer.js). Wat op 'vrijwilliger' staat, kan ook vanuit het vrijwilligersscherm.
@@ -572,6 +576,8 @@ var KOLOMMEN = {
   // verkoop_id maakt de gsm zelf (ook zonder internet): zo telt een verkoop nooit dubbel.
   'Verkopen': ['verkoop_id', 'standje_id', 'boek_id', 'aantal', 'prijs', 'betaalwijze', 'tijdstip', 'vrijwilliger'],
   // Boeken die de bib wil kopen (Aankoop.js). status: open of in catalogus. gekozen: ja als het bestuur het aanduidde.
+  // Titels en auteurs nakijken in de bib (Titelcontrole.js).
+  'Titelcontrole': ['boek_id', 'titel_nu', 'auteur_nu', 'titel_stock', 'auteur_stock', 'titel_oud', 'auteur_oud', 'status', 'wie', 'datum'],
   'Aankooplijst': ['aankoop_id', 'datum', 'titel', 'auteur', 'isbn', 'genre', 'prijs', 'link', 'reden', 'voorgesteld_door', 'status', 'gekozen', 'boek_id', 'datum_binnen', 'bron']
 };
 
@@ -630,7 +636,7 @@ var INSTELLING_GROEPEN = [
 
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken']],     // collectie
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole']],     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
@@ -710,6 +716,10 @@ var VOORRANG_MS = 30 * 60 * 1000;
 var HUIDIGE_TAAK = ''; // de achtergrondtaak die nu loopt (zie startAchtergrond)
 
 var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'status', 'aanrader', 'startpagina', 'publiek', 'uitleenbaar', 'klassieker'];
+
+var TITELCONTROLE_TABBLAD = 'Titelcontrole';
+
+var TITELCONTROLE_STATUSSEN = ['klopt', 'aangepast', 'niet in de kast'];
 
 var TITEL_KLEIN_EN = ['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'off', 'on', 'per', 'to', 'up', 'via', 'vs', 'with', 'from', 'into', 'onto', 'over', 'than'];
 
@@ -2608,6 +2618,17 @@ function checklistPunten(tekst) {
     .filter(Boolean).slice(0, 30);
 }
 
+/** Zijn twee auteurs gelijk? Een lege auteur telt niet als verschil. */
+function controleAuteurGelijk(a, b) {
+  var x = controleAuteurSleutel(a), y = controleAuteurSleutel(b);
+  return !x || !y || x === y;
+}
+
+/** Sleutel om auteurs te vergelijken: de woorden in alfabetische volgorde ("Melchior, Willem" = "Willem Melchior"). */
+function controleAuteurSleutel(auteur) {
+  return normaliseerTekst(String(auteur || '').replace(/\b(en|and|et|und)\b|&/gi, ' ')).split(' ').filter(Boolean).sort().join(' ');
+}
+
 /**
  * Controleert alle grenzen van een actie.
  * Geeft een lijst terug met de overschreden grenzen: [{ id, naam, melding }].
@@ -2620,6 +2641,20 @@ function controleerGrenzen(actie, ctx) {
     if (melding) overschreden.push({ id: g.id, naam: g.naam, melding: melding });
   });
   return overschreden;
+}
+
+/** Zijn twee titels gelijk? Ook als de ene een ondertitel heeft (na ":" of " - ") en de andere niet. */
+function controleTitelGelijk(a, b) {
+  var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
+  if (!x || !y || x === y) return true;
+  var kortA = controleTitelSleutel(String(a).split(/:| [-–—] /)[0]);
+  var kortB = controleTitelSleutel(String(b).split(/:| [-–—] /)[0]);
+  return kortA === y || kortB === x;
+}
+
+/** Sleutel om titels te vergelijken: enkel letters en cijfers, in kleine letters. */
+function controleTitelSleutel(titel) {
+  return normaliseerTekst(titel);
 }
 
 /** Actie beheerCoverLinks: per boek de link naar de cover, voor de kleine covers in de lijsten van het bestuursscherm. */
@@ -4397,6 +4432,11 @@ function isEigenCover(boek, eigen) {
   return bron === 'foto in de bib' || bron === 'link' || !!eigen.cover[String(boek.boek_id)];
 }
 
+/**
+ * Past de Catalogus aan met de boeken van de oude website.
+ * Geeft { beschrijvingen, covers, eigen, gelijk, nietGevonden: [oud boek], hoe: { manier: aantal } }.
+ */
+
 function isFilm(rij) {
   return normaliseerTekst(rij && rij.soort) === 'film';
 }
@@ -5379,6 +5419,52 @@ function maakOcrTekstNetjes(ruw) {
   return kortAfOpZin(t, BS_MAX_LENGTE);
 }
 
+/**
+ * Maakt de lijst (opnieuw). De open rijen gaan weg en komen opnieuw, wat nagekeken is blijft.
+ * Geeft { ok, tekst }. Gebruikt door het menu en de knop in het bestuursscherm.
+ */
+function maakTitelcontroleLijst() {
+  // Eerst de oude website lezen, zonder slot: dat duurt even.
+  var oudeBoeken = [];
+  try {
+    var db = vindOudeDatabank();
+    var oud = haalOudeBoeken(db);
+    oudeBoeken = oud.rijen.map(function (r) { return oudBoekUitRij(r, db.url); }).filter(function (b) { return b.titel; });
+  } catch (e) { oudeBoeken = []; }
+  var ss = spreadsheet();
+  var stock = [];
+  [['Stock', 'boek'], ['Zines', 'zine']].forEach(function (paar) {
+    var blad = ss.getSheetByName(paar[0]);
+    if (blad) stock = stock.concat(leesBronRijen(blad.getDataRange().getValues(), paar[1]));
+  });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var nieuw;
+  try {
+    var catalogus = leesTabel('Catalogus');
+    var tabel = titelcontroleTabel();
+    nieuw = titelcontroleRijen(catalogus.rijen, stock, oudeBoeken, tabel.rijen);
+    // Wat nagekeken is, blijft. De open rijen maken plaats voor de nieuwe. Alles in één keer schrijven.
+    var blijft = tabel.rijen.filter(function (r) { return schoon(r.status); });
+    var waarden = blijft.concat(nieuw).map(function (r) { return rijNaarWaarden(tabel.kop, r); });
+    var blad = tabel.blad;
+    if (blad.getLastRow() > 1) blad.getRange(2, 1, blad.getLastRow() - 1, tabel.kop.length).clearContent();
+    if (waarden.length) blad.getRange(2, 1, waarden.length, tabel.kop.length).setValues(waarden);
+  } finally {
+    lock.releaseLock();
+  }
+  var tekst = nieuw.length + ' boeken om na te kijken: de titel of auteur verschilt tussen de stocklijst, de oude website en de Catalogus.' +
+    (oudeBoeken.length ? '' : ' Let op: de oude website kon ik niet lezen, enkel de stocklijst telde.') +
+    (stock.length ? '' : ' Let op: de tabbladen Stock en Zines ontbreken.');
+  logboek('menu', 'maakTitelcontroleLijst', tekst);
+  return { ok: true, tekst: tekst };
+}
+
+/** Menu: de lijst maken. */
+function maakTitelcontroleMenu() {
+  meld(maakTitelcontroleLijst().tekst + ' Je vindt ze in het bestuurs- en vrijwilligersscherm bij Titels en auteurs nakijken.');
+}
+
 /** Menu: stap 1, de nakijklijst maken (het tabblad Titels nakijken wordt opnieuw geschreven). */
 function maakTitelNakijklijst() {
   var catalogus = leesTabel('Catalogus').rijen;
@@ -5947,7 +6033,8 @@ function onOpen() {
       .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock')
       .addSeparator()
       .addItem('Titels: maak een nakijklijst', 'maakTitelNakijklijst')
-      .addItem('Titels: pas de nakijklijst toe', 'pasTitelNakijklijstToe'))
+      .addItem('Titels: pas de nakijklijst toe', 'pasTitelNakijklijstToe')
+      .addItem('Titelcontrole in de bib: maak de lijst', 'maakTitelcontroleMenu'))
     .addSubMenu(ui.createMenu('Covers')
       .addItem('Vul aan uit Open Library', 'vulAanUitOpenLibrary')
       .addItem('Zoek covers bij Google Books', 'vulAanUitGoogleBooks')
@@ -6204,47 +6291,11 @@ function oudeAfbeelding(waarde, basis) {
   return basis ? basis + '/storage/v1/object/public/' + w.replace(/^\//, '') : w;
 }
 
-/**
- * Past de Catalogus aan met de boeken van de oude website.
- * Geeft { beschrijvingen, covers, eigen, gelijk, nietGevonden: [oud boek], hoe: { manier: aantal } }.
- */
 function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
-  var index = oudIndex(catalogus);
   var standaard = oudeStandaardCovers(oudeBoeken);
-  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: 0, verborgen: 0, nietGevonden: [], hoe: {}, gekoppeld: {} };
-  var gezien = {};
-  // Ronde 1: de zekere manieren. Ronde 2: ruimer, enkel voor wat overblijft en enkel als het uniek is.
-  var paren = [], rest = [];
-  oudeBoeken.forEach(function (oud) {
-    var g = zoekOudBoek(oud, index, gezien);
-    if (g && !gezien[String(g.boek.boek_id)]) { gezien[String(g.boek.boek_id)] = true; paren.push([oud, g]); }
-    else if (g) uit.dubbel++;
-    else rest.push(oud);
-  });
-  var zelfdeOud = function (a, b) { return oudTitelKern(a.titel) === oudTitelKern(b.titel) && normaliseerTekst(a.auteur) === normaliseerTekst(b.auteur); };
-  rest.slice().forEach(function (oud) {
-    if (rest.indexOf(oud) === -1) return;
-    var g = zoekOudBoekRuim(oud, index, gezien, rest);
-    if (!g) return;
-    gezien[String(g.boek.boek_id)] = true;
-    paren.push([oud, g]);
-    // Stond het boek twee keer op de oude website, dan is het tweede exemplaar ook gevonden.
-    rest = rest.filter(function (o) { return !zelfdeOud(o, oud); });
-  });
-  // Wat overblijft en sterk lijkt op een boek dat al gekoppeld is (zelfde auteur, of geen auteur), is een tweede
-  // exemplaar of uitgave op de oude website: dat boek staat al in de Catalogus en hoeft niet in Na te kijken.
-  rest = rest.filter(function (oud) {
-    var zonderAuteur = !auteurWoorden(oud.auteur).length;
-    var al = index.alle.some(function (c) {
-      return gezien[String(c.boek_id)] && (zonderAuteur || auteursDelen(oud.auteur, c.auteur)) && oudTitelGelijk(oud, c) >= 0.9;
-    });
-    if (al) uit.dubbel++;
-    return !al;
-  });
-  // Verborgen op de oude website en niet gevonden: niet in Na te kijken (de melding telt ze).
-  rest = rest.filter(function (oud) { if (oud.verborgen) uit.verborgen++; return !oud.verborgen; });
-  uit.nietGevonden = rest;
-  paren.forEach(function (paar) {
+  var koppeling = oudeParen(catalogus, oudeBoeken);
+  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: koppeling.dubbel, verborgen: koppeling.verborgen, nietGevonden: koppeling.rest, hoe: {}, gekoppeld: {} };
+  koppeling.paren.forEach(function (paar) {
     var oud = paar[0], gevonden = paar[1];
     uit.hoe[gevonden.hoe] = (uit.hoe[gevonden.hoe] || 0) + 1;
     var boek = gevonden.boek;
@@ -6329,6 +6380,47 @@ function oudeLener(staat, o, teller) {
     wijzig(lener, { datum_inschrijving: o.datum_uit });
   }
   return lener;
+}
+
+/**
+ * Koppelt de boeken van de oude website aan de Catalogus. Geeft { paren: [[oud, { boek, hoe }]], rest: [oude boeken
+ * zonder koppeling], dubbel: aantal tweede exemplaren of uitgaven, verborgen: aantal verborgen en niet gevonden }.
+ */
+function oudeParen(catalogus, oudeBoeken) {
+  var index = oudIndex(catalogus);
+  var uit = { dubbel: 0, verborgen: 0 };
+  var gezien = {};
+  // Ronde 1: de zekere manieren. Ronde 2: ruimer, enkel voor wat overblijft en enkel als het uniek is.
+  var paren = [], rest = [];
+  oudeBoeken.forEach(function (oud) {
+    var g = zoekOudBoek(oud, index, gezien);
+    if (g && !gezien[String(g.boek.boek_id)]) { gezien[String(g.boek.boek_id)] = true; paren.push([oud, g]); }
+    else if (g) uit.dubbel++;
+    else rest.push(oud);
+  });
+  var zelfdeOud = function (a, b) { return oudTitelKern(a.titel) === oudTitelKern(b.titel) && normaliseerTekst(a.auteur) === normaliseerTekst(b.auteur); };
+  rest.slice().forEach(function (oud) {
+    if (rest.indexOf(oud) === -1) return;
+    var g = zoekOudBoekRuim(oud, index, gezien, rest);
+    if (!g) return;
+    gezien[String(g.boek.boek_id)] = true;
+    paren.push([oud, g]);
+    // Stond het boek twee keer op de oude website, dan is het tweede exemplaar ook gevonden.
+    rest = rest.filter(function (o) { return !zelfdeOud(o, oud); });
+  });
+  // Wat overblijft en sterk lijkt op een boek dat al gekoppeld is (zelfde auteur, of geen auteur), is een tweede
+  // exemplaar of uitgave op de oude website: dat boek staat al in de Catalogus en hoeft niet in Na te kijken.
+  rest = rest.filter(function (oud) {
+    var zonderAuteur = !auteurWoorden(oud.auteur).length;
+    var al = index.alle.some(function (c) {
+      return gezien[String(c.boek_id)] && (zonderAuteur || auteursDelen(oud.auteur, c.auteur)) && oudTitelGelijk(oud, c) >= 0.9;
+    });
+    if (al) uit.dubbel++;
+    return !al;
+  });
+  // Verborgen op de oude website en niet gevonden: niet in Na te kijken (de melding telt ze).
+  rest = rest.filter(function (oud) { if (oud.verborgen) uit.verborgen++; return !oud.verborgen; });
+  return { paren: paren, rest: rest, dubbel: uit.dubbel, verborgen: uit.verborgen };
 }
 
 /** Covers die bij OUD_STANDAARD_MIN of meer boeken dezelfde zijn: standaardafbeeldingen. Geeft { link: true }. */
@@ -7637,6 +7729,129 @@ function tijdzone() {
   return Session.getScriptTimeZone() || 'Europe/Brussels';
 }
 
+/** Acties van het scherm. titelcontroleData en titelcontroleBewaren: vrijwilligers en bestuur. titelcontroleMaken: bestuur. */
+function titelcontroleActie(actie, invoer, wie) {
+  var catalogus = leesTabel('Catalogus');
+  var tabel = spreadsheet().getSheetByName(TITELCONTROLE_TABBLAD) ? leesTabel(TITELCONTROLE_TABBLAD) : null;
+  if (!tabel) return { ok: true, lijst: { open: [], nietGevonden: [], gedaan: 0, leeg: true } };
+  if (actie === 'titelcontroleBewaren') {
+    var r = titelcontroleToepassen(catalogus.rijen, tabel.rijen, invoer, wie, vandaagTekst());
+    if (!r.ok) return r;
+    if (r.catalogusGewijzigd) {
+      schrijfKolommen(catalogus, ['titel', 'auteur']);
+      logboek(wie, 'titelcontrole', String(invoer.boek_id) + ': titel of auteur aangepast');
+      leegCache();
+    }
+    schrijfKolommen(tabel, ['status', 'wie', 'datum', 'titel_nu', 'auteur_nu']);
+    return { ok: true, tekst: r.tekst };
+  }
+  return { ok: true, lijst: titelcontroleLijst(catalogus.rijen, tabel.rijen) };
+}
+
+/** De open rijen voor het scherm, met de huidige titel en auteur uit de Catalogus. Plus de boeken die niet in de kast stonden. */
+function titelcontroleLijst(catalogus, rijen) {
+  var perId = {};
+  catalogus.forEach(function (b) { if (!isLeeg(b.boek_id)) perId[String(b.boek_id)] = b; });
+  var open = [], nietGevonden = [], gedaan = 0;
+  rijen.forEach(function (r) {
+    var b = perId[String(r.boek_id)];
+    if (!b) return;
+    var status = schoon(r.status);
+    var item = {
+      id: String(r.boek_id), isbn: schoon(b.isbn),
+      nu: { t: schoon(b.titel), a: schoon(b.auteur) },
+      stock: r.titel_stock || r.auteur_stock ? { t: schoon(r.titel_stock), a: schoon(r.auteur_stock) } : null,
+      oud: r.titel_oud || r.auteur_oud ? { t: schoon(r.titel_oud), a: schoon(r.auteur_oud) } : null
+    };
+    if (!status) open.push(item);
+    else if (status === 'niet in de kast') { item.wie = schoon(r.wie); item.datum = parseerDatum(r.datum) || schoon(r.datum); nietGevonden.push(item); }
+    else gedaan++;
+  });
+  return { open: open, nietGevonden: nietGevonden, gedaan: gedaan };
+}
+
+/**
+ * Maakt de lijst. catalogus: rijen van de Catalogus. stock: boeken uit leesBronRijen (Stock en Zines).
+ * oudeBoeken: boeken van de oude website (oudBoekUitRij). bestaand: rijen van het tabblad Titelcontrole.
+ * Geeft de nieuwe open rijen: { boek_id, titel_nu, auteur_nu, titel_stock, auteur_stock, titel_oud, auteur_oud, status: '' }.
+ */
+function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand) {
+  var perSleutel = {};
+  stock.forEach(function (b) { var s = bronSleutel(b); if (!perSleutel[s]) perSleutel[s] = b; });
+  var oudPerId = {};
+  if (oudeBoeken.length) oudeParen(catalogus, oudeBoeken).paren.forEach(function (p) { oudPerId[String(p[1].boek.boek_id)] = p[0]; });
+  var klaar = {};
+  (bestaand || []).forEach(function (r) { if (TITELCONTROLE_STATUSSEN.indexOf(schoon(r.status)) > -1) klaar[String(r.boek_id)] = true; });
+  var uit = [];
+  catalogus.forEach(function (b) {
+    var id = String(b.boek_id || '');
+    if (!id || isLeeg(b.titel) || isFilm(b) || klaar[id]) return;
+    var nu = { titel: schoon(b.titel), auteur: schoon(b.auteur) };
+    var st = perSleutel[b.bron_sleutel];
+    var oud = oudPerId[id];
+    var bronnen = [nu];
+    if (st) bronnen.push({ titel: schoon(st.titel), auteur: schoon(st.auteur) });
+    if (oud) bronnen.push({ titel: schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : ''), auteur: schoon(oud.auteur) });
+    var anders = false;
+    for (var i = 0; i < bronnen.length && !anders; i++) {
+      for (var j = i + 1; j < bronnen.length && !anders; j++) {
+        if (!controleTitelGelijk(bronnen[i].titel, bronnen[j].titel) || !controleAuteurGelijk(bronnen[i].auteur, bronnen[j].auteur)) anders = true;
+      }
+    }
+    if (!anders) return;
+    uit.push({
+      boek_id: id, titel_nu: nu.titel, auteur_nu: nu.auteur,
+      titel_stock: st ? schoon(st.titel) : '', auteur_stock: st ? schoon(st.auteur) : '',
+      titel_oud: oud ? bronnen[bronnen.length - 1].titel : '', auteur_oud: oud ? schoon(oud.auteur) : '',
+      status: ''
+    });
+  });
+  return uit;
+}
+
+/** Het tabblad Titelcontrole, met de juiste kop (maakt het aan als het nog niet bestaat). */
+function titelcontroleTabel() {
+  var ss = spreadsheet();
+  if (!ss.getSheetByName(TITELCONTROLE_TABBLAD)) {
+    var blad = ss.insertSheet(TITELCONTROLE_TABBLAD);
+    var kop = KOLOMMEN[TITELCONTROLE_TABBLAD];
+    blad.getRange(1, 1, 1, kop.length).setValues([kop]);
+    opmaakKop(blad, kop.length);
+    blad.setFrozenRows(1);
+  }
+  return leesTabel(TITELCONTROLE_TABBLAD);
+}
+
+/**
+ * Bewaart wat iemand bij een boek koos. invoer: { boek_id, status: klopt | aangepast | niet in de kast | open, titel, auteur }.
+ * Bij aangepast: titel en auteur in de Catalogus (de bron_sleutel blijft). Geeft { ok, tekst, catalogusGewijzigd } of { ok: false, fout }.
+ */
+function titelcontroleToepassen(catalogus, rijen, invoer, wie, vandaag) {
+  var id = String(invoer.boek_id || '');
+  var rij = rijen.filter(function (r) { return String(r.boek_id) === id; })[0];
+  var boek = catalogus.filter(function (b) { return String(b.boek_id) === id; })[0];
+  if (!rij || !boek) return { ok: false, fout: 'Dit boek staat niet (meer) op de lijst. Laad de lijst opnieuw.' };
+  var status = schoon(invoer.status);
+  if (status === 'open') { wijzig(rij, { status: '', wie: '', datum: '' }); return { ok: true, tekst: '"' + schoon(boek.titel) + '" staat terug op de lijst.' }; }
+  if (TITELCONTROLE_STATUSSEN.indexOf(status) === -1) return { ok: false, fout: 'Onbekende keuze.' };
+  var veranderd = false;
+  if (status === 'aangepast') {
+    var titel = tekstInvoer(invoer.titel, 300);
+    var auteur = tekstInvoer(invoer.auteur, 300);
+    if (!titel) return { ok: false, fout: 'Een boek heeft een titel nodig.' };
+    var velden = {};
+    if (titel !== schoon(boek.titel)) velden.titel = titel;
+    if (auteur !== schoon(boek.auteur)) velden.auteur = auteur;
+    if (Object.keys(velden).length) { wijzig(boek, velden); veranderd = true; } else status = 'klopt';
+  }
+  wijzig(rij, { status: status, wie: wie, datum: vandaag, titel_nu: schoon(boek.titel), auteur_nu: schoon(boek.auteur) });
+  var tekst = status === 'niet in de kast' ? '"' + schoon(boek.titel) + '" staat op de lijst voor het bestuur: niet gevonden in de kast.'
+    : veranderd ? '"' + schoon(boek.titel) + '" is aangepast.' : '"' + schoon(boek.titel) + '" klopt.';
+  return { ok: true, tekst: tekst, catalogusGewijzigd: veranderd };
+}
+
+/* ---------- In Apps Script ---------- */
+
 /** Begint dit woord met een hoofdletter? */
 function titelGroot(w) {
   return w.charAt(0) !== w.charAt(0).toLowerCase();
@@ -8918,6 +9133,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'beheerLogboek') return logboekEnTaken(); // leest enkel, geen slot nodig
   if (actie === 'beheerCoverLinks') return coverLinks(leesTabel('Catalogus').rijen); // leest enkel
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
+  if (actie === 'titelcontroleMaken') return maakTitelcontroleLijst(); // leest de oude website, neemt zelf het slot om te schrijven
   if (actie === 'aankoopLezen') return aankoopLezen(invoer); // leest wat de bladwijzer kopieerde, of zoekt ISBN's op bij Google Books: zonder slot
 
   var lock = LockService.getScriptLock();
@@ -8928,6 +9144,7 @@ function voerActieUit(actie, invoer, rol) {
     if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
     if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
     if (/^aankoop/.test(actie)) return aankoopActie(actie, invoer, wie, rol);
+    if (/^titelcontrole/.test(actie)) return titelcontroleActie(actie, invoer, wie);
     if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus', 'voorraadCatalogus', 'voorraadZetten'].indexOf(actie) > -1) {
       var verkoop = verkoopActie(actie, invoer, wie);
       if (verkoop.ok && ((actie === 'verkopenDoorsturen' && verkoop.nieuw) || actie === 'voorraadZetten')) leegCache();

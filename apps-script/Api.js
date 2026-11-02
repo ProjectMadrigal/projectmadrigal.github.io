@@ -71,6 +71,10 @@ var ACTIES = {
   aankoopVerwijderen: 'bestuur',
   aankoopUitvinken: 'bestuur',
   briefjeWeg: 'vrijwilliger',
+  // Titels en auteurs nakijken in de bib (Titelcontrole.js): iedereen past aan, het bestuur maakt de lijst.
+  titelcontroleData: 'vrijwilliger',
+  titelcontroleBewaren: 'vrijwilliger',
+  titelcontroleMaken: 'bestuur',
   // Zonder code, vanaf de publieke website (Aanvragen.js). Staat uit tot online_reserveren = ja.
   reservatieAanvraag: 'publiek',
   // Beheer van de website (Beheer.js). Wat op 'vrijwilliger' staat, kan ook vanuit het vrijwilligersscherm.
@@ -283,6 +287,7 @@ function voerActieUit(actie, invoer, rol) {
   if (actie === 'beheerLogboek') return logboekEnTaken(); // leest enkel, geen slot nodig
   if (actie === 'beheerCoverLinks') return coverLinks(leesTabel('Catalogus').rijen); // leest enkel
   if (actie === 'beheerTekstUitFoto') return tekstUitFoto(invoer, ocrViaDrive); // leest enkel, geen slot nodig
+  if (actie === 'titelcontroleMaken') return maakTitelcontroleLijst(); // leest de oude website, neemt zelf het slot om te schrijven
   if (actie === 'aankoopLezen') return aankoopLezen(invoer); // leest wat de bladwijzer kopieerde, of zoekt ISBN's op bij Google Books: zonder slot
 
   var lock = LockService.getScriptLock();
@@ -293,6 +298,7 @@ function voerActieUit(actie, invoer, rol) {
     if (actie === 'meldingMaken' || actie === 'meldingAfhandelen') return meldingActie(actie, invoer, wie);
     if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
     if (/^aankoop/.test(actie)) return aankoopActie(actie, invoer, wie, rol);
+    if (/^titelcontrole/.test(actie)) return titelcontroleActie(actie, invoer, wie);
     if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus', 'voorraadCatalogus', 'voorraadZetten'].indexOf(actie) > -1) {
       var verkoop = verkoopActie(actie, invoer, wie);
       if (verkoop.ok && ((actie === 'verkopenDoorsturen' && verkoop.nieuw) || actie === 'voorraadZetten')) leegCache();
