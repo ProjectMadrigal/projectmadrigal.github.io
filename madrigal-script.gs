@@ -267,6 +267,12 @@ var CV_TITEL_AUTEUR = 'titel en auteur (Open Library)';
 
 var IA_BRON = 'Internet Archive';
 
+var CB_MAX_LOOPTIJD_MS = 4 * 60 * 1000;
+
+var CB_MISLUKT = 'mislukt ';
+
+var CB_MIN_PIXELS = 50; // kleiner is geen echte cover (bv. een leeg plaatje van 1 op 1)
+
 var WEEKDAGEN = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
 
 var MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
@@ -675,6 +681,8 @@ var KOLOM_INDELING = {
       bol_gezocht: ['techniek', 'Datum: opgezocht bij bol.com. Leeg = opnieuw zoeken.', true],
       ia_gezocht: ['techniek', 'Datum: opgezocht bij Internet Archive. Leeg = opnieuw zoeken.', true],
       wiki_gezocht: ['techniek', 'Datum: opgezocht bij Wikipedia. Leeg = opnieuw zoeken.', true],
+      cover_origineel: ['techniek', 'Waar de cover vandaan kwam voor ze naar Google Drive gekopieerd werd (Covers > Bewaar alle covers in Google Drive).', true],
+      cover_bewaard: ['techniek', 'Datum: cover naar Google Drive gekopieerd. "mislukt" + datum: die link lukte niet. Leeg = opnieuw proberen.', true],
       oude_cover: ['techniek', 'Cover van de oude website die nog naar Drive gekopieerd moet worden. Leeg als het klaar is.', true],
       film_gezocht: ['techniek', 'Datum: film opgezocht bij Wikidata. Leeg = opnieuw zoeken.', true]
     }
@@ -765,7 +773,7 @@ var KOLOMMEN = {
     'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
     // Een cover van de oude website die nog naar Drive gekopieerd moet worden (OudeBoeken.js). Leeg als het klaar is.
-    'oude_cover',
+    'oude_cover', 'cover_origineel', 'cover_bewaard',
     'letterboxd', 'imdb', 'wikidata', 'film_gezocht',
     // Interne notitie van het bestuur (bv. schade, plaats in de kast). Nooit publiek.
     'notitie'
@@ -2115,6 +2123,64 @@ function bewaarAchtergrond(tabel) {
   return true;
 }
 
+/** Achtergrond: kopieert covers van andere sites naar Drive, in porties. */
+function bewaarCoversInDrive() {
+  var start = Date.now();
+  if (wachtOpDaglimiet('bewaarCoversInDrive')) return;
+  if (!startAchtergrond('bewaarCoversInDrive')) {
+    planTaak('bewaarCoversInDrive', 10 * 60 * 1000);
+    return;
+  }
+  // Vangnet: breekt Google deze ronde af, dan start ze vanzelf opnieuw.
+  planTaak('bewaarCoversInDrive', 10 * 60 * 1000);
+  var bewaard = 0, mislukt = 0, rest = 0, storing = false, daglimiet = false, fout = '';
+  try {
+    var tabel = leesTabel('Catalogus');
+    var vandaag = vandaagTekst().replace(/-/g, '');
+    var teDoen = tabel.rijen.filter(heeftCoverBewarenNodig);
+    for (var i = 0; i < teDoen.length; i++) {
+      if (Date.now() - start > CB_MAX_LOOPTIJD_MS) break;
+      var boek = teDoen[i];
+      var url = schoon(boek.cover_url);
+      var a = haalCoverLink(url); // zie Beheer.js
+      if (a.code === 429 || a.code >= 500 || a.code === 0) { storing = true; break; }
+      var goed = a.code === 200 && a.data && !isStandaardAfbeelding(a.data) &&
+        coverGrootGenoeg(afbeeldingAfmetingen(Utilities.base64Decode(a.data)));
+      if (!goed) {
+        wijzig(boek, { cover_bewaard: CB_MISLUKT + vandaag, cover_origineel: url });
+        mislukt++;
+      } else {
+        var type = a.type.split(';')[0] || 'image/jpeg';
+        var link;
+        try {
+          link = bewaarFotoInDrive(coverBestandsnaam(boek, type), a.data, type);
+        } catch (e) {
+          fout = String(e && e.message || e).slice(0, 200);
+          daglimiet = /too many times|te vaak|limit/i.test(fout);
+          storing = true;
+          break;
+        }
+        wijzig(boek, { cover_url: link, cover_origineel: url, cover_bewaard: vandaagTekst() });
+        bewaard++;
+      }
+      if ((bewaard + mislukt) % 25 === 0) bewaarAchtergrond(tabel);
+      Utilities.sleep(200);
+    }
+    bewaarAchtergrond(tabel);
+    rest = tabel.rijen.filter(heeftCoverBewarenNodig).length;
+  } finally {
+    stopAchtergrond('bewaarCoversInDrive');
+  }
+  verwijderTriggers('bewaarCoversInDrive');
+  if (rest > 0) planTaak('bewaarCoversInDrive', (daglimiet ? 6 * 60 : storing ? 15 : 1) * 60 * 1000);
+  if (bewaard) leegCache();
+  if (bewaard || mislukt || storing) {
+    logboek('systeem', 'bewaarCoversInDrive', bewaard + ' covers naar Google Drive gekopieerd, ' + mislukt + ' lukten niet (die blijven zoals ze zijn), ' +
+      rest + ' te gaan' + (daglimiet ? ' (Google Drive: daglimiet, over 6 uur verder)' : storing ? ' (even een storing, over 15 minuten verder)' : '') +
+      (fout ? '. Fout: ' + fout : ''));
+  }
+}
+
 /** Bewaart een foto in de map voor covers op Google Drive en geeft een publieke link terug. */
 function bewaarFotoInDrive(bestandsnaam, base64, mime) {
   var naam = leesInstellingen().cover_map || 'Project Madrigal covers';
@@ -3347,6 +3413,18 @@ function controleZelfdeNaam(k, m) {
   var x = k.split(' '), y = m.split(' ');
   var deel = function (p, q) { return p.every(function (w) { return q.indexOf(w) > -1; }); };
   return deel(x, y) || deel(y, x);
+}
+
+/** De bestandsnaam in Drive: het boek-ID, zodat je een cover terugvindt. */
+function coverBestandsnaam(boek, type) {
+  var ext = /png/i.test(type) ? 'png' : /webp/i.test(type) ? 'webp' : /gif/i.test(type) ? 'gif' : 'jpg';
+  return String(boek.boek_id || 'boek') + '.' + ext;
+}
+
+/** Is deze afbeelding groot genoeg om een cover te zijn? Kent het script de afmetingen niet, dan wel. */
+function coverGrootGenoeg(afm) {
+  if (!afm || !afm.breedte || !afm.hoogte) return true;
+  return afm.breedte >= CB_MIN_PIXELS && afm.hoogte >= CB_MIN_PIXELS;
 }
 
 /** Actie beheerCoverLinks: per boek de link naar de cover, voor de kleine covers in de lijsten van het bestuursscherm. */
@@ -4732,6 +4810,13 @@ function heeftBolNodig(boek) {
   return isLeeg(boek.cover_url) && isLeeg(boek.bol_gezocht) && /^\d{13}$/.test(String(boek.isbn || ''));
 }
 
+/** Moet de cover van dit boek nog naar Drive? */
+function heeftCoverBewarenNodig(boek) {
+  if (!isExterneCover(boek.cover_url)) return false;
+  // Mislukt voor precies deze link: niet opnieuw. Een nieuwe link (bv. zelf aangepast) probeert het wel.
+  return !(String(boek.cover_bewaard || '').indexOf(CB_MISLUKT) === 0 && schoon(boek.cover_origineel) === schoon(boek.cover_url));
+}
+
 /** Heeft deze film nog gegevens van Wikidata of Wikipedia nodig? */
 function heeftFilmGegevensNodig(rij) {
   return isFilm(rij) && !isLeeg(rij.titel) && isLeeg(rij.film_gezocht);
@@ -5473,6 +5558,16 @@ function isEigenCover(boek, eigen) {
  * Past de Catalogus aan met de boeken van de oude website.
  * Geeft { beschrijvingen, covers, eigen, gelijk, nietGevonden: [oud boek], hoe: { manier: aantal } }.
  */
+
+/** Komt deze cover nog van een andere site? (niet van Google Drive en niet van deze website) */
+function isExterneCover(url) {
+  var u = schoon(url);
+  if (!/^https?:\/\//i.test(u)) return false;
+  if (/^https:\/\/lh3\.googleusercontent\.com\/d\//i.test(u)) return false;   // al in Drive
+  if (/^https:\/\/drive\.google\.com\//i.test(u)) return false;
+  if (/^https:\/\/projectmadrigal\.github\.io\//i.test(u)) return false;     // op de website zelf
+  return true;
+}
 
 function isFilm(rij) {
   return normaliseerTekst(rij && rij.soort) === 'film';
@@ -7302,7 +7397,9 @@ function onOpen() {
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
       .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
-      .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers'))
+      .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers')
+      .addSeparator()
+      .addItem('Bewaar alle covers in Google Drive (kopie van covers van andere sites)', 'startCoversBewaren'))
     .addSubMenu(ui.createMenu('Beschrijvingen')
       .addItem('Zoek ontbrekende beschrijvingen', 'vulBeschrijvingenAan')
       .addItem('Zoek beschrijvingen bij Wikipedia', 'zoekBeschrijvingenWikipedia')
@@ -8758,6 +8855,15 @@ function startAchtergrond(naam) {
   cache.put('taak_' + naam, String(Date.now()), ACHTERGROND_DUUR_SECONDEN);
   HUIDIGE_TAAK = naam;
   return true;
+}
+
+/** Menu: Covers > Bewaar alle covers in Google Drive. Start op de achtergrond. */
+function startCoversBewaren() {
+  zorgVoorTabbladen(['Catalogus']); // kolommen cover_origineel en cover_bewaard
+  planTaak('bewaarCoversInDrive', 60 * 1000);
+  var n = leesTabel('Catalogus').rijen.filter(heeftCoverBewarenNodig).length;
+  meld(n + ' covers komen nog van een andere site. Het kopiëren naar Google Drive start binnen een minuut op de achtergrond ' +
+    'en gaat vanzelf verder. Je kan gewoon verder werken. Het Logboek toont elke ronde.');
 }
 
 /** Menu: het kopiëren start op de achtergrond, zodat de spreadsheet niet minutenlang bezig is in jouw venster. */
@@ -10271,6 +10377,8 @@ function verwerkNieuweBoeken() {
 function verwerkNieuweBoekenAutomatisch() {
   // Elk uur ook even kijken of het kopiëren van de oude covers niet stilviel (zie OudeBoeken.js).
   try { waakOverOudeCovers(); } catch (e) { /* volgend uur opnieuw */ }
+  // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
+  try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
   var aantal = geefNieuweBoekenEenId();
@@ -11491,6 +11599,17 @@ function vulVasteEventsAan(avonden, inst) {
 }
 
 /* ---------- Een oud rooster overnemen (een tabblad per maand) ---------- */
+
+/** Waakhond (elk uur, via verwerkNieuweBoekenAutomatisch): nieuwe covers van een andere site? Dan kopiëren. */
+function waakOverCoversBewaren() {
+  var gepland = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'bewaarCoversInDrive'; });
+  var bezig = false;
+  try { bezig = !!CacheService.getScriptCache().get('taak_bewaarCoversInDrive'); } catch (e) { bezig = false; }
+  if (gepland || bezig) return;
+  var tabel = leesTabel('Catalogus');
+  if (tabel.kop.indexOf('cover_bewaard') === -1) return; // nog niet geïnstalleerd
+  if (tabel.rijen.some(heeftCoverBewarenNodig)) planTaak('bewaarCoversInDrive', 60 * 1000);
+}
 
 /**
  * Waakhond, elk uur (via verwerkNieuweBoekenAutomatisch). Google kan een geplande ronde laten vallen, bv. als de

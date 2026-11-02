@@ -2115,6 +2115,18 @@ test('covers op titel en auteur bij Google Books: wanneer, en enkel hetzelfde bo
   gelijk(M.googleTitelVelden(boek, items.slice(0, 1)), {});
 });
 
+test('covers bewaren in Google Drive: welke covers, en niet opnieuw na een mislukte poging', () => {
+  gelijk(['https://books.google.com/books/content?id=x', 'https://covers.openlibrary.org/b/id/1-M.jpg', 'https://lh3.googleusercontent.com/d/abc',
+    'https://projectmadrigal.github.io/icons/x.png', '', 'geen link'].map(M.isExterneCover), [true, true, false, false, false, false]);
+  const ol = 'https://covers.openlibrary.org/b/id/1-M.jpg';
+  gelijk([M.heeftCoverBewarenNodig({ cover_url: ol }),
+    M.heeftCoverBewarenNodig({ cover_url: ol, cover_bewaard: 'mislukt 20261103', cover_origineel: ol }),
+    M.heeftCoverBewarenNodig({ cover_url: 'https://archive.org/services/img/x', cover_bewaard: 'mislukt 20261103', cover_origineel: ol }),
+    M.heeftCoverBewarenNodig({ cover_url: 'https://lh3.googleusercontent.com/d/abc', cover_bewaard: '2026-11-03' })], [true, false, true, false]);
+  gelijk([M.coverBestandsnaam({ boek_id: 'B0012' }, 'image/png'), M.coverBestandsnaam({ boek_id: 'B0012' }, 'image/jpeg')], ['B0012.png', 'B0012.jpg']);
+  gelijk([M.coverGrootGenoeg({ breedte: 1, hoogte: 1 }), M.coverGrootGenoeg({ breedte: 128, hoogte: 190 }), M.coverGrootGenoeg(null)], [false, true, true]);
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
