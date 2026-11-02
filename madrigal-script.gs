@@ -5372,6 +5372,8 @@ function maakTitelNakijklijst() {
   var ss = spreadsheet();
   var blad = ss.getSheetByName(TITELS_TABBLAD) || ss.insertSheet(TITELS_TABBLAD);
   blad.clear();
+  // clear() laat keuzelijsten staan: die van een vorige versie (andere kolommen) eerst weghalen.
+  blad.getRange(1, 1, blad.getMaxRows(), blad.getMaxColumns()).clearDataValidations();
   var waarden = [TITELS_KOLOMMEN].concat(lijst.map(function (r) { return TITELS_KOLOMMEN.map(function (k) { return r[k]; }); }));
   blad.getRange(1, 1, waarden.length, TITELS_KOLOMMEN.length).setValues(waarden);
   opmaakKop(blad, TITELS_KOLOMMEN.length);
