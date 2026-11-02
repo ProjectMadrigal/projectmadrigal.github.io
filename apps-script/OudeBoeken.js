@@ -23,7 +23,7 @@
 var OUDE_COVER_BRON = 'oude website';
 var OUD_PER_PAGINA = 1000;          // zoveel rijen geeft Supabase hoogstens per vraag
 var OUD_STANDAARD_MIN = 3;          // dezelfde cover bij zoveel boeken: een standaardafbeelding
-var OUD_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
+var OUD_MAX_LOOPTIJD_MS = 4 * 60 * 1000; // ruim onder de 6 minuten die Google een taak geeft
 
 /** Een boek van de oude website: { id, isbn, titel, auteur, beschrijving, cover }. basis: adres van de databank. */
 function oudBoekUitRij(r, basis) {
@@ -523,7 +523,9 @@ function kopieerOudeCovers() {
   var start = Date.now();
   if (wachtOpDaglimiet('kopieerOudeCovers')) return;
   if (!startAchtergrond('kopieerOudeCovers')) { meldAlBezig('kopieerOudeCovers'); return; }
-  var gekopieerd = 0, zonder = 0, rest = 0, storing = false;
+  // Vangnet: stopt Google deze ronde onderweg (te lang bezig, of een fout van Drive), dan start ze vanzelf opnieuw.
+  planTaak('kopieerOudeCovers', 10 * 60 * 1000);
+  var gekopieerd = 0, zonder = 0, rest = 0, storing = false, fout = '', daglimiet = false;
   try {
     var tabel = leesTabel('Catalogus');
     var teDoen = tabel.rijen.filter(heeftOudeCoverNodig);
@@ -533,7 +535,16 @@ function kopieerOudeCovers() {
       var a = haalCoverLink(String(boek.oude_cover)); // zie Beheer.js
       if (a.code === 429 || a.code >= 500 || a.code === 0) { storing = true; break; }
       if (a.code === 200 && a.data) {
-        var link = bewaarFotoInDrive('oud-' + boek.boek_id + '.jpg', a.data, a.type.split(';')[0] || 'image/jpeg');
+        var link;
+        try {
+          link = bewaarFotoInDrive('oud-' + boek.boek_id + '.jpg', a.data, a.type.split(';')[0] || 'image/jpeg');
+        } catch (e) {
+          // Google Drive weigert even (bv. te veel bestanden vandaag): bewaren wat al lukte en later verder.
+          fout = String(e && e.message || e).slice(0, 200);
+          daglimiet = /too many times|te vaak|limit/i.test(fout);
+          storing = true;
+          break;
+        }
         wijzig(boek, { cover_url: link, cover_bron: OUDE_COVER_BRON, oude_cover: '' });
         gekopieerd++;
       } else {
@@ -549,8 +560,9 @@ function kopieerOudeCovers() {
     stopAchtergrond('kopieerOudeCovers');
   }
   verwijderTriggers('kopieerOudeCovers');
-  if (rest > 0) planTaak('kopieerOudeCovers', (storing ? 15 : 1) * 60 * 1000);
+  // Daglimiet van Google Drive: over 6 uur. Andere storing: over 15 minuten. Anders: over een minuut.
+  if (rest > 0) planTaak('kopieerOudeCovers', (daglimiet ? 6 * 60 : storing ? 15 : 1) * 60 * 1000);
   if (gekopieerd) leegCache();
   logboek('menu', 'kopieerOudeCovers', gekopieerd + ' covers van de oude website gekopieerd, ' + zonder + ' zonder afbeelding, ' + rest + ' te gaan' +
-    (storing ? ' (de oude website antwoordt even niet, over 15 minuten verder)' : ''));
+    (daglimiet ? ' (Google Drive: daglimiet, over 6 uur verder)' : storing ? ' (even een storing, over 15 minuten verder)' : '') + (fout ? '. Fout: ' + fout : ''));
 }
