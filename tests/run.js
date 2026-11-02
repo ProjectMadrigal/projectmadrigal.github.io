@@ -3203,5 +3203,23 @@ test('Titelcontrole: haakjes en komma als ondertitel, voorletters voluit', () =>
   gelijk([l.open[0].stock.ta, l.open[0].stock.aa, l.open[0].oud.ta, l.open[0].oud.aa], [false, false, true, false]);
 });
 
+
+test('Titelcontrole: reeksaanduiding met volumenummer', () => {
+  assert.strictEqual(M.controleTitelGelijk('Kim XXX', 'XXX (Kim, #6)'), true);
+  assert.strictEqual(M.controleTitelGelijk('XXX (Kim, #6)', 'Kim XXX'), true);
+  assert.strictEqual(M.controleTitelGelijk('Kim YYY', 'XXX (Kim, #6)'), false);
+  assert.strictEqual(M.controleTitelReeks('Kim XXX', 'XXX (Kim, #6)'), 'XXX (Kim, #6)');
+  assert.strictEqual(M.controleTitelReeks('XXX', 'XXX (Kim, #6)'), '', 'zonder de reeks in nu: dat doet de regel voor haakjes');
+  assert.strictEqual(M.controleTitelReeks('XXX (Kim, #6)', 'XXX (Kim, #7)'), '', 'nu heeft al een reeksaanduiding');
+  const stock = [{ soort: 'boek', isbn: '9780000000011', titel: 'Kim XXX', auteur: 'Bedacht, Kim' }];
+  const cat = [{ boek_id: 'B1', soort: 'boek', isbn: stock[0].isbn, titel: 'Kim XXX', auteur: 'Bedacht, Kim', bron_sleutel: M.bronSleutel(stock[0]) }];
+  const oud = [{ id: '1', isbn: stock[0].isbn, titel: 'XXX (Kim, #6)', ondertitel: '', auteur: 'Kim Bedacht' }];
+  const verbeterd = [];
+  gelijk(M.titelcontroleRijen(cat, stock, oud, [], verbeterd), []);
+  assert.strictEqual(cat[0].titel, 'XXX (Kim, #6)');
+  // Eén boek met een gewone ondertitel tussen haakjes blijft werken.
+  assert.strictEqual(M.controleTitelAangevuld('Zee', 'Zee (Verzonnen reeks 2)', 'Nederlands', {}), 'Zee (Verzonnen reeks 2)');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
