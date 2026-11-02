@@ -2907,6 +2907,19 @@ test('Titels: nakijklijst en toepassen', () => {
   assert.strictEqual(cat[0].titel, 'De blauwe kamer');
   assert.strictEqual(cat[2].titel, 'the long road');
   assert.strictEqual(lijst[0].toepassen, 'gedaan');
+  const cellen = [['titel', 'taal'], ['De Blauwe Kamer', 'Nederlands'], ['', ''], ['the long road', 'Engels']];
+  let schrijfbeurten = 0;
+  const blad = { getLastRow: () => cellen.length, getRange: (r, k, n) => ({
+    getValues: () => cellen.slice(r - 1, r - 1 + n).map((rij) => [rij[k - 1]]),
+    setValues: (w) => { schrijfbeurten++; w.forEach((x, i) => { cellen[r - 1 + i][k - 1] = x[0]; }); }
+  }) };
+  const tab = { blad, kop: ['titel', 'taal'], rijen: [{ _rij: 2, titel: 'De Blauwe Kamer' }, { _rij: 4, titel: 'the long road' }] };
+  M.wijzig(tab.rijen[0], { titel: 'De blauwe kamer' });
+  M.wijzig(tab.rijen[1], { titel: 'The Long Road' });
+  M.titelsSchrijfKolom(tab, 'titel');
+  assert.strictEqual(schrijfbeurten, 1, 'alles in één keer');
+  gelijk(cellen.map((r) => r[0]), ['titel', 'De blauwe kamer', '', 'The Long Road']);
+  gelijk(cellen.map((r) => r[1]), ['taal', 'Nederlands', '', 'Engels']);
   const ander = [{ boek_id: 'B1', titel: 'Een heel andere titel', taal: 'Nederlands' }];
   gelijk(M.titelsToepassen(ander, [{ boek_id: 'B1', titel_nu: 'De Blauwe Kamer', titel_nieuw: 'De blauwe kamer', toepassen: 'ja' }]), { gedaan: 0, overgeslagen: 1 });
 });

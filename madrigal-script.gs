@@ -5351,6 +5351,12 @@ function maakTitelNakijklijst() {
   opmaakKop(blad, TITELS_KOLOMMEN.length);
   blad.setColumnWidth(3, 360);
   blad.setColumnWidth(4, 360);
+  if (lijst.length) {
+    // Keuzelijst ja / nee in de kolom toepassen (gedaan mag ook: dat zet het script na het toepassen).
+    blad.getRange(2, TITELS_KOLOMMEN.indexOf('toepassen') + 1, lijst.length, 1).setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(['ja', 'nee', 'gedaan'], true).setAllowInvalid(false).build());
+    blad.setFrozenRows(1);
+  }
   logboek('menu', 'maakTitelNakijklijst', lijst.length + ' titels met een voorstel');
   meld(lijst.length + ' titels hebben een andere schrijfwijze nodig. Kijk ze na in het tabblad ' + TITELS_TABBLAD + ': pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.');
 }
@@ -6456,8 +6462,9 @@ function pasTitelNakijklijstToe() {
     var catalogus = leesTabel('Catalogus');
     var lijst = leesTabel(TITELS_TABBLAD);
     uit = titelsToepassen(catalogus.rijen, lijst.rijen);
-    bewaarTabel(catalogus);
-    bewaarTabel(lijst);
+    // Eén kolom in één keer schrijven: rij per rij bewaren duurt bij honderden titels langer dan 6 minuten.
+    titelsSchrijfKolom(catalogus, 'titel');
+    titelsSchrijfKolom(lijst, 'toepassen');
   } finally {
     lock.releaseLock();
   }
@@ -7659,6 +7666,24 @@ function titelSchrijfwijze(titel, taal, namen) {
 function titelSleutel(titel) {
   var t = schoon(titel).replace(/\(.*?\)/g, ' ').split(':')[0];
   return woorden(t).join(' ');
+}
+
+/** Schrijft de gewijzigde waarden van één kolom in één keer terug naar het tabblad. */
+function titelsSchrijfKolom(tabel, kolom) {
+  var nr = tabel.kop.indexOf(kolom) + 1;
+  var aantal = tabel.blad.getLastRow() - 1;
+  if (nr < 1 || aantal < 1) return;
+  var bereik = tabel.blad.getRange(2, nr, aantal, 1);
+  var waarden = bereik.getValues();
+  var veranderd = false;
+  tabel.rijen.forEach(function (r) {
+    if (!r._gewijzigd || !r._rij || r._rij < 2 || r._rij > aantal + 1) return;
+    waarden[r._rij - 2][0] = r[kolom];
+    r._gewijzigd = false;
+    r._velden = {};
+    veranderd = true;
+  });
+  if (veranderd) bereik.setValues(waarden);
 }
 
 /**
