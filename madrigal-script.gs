@@ -2852,7 +2852,7 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
   var zoek = new RegExp(CONTROLE_ONDERTITEL.source, 'g'), m, gevonden = null;
   while ((m = zoek.exec(ander))) {
     if (!m[0].length) zoek.lastIndex++;
-    if (controleTitelSleutel(ander.slice(0, m.index)) === controleTitelSleutel(nu)) { gevonden = m; break; }
+    if (controleTitelBijna(ander.slice(0, m.index), nu)) { gevonden = m; break; }
   }
   var teken, rest;
   if (gevonden) {
@@ -2872,6 +2872,17 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
   // Na een komma loopt de titel gewoon door ("Homofilie, status of stigma").
   if (teken === ',') return nu + ', ' + (titelGroot(rest) && namen && namen[rest.split(' ')[0].toLowerCase()] ? onder : onder.charAt(0).toLowerCase() + onder.slice(1));
   return nu + ': ' + onder.charAt(0).toUpperCase() + onder.slice(1);
+}
+
+/**
+ * Is de hoofdtitel dezelfde, of bijna (een tikfout van hoogstens twee letters, evenveel woorden)? "Amarican Homo"
+ * en "American Homo". Dan mag de ondertitel erbij. De tikfout zelf blijft een verschil op de lijst.
+ */
+function controleTitelBijna(a, b) {
+  var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  return x.split(' ').length === y.split(' ').length && Math.min(x.length, y.length) >= 6 && levenshtein(x, y) <= 2;
 }
 
 /** Zijn twee titels gelijk? Ook als de ene een ondertitel heeft (na ":" of " - ") en de andere niet. */

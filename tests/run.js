@@ -3268,5 +3268,18 @@ test('Titelcontrole: een ondertitel zonder leesteken ervoor', () => {
   assert.strictEqual(M.controleOndertitelZonderTeken('Een heel lange verzonnen titel', 'Een heel lange verzonnen titel twee'), '', 'een woord erbij is te weinig');
 });
 
+
+test('Titelcontrole: de ondertitel komt erbij, ook bij een tikfout in de hoofdtitel', () => {
+  assert.strictEqual(M.controleTitelAangevuld('Amarican Verzonnen', 'American Verzonnen: Community and Perversity', 'Engels', {}), 'Amarican Verzonnen: Community and Perversity');
+  assert.strictEqual(M.controleTitelAangevuld('Zee', 'Zon: verhalen', 'Nederlands', {}), '', 'korte titel met een andere letter: niet');
+  assert.strictEqual(M.controleTitelAangevuld('De blauwe kamer', 'De groene kamer: verhalen', 'Nederlands', {}), '', 'een ander woord: niet');
+  // De tikfout blijft op de lijst, met de ondertitel er al bij.
+  const cat = [{ boek_id: 'B1', soort: 'boek', titel: 'Amarican Verzonnen', auteur: 'Bedacht, Jef', taal: 'Engels', bron_sleutel: 'x' }];
+  const oud = [{ id: '1', isbn: '', titel: 'American Verzonnen: Community and Perversity', ondertitel: '', auteur: 'Jef Bedacht' }];
+  const rijen = M.titelcontroleRijen(cat, [], oud, [], []);
+  assert.strictEqual(cat[0].titel, 'Amarican Verzonnen: Community and Perversity');
+  gelijk(rijen.map((r) => [r.boek_id, r.titel_nu, r.titel_oud]), [['B1', 'Amarican Verzonnen: Community and Perversity', 'American Verzonnen: Community and Perversity']]);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
