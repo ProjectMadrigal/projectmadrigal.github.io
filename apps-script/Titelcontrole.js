@@ -5,8 +5,10 @@
  *   - Het script vergelijkt drie bronnen: de stocklijst (tabbladen Stock en Zines), de oude website
  *     (projectmadrigal.be) en de Catalogus (wat nu op de website staat).
  *   - Enkel echte verschillen tellen: andere letters of woorden. Hoofdletters, leestekens, de volgorde
- *     van voornaam en achternaam en een ondertitel die er bij de ene bron wel en bij de andere niet staat,
- *     tellen niet.
+ *     van voornaam en achternaam, dezelfde naam twee keer, en een ondertitel die er bij de ene bron wel en bij
+ *     de andere niet staat, tellen niet.
+ *   - Een auteur die enkel anders geschreven is, zet het script meteen in de juiste vorm in de Catalogus:
+ *     "Achternaam, Voornaam" (de vorm uit de stocklijst of de oude website), elke naam één keer.
  *   - De lijst staat in het tabblad Titelcontrole. In het bestuurs- en vrijwilligersscherm (Titels en auteurs
  *     nakijken) neem je de boeken een voor een door, kast per kast: een versie kiezen, zelf typen, "klopt" of
  *     "niet in de kast".
@@ -24,7 +26,50 @@ function controleTitelSleutel(titel) {
 
 /** Sleutel om auteurs te vergelijken: de woorden in alfabetische volgorde ("Melchior, Willem" = "Willem Melchior"). */
 function controleAuteurSleutel(auteur) {
-  return normaliseerTekst(String(auteur || '').replace(/\b(en|and|et|und)\b|&/gi, ' ')).split(' ').filter(Boolean).sort().join(' ');
+  // Elk woord één keer: "J.R. Ackerley; J. R. Ackerley" is dezelfde naam als "Ackerley, J.R".
+  var uniek = [];
+  normaliseerTekst(String(auteur || '').replace(/\b(en|and|et|und)\b|&/gi, ' ')).split(' ').forEach(function (w) {
+    if (w && uniek.indexOf(w) === -1) uniek.push(w);
+  });
+  return uniek.sort().join(' ');
+}
+
+/** Dezelfde naam twee keer in één veld ("J.R. Ackerley; J. R. Ackerley") wordt één keer. */
+function controleAuteurZonderDubbels(auteur) {
+  var gezien = [];
+  return String(auteur || '').split(/\s*;\s*/).filter(function (deel) {
+    var k = controleAuteurSleutel(deel);
+    if (!k || gezien.indexOf(k) > -1) return false;
+    gezien.push(k);
+    return true;
+  }).map(schoon).join('; ');
+}
+
+/** Staat elke naam in de vorm "Achternaam, Voornaam"? (Een naam uit één woord telt als goed.) */
+function controleAuteurGoedeVorm(auteur) {
+  var delen = String(auteur || '').split(/\s*;\s*/).filter(function (d) { return schoon(d); });
+  return delen.length > 0 && delen.every(function (d) { return /,/.test(d) || schoon(d).split(' ').length === 1; });
+}
+
+/**
+ * De auteur in de juiste vorm, als de bronnen dezelfde naam geven maar anders geschreven: "Achternaam, Voornaam",
+ * elke naam één keer. We nemen de vorm van de stocklijst of de oude website als die al juist is. Anders enkel de
+ * dubbels eruit (de achternaam raden we niet: van, de, ... maken dat onzeker). Geeft '' als er niets te verbeteren valt.
+ */
+function controleAuteurVerbeterd(nu, anderen) {
+  var schoonNu = controleAuteurZonderDubbels(nu);
+  if (!schoonNu) return '';
+  var sleutel = controleAuteurSleutel(nu);
+  var beste = controleAuteurGoedeVorm(schoonNu) ? schoonNu : '';
+  if (!beste) {
+    (anderen || []).some(function (a) {
+      var v = controleAuteurZonderDubbels(a);
+      if (v && controleAuteurSleutel(v) === sleutel && controleAuteurGoedeVorm(v)) { beste = v; return true; }
+      return false;
+    });
+  }
+  if (!beste) beste = schoonNu;
+  return beste !== schoon(nu) ? beste : '';
 }
 
 /** Zijn twee titels gelijk? Ook als de ene een ondertitel heeft (na ":" of " - ") en de andere niet. */
@@ -45,9 +90,11 @@ function controleAuteurGelijk(a, b) {
 /**
  * Maakt de lijst. catalogus: rijen van de Catalogus. stock: boeken uit leesBronRijen (Stock en Zines).
  * oudeBoeken: boeken van de oude website (oudBoekUitRij). bestaand: rijen van het tabblad Titelcontrole.
+ * verbeterd: een lijst. Is ze er, dan zet het script een auteur die enkel anders geschreven is meteen in de juiste
+ * vorm (zie controleAuteurVerbeterd) en komt de boek_id in de lijst.
  * Geeft de nieuwe open rijen: { boek_id, titel_nu, auteur_nu, titel_stock, auteur_stock, titel_oud, auteur_oud, status: '' }.
  */
-function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand) {
+function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
   var perSleutel = {};
   stock.forEach(function (b) { var s = bronSleutel(b); if (!perSleutel[s]) perSleutel[s] = b; });
   var oudPerId = {};
@@ -58,9 +105,12 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand) {
   catalogus.forEach(function (b) {
     var id = String(b.boek_id || '');
     if (!id || isLeeg(b.titel) || isFilm(b) || klaar[id]) return;
-    var nu = { titel: schoon(b.titel), auteur: schoon(b.auteur) };
     var st = perSleutel[b.bron_sleutel];
     var oud = oudPerId[id];
+    // Dezelfde auteur, enkel anders geschreven: meteen in de juiste vorm in de Catalogus, niet op de lijst.
+    var beter = controleAuteurVerbeterd(b.auteur, [st && st.auteur, oud && oud.auteur]);
+    if (beter && verbeterd) { wijzig(b, { auteur: beter }); verbeterd.push(id); }
+    var nu = { titel: schoon(b.titel), auteur: schoon(b.auteur) };
     var bronnen = [nu];
     if (st) bronnen.push({ titel: schoon(st.titel), auteur: schoon(st.auteur) });
     if (oud) bronnen.push({ titel: schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : ''), auteur: schoon(oud.auteur) });
@@ -171,11 +221,13 @@ function maakTitelcontroleLijst() {
   });
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
-  var nieuw;
+  var nieuw, verbeterd;
   try {
     var catalogus = leesTabel('Catalogus');
     var tabel = titelcontroleTabel();
-    nieuw = titelcontroleRijen(catalogus.rijen, stock, oudeBoeken, tabel.rijen);
+    verbeterd = [];
+    nieuw = titelcontroleRijen(catalogus.rijen, stock, oudeBoeken, tabel.rijen, verbeterd);
+    if (verbeterd.length) schrijfKolommen(catalogus, ['auteur']);
     // Wat nagekeken is, blijft. De open rijen maken plaats voor de nieuwe. Alles in één keer schrijven.
     var blijft = tabel.rijen.filter(function (r) { return schoon(r.status); });
     var waarden = blijft.concat(nieuw).map(function (r) { return rijNaarWaarden(tabel.kop, r); });
@@ -185,10 +237,12 @@ function maakTitelcontroleLijst() {
   } finally {
     lock.releaseLock();
   }
-  var tekst = nieuw.length + ' boeken om na te kijken: de titel of auteur verschilt tussen de stocklijst, de oude website en de Catalogus.' +
+  if (verbeterd.length) leegCache();
+  var tekst = nieuw.length + ' boeken om na te kijken: de titel of auteur verschilt tussen de stocklijst, de oude website en de Catalogus. ' +
+    verbeterd.length + ' auteurs meteen verbeterd naar "Achternaam, Voornaam", zonder dubbele naam.' +
     (oudeBoeken.length ? '' : ' Let op: de oude website kon ik niet lezen, enkel de stocklijst telde.') +
     (stock.length ? '' : ' Let op: de tabbladen Stock en Zines ontbreken.');
-  logboek('menu', 'maakTitelcontroleLijst', tekst);
+  logboek('menu', 'maakTitelcontroleLijst', tekst + (verbeterd.length ? ' Verbeterde auteurs: ' + verbeterd.join(', ') : ''));
   return { ok: true, tekst: tekst };
 }
 
