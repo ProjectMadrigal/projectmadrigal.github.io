@@ -60,8 +60,8 @@ const INHOUD = {
 
 // Titelcontrole: verzonnen boeken met een verschil tussen de bronnen.
 const TITELCONTROLE = { open: [
-  { id: 'B0002', isbn: '', nu: { t: 'Twee kasten vol', a: 'Dewit, Rein' }, stock: { t: 'Twee kasten vol', a: 'Dewit, Rein' }, oud: { t: 'Twee kasten vol', a: 'Rein De Wit' } },
-  { id: 'B0001', isbn: '9780000000001', nu: { t: 'De verzonen zee', a: 'Verbeek, Mira' }, stock: { t: 'De verzonnen zee', a: 'Verbeek, Mira' }, oud: { t: 'De Verzonen Zee', a: 'Verbeek Myra' } }
+  { id: 'B0002', isbn: '', nu: { t: 'Twee kasten vol', a: 'Dewit, Rein' }, stock: { t: 'Twee kasten vol', a: 'Dewit, Rein' }, oud: { t: 'Twee kasten vol', a: 'De Wit, Rein' } },
+  { id: 'B0001', isbn: '9780000000001', nu: { t: 'De verzonen zee', a: 'Verbeek, Mira' }, stock: { t: 'De verzonnen zee', a: 'Verbeek, Mira' }, oud: { t: 'De Verzonen Zee', a: 'Verbeek, Myra' } }
 ], nietGevonden: [{ id: 'B0003', nu: { t: 'Stille lichten', a: 'Fictief, Kim' }, stock: null, oud: null, wie: 'Ilo', datum: '2026-11-01' }], gedaan: 4 };
 const AANKOOP = [
   { id: 'K0001', t: 'Atlas van niets', a: 'Bedacht, Noor', i: '9781861972712', g: 'Fictie', p: 19.99, l: 'https://voorbeeld.test/atlas', r: 'Gevraagd door een lener', d: '2026-10-28', w: 'Sam', k: false, s: 'open', b: '', db: '' },
@@ -1011,7 +1011,7 @@ async function meldAan(page, basis, pagina) {
     verwacht(v && v.boek_id === 'B0001' && v.status === 'aangepast' && v.titel === 'De verzonnen zee' && v.auteur === 'Verbeek, Mira', 'Doorgestuurd: ' + JSON.stringify(v));
     // Volgende boek, in een andere kast
     verwacht((await page.inputValue('#tc-titel')) === 'Twee kasten vol', 'Volgende boek');
-    verwacht(/Rein De Wit/.test(await page.textContent('#sectie table')), 'Versie van de oude website');
+    verwacht(/De Wit, Rein/.test(await page.textContent('#sectie table')), 'Versie van de oude website');
     // De stocklijst is hier gelijk aan nu: die rij staat er niet. Enkel de auteur van de oude website is anders.
     verwacht(!/Stocklijst/.test(await page.textContent('#sectie table')), 'De stocklijst gelijk aan nu wordt niet getoond');
     verwacht((await page.$$('#sectie table button')).length === 1 && (await page.$$('#sectie table .status-anders')).length === 1, 'Enkel de echte verschillen');

@@ -3029,6 +3029,7 @@ test('Titelcontrole: gelijk of echt anders', () => {
   assert.strictEqual(M.controleAuteurGelijk('Verzonnen, Fien', 'Fien Verzonnen'), true, 'volgorde van de namen telt niet');
   assert.strictEqual(M.controleAuteurGelijk('Fien Verzonnen & Kim Bedacht', 'Kim Bedacht en Fien Verzonnen'), true);
   assert.strictEqual(M.controleAuteurGelijk('Fien Verzonen', 'Fien Verzonnen'), false);
+  assert.strictEqual(M.controleAuteurGelijk('Verzonnen, Fien', 'Fien Verzonen'), true, 'de juiste vorm wint');
   assert.strictEqual(M.controleAuteurGelijk('', 'Fien Verzonnen'), true, 'een lege auteur is geen verschil');
 });
 
@@ -3048,9 +3049,10 @@ test('Titelcontrole: lijst maken uit stock, oude website en Catalogus', () => {
   ];
   const rijen = M.titelcontroleRijen(cat, stock, oud, []);
   gelijk(rijen.map((r) => [r.boek_id, r.titel_nu, r.titel_stock, r.titel_oud, r.auteur_oud]), [
-    ['B1', 'Miras Room', "Mira's Room", '', ''],
-    ['B2', 'De blauwe kamer', 'De blauwe kamer', 'De blauwe kamer', 'Kim Bedagt']
-  ]);
+    ['B1', 'Miras Room', "Mira's Room", '', '']
+  ], 'B2: de oude website schrijft de auteur niet als Achternaam, Voornaam, dat telt niet');
+  oud[0].auteur = 'Bedagt, Kim';
+  gelijk(M.titelcontroleRijen(cat, stock, oud, []).map((r) => r.boek_id), ['B1', 'B2'], 'in de juiste vorm telt een andere naam wel');
   gelijk(M.titelcontroleRijen(cat, stock, oud, [{ boek_id: 'B1', status: 'klopt' }]).map((r) => r.boek_id), ['B2'], 'wat nagekeken is, komt niet terug');
 });
 
@@ -3113,7 +3115,8 @@ test('Titelcontrole: auteurs in de vorm Achternaam, Voornaam, zonder dubbels', (
 test('Titelcontrole: meerdere auteurs, een bron met minder namen', () => {
   const vol = 'Verzonnen, Gea van & Bedacht, Tinne Van den';
   assert.strictEqual(M.controleAuteurGelijk(vol, 'Gea van Verzonnen'), true, 'een deel van de namen is geen verschil');
-  assert.strictEqual(M.controleAuteurGelijk(vol, 'Gea van Verzonnen & Kim Ander'), false, 'een andere naam wel');
+  assert.strictEqual(M.controleAuteurGelijk(vol, 'Gea van Verzonnen & Kim Ander'), true, 'een bron zonder de juiste vorm telt niet');
+  assert.strictEqual(M.controleAuteurGelijk(vol, 'Verzonnen, Gea van & Ander, Kim'), false, 'een andere naam in de juiste vorm wel');
   assert.strictEqual(M.controleAuteurGelijk('Kim Bedacht', 'Kim Bedacht en Jo Bos'), true);
   assert.strictEqual(M.controleAuteurVerbeterd('Gea van Verzonnen', [vol, '']), vol, 'de vollediger versie wint');
   assert.strictEqual(M.controleAuteurVerbeterd(vol, ['Gea van Verzonnen']), '', 'nu is al volledig');
@@ -3140,7 +3143,8 @@ test('Titelcontrole: ondertitel van de oude website aanvullen, een naam in een l
   assert.strictEqual(M.controleTitelAangevuld('Zomer', 'Winter: verhalen', 'Nederlands', {}), '', 'een andere titel');
   assert.strictEqual(M.controleAuteurGelijk('Aurora', 'Aurora Staff'), true, 'een naam in een langere naam');
   assert.strictEqual(M.controleAuteurGelijk('Verzonnen, Nir', 'Nir Verzonnen'), true);
-  assert.strictEqual(M.controleAuteurGelijk('Aaron, Willem', 'Aaron William'), false, 'een ander woord blijft een verschil');
+  assert.strictEqual(M.controleAuteurGelijk('Aaron, Willem', 'Aaron William'), true, 'de vorm Achternaam, Voornaam wint');
+  assert.strictEqual(M.controleAuteurGelijk('Aaron, Willem', 'Aaron, William'), false, 'twee keer de juiste vorm, een ander woord: wel een verschil');
   const stock = [{ soort: 'boek', isbn: '9780000000011', titel: 'Een land zonder grenzen', auteur: 'Verzonnen, Nir' },
     { soort: 'boek', isbn: '9780000000028', titel: 'Mira Love Signs', auteur: 'Aurora' }];
   const cat = stock.map((b, i) => ({ boek_id: 'B' + (i + 1), soort: 'boek', isbn: b.isbn, titel: b.titel, auteur: b.auteur, taal: i ? 'Engels' : 'Nederlands', bron_sleutel: M.bronSleutel(b) }));
@@ -3158,6 +3162,17 @@ test('waakhond oude covers: enkel herstarten als er iets te gaan is en niets gep
   assert.strictEqual(M.oudeCoversHerstarten(0, false, false), false);
   assert.strictEqual(M.oudeCoversHerstarten(300, true, false), false);
   assert.strictEqual(M.oudeCoversHerstarten(300, false, true), false);
+});
+
+
+test('Titelcontrole: de titel met ondertitel wint altijd', () => {
+  assert.strictEqual(M.controleTitelGelijk('Respect is verzonnen: Durven opstaan', 'Respect is verzonnen'), true);
+  assert.strictEqual(M.controleTitelGelijk('Respect is verzonnen: Durven opstaan', 'Respect is verzonnen. Durven opstaan'), true);
+  const stock = [{ soort: 'boek', isbn: '9780000000011', titel: 'Respect is verzonnen. Durven opstaan', auteur: 'Bedacht, Kim' }];
+  const cat = [{ boek_id: 'B1', soort: 'boek', isbn: stock[0].isbn, titel: 'Respect is verzonnen', auteur: 'Bedacht, Kim', taal: 'Nederlands', bron_sleutel: M.bronSleutel(stock[0]) }];
+  const verbeterd = [];
+  gelijk(M.titelcontroleRijen(cat, stock, [], [], verbeterd), []);
+  assert.strictEqual(cat[0].titel, 'Respect is verzonnen: Durven opstaan', 'ook de ondertitel uit de stocklijst komt erbij');
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
