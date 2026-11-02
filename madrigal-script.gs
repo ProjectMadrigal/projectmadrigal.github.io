@@ -430,7 +430,9 @@ var HTML_NAMEN = { amp: '&', quot: '"', apos: "'", nbsp: ' ', lt: '<', gt: '>', 
 
 var INDELEN_MIN_CATEGORIE = 1;
 
-var INDELEN_MIN_TREFWOORD = 2;
+var INDELEN_MIN_TREFWOORD = 1;      // één treffer is genoeg: een beschrijving noemt een onderwerp vaak maar één keer
+
+var INDELEN_MIN_TREFWOORD_FILM = 1;
 
 /*
  * Ingebouwde zoekwoorden per naam (de sleutel is genreSleutel van de naam). Een woord telt als een woord in de
@@ -453,7 +455,7 @@ var INDELEN_ZOEKWOORDEN = {
   'aseksueel': ['aseks', 'asexu', 'aromantisch', 'aromantic', '=ace'],
   'asexual': ['aseks', 'asexu', 'aromantic', '=ace'],
   'coming out': ['coming out', 'comingout', 'uit de kast'],
-  'aids': ['=aids', '=hiv', 'aidsepidemie', 'aids epidemie'],
+  'aids': ['=aids', '=hiv', 'aidsepidemie', 'aids epidemie', 'hiv positief', 'hiv positive', 'act up'],
   'hiv': ['=aids', '=hiv'],
   'crime': ['misdaad', 'detective', 'thriller', 'moord', 'murder', 'rechercheur', 'politieonderzoek'],
   'misdaad': ['misdaad', 'detective', 'thriller', 'moord', 'murder', 'rechercheur', 'crime'],
@@ -493,13 +495,18 @@ var INDELEN_ZOEKWOORDEN = {
   'reizen': ['reis', 'reizen', 'travel', 'reisgids', 'roadtrip'],
   'kookbok': ['kookboek', 'recept', 'recipe', 'koken', 'cooking'],
   'sprookje': ['sprookje', 'fairy tale', 'fairytale'],
-  'oorlog': ['oorlog', 'war', 'wereldoorlog', 'world war', 'holocaust', 'nazi'],
+  'oorlog': ['oorlog', '=war', '=wars', 'wartime', 'wereldoorlog', 'world war', '=wwii', '=ww2', 'holocaust', 'nazi', 'soldaat', 'soldier', 'leger', 'army', 'verzet', 'resistance'],
+  'sekswerk': ['sekswerk', 'sex work', 'sexwork', 'prostitu', 'escort', 'hustler', 'hooker', 'hoerenloper', 'bordeel', 'brothel', 'rosse buurt', 'red light', 'tippelaar'],
+  'sex work': ['sekswerk', 'sex work', 'sexwork', 'prostitu', 'escort', 'hustler', 'hooker', 'bordeel', 'brothel', 'red light'],
   'activisme': ['activis', 'protest', 'betoging', 'demonstratie', 'pride', 'stonewall'],
   'religie': ['religie', 'religion', 'geloof', 'faith', 'kerk', 'church', 'bijbel', 'bible', 'islam', 'joods', 'jewish', 'christen', 'christelijk', 'christian'],
   'bdsm': ['bdsm', 'kink', 'fetish', 'fetisj', 'dominant', 'submissive', 'bondage', '=leder', 'leather'],
   'erotiek': ['erotisch', 'erotiek', 'erotic', 'seks', 'sex'],
   'seks': ['seks', 'sex', 'seksualiteit', 'sexuality']
 };
+
+/** De ingebouwde lijst, met als sleutel genreSleutel van de naam (zo werkt Oorlog, Reizen of Biseksueel ook). */
+var INDELEN_INDEX = null;
 
 var STANDAARD_INSTELLINGEN = [
   ['uitleentermijn_weken', 4, 'Hoeveel weken een lener een boek mag houden.'],
@@ -3555,6 +3562,7 @@ function deelBoekenIn(catalogus, namen, welke) {
   }).map(function (r) {
     var categorie = normaliseerTekst(r.soort) === 'categorie';
     return { naam: schoon(r.naam), kolom: categorie ? 'categorieen' : 'trefwoorden', min: categorie ? INDELEN_MIN_CATEGORIE : INDELEN_MIN_TREFWOORD,
+      minFilm: INDELEN_MIN_TREFWOORD_FILM,
       zoekwoorden: indelenZoekwoorden(r.naam, r.zoekwoorden) };
   });
   var uit = [];
@@ -3565,13 +3573,14 @@ function deelBoekenIn(catalogus, namen, welke) {
     // welke: 'boeken' of 'films' (menu), leeg = allebei (vanzelf, elke dag).
     if ((welke === 'boeken' && film) || (welke === 'films' && !film)) return;
     var titelWoorden = normaliseerTekst(b.titel).split(' ').filter(Boolean);
-    var tekstWoorden = normaliseerTekst([b.beschrijving, b.beschrijving_en].join(' ')).split(' ').filter(Boolean);
+    // De beschrijving (NL en EN) en het genre (bij films bv. War of Drama van IMDb).
+    var tekstWoorden = normaliseerTekst([b.beschrijving, b.beschrijving_en, b.genre].join(' ')).split(' ').filter(Boolean);
     var erbij = { extra_onderwerpen: [], categorieen: [], trefwoorden: [] };
     // Thema's: elk thema dat duidelijk voorkomt.
     if (!film) onderwerpScores(b).forEach(function (s) { if (s[1] >= ONDERWERP_ZEKER_MIN) erbij.extra_onderwerpen.push(s[0]); });
     kandidaten.forEach(function (k) {
       if (film && k.kolom !== 'trefwoorden') return;
-      if (indelenScore(k.zoekwoorden, titelWoorden, tekstWoorden) >= k.min) erbij[k.kolom].push(k.naam);
+      if (indelenScore(k.zoekwoorden, titelWoorden, tekstWoorden) >= (film ? k.minFilm : k.min)) erbij[k.kolom].push(k.naam);
     });
     var velden = {}, nieuw = {};
     Object.keys(erbij).forEach(function (kol) {
@@ -4974,6 +4983,16 @@ function importeerOudeSite() {
     tellers['Veelgestelde vragen'] + ' veelgestelde vragen. Kijk ze na in de tabbladen. De Engelse kolommen vul je zelf aan waar nodig.');
 }
 
+function indelenIndex() {
+  if (INDELEN_INDEX) return INDELEN_INDEX;
+  INDELEN_INDEX = {};
+  Object.keys(INDELEN_ZOEKWOORDEN).forEach(function (k) {
+    var sleutel = genreSleutel(k);
+    INDELEN_INDEX[sleutel] = (INDELEN_INDEX[sleutel] || []).concat(INDELEN_ZOEKWOORDEN[k]);
+  });
+  return INDELEN_INDEX;
+}
+
 /** Past een zoekwoord op het woord op plaats i? Korte woorden (minder dan 4 letters) enkel precies. */
 function indelenRaak(zoekwoord, woorden, i) {
   var w = woorden[i];
@@ -5001,12 +5020,21 @@ function indelenScore(zoekwoorden, titelWoorden, tekstWoorden) {
   return 2 * tel(titelWoorden) + tel(tekstWoorden);
 }
 
-/** De zoekwoorden van een naam: de naam zelf, de ingebouwde lijst en de eigen zoekwoorden. Genormaliseerd. */
+/**
+ * De zoekwoorden van een naam: de naam zelf, de ingebouwde lijst en de eigen zoekwoorden. Genormaliseerd.
+ * Een naam met / of & (AIDS/HIV, Kunst & Cultuur) telt elk deel apart.
+ */
 function indelenZoekwoorden(naam, eigen) {
-  var lijst = [normaliseerTekst(naam)];
-  var stam = genreSleutel(naam);
-  if (stam && stam !== lijst[0]) lijst.push(stam);
-  (INDELEN_ZOEKWOORDEN[stam] || []).forEach(function (w) { lijst.push(w); });
+  var lijst = [];
+  var delen = String(naam || '').split(/\s*[\/&]\s*/);
+  delen.forEach(function (deel) {
+    var n = normaliseerTekst(deel);
+    if (!n) return;
+    lijst.push(n.length < 4 ? '=' + n : n);
+    var stam = genreSleutel(deel);
+    if (stam && stam !== n && stam.length >= 4) lijst.push(stam);
+    (indelenIndex()[stam] || []).forEach(function (w) { lijst.push(w); });
+  });
   splitsLijst(eigen).forEach(function (w) { lijst.push(w.charAt(0) === '=' ? '=' + normaliseerTekst(w.slice(1)) : normaliseerTekst(w)); });
   var uniek = [];
   lijst.forEach(function (w) { if (w && w !== '=' && uniek.indexOf(w) === -1) uniek.push(w); });

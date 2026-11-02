@@ -2048,13 +2048,32 @@ test('indelen op titel en beschrijving: thema, categorie en trefwoord erbij, noo
   gelijk([cat[4].trefwoorden, !cat[4].categorieen, !cat[4].extra_onderwerpen], ['Lesbisch', true, true], 'een film krijgt enkel trefwoorden');
   gelijk([cat[0].categorieen, cat[0].trefwoorden], ['Roman, Crime', 'Eigen woord'], 'moord en rechercheur: Crime, en het eigen trefwoord blijft');
   gelijk([cat[1].categorieen, cat[1].trefwoorden], ['Sport', 'Lesbisch'], 'lesbiennes in de titel telt dubbel');
-  gelijk([cat[2].trefwoorden], ['Zee'], 'eigen zoekwoorden tellen, Queer staat op weg, lesbisch één keer is te weinig');
+  gelijk([cat[2].trefwoorden], ['Lesbisch, Zee'], 'eigen zoekwoorden tellen, Queer staat op weg, lesbisch één keer is genoeg');
   gelijk(!cat[3].categorieen, true, 'een film krijgt geen categorie');
   gelijk(M.deelBoekenIn(cat, namen).length, 0, 'opnieuw: niets dubbel');
   // Enkel boeken of enkel films (de menu's Boeken en Films).
   const tweede = [{ boek_id: 'B9', titel: 'Een roman' }, { boek_id: 'F9', soort: 'film', titel: 'Lesbische lesbiennes' }];
   gelijk(M.deelBoekenIn(tweede.map((x) => Object.assign({}, x)), namen, 'boeken').map((r) => r.boek_id), ['B9']);
   gelijk(M.deelBoekenIn(tweede.map((x) => Object.assign({}, x)), namen, 'films').map((r) => r.boek_id), ['F9']);
+});
+
+test('indelen van films: één treffer genoeg, genre telt mee, AIDS/HIV als twee woorden', () => {
+  const namen = [{ naam: 'Lesbisch', soort: 'trefwoord' }, { naam: 'AIDS/HIV', soort: 'trefwoord' }, { naam: 'Sekswerk', soort: 'trefwoord' },
+    { naam: 'Coming-out', soort: 'trefwoord' }, { naam: 'Oorlog', soort: 'trefwoord' }];
+  const films = [
+    { boek_id: 'F1', soort: 'film', titel: 'Zomer', beschrijving_en: 'Two women fall in love in a lesbian summer camp.' },
+    { boek_id: 'F2', soort: 'film', titel: 'Act', beschrijving: 'Over de strijd tegen hiv in Parijs.' },
+    { boek_id: 'F3', soort: 'film', titel: 'Nacht', beschrijving: 'A young hustler in Los Angeles.' },
+    { boek_id: 'F4', soort: 'film', titel: 'Kast', beschrijving: 'Een tiener maakt zijn coming-out op school.' },
+    { boek_id: 'F5', soort: 'film', titel: 'Verzonnen', genre: 'Drama, War' },
+    { boek_id: 'F6', soort: 'film', titel: 'Warschau', beschrijving: 'Een stad.' }
+  ];
+  M.deelBoekenIn(films, namen, 'films');
+  gelijk(films.map((f) => f.trefwoorden || ''), ['Lesbisch', 'AIDS/HIV', 'Sekswerk', 'Coming-out', 'Oorlog', '']);
+  // Boeken: ook één treffer genoeg.
+  const boek = [{ boek_id: 'B1', titel: 'Zee', beschrijving: 'Een roman over hiv en een lesbisch personage in de oorlog.' }];
+  M.deelBoekenIn(boek, namen, 'boeken');
+  gelijk(boek[0].trefwoorden, 'Lesbisch, AIDS/HIV, Oorlog');
 });
 
 test('Politiek is een apart thema, los van Maatschappij', () => {
