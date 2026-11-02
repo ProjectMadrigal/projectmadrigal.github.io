@@ -1920,6 +1920,35 @@ test('oude website: titels vergelijken (vertaling, woord meer of minder, nummer,
   gelijk([cat2[0].beschrijving, cat2[1].beschrijving, uit.nietGevonden.length], ['Tekst.', 'Tekst.', 0]);
 });
 
+test('oude website: delen van een reeks, dubbel in de catalogus of op de oude website, vertaling bij een auteur met meer boeken', () => {
+  const C = (boek_id, titel, auteur) => ({ boek_id, titel, auteur, isbn: '' });
+  gelijk([M.oudVolgnummer('Hartklop: Volume One (Hartklop, #1)'), M.oudVolgnummer('Hartklop 2'), M.oudVolgnummer('Liefde deel drie'), M.oudVolgnummer('Gedichten 1950-1984'), M.oudVolgnummer('Zonder')], [1, 2, 3, 0, 0]);
+  const catalogus = [
+    C('B0001', 'Hartklop 1', 'Fictief, Kim'), C('B0002', 'Hartklop 2', 'Fictief, Kim'),
+    C('B0003', 'Het portret van niemand', 'Verzonnen, Vera'), C('B0004', 'Het portret van niemand', 'Verzonnen, Vera'),
+    C('B0005', 'Liefdespistolen 1', 'Bedacht, Noor'), C('B0006', 'Liefdespistolen 2', 'Bedacht, Noor'),
+    C('B0007', 'Meisjes in uniform', 'Winsloe, Chista'),
+    C('B0008', 'Nachtwoud', 'Barnes, Djuna'), C('B0009', 'Damesalmanak', 'Barnes, Djuna')
+  ];
+  const oud = [
+    { titel: 'Hartklop: Volume One (Hartklop, #1)', auteur: 'Kim Fictief' },
+    { titel: 'Het portret van niemand', auteur: 'Vera Verzonnen', isbn: '9780306406157' },
+    { titel: 'Het Portretten van niemand', auteur: 'Vera Verzonnen' },
+    { titel: 'Liefdespistolen volume 1', auteur: '' },
+    { titel: 'Mädchen in Uniform', auteur: 'Christa Winsloe' },
+    { titel: 'Nightwood', auteur: 'Djuna Barnes' },
+    { titel: 'Ladies Almanack', auteur: 'Djuna Barnes' },
+    { titel: 'Damesalmanak', auteur: 'Djuna Barnes' }
+  ].map((o) => Object.assign({ isbn: '', ondertitel: '', beschrijving: 'Tekst ' + o.titel, cover: '' }, o));
+  const uit = M.oudeBoekenToepassen(catalogus, oud, { beschrijving: {}, cover: {} });
+  gelijk(catalogus.map((c) => c.boek_id + ':' + (c.beschrijving || '')), [
+    'B0001:Tekst Hartklop: Volume One (Hartklop, #1)', 'B0002:',
+    'B0003:Tekst Het portret van niemand', 'B0004:Tekst Het Portretten van niemand',
+    'B0005:Tekst Liefdespistolen volume 1', 'B0006:',
+    'B0007:Tekst Mädchen in Uniform', 'B0008:Tekst Nightwood', 'B0009:Tekst Damesalmanak']);
+  gelijk(uit.nietGevonden.map((b) => b.titel), ['Ladies Almanack'], 'Twee oude boeken voor een vrij boek: geen gok');
+});
+
 console.log('\nAankooplijst');
 test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als binnen', () => {
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera', isbn: '9780306406157' }];

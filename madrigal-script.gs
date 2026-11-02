@@ -650,6 +650,16 @@ var NAAM_STOPWOORDEN = ['van', 'der', 'den', 'het', 'von', 'and', 'een', 'etc', 
 // Woorden die niets zeggen over welk boek het is (naast de lidwoorden).
 var TITEL_STOPWOORDEN = ['van', 'and', 'en', 'of', 'in', 'op', 'the', 'een', 'novel', 'roman', 'met', 'for', 'voor'];
 
+/**
+ * Hoe gelijk zijn twee titels, van 0 tot 1. De hoogste van:
+ *   - de kern (zonder ondertitel), en de volledige titel zonder nummers en auteursnaam;
+ *   - dezelfde, zonder spaties ("killer condom" en "killerkondoom");
+ *   - 0,9 als alle betekenisvolle woorden van de kortste titel in de langste staan (minstens twee):
+ *     "House Rules" en "House of Rules", "Critical Reception of James Baldwin, 1963-2010" en "The Critical Reception of James Baldwin";
+ *   - 0,82 als ze minstens twee woorden van 5 letters of meer delen ("Autobiography of Alice B. Toklas" en "De autobriografie van Alice B. Toklas").
+ */
+var GETALWOORDEN = { een: 1, one: 1, eins: 1, twee: 2, two: 2, drie: 3, three: 3, vier: 4, four: 4, vijf: 5, five: 5, zes: 6, six: 6, zeven: 7, seven: 7, acht: 8, eight: 8, negen: 9, nine: 9, tien: 10, ten: 10 };
+
 var OUDE_SITE = 'https://www.projectmadrigal.be/';
 
 var PF_EIGENSCHAP = 'peperfabriek_programma';
@@ -5544,6 +5554,7 @@ function neemOudeBoekenOver() {
   var hoe = Object.keys(uit.hoe).map(function (k) { return uit.hoe[k] + ' op ' + k; }).join(', ');
   var tekst = oudeBoeken.length + ' boeken gelezen op de oude website. Gevonden: ' + hoe + '. ' + uit.beschrijvingen + ' beschrijvingen overgenomen, ' +
     uit.covers + ' covers klaargezet (die kopieert het script nu op de achtergrond naar Drive), ' + uit.eigen + ' keer eigen werk behouden, ' +
+    uit.dubbel + ' keer een tweede exemplaar of uitgave van een boek dat al gekoppeld is, ' +
     uit.nietGevonden.length + ' boeken niet gevonden in de Catalogus (zie Na te kijken).';
   logboek('menu', 'neemOudeBoekenOver', tekst + ' Bron: ' + oud.bron + ' (' + velden + ')');
   meld(tekst);
@@ -6044,14 +6055,15 @@ function oudeAfbeelding(waarde, basis) {
 function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
   var index = oudIndex(catalogus);
   var standaard = oudeStandaardCovers(oudeBoeken);
-  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, nietGevonden: [], hoe: {} };
+  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: 0, nietGevonden: [], hoe: {} };
   var gezien = {};
   // Ronde 1: de zekere manieren. Ronde 2: ruimer, enkel voor wat overblijft en enkel als het uniek is.
   var paren = [], rest = [];
   oudeBoeken.forEach(function (oud) {
-    var g = zoekOudBoek(oud, index);
+    var g = zoekOudBoek(oud, index, gezien);
     if (g && !gezien[String(g.boek.boek_id)]) { gezien[String(g.boek.boek_id)] = true; paren.push([oud, g]); }
-    else if (!g) rest.push(oud);
+    else if (g) uit.dubbel++;
+    else rest.push(oud);
   });
   var zelfdeOud = function (a, b) { return oudTitelKern(a.titel) === oudTitelKern(b.titel) && normaliseerTekst(a.auteur) === normaliseerTekst(b.auteur); };
   rest.slice().forEach(function (oud) {
@@ -6062,6 +6074,16 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
     paren.push([oud, g]);
     // Stond het boek twee keer op de oude website, dan is het tweede exemplaar ook gevonden.
     rest = rest.filter(function (o) { return !zelfdeOud(o, oud); });
+  });
+  // Wat overblijft en sterk lijkt op een boek dat al gekoppeld is (zelfde auteur, of geen auteur), is een tweede
+  // exemplaar of uitgave op de oude website: dat boek staat al in de Catalogus en hoeft niet in Na te kijken.
+  rest = rest.filter(function (oud) {
+    var zonderAuteur = !auteurWoorden(oud.auteur).length;
+    var al = index.alle.some(function (c) {
+      return gezien[String(c.boek_id)] && (zonderAuteur || auteursDelen(oud.auteur, c.auteur)) && oudTitelGelijk(oud, c) >= 0.9;
+    });
+    if (al) uit.dubbel++;
+    return !al;
   });
   uit.nietGevonden = rest;
   paren.forEach(function (paar) {
@@ -6195,15 +6217,15 @@ function oudKandidatenPerAuteur(oud, index) {
   return uit;
 }
 
-/**
- * Hoe gelijk zijn twee titels, van 0 tot 1. De hoogste van:
- *   - de kern (zonder ondertitel), en de volledige titel zonder nummers en auteursnaam;
- *   - dezelfde, zonder spaties ("killer condom" en "killerkondoom");
- *   - 0,9 als alle betekenisvolle woorden van de kortste titel in de langste staan (minstens twee):
- *     "House Rules" en "House of Rules", "Critical Reception of James Baldwin, 1963-2010" en "The Critical Reception of James Baldwin";
- *   - 0,82 als ze minstens twee woorden van 5 letters of meer delen ("Autobiography of Alice B. Toklas" en "De autobriografie van Alice B. Toklas").
- */
 function oudTitelGelijk(oud, c) {
+  // Twee verschillende delen van een reeks zijn twee boeken. Hetzelfde deel telt als (bijna) gelijk.
+  var na = oudVolgnummer(oud.titel), nb = oudVolgnummer(c.titel);
+  var basis = oudTitelGelijkZonderNummer(oud, c);
+  if (na && nb) return na === nb ? Math.max(basis, oudTitelKern(oud.titel).split(' ')[0] === oudTitelKern(c.titel).split(' ')[0] ? 0.92 : 0) : Math.min(basis, 0.5);
+  return basis;
+}
+
+function oudTitelGelijkZonderNummer(oud, c) {
   var ka = oudTitelKern(oud.titel), kb = oudTitelKern(c.titel);
   var wa = oudTitelWoorden(oud.titel, oud.auteur), wb = oudTitelWoorden(c.titel, c.auteur);
   var va = wa.join(' '), vb = wb.join(' ');
@@ -6242,6 +6264,15 @@ function oudUur(iso, tz) {
   if (isNaN(d.getTime())) return '';
   var uur = typeof Utilities !== 'undefined' ? Utilities.formatDate(d, tz || 'Europe/Brussels', 'HH:mm') : d.toISOString().slice(11, 16);
   return uur === '00:00' ? '' : uur;
+}
+
+/** Het deel van een reeks: "Volume One", "#1", "deel 2", "Heartstopper 1". Geeft een getal of 0. */
+function oudVolgnummer(titel) {
+  var t = normaliseerTekst(String(titel || '').replace(/#\s*(\d+)/g, ' nummer $1 '));
+  var m = t.match(/\b(?:volume|vol|deel|tome|band|book|boek|nummer|part)\s+(\d+|[a-z]+)\b/);
+  if (m && (/^\d+$/.test(m[1]) || GETALWOORDEN[m[1]])) return /^\d+$/.test(m[1]) ? Number(m[1]) : GETALWOORDEN[m[1]];
+  m = t.match(/\s(\d{1,2})$/); // "Heartstopper 1", niet een jaartal
+  return m ? Number(m[1]) : 0;
 }
 
 /** Voor Na te kijken: het boek in de Catalogus met de meest gelijkende titel (vanaf 60%), of null. */
@@ -9736,7 +9767,8 @@ function zoekIaVanVandaagOpnieuw() {
  *   bijna:  een gemeenschappelijke auteur en een gelijkende titel (zie oudTitelGelijk), duidelijk de beste;
  *   titel zonder auteur: geen auteur op de oude website, en de titel staat maar één keer in de Catalogus.
  */
-function zoekOudBoek(oud, index) {
+function zoekOudBoek(oud, index, bezet) {
+  bezet = bezet || {};
   if (oud.isbn && index.isbn[oud.isbn]) return { boek: index.isbn[oud.isbn], hoe: 'isbn' };
   var deeltAuteur = function (c) { return auteursDelen(oud.auteur, c.auteur); };
   var t = normaliseerTekst(oud.titel), k = oudTitelKern(oud.titel);
@@ -9748,13 +9780,19 @@ function zoekOudBoek(oud, index) {
   }
   var kernZelfde = k ? (index.kern[k] || []).filter(deeltAuteur) : [];
   if (kernZelfde.length) return { boek: kernZelfde[0], hoe: 'kern' };
-  // Bijna dezelfde titel bij dezelfde auteur. Twee boeken van die auteur even gelijk: dan niet raden.
-  var best = null, score = 0, tweede = 0;
-  oudKandidatenPerAuteur(oud, index).forEach(function (c) {
-    var g = oudTitelGelijk(oud, c);
-    if (g > score) { tweede = score; score = g; best = c; } else if (g > tweede) tweede = g;
-  });
-  if (best && score >= 0.8 && score - tweede >= 0.05) return { boek: best, hoe: 'bijna' };
+  // Bijna dezelfde titel bij dezelfde auteur. Twee verschillende boeken van die auteur even gelijk: dan niet raden.
+  // Staat hetzelfde boek twee keer in de Catalogus (zelfde titel), dan is dat geen twijfel: we nemen het eerste vrije.
+  var scores = oudKandidatenPerAuteur(oud, index).map(function (c) { return { c: c, g: oudTitelGelijk(oud, c) }; })
+    .sort(function (x, y) { return y.g - x.g; });
+  if (scores.length && scores[0].g >= 0.8) {
+    var kernBest = oudTitelKern(scores[0].c.titel);
+    var zelfdeBoek = scores.filter(function (x) { return oudTitelKern(x.c.titel) === kernBest; });
+    var ander = scores.filter(function (x) { return oudTitelKern(x.c.titel) !== kernBest; })[0];
+    if (!ander || scores[0].g - ander.g >= 0.05) {
+      var vrij = zelfdeBoek.filter(function (x) { return !bezet[String(x.c.boek_id)]; })[0] || zelfdeBoek[0];
+      return { boek: vrij.c, hoe: 'bijna' };
+    }
+  }
   // Geen auteur op de oude website: zelfde titel, als die maar één keer in de Catalogus staat.
   if (!auteurWoorden(oud.auteur).length && k && (index.kern[k] || []).length === 1) return { boek: index.kern[k][0], hoe: 'titel zonder auteur' };
   return null;
@@ -9785,10 +9823,17 @@ function zoekOudBoekRuim(oud, index, bezet, rest) {
     var bijna = index.alle.filter(function (c) { return vrij(c) && oudTitelGelijk(oud, c) >= 0.85; });
     if (bijna.length === 1) return { boek: bijna[0], hoe: 'titel bijna' };
   }
+  // Dezelfde auteur (meestal een vertaling: "Nightwood" en "Nachtwoud", "Mädchen in Uniform" en "Meisjes in uniform").
   var vanAuteur = oudKandidatenPerAuteur(oud, index).filter(vrij);
+  var oudVanAuteur = uniek(rest.filter(function (o) { return auteursDelen(o.auteur, oud.auteur); }));
   if (vanAuteur.length === 1) {
-    var oudVanAuteur = uniek(rest.filter(function (o) { return auteursDelen(o.auteur, oud.auteur); }));
-    if (oudVanAuteur.length === 1) return { boek: vanAuteur[0], hoe: 'auteur uniek' };
+    // Eén vrij boek van die auteur: het gaat naar het oude boek met de meest gelijkende titel, als dat duidelijk is.
+    var rang = oudVanAuteur.map(function (o) { return { o: o, g: oudTitelGelijk(o, vanAuteur[0]) }; }).sort(function (x, y) { return y.g - x.g; });
+    if (rang.length && sleutel(rang[0].o) === sleutel(oud) && (rang.length === 1 || rang[0].g - rang[1].g >= 0.1)) return { boek: vanAuteur[0], hoe: 'auteur uniek' };
+  } else if (vanAuteur.length > 1 && oudVanAuteur.length === 1) {
+    // Eén oud boek van die auteur, meerdere vrije: enkel als één titel duidelijk het meest lijkt.
+    var keuze = vanAuteur.map(function (c) { return { c: c, g: oudTitelGelijk(oud, c) }; }).sort(function (x, y) { return y.g - x.g; });
+    if (keuze[0].g >= 0.6 && keuze[0].g - keuze[1].g >= 0.15) return { boek: keuze[0].c, hoe: 'auteur uniek' };
   }
   return null;
 }
