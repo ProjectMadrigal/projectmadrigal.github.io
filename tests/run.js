@@ -3334,5 +3334,22 @@ test('brede tabbladen: vaste kolommen, kleur, uitleg, niet publiek en ingeklapte
   ['Catalogus', 'Uitleningen'].forEach((t) => M.KOLOMMEN[t].forEach((k) => assert.ok(M.KOLOM_INDELING[t].kolommen[k], t + ': ' + k + ' heeft geen uitleg')));
 });
 
+
+test('agenda: voorbije events, nieuwste eerst, voor de knop Voorbije events', () => {
+  const s = maakStaat('2026-10-25');
+  s.inst.tekst_vaste_events = 'geen';
+  s.inst.bookclub_tonen = false;
+  const agenda = [
+    { datum: '2026-09-01', titel: 'Verzonnen event A', publiek: 'ja' },
+    { datum: '2026-10-01', titel: 'Verzonnen event B', publiek: 'ja' },
+    { datum: '2026-10-02', titel: 'Verborgen event', publiek: 'nee' },
+    { datum: '2026-11-20', titel: 'Verzonnen event C', publiek: 'ja' }
+  ];
+  const d = M.bouwSiteInhoud(s, { agenda: agenda });
+  const voorbij = d.agenda.voorbij.map((e) => e.titel.nl).filter((t) => /Verzonnen|Verborgen/.test(t));
+  gelijk(voorbij, ['Verzonnen event B', 'Verzonnen event A']);
+  assert.ok(d.agenda.komend.some((e) => e.titel.nl === 'Verzonnen event C'));
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

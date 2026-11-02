@@ -346,6 +346,19 @@ async function meldAan(page, basis, pagina) {
     verwacht(!fouten.length, fouten.join(' | '));
   });
 
+  await test('startpagina: voorbije events ingeklapt, een bezoeker kan ze openklikken', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, {});
+    await page.goto(basis + '/index.html');
+    await page.waitForSelector('#agenda details.voorbije-events summary');
+    verwacht(/Voorbije events \(1\)/.test(await page.textContent('#agenda details.voorbije-events summary')), 'Knop: ' + await page.textContent('#agenda details.voorbije-events summary'));
+    verwacht(!(await page.isVisible('text=Voorbeeld: zineworkshop')), 'Een voorbij event is meteen zichtbaar');
+    await page.click('#agenda details.voorbije-events summary');
+    await page.waitForSelector('text=Voorbeeld: zineworkshop');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+
   await test('boekpagina: "Kom langs in de bib" enkel bij een beschikbaar boek zonder beschrijving', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, {});
     await page.goto(basis + '/boeken.html#/boek/B0001');

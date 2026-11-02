@@ -173,7 +173,13 @@
     var ag = data.agenda || {};
     var kaarten = (ag.komend || []).map(function (e, i) { return eventKaart(e, i === 0 ? T.t('volgendEvent') : ''); });
     if (!kaarten.length) kaarten.push(el('p', null, T.t('geenEvents')));
-    if (ag.vorig) kaarten.push(eventKaart(ag.vorig, T.t('vorigEvent')));
+    // Voorbije events: ingeklapt, een bezoeker kan ze openklikken. Een oudere web-app stuurt enkel het vorige event.
+    var voorbij = (ag.voorbij || (ag.vorig ? [ag.vorig] : [])).filter(function (e) { return e.datum < vandaag(); });
+    if (voorbij.length) {
+      kaarten.push(el('details', { class: 'voorbije-events' },
+        el('summary', null, T.t('voorbijeEvents', { aantal: voorbij.length })),
+        el('div', { class: 'kaarten' }, voorbij.map(function (e) { return eventKaart(e, ''); }))));
+    }
     D.vervang($('agenda'), kaarten);
 
     // Nieuw binnen: een eigen lijst van de web-app. Oudere versies van het script
