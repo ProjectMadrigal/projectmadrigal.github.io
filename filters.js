@@ -178,7 +178,8 @@
 
   /**
    * Sorteert een lijst boeken.
-   * wijze: 'titel', 'auteur', 'jaar-nieuw', 'jaar-oud', 'toegevoegd' of 'relevantie' (lijst blijft zoals ze is).
+   * wijze: 'titel', 'auteur', 'jaar-nieuw', 'jaar-oud', 'dikte-dun', 'dikte-dik', 'duur-kort', 'duur-lang',
+   * 'toegevoegd' of 'relevantie' (lijst blijft zoals ze is).
    * toegevoegd: de datum van toevoegen (ta), anders het hoogste boek-ID eerst.
    */
   function sorteer(boeken, wijze) {
@@ -195,6 +196,15 @@
     } else if (wijze === 'toegevoegd') {
       var nr = function (b) { return Number(String(b.id).replace(/\D/g, '')) || 0; };
       lijst.sort(function (a, b) { return String(b.ta || '').localeCompare(String(a.ta || '')) || nr(b) - nr(a); });
+    } else if (/^(dikte|duur)-/.test(wijze)) {
+      // Dikte (pagina's, p) of duur (minuten, du). Zonder waarde achteraan.
+      var veld = wijze.indexOf('dikte') === 0 ? 'p' : 'du';
+      var op = /-(dun|kort)$/.test(wijze) ? 1 : -1;
+      lijst.sort(function (a, b) {
+        var x = Number(a[veld]) || 0, y = Number(b[veld]) || 0;
+        if (!x !== !y) return x ? -1 : 1;
+        return op * (x - y) || opTitel(a, b);
+      });
     } else if (wijze === 'jaar-nieuw' || wijze === 'jaar-oud') {
       var richting = wijze === 'jaar-nieuw' ? -1 : 1;
       lijst.sort(function (a, b) {

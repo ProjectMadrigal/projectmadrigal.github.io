@@ -3524,6 +3524,14 @@ test('genres opkuisen: vaste namen (Intersekse, Religie en Spiritualiteit, Young
 });
 
 
+test('sorteren op dikte en duur, zonder waarde achteraan', () => {
+  const lijst = [{ id: 'a', t: 'A', p: 300, du: 90 }, { id: 'b', t: 'B', p: 80, du: 120 }, { id: 'c', t: 'C' }, { id: 'd', t: 'D', p: 500, du: 45 }];
+  gelijk(F.sorteer(lijst, 'dikte-dun').map((b) => b.id), ['b', 'a', 'd', 'c']);
+  gelijk(F.sorteer(lijst, 'dikte-dik').map((b) => b.id), ['d', 'a', 'b', 'c']);
+  gelijk(F.sorteer(lijst, 'duur-kort').map((b) => b.id), ['d', 'a', 'b', 'c']);
+  gelijk(F.sorteer(lijst, 'duur-lang').map((b) => b.id), ['b', 'a', 'd', 'c']);
+});
+
 test('filters samen: elke keuzelijst toont enkel wat met de andere filters nog boeken geeft', () => {
   const boeken = [
     { id: 'a', g: ['Biografie'], ca: ['Sport'], k: ['Lesbisch'] },
