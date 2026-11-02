@@ -3109,5 +3109,25 @@ test('Titelcontrole: auteurs in de vorm Achternaam, Voornaam, zonder dubbels', (
   assert.strictEqual(zonder[0].auteur, 'Nir Verzonnen', 'zonder lijst verandert er niets');
 });
 
+
+test('Titelcontrole: meerdere auteurs, een bron met minder namen', () => {
+  const vol = 'Verzonnen, Gea van & Bedacht, Tinne Van den';
+  assert.strictEqual(M.controleAuteurGelijk(vol, 'Gea van Verzonnen'), true, 'een deel van de namen is geen verschil');
+  assert.strictEqual(M.controleAuteurGelijk(vol, 'Gea van Verzonnen & Kim Ander'), false, 'een andere naam wel');
+  assert.strictEqual(M.controleAuteurGelijk('Kim Bedacht', 'Kim Bedacht en Jo Bos'), true);
+  assert.strictEqual(M.controleAuteurVerbeterd('Gea van Verzonnen', [vol, '']), vol, 'de vollediger versie wint');
+  assert.strictEqual(M.controleAuteurVerbeterd(vol, ['Gea van Verzonnen']), '', 'nu is al volledig');
+  assert.strictEqual(M.controleAuteurVerbeterd('Verzonnen, Gea van', [vol]), vol, 'ook als nu al de juiste vorm heeft');
+  assert.strictEqual(M.controleAuteurZonderDubbels('Bos, Jo & Bos, Jo & Dam, Kim'), 'Bos, Jo & Dam, Kim');
+  gelijk(M.controleNamen('Bos, Jo & Dam, Kim; Jo Bos'), ['bos jo', 'dam kim']);
+  // In de lijst: enkel een auteur minder op de oude website, dan niet op de lijst.
+  const stock = [{ soort: 'boek', isbn: '9780000000011', titel: "De mama's van Mira", auteur: vol }];
+  const cat = [{ boek_id: 'B1', soort: 'boek', isbn: stock[0].isbn, titel: "De mama's van Mira", auteur: vol, bron_sleutel: M.bronSleutel(stock[0]) }];
+  const oud = [{ id: '1', isbn: stock[0].isbn, titel: "De mama's van Mira", ondertitel: '', auteur: 'Gea van Verzonnen' }];
+  const verbeterd = [];
+  gelijk(M.titelcontroleRijen(cat, stock, oud, [], verbeterd), []);
+  gelijk(verbeterd, []);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

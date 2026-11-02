@@ -39,15 +39,26 @@
       }).map(function (o) { o.x.kast = kast || o.g[0]; return o.x; });
   }
 
+  // Tussen twee auteurs: ; of & of "en". Een komma hoort bij "Achternaam, Voornaam". Zoals in apps-script/Titelcontrole.js.
+  var SCHEIDING = /(\s*;\s*|\s*&\s*|\s+(?:en|and|et|und)\s+)/i;
+  function sleutel(t) { return Z.normaliseer(t).split(' ').filter(function (w, i, alle) { return w && alle.indexOf(w) === i; }).sort().join(' '); }
+  /** De namen in een veld, elk als sleutel, zonder dubbels. */
+  function namen(auteur) {
+    var uit = [];
+    String(auteur || '').split(SCHEIDING).forEach(function (d, i) { var k = sleutel(d); if (!(i % 2) && k && uit.indexOf(k) === -1) uit.push(k); });
+    return uit;
+  }
+
   /**
    * Een auteur zonder komma in de vorm "Achternaam, Voornaam", met de achternaam uit het voorbeeld (wat nu op de
    * website staat). "Aaron William" met voorbeeld "Aaron, Willem" wordt "Aaron, William". Vindt het de achternaam
    * niet terug, dan blijft de naam zoals hij is: raden doen we niet.
    */
   function auteurInVorm(auteur, voorbeeld) {
-    var achternamen = String(voorbeeld || '').split(/\s*;\s*/).filter(function (d) { return d.indexOf(',') > -1; })
+    var achternamen = String(voorbeeld || '').split(SCHEIDING).filter(function (d, i) { return !(i % 2) && d.indexOf(',') > -1; })
       .map(function (d) { return Z.normaliseer(d.split(',')[0]).split(' ').filter(Boolean); });
-    return String(auteur || '').split(/\s*;\s*/).map(function (deel) {
+    return String(auteur || '').split(SCHEIDING).map(function (deel, nr) {
+      if (nr % 2) return deel; // het scheidingsteken blijft
       deel = deel.trim();
       if (!deel || deel.indexOf(',') > -1) return deel;
       var woorden = deel.split(/\s+/);
@@ -62,7 +73,7 @@
         }
       }
       return deel;
-    }).join('; ');
+    }).join('');
   }
 
   function laad(vak, ctx, okTekst) {
@@ -133,8 +144,11 @@
     // Gelijk zoals het script vergelijkt: hoofdletters, leestekens en de volgorde van de namen tellen niet.
     function zelfdeTitel(a, b) { return Z.normaliseer(a) === Z.normaliseer(b); }
     function zelfdeAuteur(a, b) {
-      var sleutel = function (t) { return Z.normaliseer(t).split(' ').filter(function (w, i, alle) { return w && alle.indexOf(w) === i; }).sort().join(' '); };
-      return !a || !b || sleutel(a) === sleutel(b);
+      if (!a || !b) return true;
+      var na = namen(a), nb = namen(b);
+      var in_ = function (p, q) { return p.length > 0 && p.every(function (k) { return q.indexOf(k) > -1; }); };
+      // Minder namen bij de ene bron, maar allemaal ook bij de andere: geen verschil.
+      return in_(na, nb) || in_(nb, na);
     }
     function cel(tekst, anders, knop) {
       return el('td', {}, tekst || '–', anders ? [' ', D.statusLabel('anders', 'anders')] : null, knop ? [el('br'), knop] : null);
