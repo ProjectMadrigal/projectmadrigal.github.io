@@ -477,7 +477,7 @@ test('filters: groep, taal, periode, aanrader, beschikbaar', () => {
 });
 test('opties tellen boeken per keuze', () => {
   const o = F.opties(voorbeeldBoeken, ['Gender', 'Seksualiteit', 'Fictie']);
-  gelijk(o.groep.map((x) => x.waarde), ['Gender', 'Seksualiteit', 'Fictie', 'Klassiekers']);
+  gelijk(o.groep.map((x) => x.waarde), ['Fictie', 'Gender', 'Klassiekers', 'Seksualiteit'], 'onderwerpen alfabetisch');
   assert.strictEqual(o.groep.find((x) => x.waarde === 'Fictie').aantal, 2);
 });
 test('sorteren op titel negeert lidwoord, op jaartal nieuwste eerst', () => {

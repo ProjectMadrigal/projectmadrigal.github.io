@@ -32,7 +32,7 @@
   function alfabetisch(a, b) { return a.localeCompare(b, 'nl'); }
 
   var FILTERS = [
-    { sleutel: 'groep', labelSleutel: 'fOnderwerp', label: 'Onderwerp', waarden: function (b) { return b.g || []; } /* volgorde: zie catalogus */ },
+    { sleutel: 'groep', labelSleutel: 'fOnderwerp', label: 'Onderwerp', waarden: function (b) { return b.g || []; } /* alfabetisch, zie opties */ },
     { sleutel: 'taal', labelSleutel: 'fTaal', label: 'Taal', waarden: function (b) { return b.l ? [b.l] : []; }, volgorde: alfabetisch },
     { sleutel: 'staat', labelSleutel: 'fStaat', label: 'Nieuw of tweedehands', waarden: function (b) { return b.n ? [b.n === 'nieuw' ? 'Nieuw' : 'Tweedehands'] : []; }, volgorde: alfabetisch },
     { sleutel: 'uitvoering', labelSleutel: 'fUitvoering', label: 'Uitvoering', waarden: function (b) { return b.v ? [b.v] : []; }, volgorde: alfabetisch },
@@ -66,7 +66,7 @@
 
   /**
    * De keuzes per filter, met het aantal boeken.
-   * groepVolgorde: de volgorde van de filtergroepen uit de catalogus.
+   * groepVolgorde: niet meer gebruikt (de onderwerpen staan alfabetisch), blijft voor oudere aanroepen.
    * lijstVolgorde: de namen van de leeslijsten, in de volgorde van de catalogus.
    * Geeft { sleutel: [{ waarde, aantal }] } terug.
    */
@@ -78,11 +78,9 @@
       var lijst = Object.keys(tel);
       if (f.sleutel === 'lijst' && lijstVolgorde) {
         lijst.sort(function (a, b) { return lijstVolgorde.indexOf(a) - lijstVolgorde.indexOf(b); });
-      } else if (f.sleutel === 'groep' && groepVolgorde) {
-        lijst.sort(function (a, b) {
-          var ia = groepVolgorde.indexOf(a), ib = groepVolgorde.indexOf(b);
-          return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || alfabetisch(a, b);
-        });
+      } else if (f.sleutel === 'groep') {
+        // De onderwerpen alfabetisch: zo vind je er snel een, ook als er eigen onderwerpen bijkomen.
+        lijst.sort(alfabetisch);
       } else if (f.volgorde) {
         lijst.sort(f.volgorde);
       }
