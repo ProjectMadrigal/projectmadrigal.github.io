@@ -3355,5 +3355,36 @@ test('agenda: voorbije events, nieuwste eerst, voor de knop Voorbije events', ()
   assert.ok(d.agenda.komend.some((e) => e.titel.nl === 'Verzonnen event C'));
 });
 
+
+test('onderwerpen raden: genre eerst, dan enkel een duidelijk thema uit de tekst, de rest op de nakijklijst', () => {
+  const onderwerpen = [{ genre: 'Lesbische roman', filtergroepen: '' }, { genre: 'Roman', filtergroepen: 'Fictie' }, { genre: 'Varia', filtergroepen: '' }];
+  const cat = [
+    { boek_id: 'B1', soort: 'boek', titel: 'Een verzonnen zomer', genre: 'Lesbische roman', beschrijving: '' },
+    { boek_id: 'B2', soort: 'boek', titel: 'Stille dagen', genre: '', beschrijving: 'Deze roman volgt een personage door de jaren. Een roman over liefde, en een tweede roman van de schrijver. Een lesbische en queer roman.' },
+    { boek_id: 'B3', soort: 'boek', titel: 'Brieven', genre: 'Varia', beschrijving: 'Een essay over de geschiedenis van de beweging. Politiek en geschiedenis.' },
+    { boek_id: 'B4', soort: 'boek', titel: 'Zonder iets', genre: '', beschrijving: 'Een mooi boek over liefde en vriendschap tussen twee vrouwen.' },
+    { boek_id: 'B5', soort: 'boek', titel: 'Al goed', genre: 'Roman', beschrijving: '' },
+    { boek_id: 'B6', soort: 'zine', titel: 'Een zine', genre: '', beschrijving: '' },
+    { boek_id: 'F1', soort: 'film', titel: 'Een film', genre: '', beschrijving: '' }
+  ];
+  const uit = M.vulOntbrekendeOnderwerpen(cat, onderwerpen);
+  gelijk(uit.genres, ['Lesbische roman']);
+  assert.ok(/Fictie/.test(onderwerpen[0].filtergroepen) && /Seksualiteit/.test(onderwerpen[0].filtergroepen));
+  gelijk(uit.boeken, ['B2'], 'enkel B2 is zeker (roman, geen telling voor lesbisch of queer)');
+  assert.strictEqual(cat[1].extra_onderwerpen, 'Fictie');
+  gelijk(uit.nakijken.map((r) => [r.boek_id, r.onderwerp_nieuw, r.toepassen]), [['B3', 'Geschiedenis', 'nee'], ['B4', '', 'nee']]);
+  assert.ok(/Geschiedenis \(2\)/.test(uit.nakijken[0].voorstel) && /Maatschappij/.test(uit.nakijken[0].voorstel));
+  assert.strictEqual(uit.nakijken[1].voorstel, 'geen aanwijzing');
+  // Toepassen
+  const rij = uit.nakijken[0];
+  rij.toepassen = 'ja'; rij.onderwerp_nieuw = 'Maatschappij, Geschiedenis';
+  assert.strictEqual(M.onderwerpNakijklijstToepassen(cat, uit.nakijken), 1);
+  assert.strictEqual(cat[2].extra_onderwerpen, 'Maatschappij, Geschiedenis');
+  assert.strictEqual(rij.toepassen, 'gedaan');
+  // Woorden
+  assert.strictEqual(M.zekerOnderwerp(M.onderwerpScores({ titel: 'Godin', beschrijving: 'over de godin en het eeuwige' })), '', '=god en =eeuw tellen niet voor godin en eeuwig');
+  gelijk(M.onderwerpScores({ titel: '', beschrijving: 'Over coming out en seksualiteit.' }), [['Seksualiteit', 2]]);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
