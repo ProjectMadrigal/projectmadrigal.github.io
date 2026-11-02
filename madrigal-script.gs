@@ -5361,7 +5361,9 @@ function maakOcrTekstNetjes(ruw) {
 
 /** Menu: stap 1, de nakijklijst maken (het tabblad Titels nakijken wordt opnieuw geschreven). */
 function maakTitelNakijklijst() {
-  var lijst = titelNakijklijst(leesTabel('Catalogus').rijen);
+  var catalogus = leesTabel('Catalogus').rijen;
+  var lijst = titelNakijklijst(catalogus);
+  var datums = catalogus.filter(function (b) { return !isLeeg(b.boek_id) && titelIsDatum(b.titel); }).map(function (b) { return String(b.boek_id); });
   var ss = spreadsheet();
   var blad = ss.getSheetByName(TITELS_TABBLAD) || ss.insertSheet(TITELS_TABBLAD);
   blad.clear();
@@ -5378,7 +5380,8 @@ function maakTitelNakijklijst() {
   }
   var talen = lijst.filter(function (r) { return r.taal_nieuw; }).length;
   logboek('menu', 'maakTitelNakijklijst', lijst.length + ' titels met een voorstel, waarvan ' + talen + ' met een andere taal');
-  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). Kijk ze na in het tabblad ' + TITELS_TABBLAD + ': pas titel_nieuw of taal_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.');
+  meld(lijst.length + ' titels hebben een voorstel, waarvan ' + talen + ' met een andere taal (kolom taal_nieuw). Kijk ze na in het tabblad ' + TITELS_TABBLAD + ': pas titel_nieuw of taal_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.' +
+    (datums.length ? ' Let op: bij ' + datums.join(', ') + ' werd de titel ooit een datum. Verbeter die titels met de hand in de Catalogus (typ een \' voor de titel, bv. \'24/7).' : ''));
 }
 
 /**
@@ -7590,6 +7593,14 @@ function titelHoofdletter(w) {
   return w.charAt(0).toUpperCase() + w.slice(1);
 }
 
+/**
+ * Een titel die eigenlijk een datum is ("Mon Jul 24 2023 00:00:00 GMT+0200 ..."): de spreadsheet maakte ooit
+ * een datum van de titel (bv. 24/7). Die passen we niet aan: jij verbetert de titel met de hand.
+ */
+function titelIsDatum(titel) {
+  return /^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{1,2} \d{4} \d{2}:\d{2}:\d{2} GMT/.test(schoon(titel));
+}
+
 /** Titel zonder ondertitel en zonder wat tussen haakjes staat, voor een vergelijking. */
 function titelKern(titel) {
   return normaliseerTekst(String(titel || '').replace(/\(.*?\)/g, ' ').split(':')[0]);
@@ -7603,7 +7614,7 @@ function titelNakijklijst(catalogus) {
   var namen = titelNamen(catalogus);
   var uit = [];
   catalogus.forEach(function (b) {
-    if (isLeeg(b.boek_id) || isLeeg(b.titel) || isFilm(b)) return;
+    if (isLeeg(b.boek_id) || isLeeg(b.titel) || isFilm(b) || titelIsDatum(b.titel)) return;
     var taalNieuw = titelTaalVoorstel(b.titel, b.taal);
     var nieuw = titelSchrijfwijze(b.titel, taalNieuw || b.taal, namen);
     if (taalNieuw || (nieuw && nieuw !== schoon(b.titel))) {
@@ -7631,8 +7642,14 @@ function titelNamen(catalogus) {
     (String(b.auteur || '').match(TITEL_WOORD) || []).forEach(function (w) {
       if (titelGroot(w) && w.length >= 3) namen[w.toLowerCase()] = true;
     });
+    // Kleine woorden in de titels tellen mee als bewijs dat een woord geen naam is (ik ben, alles wat was).
+    (String(b.titel || '').match(TITEL_WOORD) || []).slice(1).forEach(function (w) {
+      if (!titelGroot(w)) { var k = w.toLowerCase(); klein[k] = (klein[k] || 0) + 1; }
+    });
   });
   Object.keys(groot).forEach(function (k) { if (groot[k] >= 2 && groot[k] >= 4 * (klein[k] || 0)) namen[k] = true; });
+  // Een auteur die Ben of Was heet, maakt van ben en was nog geen naam: een woord dat vaak klein staat, is gewoon een woord.
+  Object.keys(namen).forEach(function (k) { if ((klein[k] || 0) >= 3 && (klein[k] || 0) >= (groot[k] || 0)) delete namen[k]; });
   // Kleine woorden zijn nooit een naam, ook al staan ze soms groot (De Wever, Van Gogh).
   ['de', 'het', 'een', 'van', 'en', 'in', 'op', 'the', 'and', 'of', 'le', 'la', 'les', 'du', 'des', 'et', 'el', 'y', 'der', 'den', 'ter', 'ten'].forEach(function (k) { delete namen[k]; });
   return namen;
@@ -7652,7 +7669,7 @@ function titelRegel(taal) {
 function titelSchrijfwijze(titel, taal, namen) {
   var regel = titelRegel(taal);
   var t = schoon(titel);
-  if (!regel || !t) return t;
+  if (!regel || !t || titelIsDatum(t)) return t;
   namen = namen || {};
   var letters = t.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g, '');
   var allesGroot = letters.length > 3 && letters === letters.toUpperCase();
