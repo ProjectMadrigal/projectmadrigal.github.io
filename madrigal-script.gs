@@ -6100,7 +6100,8 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
     var velden = {};
     if (oud.beschrijving) {
       if (eigen.beschrijving[id]) uit.eigen++;
-      else if (normaliseerTekst(oud.beschrijving) === normaliseerTekst(boek.beschrijving)) uit.gelijk++;
+      // Vergelijken zoals het in de Catalogus komt (opgekuist en ingekort): anders lijkt een lange tekst elke keer nieuw.
+      else if (normaliseerTekst(maakBeschrijvingNetjes(oud.beschrijving)) === normaliseerTekst(boek.beschrijving)) uit.gelijk++;
       else {
         // Een nieuwe Nederlandse tekst: ook de Engelse vertaling opnieuw laten maken.
         velden.beschrijving = maakBeschrijvingNetjes(oud.beschrijving);

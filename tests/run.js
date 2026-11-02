@@ -1959,6 +1959,16 @@ test('oude website: ISBN-10 telt, en verborgen boeken die niet gevonden worden k
   gelijk([catalogus[0].beschrijving, uit.verborgen, uit.nietGevonden.map((x) => x.titel)], ['Tekst.', 1, ['Niet verborgen']]);
 });
 
+test('oude website: een lange beschrijving die al overgenomen is, telt de volgende keer als gelijk', () => {
+  const lang = 'Een verzonnen zin over een boek. '.repeat(200);
+  const catalogus = [{ boek_id: 'B0001', titel: 'Zee', auteur: 'Fictief, Kim', isbn: '9780306406157' }];
+  const oud = [{ titel: 'Zee', auteur: 'Kim Fictief', isbn: '9780306406157', ondertitel: '', beschrijving: lang, cover: '' }];
+  gelijk(M.oudeBoekenToepassen(catalogus, oud, { beschrijving: {}, cover: {} }).beschrijvingen, 1);
+  catalogus[0].beschrijving_en = 'Vertaald';
+  const tweede = M.oudeBoekenToepassen(catalogus, oud, { beschrijving: {}, cover: {} });
+  gelijk([tweede.beschrijvingen, tweede.gelijk, catalogus[0].beschrijving_en], [0, 1, 'Vertaald']);
+});
+
 console.log('\nAankooplijst');
 test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als binnen', () => {
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera', isbn: '9780306406157' }];
