@@ -541,17 +541,32 @@ function stelFiltergroepenVoor(genre) {
  * vertaal: object genre (genormaliseerd) -> lijst filtergroepen.
  */
 function filtergroepenVan(boek, vertaal) {
-  var groepen = (vertaal[normaliseerTekst(boek.genre)] || []).slice();
-  splitsLijst(boek.extra_onderwerpen).forEach(function (g) { groepen.push(g); });
-  if (jaNee(boek.klassieker) === 'ja') groepen.push('Klassiekers');
-  if (normaliseerTekst(boek.soort) === 'zine') groepen.push('Zines');
-  // Schrijfwijze gelijktrekken met de standaardgroepen, dubbels weg.
+  var ruw = (vertaal[normaliseerTekst(boek.genre)] || []).slice();
+  splitsLijst(boek.extra_onderwerpen).forEach(function (g) { ruw.push(g); });
+  if (jaNee(boek.klassieker) === 'ja') ruw.push('Klassiekers');
+  if (normaliseerTekst(boek.soort) === 'zine') ruw.push('Zines');
+  // Enkel de vaste thema's van de website. Een genre of andere naam wordt vertaald naar het thema
+  // (Politiek wordt Maatschappij, Intersekse wordt Gender). Wat niet te vertalen is, valt weg.
   var uniek = [];
-  groepen.forEach(function (g) {
-    var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === normaliseerTekst(g); })[0] || schoon(g);
-    if (standaard && uniek.indexOf(standaard) === -1) uniek.push(standaard);
+  ruw.forEach(function (g) {
+    themaVan(g, vertaal).forEach(function (t) { if (uniek.indexOf(t) === -1) uniek.push(t); });
   });
   return uniek;
+}
+
+/** De vaste thema's (FILTERGROEPEN) van een naam: het thema zelf, de thema's van een genre, of het voorstel. */
+function themaVan(naam, vertaal) {
+  var k = normaliseerTekst(naam);
+  if (!k) return [];
+  var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === k; })[0];
+  if (standaard) return [standaard];
+  var viaGenre = [];
+  (vertaal && vertaal[k] || []).forEach(function (g) {
+    var s = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === normaliseerTekst(g); })[0];
+    if (s && viaGenre.indexOf(s) === -1) viaGenre.push(s);
+  });
+  if (viaGenre.length) return viaGenre;
+  return stelFiltergroepenVoor(naam);
 }
 
 /** Leest de vertaaltabel als object: genre -> lijst filtergroepen. */
