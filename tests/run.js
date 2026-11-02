@@ -3257,5 +3257,16 @@ test('Titelcontrole: een verjaardageditie altijd achteraan', () => {
   gelijk(cat.map((b) => b.titel), ['The Verzonnen, 35th Anniversary Edition', 'Stille Zee, 20th Anniversary Edition']);
 });
 
+
+test('Titelcontrole: een ondertitel zonder leesteken ervoor', () => {
+  const nu = 'Wie had gedacht dat we met zovelen zijn';
+  const oud = 'Wie had gedacht dat we met zovelen zijn lesbische vrouwen in de kerk';
+  assert.strictEqual(M.controleOndertitelZonderTeken(nu, oud), 'lesbische vrouwen in de kerk');
+  assert.strictEqual(M.controleTitelGelijk(nu, oud), true);
+  assert.strictEqual(M.controleTitelAangevuld(nu, oud, 'Nederlands', {}), nu + ': Lesbische vrouwen in de kerk');
+  assert.strictEqual(M.controleOndertitelZonderTeken('De kamer', 'De kamer van Mira'), '', 'korte titel: te onzeker');
+  assert.strictEqual(M.controleOndertitelZonderTeken('Een heel lange verzonnen titel', 'Een heel lange verzonnen titel twee'), '', 'een woord erbij is te weinig');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
