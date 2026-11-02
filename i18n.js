@@ -78,7 +78,7 @@
       filmsNogGeen: 'Er staan nog geen films in de Catalogus. Kies in de spreadsheet Madrigal > Films > Haal de Letterboxd-lijst op, of voeg een rij toe met soort film.',
       filmNietGevonden: 'Deze film vonden we niet', filmNietGevondenTekst: 'Misschien is hij uit de collectie gehaald. Zoek een andere film.',
       regieDoor: 'Regie: {naam}', origineleTitel: 'Originele titel', minuten: '{n} min', vJaar: 'Jaar', vLand: 'Land', vRegie: 'Regie', vDuur: 'Duur',
-      genres: 'Genres', kijkOok: 'Kijk ook', deelFilm: 'Deel deze film', fGenre: 'Genre', fLand: 'Land', fPeriodeFilm: 'Periode',
+      genres: 'Genres', kijkOok: 'Kijk ook', deelFilm: 'Deel deze film', fGenre: 'Genre', fLand: 'Land', fPeriodeFilm: 'Periode', fDuur: 'Duur',
       stTip: 'Kijktip, niet in de bib', stTeKoopFilm: 'Te koop in de bib, niet uitleenbaar',
       uitlegTip: 'Deze film hebben we niet in de bib. We raden hem aan om te kijken.', uitlegBeschikbaarFilm: 'Kom langs in de bib om deze film te lenen.',
       terugCatalogus: '← Terug naar de catalogus',
@@ -161,7 +161,7 @@
       filmsNogGeen: 'There are no films in the Catalogue yet. In the spreadsheet, choose Madrigal > Films > Haal de Letterboxd-lijst op, or add a row with type film.',
       filmNietGevonden: 'We could not find this film', filmNietGevondenTekst: 'It may have been removed from the collection. Search for another film.',
       regieDoor: 'Directed by {naam}', origineleTitel: 'Original title', minuten: '{n} min', vJaar: 'Year', vLand: 'Country', vRegie: 'Director', vDuur: 'Running time',
-      genres: 'Genres', kijkOok: 'You might also like', deelFilm: 'Share this film', fGenre: 'Genre', fLand: 'Country', fPeriodeFilm: 'Period',
+      genres: 'Genres', kijkOok: 'You might also like', deelFilm: 'Share this film', fGenre: 'Genre', fLand: 'Country', fPeriodeFilm: 'Period', fDuur: 'Duration',
       stTip: 'Watch tip, not in the library', stTeKoopFilm: 'For sale at the library, not for loan',
       uitlegTip: 'We do not have this film in the library. We recommend watching it.', uitlegBeschikbaarFilm: 'Come by the library to borrow this film.',
       terugCatalogus: '← Back to the catalogue',
@@ -196,8 +196,10 @@
     'Nieuw': 'New', 'Tweedehands': 'Second-hand', 'Hardcover': 'Hardcover', 'Paperback': 'Paperback', 'Pocket': 'Pocket',
     'Voor 1970': 'Before 1970', '1970 tot 1989': '1970 to 1989', '1990 tot 1999': '1990 to 1999',
     '2000 tot 2009': '2000 to 2009', '2010 tot 2019': '2010 to 2019', '2020 en later': '2020 and later',
-    'Dun (tot 150 bladzijden)': 'Short (up to 150 pages)', 'Gemiddeld (150 tot 300 bladzijden)': 'Medium (150 to 300 pages)',
+    'Heel dun (tot 80 bladzijden)': 'Very short (up to 80 pages)', 'Dun (80 tot 150 bladzijden)': 'Short (80 to 150 pages)', 'Gemiddeld (150 tot 300 bladzijden)': 'Medium (150 to 300 pages)',
     'Dik (300 tot 500 bladzijden)': 'Long (300 to 500 pages)', 'Heel dik (meer dan 500 bladzijden)': 'Very long (more than 500 pages)',
+    'Kort (tot 60 minuten)': 'Short (up to 60 minutes)', 'Gemiddeld (60 tot 90 minuten)': 'Medium (60 to 90 minutes)',
+    'Lang (90 tot 120 minuten)': 'Long (90 to 120 minutes)', 'Heel lang (meer dan 120 minuten)': 'Very long (more than 120 minutes)',
     'Kunst en Fotoboek': 'Art and photo books'
   };
 
