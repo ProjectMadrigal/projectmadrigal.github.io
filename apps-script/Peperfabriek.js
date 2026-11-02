@@ -11,7 +11,7 @@
  *       1. gestructureerde gegevens in de pagina (schema.org Event, JSON-LD), zoals veel websites ze hebben;
  *       2. een agenda-bestand (iCal, .ics) waar de pagina naar verwijst;
  *       3. de links naar de pagina's van de activiteiten, met een datum in de buurt.
- *   - Menu: Madrigal > Onderhoud > Peperfabriek: test het ophalen. Dat toont wat het script vindt.
+ *   - Menu: Madrigal > Testen > Peperfabriek: test het ophalen. Dat toont wat het script vindt.
  *     Verandert hun website en vindt het script niets meer, dan blijft het vorige programma staan.
  *
  * Leeg peperfabriek_url: niets ophalen. De pagina toont dan enkel de tekst en een link.

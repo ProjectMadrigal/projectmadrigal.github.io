@@ -8,7 +8,7 @@
  *    Een eigen event met dezelfde naam in de Agenda vervangt de automatische datum van die dag.
  *
  * 2. Het archief van de shifts (tabblad Shifts): wie de bib openhield en wie back-up was.
- *    Madrigal > Rooster > Neem een oud rooster over uit de tabbladen leest een rooster per maand,
+ *    Madrigal > Eenmalig bij de start > Neem een oud rooster over uit de tabbladen leest een rooster per maand,
  *    zoals het rooster "Opening bib" van 2026 (een tabblad per maand). Het bestuursscherm toont
  *    onder Cijfers hoeveel avonden elke vrijwilliger deed, en welke avonden de bib dicht was.
  *    Namen van vrijwilligers staan nooit op de website.

@@ -111,7 +111,7 @@
     var uitleg = 'Boeken waarvan de titel of de auteur anders geschreven is in de stocklijst, op de oude website of nu op de website. Neem het boek uit de kast en kijk hoe het op de cover staat. Neem een versie over of typ het zelf.';
     var delen = [ctx.kop('Titels en auteurs nakijken', uitleg), melding];
     if (lijst.leeg) {
-      delen.push(el('p', {}, bestuur ? 'Er is nog geen lijst. Maak ze hieronder, of via Madrigal > Boeken > Titelcontrole in de bib: maak de lijst.' : 'Er is nog geen lijst. Vraag het bestuur om ze te maken.'));
+      delen.push(el('p', {}, bestuur ? 'Er is nog geen lijst. Maak ze hieronder, of via Madrigal > Titels en auteurs > Titelcontrole in de bib: maak de lijst.' : 'Er is nog geen lijst. Vraag het bestuur om ze te maken.'));
     } else {
       delen.push(kastKeuze(vak, ctx), huidig(vak, ctx, melding));
       if (bestuur) delen.push(nietGevondenBlok(vak, ctx, melding));

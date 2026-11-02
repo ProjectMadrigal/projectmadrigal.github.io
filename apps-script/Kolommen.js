@@ -6,7 +6,7 @@
  *   - elke kop krijgt een uitleg (zichtbaar als je met de muis over de kop gaat);
  *   - niet-publieke kolommen staan in schuine, grijze letters, met "Niet publiek" in de uitleg;
  *   - de kolommen die enkel het script gebruikt, zitten in een groep die ingeklapt is (+ om ze te tonen).
- * Gebeurt bij Installeer tabbladen, en via het menu Madrigal > Maak de brede tabbladen overzichtelijk.
+ * Gebeurt bij Installeer tabbladen, en via het menu Madrigal > Spreadsheet en onderhoud > Maak de brede tabbladen overzichtelijk.
  */
 
 var KOLOM_THEMAS = {
