@@ -3081,5 +3081,33 @@ test('Titelcontrole: kiezen, aanpassen, niet in de kast', () => {
   assert.strictEqual(M.titelcontroleToepassen(cat, rijen, { boek_id: 'B9', status: 'klopt' }, 'Kim', '2026-11-02').ok, false);
 });
 
+
+test('Titelcontrole: auteurs in de vorm Achternaam, Voornaam, zonder dubbels', () => {
+  assert.strictEqual(M.controleAuteurGelijk('J.R. Ackerley; J. R. Ackerley', 'Ackerley, J.R'), true, 'dubbele naam telt niet');
+  assert.strictEqual(M.controleAuteurZonderDubbels('J.R. Ackerley; J. R. Ackerley'), 'J.R. Ackerley');
+  assert.strictEqual(M.controleAuteurZonderDubbels('Verzonnen, Fien; Bedacht, Kim'), 'Verzonnen, Fien; Bedacht, Kim', 'twee echte auteurs blijven');
+  assert.strictEqual(M.controleAuteurVerbeterd('J.R. Ackerley; J. R. Ackerley', ['Ackerley, J.R', '']), 'Ackerley, J.R');
+  assert.strictEqual(M.controleAuteurVerbeterd('Nir Verzonnen', ['Verzonnen, Nir']), 'Verzonnen, Nir');
+  assert.strictEqual(M.controleAuteurVerbeterd('Verzonnen, Nir', ['Nir Verzonnen']), '', 'al juist');
+  assert.strictEqual(M.controleAuteurVerbeterd('Nir Verzonnen', ['Nir Verzonnen']), '', 'geen bron met de juiste vorm: niet raden');
+  assert.strictEqual(M.controleAuteurVerbeterd('Nir Verzonnen', ['Verzonnen, Kim']), '', 'een andere naam: niet overnemen');
+  assert.strictEqual(M.controleAuteurVerbeterd('Nir Verzonnen; Nir Verzonnen', []), 'Nir Verzonnen', 'enkel de dubbel eruit');
+  // In de lijst: enkel anders geschreven, dan verbeterd en niet op de lijst.
+  const stock = [{ soort: 'boek', isbn: '9780000000011', titel: 'Een zomer', auteur: 'Verzonnen, Nir' },
+    { soort: 'boek', isbn: '9780000000028', titel: 'De kamer', auteur: 'Bedacht, J.R' }];
+  const cat = [
+    { boek_id: 'B1', soort: 'boek', isbn: stock[0].isbn, titel: 'Een zomer', auteur: 'Nir Verzonnen', bron_sleutel: M.bronSleutel(stock[0]) },
+    { boek_id: 'B2', soort: 'boek', isbn: stock[1].isbn, titel: 'De kamers', auteur: 'J.R. Bedacht; J. R. Bedacht', bron_sleutel: M.bronSleutel(stock[1]) }
+  ];
+  const verbeterd = [];
+  const rijen = M.titelcontroleRijen(cat, stock, [], [], verbeterd);
+  gelijk(verbeterd, ['B1', 'B2']);
+  gelijk(cat.map((b) => b.auteur), ['Verzonnen, Nir', 'Bedacht, J.R']);
+  gelijk(rijen.map((r) => [r.boek_id, r.auteur_nu]), [['B2', 'Bedacht, J.R']], 'B2 blijft voor de titel');
+  const zonder = [{ boek_id: 'B1', soort: 'boek', isbn: stock[0].isbn, titel: 'Een zomer', auteur: 'Nir Verzonnen', bron_sleutel: M.bronSleutel(stock[0]) }];
+  M.titelcontroleRijen(zonder, stock, [], []);
+  assert.strictEqual(zonder[0].auteur, 'Nir Verzonnen', 'zonder lijst verandert er niets');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

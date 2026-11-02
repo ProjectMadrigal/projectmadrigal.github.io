@@ -107,7 +107,7 @@
     // Gelijk zoals het script vergelijkt: hoofdletters, leestekens en de volgorde van de namen tellen niet.
     function zelfdeTitel(a, b) { return Z.normaliseer(a) === Z.normaliseer(b); }
     function zelfdeAuteur(a, b) {
-      var sleutel = function (t) { return Z.normaliseer(t).split(' ').filter(Boolean).sort().join(' '); };
+      var sleutel = function (t) { return Z.normaliseer(t).split(' ').filter(function (w, i, alle) { return w && alle.indexOf(w) === i; }).sort().join(' '); };
       return !a || !b || sleutel(a) === sleutel(b);
     }
     function cel(tekst, anders) {
