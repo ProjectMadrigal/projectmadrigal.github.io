@@ -10349,9 +10349,17 @@ function wikiControle(tabel, boek) {
 }
 
 function wikidataVraag(sparql) {
-  var r = haalExtern('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql), {
-    muteHttpExceptions: true, headers: { 'User-Agent': BS_USER_AGENT, Accept: 'application/sparql-results+json' }
-  });
+  // Met POST: in het adres (GET) wordt de vraag voor 20 films te lang voor Google ("Lengte URLFetch-URL").
+  var r;
+  try {
+    r = haalExtern('https://query.wikidata.org/sparql?format=json', {
+      method: 'post', contentType: 'application/x-www-form-urlencoded', payload: 'query=' + encodeURIComponent(sparql),
+      muteHttpExceptions: true, headers: { 'User-Agent': BS_USER_AGENT, Accept: 'application/sparql-results+json' }
+    });
+  } catch (e) {
+    if (isDaglimietFout(e)) throw e;
+    return { fout: 'Wikidata: ' + String(e && e.message || e).slice(0, 150) };
+  }
   if (r.getResponseCode() !== 200) return { fout: 'Wikidata gaf code ' + r.getResponseCode() };
   try { return { films: filmUitWikidata(JSON.parse(r.getContentText())) }; } catch (e) { return { fout: 'Wikidata gaf een onverwacht antwoord' }; }
 }
