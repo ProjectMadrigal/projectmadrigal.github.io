@@ -79,7 +79,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     boeken.push(boek);
   });
   // Filtergroepen: eerst de standaardvolgorde, dan eventuele eigen groepen.
-  var groepen = FILTERGROEPEN.slice();
+  var groepen = alleThemas();
   boeken.forEach(function (b) { b.g.forEach(function (g) { if (groepen.indexOf(g) === -1) groepen.push(g); }); });
   var uit = {
     bijgewerkt: staat.vandaag,

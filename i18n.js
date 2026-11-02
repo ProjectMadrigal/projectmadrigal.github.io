@@ -98,7 +98,7 @@
       stUitgeleend: 'Uitgeleend', stUitgeleendTot: 'Uitgeleend, verwacht terug op {datum}',
       stGereserveerd: 'Gereserveerd', stNietUitleenbaar: 'Niet uitleenbaar', stVerloren: 'Niet meer beschikbaar', stTeKoop: 'Te koop in de bib, niet uitleenbaar',
       labels: 'Labels',
-      fOnderwerp: 'Onderwerp', fTaal: 'Taal', fStaat: 'Nieuw of tweedehands', fUitvoering: 'Uitvoering', fPeriode: 'Periode van uitgave', fAanrader: 'Aanrader',
+      fOnderwerp: 'Onderwerp', fTaal: 'Taal', fDikte: 'Dikte', fStaat: 'Nieuw of tweedehands', fUitvoering: 'Uitvoering', fPeriode: 'Periode van uitgave', fAanrader: 'Aanrader',
       overTitel: 'Over Project Madrigal'
     },
     en: {
@@ -181,7 +181,7 @@
       stUitgeleend: 'On loan', stUitgeleendTot: 'On loan, expected back on {datum}',
       stGereserveerd: 'Reserved', stNietUitleenbaar: 'Not for loan', stVerloren: 'No longer available', stTeKoop: 'For sale at the library, not for loan',
       labels: 'Labels',
-      fOnderwerp: 'Topic', fTaal: 'Language', fStaat: 'New or second-hand', fUitvoering: 'Format', fPeriode: 'Publication period', fAanrader: 'Recommendation',
+      fOnderwerp: 'Topic', fTaal: 'Language', fDikte: 'Length', fStaat: 'New or second-hand', fUitvoering: 'Format', fPeriode: 'Publication period', fAanrader: 'Recommendation',
       overTitel: 'About Project Madrigal'
     }
   };
@@ -195,7 +195,10 @@
     'Nederlands': 'Dutch', 'Engels': 'English', 'Frans': 'French', 'Duits': 'German', 'Spaans': 'Spanish', 'Italiaans': 'Italian', 'Portugees': 'Portuguese',
     'Nieuw': 'New', 'Tweedehands': 'Second-hand', 'Hardcover': 'Hardcover', 'Paperback': 'Paperback', 'Pocket': 'Pocket',
     'Voor 1970': 'Before 1970', '1970 tot 1989': '1970 to 1989', '1990 tot 1999': '1990 to 1999',
-    '2000 tot 2009': '2000 to 2009', '2010 tot 2019': '2010 to 2019', '2020 en later': '2020 and later'
+    '2000 tot 2009': '2000 to 2009', '2010 tot 2019': '2010 to 2019', '2020 en later': '2020 and later',
+    'Dun (tot 150 bladzijden)': 'Short (up to 150 pages)', 'Gemiddeld (150 tot 300 bladzijden)': 'Medium (150 to 300 pages)',
+    'Dik (300 tot 500 bladzijden)': 'Long (300 to 500 pages)', 'Heel dik (meer dan 500 bladzijden)': 'Very long (more than 500 pages)',
+    'Kunst en Fotoboek': 'Art and photo books'
   };
 
   var DAGEN = { nl: ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'], en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] };

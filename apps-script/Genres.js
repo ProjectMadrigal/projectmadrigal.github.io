@@ -58,7 +58,7 @@ function genreMooi(genre) {
 /** De juiste schrijfwijze van een thema: die van de website, anders de meest gebruikte. telling: { sleutel: { schrijfwijze: aantal } }. */
 function themaMooi(thema, telling) {
   var k = normaliseerTekst(thema);
-  var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === k; })[0];
+  var standaard = themaExact(thema);
   if (standaard) return standaard;
   var vormen = telling && telling[k] ? Object.keys(telling[k]) : [schoon(thema)];
   var beste = vormen.sort(function (a, b) { return telling[k][b] - telling[k][a] || (b === genreMooi(b) ? 1 : 0) - (a === genreMooi(a) ? 1 : 0); })[0];

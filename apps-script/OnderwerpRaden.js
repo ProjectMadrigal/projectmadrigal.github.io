@@ -104,7 +104,7 @@ function vulOntbrekendeOnderwerpen(catalogus, onderwerpRijen) {
  */
 function onderwerpKeuzes(onderwerpRijen, catalogus) {
   // Enkel de vaste thema's van de website, en de genres elk één keer in de juiste schrijfwijze (zie Genres.js).
-  var themas = FILTERGROEPEN.filter(function (f) { return f !== 'Zines' && f !== 'Klassiekers'; });
+  var themas = alleThemas().filter(function (f) { return f !== 'Zines' && f !== 'Klassiekers'; });
   var genres = [], gezien = {};
   (onderwerpRijen || []).forEach(function (r) {
     if (isLeeg(r.genre)) return;

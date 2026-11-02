@@ -542,6 +542,8 @@ function stelFiltergroepenVoor(genre) {
  */
 function filtergroepenVan(boek, vertaal) {
   var ruw = (vertaal[normaliseerTekst(boek.genre)] || []).slice();
+  // Een genre met de naam van een thema (bv. Kunst en Fotoboek) komt vanzelf in dat thema.
+  if (themaExact(boek.genre)) ruw.push(themaExact(boek.genre));
   splitsLijst(boek.extra_onderwerpen).forEach(function (g) { ruw.push(g); });
   if (jaNee(boek.klassieker) === 'ja') ruw.push('Klassiekers');
   if (normaliseerTekst(boek.soort) === 'zine') ruw.push('Zines');
@@ -554,15 +556,31 @@ function filtergroepenVan(boek, vertaal) {
   return uniek;
 }
 
-/** De vaste thema's (FILTERGROEPEN) van een naam: het thema zelf, de thema's van een genre, of het voorstel. */
+// Eigen thema's bovenop FILTERGROEPEN (instelling eigen_themas, gezet door leesInstellingen).
+var EIGEN_THEMAS = ['Kunst en Fotoboek'];
+
+/** Alle thema's van de website: de vaste en de eigen. */
+function alleThemas() {
+  var uit = FILTERGROEPEN.slice();
+  EIGEN_THEMAS.forEach(function (t) { if (!uit.some(function (f) { return normaliseerTekst(f) === normaliseerTekst(t); })) uit.push(schoon(t)); });
+  return uit;
+}
+
+/** Het thema met precies deze naam (hoofdletters en accenten tellen niet), of ''. */
+function themaExact(naam) {
+  var k = normaliseerTekst(naam);
+  return k ? alleThemas().filter(function (f) { return normaliseerTekst(f) === k; })[0] || '' : '';
+}
+
+/** De thema's van een naam: het thema zelf, de thema's van een genre, of het voorstel. */
 function themaVan(naam, vertaal) {
   var k = normaliseerTekst(naam);
   if (!k) return [];
-  var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === k; })[0];
+  var standaard = themaExact(naam);
   if (standaard) return [standaard];
   var viaGenre = [];
   (vertaal && vertaal[k] || []).forEach(function (g) {
-    var s = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === normaliseerTekst(g); })[0];
+    var s = themaExact(g);
     if (s && viaGenre.indexOf(s) === -1) viaGenre.push(s);
   });
   if (viaGenre.length) return viaGenre;

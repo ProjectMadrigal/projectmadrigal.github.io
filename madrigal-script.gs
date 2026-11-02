@@ -250,6 +250,9 @@ var OUDE_GROEP = 'geschiedenis en maatschappij';
 
 var NIEUWE_GROEPEN = ['Geschiedenis', 'Maatschappij', 'Religie en Spiritualiteit'];
 
+// Eigen thema's bovenop FILTERGROEPEN (instelling eigen_themas, gezet door leesInstellingen).
+var EIGEN_THEMAS = ['Kunst en Fotoboek'];
+
 var CV_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 
 var CV_PAUZE_MS = 1000; // Open Library vraagt om rustig te zoeken
@@ -503,6 +506,7 @@ var STANDAARD_INSTELLINGEN = [
   ['nieuw_op_startpagina_dagen', 60, 'Hoeveel dagen een nieuw toegevoegd boek vooraan in "Nieuw binnen" staat. Zijn er te weinig, dan vult de site aan met de laatst gecatalogiseerde boeken. 0: de sectie Nieuw binnen staat uit.'],
   ['nieuw_op_startpagina_aantal', 8, 'Hoeveel boeken "Nieuw binnen" op de startpagina hoogstens toont. De nieuwste eerst.'],
   ['aanraders_uit_stocklijst', 'Johanna', 'Namen van wie de aanraders uit de oude stocklijst overgenomen worden, gescheiden door komma\'s. Andere namen uit de stocklijst niet. Een aanrader die je zelf typt in de kolom aanrader van de Catalogus, staat altijd op de website.'],
+  ['eigen_themas', 'Kunst en Fotoboek', 'Thema\'s op de website bovenop de vaste thema\'s (Gender, Fictie, Poëzie, ...), gescheiden door komma\'s. Een genre met dezelfde naam komt vanzelf in dat thema. Andere namen in de kolommen filtergroepen en extra_onderwerpen worden vertaald naar een thema, of vallen weg.'],
   ['aanraders_verbergen', '', 'Namen van wie de aanraders nergens op de website staan, gescheiden door komma\'s (bv. Nance): niet op de startpagina, niet als label bij de boeken en niet in de filter Aanrader. De namen blijven in de Catalogus staan. Leeg: iedereen staat erop.'],
   ['tekst_herinnering', 'Hoi {voornaam}, je leende bij Project Madrigal "{titel}". Dat boek moest terug op {vervaldatum}. Breng je het binnenkort binnen? Lukt dat niet, laat het ons dan even weten. Dank je!', 'Herinnering voor een boek dat te laat is. Gebruik {voornaam}, {titel} en {vervaldatum}.'],
   ['tekst_herinnering_binnenkort', 'Hoi {voornaam}, een vriendelijke herinnering: "{titel}" mag terug naar Project Madrigal op {vervaldatum}. Wil je het langer houden? Laat het ons weten, dan verlengen we het. Veel leesplezier!', 'Herinnering voor een boek dat binnenkort vervalt.']
@@ -770,6 +774,7 @@ var INSTELLING_GROEPEN = [
   ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
   ['Website: bereikbaarheid en toegankelijkheid', ['tekst_toegankelijkheid', 'tekst_toegankelijkheid_en']],
   ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],
+  ['Website: onderwerpen', ['eigen_themas']],
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
   ['Website: leeslijsten', ['leeslijsten_tonen']],
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
@@ -1398,6 +1403,13 @@ function alleReservaties(staat) {
     actieveReservaties(staat, boekId).forEach(function (r, i) { lijst.push(reservatieInfo(staat, r, i + 1)); });
   });
   return lijst;
+}
+
+/** Alle thema's van de website: de vaste en de eigen. */
+function alleThemas() {
+  var uit = FILTERGROEPEN.slice();
+  EIGEN_THEMAS.forEach(function (t) { if (!uit.some(function (f) { return normaliseerTekst(f) === normaliseerTekst(t); })) uit.push(schoon(t)); });
+  return uit;
 }
 
 /** De originele titel, of '' als die dezelfde is als de titel (zonder hoofdletters, accenten en leestekens). */
@@ -2554,7 +2566,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     boeken.push(boek);
   });
   // Filtergroepen: eerst de standaardvolgorde, dan eventuele eigen groepen.
-  var groepen = FILTERGROEPEN.slice();
+  var groepen = alleThemas();
   boeken.forEach(function (b) { b.g.forEach(function (g) { if (groepen.indexOf(g) === -1) groepen.push(g); }); });
   var uit = {
     bijgewerkt: staat.vandaag,
@@ -3685,6 +3697,8 @@ function filmWikiUrl(taal, titel) {
  */
 function filtergroepenVan(boek, vertaal) {
   var ruw = (vertaal[normaliseerTekst(boek.genre)] || []).slice();
+  // Een genre met de naam van een thema (bv. Kunst en Fotoboek) komt vanzelf in dat thema.
+  if (themaExact(boek.genre)) ruw.push(themaExact(boek.genre));
   splitsLijst(boek.extra_onderwerpen).forEach(function (g) { ruw.push(g); });
   if (jaNee(boek.klassieker) === 'ja') ruw.push('Klassiekers');
   if (normaliseerTekst(boek.soort) === 'zine') ruw.push('Zines');
@@ -6714,7 +6728,7 @@ function olZoek(parameters) {
  */
 function onderwerpKeuzes(onderwerpRijen, catalogus) {
   // Enkel de vaste thema's van de website, en de genres elk één keer in de juiste schrijfwijze (zie Genres.js).
-  var themas = FILTERGROEPEN.filter(function (f) { return f !== 'Zines' && f !== 'Klassiekers'; });
+  var themas = alleThemas().filter(function (f) { return f !== 'Zines' && f !== 'Klassiekers'; });
   var genres = [], gezien = {};
   (onderwerpRijen || []).forEach(function (r) {
     if (isLeeg(r.genre)) return;
@@ -8559,10 +8573,16 @@ function teVerwijderenBackups(bestanden, bewaren) {
     .map(function (b) { return b.id; });
 }
 
+/** Het thema met precies deze naam (hoofdletters en accenten tellen niet), of ''. */
+function themaExact(naam) {
+  var k = normaliseerTekst(naam);
+  return k ? alleThemas().filter(function (f) { return normaliseerTekst(f) === k; })[0] || '' : '';
+}
+
 /** De juiste schrijfwijze van een thema: die van de website, anders de meest gebruikte. telling: { sleutel: { schrijfwijze: aantal } }. */
 function themaMooi(thema, telling) {
   var k = normaliseerTekst(thema);
-  var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === k; })[0];
+  var standaard = themaExact(thema);
   if (standaard) return standaard;
   var vormen = telling && telling[k] ? Object.keys(telling[k]) : [schoon(thema)];
   var beste = vormen.sort(function (a, b) { return telling[k][b] - telling[k][a] || (b === genreMooi(b) ? 1 : 0) - (a === genreMooi(a) ? 1 : 0); })[0];
@@ -8588,15 +8608,15 @@ function themaTelling(onderwerpRijen, catalogus) {
   return telling;
 }
 
-/** De vaste thema's (FILTERGROEPEN) van een naam: het thema zelf, de thema's van een genre, of het voorstel. */
+/** De thema's van een naam: het thema zelf, de thema's van een genre, of het voorstel. */
 function themaVan(naam, vertaal) {
   var k = normaliseerTekst(naam);
   if (!k) return [];
-  var standaard = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === k; })[0];
+  var standaard = themaExact(naam);
   if (standaard) return [standaard];
   var viaGenre = [];
   (vertaal && vertaal[k] || []).forEach(function (g) {
-    var s = FILTERGROEPEN.filter(function (f) { return normaliseerTekst(f) === normaliseerTekst(g); })[0];
+    var s = themaExact(g);
     if (s && viaGenre.indexOf(s) === -1) viaGenre.push(s);
   });
   if (viaGenre.length) return viaGenre;
@@ -9648,6 +9668,8 @@ function verwerkInstellingen(ruw) {
   inst.gesloten_data = splitsLijst(inst.gesloten_data).map(parseerDatum).filter(function (d) { return d; });
   // Een enkele datum als Date-object in de cel.
   if (isDatumObject(ruw.gesloten_data)) inst.gesloten_data = [parseerDatum(ruw.gesloten_data)];
+  // Eigen thema's: gelden meteen voor filtergroepenVan (Catalogus.js).
+  EIGEN_THEMAS = splitsLijst(inst.eigen_themas);
   return inst;
 }
 

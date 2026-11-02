@@ -29,11 +29,34 @@
     return '';
   }
 
+  /** Dikte van een boek, op het aantal pagina's: voor wie liever een dunner boek leest. */
+  var DIKTES = [
+    { label: 'Dun (tot 150 bladzijden)', tot: 150 },
+    { label: 'Gemiddeld (150 tot 300 bladzijden)', tot: 300 },
+    { label: 'Dik (300 tot 500 bladzijden)', tot: 500 },
+    { label: 'Heel dik (meer dan 500 bladzijden)', tot: Infinity }
+  ];
+
+  function dikteVan(paginas) {
+    var p = Number(paginas);
+    if (!p || p < 1) return '';
+    for (var i = 0; i < DIKTES.length; i++) if (p <= DIKTES[i].tot) return DIKTES[i].label;
+    return '';
+  }
+
   function alfabetisch(a, b) { return a.localeCompare(b, 'nl'); }
 
   var FILTERS = [
     { sleutel: 'groep', labelSleutel: 'fOnderwerp', label: 'Onderwerp', waarden: function (b) { return b.g || []; } /* alfabetisch, zie opties */ },
     { sleutel: 'taal', labelSleutel: 'fTaal', label: 'Taal', waarden: function (b) { return b.l ? [b.l] : []; }, volgorde: alfabetisch },
+    {
+      sleutel: 'dikte', labelSleutel: 'fDikte', label: 'Dikte',
+      waarden: function (b) { var d = dikteVan(b.p); return d ? [d] : []; },
+      volgorde: function (a, b) {
+        var labels = DIKTES.map(function (d) { return d.label; });
+        return labels.indexOf(a) - labels.indexOf(b);
+      }
+    },
     { sleutel: 'staat', labelSleutel: 'fStaat', label: 'Nieuw of tweedehands', waarden: function (b) { return b.n ? [b.n === 'nieuw' ? 'Nieuw' : 'Tweedehands'] : []; }, volgorde: alfabetisch },
     { sleutel: 'uitvoering', labelSleutel: 'fUitvoering', label: 'Uitvoering', waarden: function (b) { return b.v ? [b.v] : []; }, volgorde: alfabetisch },
     {
@@ -167,7 +190,7 @@
     }).slice(0, aantal || 6).map(function (x) { return x.boek; });
   }
 
-  var api = { FILTERS: FILTERS, FILMFILTERS: FILMFILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
+  var api = { FILTERS: FILTERS, FILMFILTERS: FILMFILTERS, gelijkaardig: gelijkaardig, PERIODES: PERIODES, periodeVan: periodeVan, DIKTES: DIKTES, dikteVan: dikteVan, opties: opties, pasToe: pasToe, sorteer: sorteer };
   root.MadrigalFilters = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
