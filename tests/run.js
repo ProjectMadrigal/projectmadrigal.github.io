@@ -3397,7 +3397,7 @@ test('onderwerpen raden: de keuzelijst bevat thema\'s en genres, een genre wordt
   const k = M.onderwerpKeuzes(onderwerpen, cat);
   assert.ok(k.lijst.includes('Politiek') && k.lijst.includes('Antwerpen') && k.lijst.includes('Eigen thema') && k.lijst.includes('Gender'));
   assert.ok(!k.lijst.includes('Zines') && !k.lijst.includes('Klassiekers'));
-  assert.ok(k.lijst.indexOf('Gender') < k.lijst.indexOf('Politiek'), 'eerst de thema\'s, dan de genres');
+  gelijk(k.lijst, k.lijst.slice().sort((a, b) => a.localeCompare(b, 'nl')), 'één lijst, alfabetisch');
   const rijen = [
     { boek_id: 'B1', onderwerp_nieuw: 'Politiek', toepassen: 'ja' },
     { boek_id: 'B2', onderwerp_nieuw: 'Politiek, Gender', toepassen: 'ja' },
