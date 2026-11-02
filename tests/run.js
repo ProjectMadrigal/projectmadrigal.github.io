@@ -1883,6 +1883,43 @@ test('oude website ronde 2: vertaling, auteur anders geschreven, uitgever als au
   gelijk([M.auteursDelen('Sappho', 'Lesbos, Sappho van'), M.auteursDelen('Chagoll Lydia', 'Chagoll, Lydia'), M.auteursDelen('Lien Hemmerechts', 'Hammerechts, Lien'), M.auteursDelen('Vera van Dijk', 'Noor van Damme')], [true, true, true, false]);
 });
 
+test('oude website: titels vergelijken (vertaling, woord meer of minder, nummer, auteur in de titel, naam aan elkaar)', () => {
+  const C = (boek_id, titel, auteur) => ({ boek_id, titel, auteur, isbn: '' });
+  const catalogus = [
+    C('B0001', 'Het moordkondoom', 'Kunig, Ralf'), C('B0002', 'Ander werk', 'Kunig, Ralf'),
+    C('B0003', 'In Zee', 'Lynn, Jane De'),
+    C('B0004', 'The Critical Reception of Vera Verzonnen', 'Francis, Noor'),
+    C('B0005', 'House of Rules', 'Lewisn Heather'), C('B0006', 'Tweede boek', 'Lewis, Heather'),
+    C('B0007', 'The Dark Proof', 'Mars-Jones, Adam & White, Edmund'), C('B0008', 'Iets anders', 'White, Edmund'),
+    C('B0009', 'Keuze uit de gedichten 1950-1984', 'Rich, Adrienne'), C('B0010', 'Ander bundel', 'Rich, Adrienne'),
+    C('B0011', 'Flo: de dagelijkse ergenissen', 'Goede, Floor de'), C('B0012', 'Flo ego', 'Goede, Floor De'), C('B0013', 'Flo groot', 'Goede, Floor de'),
+    C('B0014', 'The Mayor of Verzonnen Street: The Life of Kim', 'Shilts, Randy'),
+    C('B0015', 'De autobriografie van Alice B. Fictief', 'Stein, Gertrude'), C('B0016', 'Ander', 'Stein, Gertrude')
+  ];
+  const index = M.oudIndex(catalogus);
+  const zoek = (titel, auteur) => { const r = M.zoekOudBoek({ titel, auteur, isbn: '', ondertitel: '' }, index); return r ? r.boek.boek_id + ' ' + r.hoe : null; };
+  gelijk(zoek('The Moordcondoom', 'Ralf Kunig'), 'B0001 bijna', 'Vertaling, titel zonder spaties');
+  gelijk(zoek('In Zee: A Novel', 'Jane DeLynn'), 'B0003 kern', 'Naam aan elkaar geschreven');
+  gelijk(zoek('Critical Reception of Vera Verzonnen, 1963-2010: An Honest Woman', 'Noor Francis'), 'B0004 bijna', 'Jaartallen erbij');
+  gelijk(zoek('House Rules', 'Heather Lewis'), 'B0005 bijna', 'Woord minder');
+  gelijk(zoek('The Darker Proof: Stories', 'Edmund White; Adam Mars-Jones'), 'B0007 bijna', 'Darker en Dark');
+  gelijk(zoek('Keuze uit de gedichten 1950-1984 Adrienne Rich', 'Adrienne Rich'), 'B0009 bijna', 'Naam van de auteur in de titel');
+  gelijk(zoek('Flo#3: De dagelijkse ergernissen', 'Floor de Goede'), 'B0011 bijna', 'Nummer in de titel');
+  gelijk(zoek('Flo #7 EGO', 'Floor de Goede'), 'B0012 bijna', 'Nummer en hoofdletters');
+  gelijk(zoek('The mayor of Verzonnen Street : the life of Kim', ''), 'B0014 titel zonder auteur', 'Geen auteur op de oude website');
+  gelijk(zoek('The Autobiography of Alice B. Fictief', 'Gertrude Stein'), 'B0015 bijna', 'Vertaling met gedeelde woorden');
+  gelijk(zoek('Flo #9 Nieuw', 'Floor de Goede'), null, 'Ander deel van de reeks: niet raden');
+  gelijk(M.auteursDelen('Jane DeLynn', 'Lynn, Jane De'), true);
+  // Ronde 2: een boek dat twee keer op de oude website stond, telt als één.
+  const cat2 = [C('B0101', 'Out of Control The Zone 2', 'Slayrt, Jacob'), C('B0102', 'Unieke verzonnen titel', 'Iemand, Kim')];
+  const oud2 = [
+    { titel: 'Out of Control - Bi-sexual Erotica', auteur: 'Jacob Slater' },
+    { titel: 'Unieke verzonnen titel', auteur: 'Uitgever.be' }, { titel: 'Unieke verzonnen titel', auteur: 'Uitgever.be' }
+  ].map((o) => Object.assign({ isbn: '', ondertitel: '', beschrijving: 'Tekst.', cover: '' }, o));
+  const uit = M.oudeBoekenToepassen(cat2, oud2, { beschrijving: {}, cover: {} });
+  gelijk([cat2[0].beschrijving, cat2[1].beschrijving, uit.nietGevonden.length], ['Tekst.', 'Tekst.', 0]);
+});
+
 console.log('\nAankooplijst');
 test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als binnen', () => {
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera', isbn: '9780306406157' }];
