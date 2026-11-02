@@ -100,7 +100,7 @@ function vulOntbrekendeOnderwerpen(catalogus, onderwerpRijen) {
 /**
  * De keuzes voor de keuzelijst onderwerp_nieuw: alle thema's (de standaardthema's van de website, de thema's uit het
  * tabblad Onderwerpen en wat al in extra_onderwerpen staat) en alle genres uit Onderwerpen (bv. Politiek).
- * Geeft { themas: [...], genres: [...], lijst: [thema's, dan genres die geen thema zijn] }.
+ * Geeft { themas: [...], genres: [...], lijst: [thema's en genres samen, alfabetisch] }.
  */
 function onderwerpKeuzes(onderwerpRijen, catalogus) {
   var themas = [], genres = [];
@@ -115,7 +115,8 @@ function onderwerpKeuzes(onderwerpRijen, catalogus) {
   var sorteer = function (x, y) { return x.localeCompare(y, 'nl'); };
   themas.sort(sorteer); genres.sort(sorteer);
   var alleenGenre = genres.filter(function (g) { return !themas.some(function (t) { return normaliseerTekst(t) === normaliseerTekst(g); }); });
-  return { themas: themas, genres: genres, lijst: themas.concat(alleenGenre) };
+  // Eén lijst, alfabetisch: thema's en genres door elkaar, zo vind je alles op dezelfde plaats.
+  return { themas: themas, genres: genres, lijst: themas.concat(alleenGenre).sort(sorteer) };
 }
 
 /**
