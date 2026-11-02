@@ -2916,7 +2916,7 @@ test('Titels: nakijklijst en toepassen', () => {
   const tab = { blad, kop: ['titel', 'taal'], rijen: [{ _rij: 2, titel: 'De Blauwe Kamer' }, { _rij: 4, titel: 'the long road' }] };
   M.wijzig(tab.rijen[0], { titel: 'De blauwe kamer' });
   M.wijzig(tab.rijen[1], { titel: 'The Long Road' });
-  M.titelsSchrijfKolommen(tab, ['titel', 'taal']);
+  M.schrijfKolommen(tab, ['titel', 'taal']);
   assert.strictEqual(schrijfbeurten, 1, 'alles in één keer');
   gelijk(cellen.map((r) => r[0]), ['titel', 'De blauwe kamer', '', 'The Long Road']);
   gelijk(cellen.map((r) => r[1]), ['taal', 'Nederlands', '', 'Engels'], 'de taal bleef: die veranderde niet');
@@ -2983,6 +2983,37 @@ test('Titels: een titel die een datum werd, blijft staan', () => {
   const t = 'Mon Jul 24 2023 00:00:00 GMT+0200 (Midden-Europese zomertijd)';
   assert.strictEqual(M.titelSchrijfwijze(t, 'Nederlands', {}), t);
   gelijk(M.titelNakijklijst([{ boek_id: 'B1', titel: t, taal: 'Nederlands' }]), []);
+});
+
+
+test('bewaarAchtergrond: kolom per kolom in één keer, andere cellen blijven zoals ze waren', () => {
+  const datum = new Date(2026, 0, 5, 12);
+  const cellen = [['boek_id', 'titel', 'cover_url', 'datum_toegevoegd'], ['B1', 'Een', '', datum], ['B2', 'Twee', 'oud', datum], ['B3', 'Drie', '', datum]];
+  let schrijfbeurten = 0;
+  const blad = {
+    getLastRow: () => cellen.length,
+    getDataRange: () => ({ getValues: () => cellen.map((r) => r.slice()) }),
+    getRange: (r, k, n, m) => ({
+      getValues: () => cellen.slice(r - 1, r - 1 + n).map((rij) => rij.slice(k - 1, k - 1 + (m || 1))),
+      setValues: (w) => { schrijfbeurten++; w.forEach((x, i) => x.forEach((v, j) => { cellen[r - 1 + i][k - 1 + j] = v; })); }
+    })
+  };
+  const oud = { spreadsheet: M.spreadsheet, LockService: M.LockService };
+  M.spreadsheet = () => ({ getSheetByName: () => blad });
+  M.LockService = { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) };
+  try {
+    const tabel = M.leesTabel('Catalogus');
+    M.wijzig(tabel.rijen[0], { cover_url: 'https://voorbeeld.test/1.jpg' });
+    M.wijzig(tabel.rijen[2], { cover_url: 'https://voorbeeld.test/3.jpg' });
+    cellen[2][1] = 'Twee (intussen aangepast)';
+    assert.strictEqual(M.bewaarAchtergrond(tabel), true);
+  } finally {
+    M.spreadsheet = oud.spreadsheet; M.LockService = oud.LockService;
+  }
+  assert.strictEqual(schrijfbeurten, 1);
+  gelijk(cellen.map((r) => r[2]), ['cover_url', 'https://voorbeeld.test/1.jpg', 'oud', 'https://voorbeeld.test/3.jpg']);
+  assert.strictEqual(cellen[2][1], 'Twee (intussen aangepast)');
+  assert.ok(cellen[1][3] instanceof Date || Object.prototype.toString.call(cellen[1][3]) === '[object Date]', 'een datum blijft een datum');
 });
 
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
