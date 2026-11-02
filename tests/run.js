@@ -2076,6 +2076,30 @@ test('indelen van films: één treffer genoeg, genre telt mee, AIDS/HIV als twee
   gelijk(boek[0].trefwoorden, 'Lesbisch, AIDS/HIV, Oorlog');
 });
 
+test('beschrijving op titel en auteur: wanneer, en enkel hetzelfde boek', () => {
+  const nodig = (b) => M.heeftTitelZoekNodig(Object.assign({ titel: 'De verzonnen zee', auteur: 'Verbeek, Mira' }, b));
+  gelijk([
+    nodig({ isbn: '', beschrijving_gezocht: '' }),
+    nodig({ isbn: '9780306406157', beschrijving_gezocht: '' }),
+    nodig({ isbn: '9780306406157', beschrijving_gezocht: '2026-10-24' }),
+    nodig({ isbn: '9780306406157', beschrijving_gezocht: 'OL 20261024' }),
+    nodig({ isbn: '', beschrijving_gezocht: 'TA 20261102' }),
+    nodig({ isbn: '', beschrijving: 'Al een tekst.' }),
+    nodig({ soort: 'film' }), nodig({ soort: 'zine' })
+  ], [true, false, true, false, false, false, false, false]);
+  const boek = { titel: 'De verzonnen zee: een roman', auteur: 'Verbeek, Mira' };
+  const items = [
+    { volumeInfo: { title: 'Een ander boek', authors: ['Mira Verbeek'], description: 'Fout.' } },
+    { volumeInfo: { title: 'De verzonnen zee', authors: ['Kim Ander'], description: 'Ook fout.' } },
+    { volumeInfo: { title: 'De Verzonnen Zee', authors: ['Mira Verbeek'], description: 'Juist.' } }
+  ];
+  gelijk(M.beschrijvingUitItems(items, boek), 'Juist.');
+  gelijk(M.olWerkOpTitel([{ key: '/works/OL1W', title: 'Iets anders', author_name: ['Mira Verbeek'] },
+    { key: '/works/OL2W', title: 'De verzonnen zee', author_name: ['M. Verbeek', 'Mira Verbeek'] }], boek), '/works/OL2W');
+  gelijk(M.olWerkOpTitel([{ key: '/works/OL3W', title: 'De verzonnen zee', author_name: ['Kim Ander'] }], boek), '');
+  assert.ok(decodeURIComponent(M.googleBooksTitelUrl(boek, '')).indexOf('intitle:"de verzonnen zee" inauthor:verbeek') > -1);
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
