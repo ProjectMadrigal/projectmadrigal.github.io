@@ -157,6 +157,24 @@ function maakTitelNakijklijst() {
   meld(lijst.length + ' titels hebben een andere schrijfwijze nodig. Kijk ze na in het tabblad ' + TITELS_TABBLAD + ': pas titel_nieuw aan waar nodig, of zet toepassen op nee. Kies daarna Madrigal > Boeken > Titels: pas de nakijklijst toe.');
 }
 
+/** Schrijft de gewijzigde waarden van één kolom in één keer terug naar het tabblad. */
+function titelsSchrijfKolom(tabel, kolom) {
+  var nr = tabel.kop.indexOf(kolom) + 1;
+  var aantal = tabel.blad.getLastRow() - 1;
+  if (nr < 1 || aantal < 1) return;
+  var bereik = tabel.blad.getRange(2, nr, aantal, 1);
+  var waarden = bereik.getValues();
+  var veranderd = false;
+  tabel.rijen.forEach(function (r) {
+    if (!r._gewijzigd || !r._rij || r._rij < 2 || r._rij > aantal + 1) return;
+    waarden[r._rij - 2][0] = r[kolom];
+    r._gewijzigd = false;
+    r._velden = {};
+    veranderd = true;
+  });
+  if (veranderd) bereik.setValues(waarden);
+}
+
 /** Menu: stap 2, de nakijklijst toepassen op de Catalogus. */
 function pasTitelNakijklijstToe() {
   if (!spreadsheet().getSheetByName(TITELS_TABBLAD)) { meld('Maak eerst de nakijklijst: Madrigal > Boeken > Titels: maak een nakijklijst.'); return; }
@@ -167,8 +185,9 @@ function pasTitelNakijklijstToe() {
     var catalogus = leesTabel('Catalogus');
     var lijst = leesTabel(TITELS_TABBLAD);
     uit = titelsToepassen(catalogus.rijen, lijst.rijen);
-    bewaarTabel(catalogus);
-    bewaarTabel(lijst);
+    // Eén kolom in één keer schrijven: rij per rij bewaren duurt bij honderden titels langer dan 6 minuten.
+    titelsSchrijfKolom(catalogus, 'titel');
+    titelsSchrijfKolom(lijst, 'toepassen');
   } finally {
     lock.releaseLock();
   }

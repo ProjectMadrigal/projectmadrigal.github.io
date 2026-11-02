@@ -6456,8 +6456,9 @@ function pasTitelNakijklijstToe() {
     var catalogus = leesTabel('Catalogus');
     var lijst = leesTabel(TITELS_TABBLAD);
     uit = titelsToepassen(catalogus.rijen, lijst.rijen);
-    bewaarTabel(catalogus);
-    bewaarTabel(lijst);
+    // Eén kolom in één keer schrijven: rij per rij bewaren duurt bij honderden titels langer dan 6 minuten.
+    titelsSchrijfKolom(catalogus, 'titel');
+    titelsSchrijfKolom(lijst, 'toepassen');
   } finally {
     lock.releaseLock();
   }
@@ -7659,6 +7660,24 @@ function titelSchrijfwijze(titel, taal, namen) {
 function titelSleutel(titel) {
   var t = schoon(titel).replace(/\(.*?\)/g, ' ').split(':')[0];
   return woorden(t).join(' ');
+}
+
+/** Schrijft de gewijzigde waarden van één kolom in één keer terug naar het tabblad. */
+function titelsSchrijfKolom(tabel, kolom) {
+  var nr = tabel.kop.indexOf(kolom) + 1;
+  var aantal = tabel.blad.getLastRow() - 1;
+  if (nr < 1 || aantal < 1) return;
+  var bereik = tabel.blad.getRange(2, nr, aantal, 1);
+  var waarden = bereik.getValues();
+  var veranderd = false;
+  tabel.rijen.forEach(function (r) {
+    if (!r._gewijzigd || !r._rij || r._rij < 2 || r._rij > aantal + 1) return;
+    waarden[r._rij - 2][0] = r[kolom];
+    r._gewijzigd = false;
+    r._velden = {};
+    veranderd = true;
+  });
+  if (veranderd) bereik.setValues(waarden);
 }
 
 /**
