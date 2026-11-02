@@ -203,8 +203,11 @@ function bewaarAchtergrond(tabel) {
   if (!lock.tryLock(30000)) return false;
   try {
     var vers = leesTabel(tabel.naam);
+    var kolommen = [];
+    gewijzigd.forEach(function (r) { Object.keys(r._velden || {}).forEach(function (k) { if (kolommen.indexOf(k) === -1) kolommen.push(k); }); });
     voegVeldenSamen(gewijzigd, vers.rijen);
-    bewaarTabel(vers);
+    // Kolom per kolom in één keer: rij per rij schrijven deed de spreadsheet telkens opnieuw rekenen en tekenen.
+    schrijfKolommen(vers, kolommen);
   } finally {
     lock.releaseLock();
   }
@@ -255,6 +258,29 @@ function celWaarde(kolom, waarde) {
     return new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]), 12);
   }
   return veiligeCel(waarde);
+}
+
+/**
+ * Schrijft de gewijzigde waarden van enkele kolommen terug, elke kolom in één keer. Enkel de cellen van
+ * gewijzigde rijen veranderen: de andere cellen krijgen hun eigen waarde terug (rechtstreeks uit het blad).
+ */
+function schrijfKolommen(tabel, kolommen) {
+  var aantal = tabel.blad.getLastRow() - 1;
+  if (aantal < 1) return;
+  kolommen.forEach(function (kolom) {
+    var nr = tabel.kop.indexOf(kolom) + 1;
+    if (nr < 1) return;
+    var bereik = tabel.blad.getRange(2, nr, aantal, 1);
+    var waarden = bereik.getValues();
+    var veranderd = false;
+    tabel.rijen.forEach(function (r) {
+      if (!r._gewijzigd || !r._velden || !r._velden[kolom] || !r._rij || r._rij < 2 || r._rij > aantal + 1) return;
+      waarden[r._rij - 2][0] = celWaarde(kolom, r[kolom]);
+      veranderd = true;
+    });
+    if (veranderd) bereik.setValues(waarden);
+  });
+  tabel.rijen.forEach(function (r) { if (r._gewijzigd && !r._nieuw && !r._verwijderen) { r._gewijzigd = false; r._velden = {}; } });
 }
 
 /** Zet een rij-object om naar een lijst celwaarden volgens de kop. */

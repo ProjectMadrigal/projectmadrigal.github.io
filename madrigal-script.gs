@@ -1770,8 +1770,11 @@ function bewaarAchtergrond(tabel) {
   if (!lock.tryLock(30000)) return false;
   try {
     var vers = leesTabel(tabel.naam);
+    var kolommen = [];
+    gewijzigd.forEach(function (r) { Object.keys(r._velden || {}).forEach(function (k) { if (kolommen.indexOf(k) === -1) kolommen.push(k); }); });
     voegVeldenSamen(gewijzigd, vers.rijen);
-    bewaarTabel(vers);
+    // Kolom per kolom in één keer: rij per rij schrijven deed de spreadsheet telkens opnieuw rekenen en tekenen.
+    schrijfKolommen(vers, kolommen);
   } finally {
     lock.releaseLock();
   }
@@ -5940,7 +5943,7 @@ function onOpen() {
       .addItem('Zoek covers bij Internet Archive', 'zoekCoversInternetArchive')
       .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
       .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
-      .addItem('Kopieer de covers van de oude website verder', 'kopieerOudeCovers')
+      .addItem('Kopieer de covers van de oude website verder', 'startOudeCovers')
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
       .addItem('Test Google Books (kies eerst een cel met een ISBN)', 'testGoogleBooks')
@@ -6493,8 +6496,8 @@ function pasTitelNakijklijstToe() {
     var lijst = leesTabel(TITELS_TABBLAD);
     uit = titelsToepassen(catalogus.rijen, lijst.rijen);
     // Eén kolom in één keer schrijven: rij per rij bewaren duurt bij honderden titels langer dan 6 minuten.
-    titelsSchrijfKolommen(catalogus, ['titel', 'taal']);
-    titelsSchrijfKolommen(lijst, ['toepassen']);
+    schrijfKolommen(catalogus, ['titel', 'taal']);
+    schrijfKolommen(lijst, ['toepassen']);
   } finally {
     lock.releaseLock();
   }
@@ -7055,6 +7058,29 @@ function schoonMetRegels(waarde) {
   return String(waarde).replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/**
+ * Schrijft de gewijzigde waarden van enkele kolommen terug, elke kolom in één keer. Enkel de cellen van
+ * gewijzigde rijen veranderen: de andere cellen krijgen hun eigen waarde terug (rechtstreeks uit het blad).
+ */
+function schrijfKolommen(tabel, kolommen) {
+  var aantal = tabel.blad.getLastRow() - 1;
+  if (aantal < 1) return;
+  kolommen.forEach(function (kolom) {
+    var nr = tabel.kop.indexOf(kolom) + 1;
+    if (nr < 1) return;
+    var bereik = tabel.blad.getRange(2, nr, aantal, 1);
+    var waarden = bereik.getValues();
+    var veranderd = false;
+    tabel.rijen.forEach(function (r) {
+      if (!r._gewijzigd || !r._velden || !r._velden[kolom] || !r._rij || r._rij < 2 || r._rij > aantal + 1) return;
+      waarden[r._rij - 2][0] = celWaarde(kolom, r[kolom]);
+      veranderd = true;
+    });
+    if (veranderd) bereik.setValues(waarden);
+  });
+  tabel.rijen.forEach(function (r) { if (r._gewijzigd && !r._nieuw && !r._verwijderen) { r._gewijzigd = false; r._velden = {}; } });
+}
+
 /** Schrijft een volledige tabel in één keer (gebruikt bij de opbouw van de catalogus). */
 function schrijfVolledig(tabel) {
   var blad = tabel.blad;
@@ -7262,6 +7288,12 @@ function startAchtergrond(naam) {
   cache.put('taak_' + naam, String(Date.now()), ACHTERGROND_DUUR_SECONDEN);
   HUIDIGE_TAAK = naam;
   return true;
+}
+
+/** Menu: het kopiëren start op de achtergrond, zodat de spreadsheet niet minutenlang bezig is in jouw venster. */
+function startOudeCovers() {
+  planTaak('kopieerOudeCovers', 60 * 1000);
+  meld('Het kopiëren van de covers start binnen een minuut op de achtergrond en gaat vanzelf verder tot alles klaar is. Je kan gewoon verder werken. In het Logboek zie je elke ronde.');
 }
 
 /** Stelt filtergroepen voor op basis van woorden in het genre. */
@@ -7719,26 +7751,6 @@ function titelSchrijfwijze(titel, taal, namen) {
 function titelSleutel(titel) {
   var t = schoon(titel).replace(/\(.*?\)/g, ' ').split(':')[0];
   return woorden(t).join(' ');
-}
-
-/** Schrijft de gewijzigde waarden van enkele kolommen terug naar het tabblad, elke kolom in één keer. */
-function titelsSchrijfKolommen(tabel, kolommen) {
-  var aantal = tabel.blad.getLastRow() - 1;
-  if (aantal < 1) return;
-  kolommen.forEach(function (kolom) {
-    var nr = tabel.kop.indexOf(kolom) + 1;
-    if (nr < 1) return;
-    var bereik = tabel.blad.getRange(2, nr, aantal, 1);
-    var waarden = bereik.getValues();
-    var veranderd = false;
-    tabel.rijen.forEach(function (r) {
-      if (!r._gewijzigd || !r._velden || !r._velden[kolom] || !r._rij || r._rij < 2 || r._rij > aantal + 1) return;
-      waarden[r._rij - 2][0] = r[kolom];
-      veranderd = true;
-    });
-    if (veranderd) bereik.setValues(waarden);
-  });
-  tabel.rijen.forEach(function (r) { if (r._gewijzigd) { r._gewijzigd = false; r._velden = {}; } });
 }
 
 /**

@@ -518,6 +518,12 @@ function neemAangeduideOudeBoekenOver() {
   meld(tekst);
 }
 
+/** Menu: het kopiëren start op de achtergrond, zodat de spreadsheet niet minutenlang bezig is in jouw venster. */
+function startOudeCovers() {
+  planTaak('kopieerOudeCovers', 60 * 1000);
+  meld('Het kopiëren van de covers start binnen een minuut op de achtergrond en gaat vanzelf verder tot alles klaar is. Je kan gewoon verder werken. In het Logboek zie je elke ronde.');
+}
+
 /** Achtergrond: stap 2. Kopieert de covers van de oude website naar Drive, in porties. */
 function kopieerOudeCovers() {
   var start = Date.now();
