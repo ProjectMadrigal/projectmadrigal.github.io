@@ -81,5 +81,52 @@
         el('span', { class: 'ph-merk' }, zine ? 'zine' : 'Madrigal')));
   }
 
-  root.MadrigalDom = { el: el, vervang: vervang, statusLabel: statusLabel, korteDatum: korteDatum, euro: euro, plaatshouder: plaatshouder };
+  /**
+   * Een foto als cover: bijgesneden tot 2 op 3 (zoals de covers op de website), 600 bij 900 pixels.
+   * Is de foto breder of hoger, dan kies je met een schuifbalk welk stuk je houdt.
+   * Geeft { vak, dataUrl } terug: vak is het voorbeeld met de schuifbalk, dataUrl() de JPG (base64-link).
+   * id: een uniek voorvoegsel voor de schuifbalk (voor het label).
+   */
+  var COVER_B = 600, COVER_H = 900;
+  function coverBijsnijder(beeld, id) {
+    var doek = document.createElement('canvas');
+    doek.width = COVER_B; doek.height = COVER_H;
+    var breed = beeld.width / beeld.height > COVER_B / COVER_H;
+    var schuif = el('input', { type: 'range', id: id + '-schuif', min: '0', max: '100', value: '50' });
+    var voorbeeld = el('img', { alt: 'Voorbeeld van de cover', class: 'cover-voorbeeld' });
+    function teken() {
+      var p = Number(schuif.value) / 100;
+      var bw = breed ? beeld.height * COVER_B / COVER_H : beeld.width;
+      var bh = breed ? beeld.height : beeld.width * COVER_H / COVER_B;
+      var x = breed ? (beeld.width - bw) * p : 0, y = breed ? 0 : (beeld.height - bh) * p;
+      var c = doek.getContext('2d');
+      c.fillStyle = '#ffffff';
+      c.fillRect(0, 0, COVER_B, COVER_H);
+      c.drawImage(beeld, x, y, bw, bh, 0, 0, COVER_B, COVER_H);
+      voorbeeld.src = doek.toDataURL('image/jpeg', 0.85);
+    }
+    schuif.addEventListener('input', teken);
+    teken();
+    var past = Math.abs(beeld.width / beeld.height - COVER_B / COVER_H) < 0.02;
+    var vak = el('div', { class: 'cover-bijsnijder' }, voorbeeld,
+      past ? null : el('div', { class: 'veld' }, el('label', { for: id + '-schuif' }, breed ? 'Schuif naar links of rechts' : 'Schuif naar boven of onder'), schuif));
+    return { vak: vak, dataUrl: function () { return voorbeeld.src; } };
+  }
+
+  /** Leest een foto (bestand of blob) en geeft een belofte met een coverBijsnijder. */
+  function coverUitFoto(bestand, id) {
+    return new Promise(function (klaar, mislukt) {
+      var lezer = new FileReader();
+      lezer.onerror = function () { mislukt(new Error('De foto kon niet gelezen worden.')); };
+      lezer.onload = function () {
+        var beeld = new Image();
+        beeld.onerror = function () { mislukt(new Error('Dit bestand is geen foto.')); };
+        beeld.onload = function () { klaar(coverBijsnijder(beeld, id)); };
+        beeld.src = lezer.result;
+      };
+      lezer.readAsDataURL(bestand);
+    });
+  }
+
+  root.MadrigalDom = { el: el, vervang: vervang, statusLabel: statusLabel, korteDatum: korteDatum, euro: euro, plaatshouder: plaatshouder, coverUitFoto: coverUitFoto };
 })(window);

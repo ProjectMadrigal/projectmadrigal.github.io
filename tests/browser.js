@@ -105,6 +105,7 @@ function antwoord(rol, actie, vraag) {
     beheerBoekToevoegen: { ok: true, tekst: 'Toegevoegd als B0005.', boek: { boek_id: 'B0005' } },
     beheerInhoud: { ok: true, data: INHOUD },
     beheerBoekBewaren: { ok: true, tekst: 'Bewaard.' },
+    beheerCoverUpload: { ok: true, tekst: 'De foto is de cover.', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' },
     herinneringVerstuurd: { ok: true },
     beheerLenerHistoriek: { ok: true, totaal: 1, uitleningen: [{ titel: 'Stille lichten', exemplaar: 'B0003-1', datum_uit: '2026-02-01', datum_terug: '2026-03-01' }] },
     beheerCoverLinks: { ok: true, links: { B0002: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' } },
@@ -368,8 +369,7 @@ async function meldAan(page, basis, pagina) {
     await page.waitForSelector('img[alt="Huidige cover"]', { state: 'attached' }); await page.waitForTimeout(300);
     const zichtbaar = await page.$eval('img[alt="Huidige cover"]', (e) => !e.hidden);
     verwacht(zichtbaar, 'De huidige cover staat niet in het formulier');
-    const voorbeeldVerborgen = await page.$eval('img[alt="Voorbeeld van de foto"]', (e) => getComputedStyle(e).display === 'none');
-    verwacht(voorbeeldVerborgen, 'Het lege voorbeeld van de foto is zichtbaar');
+    verwacht(!(await page.$('.cover-bijsnijder')), 'Er staat al een voorbeeld van een foto zonder foto');
     // Bladeren: het eerste boek heeft enkel Volgend, het tweede ook Vorig.
     verwacht(!(await page.$('button:has-text("Vorig boek")')) && !!(await page.$('button:has-text("Bewaar en volgend boek")')), 'Knoppen bij het eerste boek');
     await page.click('button:has-text("Volgend boek ›"):not(:has-text("Bewaar"))');
@@ -804,6 +804,39 @@ async function meldAan(page, basis, pagina) {
     await page.waitForSelector('#naar-scherm');
     verwacht((await page.getAttribute('#naar-scherm', 'href')) === 'vrijwilliger.html', 'Verkeerde link');
     await ctx.close();
+  });
+  await test('boekpagina: aangemeld als bestuur pas je een boek meteen aan, een bezoeker ziet niets', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    await page.goto(basis + '/boeken.html#/boek/B0001');
+    await page.waitForSelector('.detail h1');
+    verwacht(!(await page.$('button:has-text("Bewerk dit boek")')), 'Een bezoeker ziet de knop');
+    await ctx.addInitScript(() => { localStorage.setItem('madrigal_code_bestuur', 'verzonnen-code'); localStorage.setItem('madrigal_wie', 'Kim'); });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await page.reload();
+    await page.click('button:has-text("Bewerk dit boek")');
+    await page.waitForSelector('#sb-titel');
+    await page.waitForSelector('#sb-auteur');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    // Cover: een vierkante foto wordt 2 op 3, met een schuifbalk.
+    await page.setInputFiles('#sb-foto', path.join(MAP, 'icons/icoon-192.png'));
+    await page.waitForSelector('#sb-foto-schuif');
+    const maat = await page.evaluate(() => new Promise((klaar) => { const i = new Image(); i.onload = () => klaar([i.width, i.height]); i.src = document.querySelector('.cover-bijsnijder img').src; }));
+    verwacht(maat[0] === 600 && maat[1] === 900, 'Maat van de cover: ' + maat);
+    await page.click('button:has-text("Gebruik deze foto als cover")');
+    await page.waitForSelector('text=De foto is de cover.');
+    const upload = vragen.find((x) => x.actie === 'beheerCoverUpload');
+    verwacht(upload && upload.boek_id === 'B0001' && upload.code === 'verzonnen-code' && upload.mime === 'image/jpeg', 'Upload: ' + JSON.stringify(upload && { b: upload.boek_id, m: upload.mime }));
+    // Titel en beschrijving: enkel wat veranderde gaat mee, en de pagina toont het meteen.
+    await page.fill('#sb-titel', 'De verzonnen zee, herziene uitgave');
+    await page.fill('#sb-beschrijving', 'Een nieuwe verzonnen beschrijving.');
+    await page.click('dialog button:has-text("Bewaar")');
+    await page.waitForFunction(() => /herziene uitgave/.test(document.querySelector('.detail h1').textContent));
+    const bewaar = vragen.find((x) => x.actie === 'beheerBoekBewaren');
+    verwacht(bewaar && JSON.stringify(Object.keys(bewaar.velden).sort()) === '["beschrijving","titel"]', 'Bewaard: ' + JSON.stringify(bewaar && bewaar.velden));
+    verwacht(/Een nieuwe verzonnen beschrijving/.test(await page.textContent('.detail')), 'Beschrijving niet bijgewerkt');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
   });
   await test('verkoopscherm: verkopen, ook zonder internet, en daarna doorsturen', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
