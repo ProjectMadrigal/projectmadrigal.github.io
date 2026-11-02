@@ -6541,20 +6541,59 @@ function olZoek(parameters) {
   return { docs: (r.data && r.data.docs) || [] };
 }
 
-/** De nakijklijst toepassen: extra_onderwerpen krijgt onderwerp_nieuw bij de rijen met toepassen = ja. Geeft het aantal. */
-function onderwerpNakijklijstToepassen(catalogus, rijen) {
+/**
+ * De keuzes voor de keuzelijst onderwerp_nieuw: alle thema's (de standaardthema's van de website, de thema's uit het
+ * tabblad Onderwerpen en wat al in extra_onderwerpen staat) en alle genres uit Onderwerpen (bv. Politiek).
+ * Geeft { themas: [...], genres: [...], lijst: [thema's, dan genres die geen thema zijn] }.
+ */
+function onderwerpKeuzes(onderwerpRijen, catalogus) {
+  var themas = [], genres = [];
+  var voeg = function (lijst, w) {
+    w = schoon(w);
+    if (w && !lijst.some(function (x) { return normaliseerTekst(x) === normaliseerTekst(w); })) lijst.push(w);
+  };
+  FILTERGROEPEN.forEach(function (f) { if (f !== 'Zines' && f !== 'Klassiekers') voeg(themas, f); });
+  (onderwerpRijen || []).forEach(function (r) { splitsLijst(r.filtergroepen).forEach(function (f) { voeg(themas, f); }); });
+  (catalogus || []).forEach(function (b) { if (!isFilm(b)) splitsLijst(b.extra_onderwerpen).forEach(function (f) { voeg(themas, f); }); });
+  (onderwerpRijen || []).forEach(function (r) { voeg(genres, r.genre); });
+  var sorteer = function (x, y) { return x.localeCompare(y, 'nl'); };
+  themas.sort(sorteer); genres.sort(sorteer);
+  var alleenGenre = genres.filter(function (g) { return !themas.some(function (t) { return normaliseerTekst(t) === normaliseerTekst(g); }); });
+  return { themas: themas, genres: genres, lijst: themas.concat(alleenGenre) };
+}
+
+/**
+ * De nakijklijst toepassen bij de rijen met toepassen = ja. Per keuze in onderwerp_nieuw:
+ *   - een thema: erbij in extra_onderwerpen;
+ *   - een genre uit Onderwerpen (bv. Politiek): wordt het genre van het boek als dat nog leeg is, anders komen de
+ *     thema's van dat genre erbij in extra_onderwerpen;
+ *   - iets anders (zelf getypt): erbij in extra_onderwerpen, als nieuw thema.
+ * Geeft het aantal boeken.
+ */
+function onderwerpNakijklijstToepassen(catalogus, rijen, onderwerpRijen) {
   var perId = {};
   catalogus.forEach(function (b) { if (!isLeeg(b.boek_id)) perId[String(b.boek_id)] = b; });
+  var keuzes = onderwerpKeuzes(onderwerpRijen, catalogus);
+  var vertaal = vertaalTabel(onderwerpRijen || []);
+  var zoek = function (lijst, w) { return lijst.filter(function (x) { return normaliseerTekst(x) === normaliseerTekst(w); })[0]; };
   var n = 0;
   rijen.forEach(function (r) {
     if (jaNee(r.toepassen) !== 'ja' || isLeeg(r.onderwerp_nieuw)) return;
     var boek = perId[String(r.boek_id)];
     if (!boek) return;
     var lijst = splitsLijst(boek.extra_onderwerpen);
+    var velden = {};
+    var erbij = function (o) { if (!lijst.some(function (x) { return normaliseerTekst(x) === normaliseerTekst(o); })) lijst.push(schoon(o)); };
     splitsLijst(r.onderwerp_nieuw).forEach(function (o) {
-      if (!lijst.some(function (x) { return normaliseerTekst(x) === normaliseerTekst(o); })) lijst.push(schoon(o));
+      var thema = zoek(keuzes.themas, o);
+      var genre = zoek(keuzes.genres, o);
+      if (thema) erbij(thema);
+      else if (genre && isLeeg(boek.genre) && !velden.genre) velden.genre = genre;
+      else if (genre) (vertaal[normaliseerTekst(genre)] || []).forEach(erbij);
+      else erbij(o);
     });
-    wijzig(boek, { extra_onderwerpen: lijst.join(', ') });
+    if (lijst.join(', ') !== schoon(boek.extra_onderwerpen)) velden.extra_onderwerpen = lijst.join(', ');
+    if (Object.keys(velden).length) wijzig(boek, velden);
     wijzig(r, { toepassen: 'gedaan' });
     n++;
   });
@@ -7192,8 +7231,8 @@ function pasOnderwerpNakijklijstToe() {
   try {
     var catalogus = leesTabel('Catalogus');
     var lijst = leesTabel(ONDERWERP_NAKIJKEN);
-    n = onderwerpNakijklijstToepassen(catalogus.rijen, lijst.rijen);
-    schrijfKolommen(catalogus, ['extra_onderwerpen']);
+    n = onderwerpNakijklijstToepassen(catalogus.rijen, lijst.rijen, leesTabel('Onderwerpen').rijen);
+    schrijfKolommen(catalogus, ['extra_onderwerpen', 'genre']);
     schrijfKolommen(lijst, ['toepassen']);
   } finally {
     lock.releaseLock();
@@ -10563,7 +10602,7 @@ function vulOntbrekendeOnderwerpenMenu() {
       blad.getRange(2, col('toepassen'), uit.nakijken.length, 1).setDataValidation(
         SpreadsheetApp.newDataValidation().requireValueInList(['ja', 'nee', 'gedaan'], true).setAllowInvalid(false).build());
       blad.getRange(2, col('onderwerp_nieuw'), uit.nakijken.length, 1).setDataValidation(
-        SpreadsheetApp.newDataValidation().requireValueInList(FILTERGROEPEN.filter(function (f) { return f !== 'Zines' && f !== 'Klassiekers'; }), true).setAllowInvalid(true).build());
+        SpreadsheetApp.newDataValidation().requireValueInList(onderwerpKeuzes(onderwerpen.rijen, catalogus.rijen).lijst.slice(0, 500), true).setAllowInvalid(true).build());
     }
   } finally {
     lock.releaseLock();
