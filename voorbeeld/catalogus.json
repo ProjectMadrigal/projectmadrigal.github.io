@@ -58,7 +58,17 @@
     "t": 1,
     "v": 1
    },
-   "d": "Een verzonnen roman over een vuurtorenwachter die verliefd wordt op de stem op de radio. Dit is een voorbeeldboek."
+   "d": "Een verzonnen roman over een vuurtorenwachter die verliefd wordt op de stem op de radio. Dit is een voorbeeldboek.",
+   "k": [
+    "Grensverhaal",
+    "Coming-out"
+   ],
+   "tw": [
+    "Geweld"
+   ],
+   "ca": [
+    "Roman"
+   ]
   },
   {
    "id": "B0002",
@@ -80,7 +90,10 @@
     "l": "Beschikbaar",
     "t": 1,
     "v": 1
-   }
+   },
+   "k": [
+    "Coming-out"
+   ]
   },
   {
    "id": "B0003",

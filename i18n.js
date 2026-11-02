@@ -88,7 +88,7 @@
       leeslijstenIntro: 'Boeken rond een thema, samengesteld door de vrijwilligers van Project Madrigal.', geenLeeslijsten: 'Er zijn nog geen leeslijsten.',
       deelLijst: 'Deel deze lijst', lijstAantal1: '1 boek', lijstAantalN: '{n} boeken', leesOok: 'Lees ook', fLeeslijst: 'Leeslijst',
       deelBoek: 'Deel dit boek', linkGekopieerd: 'De link is gekopieerd.', kopieerLink: 'Kopieer deze link: {url}',
-      onderwerpen: 'Onderwerpen', coverVan: 'Cover van {titel}',
+      onderwerpen: 'Onderwerpen', trefwoorden: 'Trefwoorden', categorieen: 'Categorieën', fCategorie: 'Categorie', fTrefwoord: 'Trefwoord', toonTriggers: 'Toon de triggerwaarschuwingen', coverVan: 'Cover van {titel}',
       vJaartal: 'Jaartal', vTaal: 'Taal', vUitgeverij: 'Uitgeverij', vPaginas: "Pagina's", vUitvoering: 'Uitvoering', vStaat: 'Staat', vIsbn: 'ISBN', vSoort: 'Soort',
       nieuw: 'Nieuw', tweedehands: 'Tweedehands', zine: 'Zine',
       uitlegBeschikbaar: 'Kom langs in de bib om dit boek te lenen.',
@@ -171,7 +171,7 @@
       leeslijstenIntro: 'Books around a theme, put together by the volunteers of Project Madrigal.', geenLeeslijsten: 'There are no reading lists yet.',
       deelLijst: 'Share this list', lijstAantal1: '1 book', lijstAantalN: '{n} books', leesOok: 'You might also like', fLeeslijst: 'Reading list',
       deelBoek: 'Share this book', linkGekopieerd: 'The link has been copied.', kopieerLink: 'Copy this link: {url}',
-      onderwerpen: 'Topics', coverVan: 'Cover of {titel}',
+      onderwerpen: 'Topics', trefwoorden: 'Keywords', categorieen: 'Categories', fCategorie: 'Category', fTrefwoord: 'Keyword', toonTriggers: 'Show trigger warnings', coverVan: 'Cover of {titel}',
       vJaartal: 'Year', vTaal: 'Language', vUitgeverij: 'Publisher', vPaginas: 'Pages', vUitvoering: 'Format', vStaat: 'Condition', vIsbn: 'ISBN', vSoort: 'Type',
       nieuw: 'New', tweedehands: 'Second-hand', zine: 'Zine',
       uitlegBeschikbaar: 'Come by the library to borrow this book.',
@@ -189,7 +189,7 @@
   /** Vertalingen van waarden uit de catalogus (filtergroepen, talen, ...). */
   var WAARDEN_EN = {
     'Gender': 'Gender', 'Seksualiteit': 'Sexuality', 'Feminisme': 'Feminism', 'Fictie': 'Fiction',
-    'Klassiekers': 'Classics', 'Geschiedenis': 'History', 'Maatschappij': 'Society', 'Religie en Spiritualiteit': 'Religion and Spirituality', 'Geschiedenis en maatschappij': 'History and society', 'Biografie': 'Biography',
+    'Klassiekers': 'Classics', 'Geschiedenis': 'History', 'Maatschappij': 'Society', 'Politiek': 'Politics', 'Religie en Spiritualiteit': 'Religion and Spirituality', 'Geschiedenis en maatschappij': 'History and society', 'Biografie': 'Biography',
     'Poëzie': 'Poetry', 'Graphic novel': 'Graphic novel', 'Young Adult': 'Young Adult', 'Pulp': 'Pulp',
     'Erotica en BDSM': 'Erotica and BDSM', 'Zines': 'Zines', 'Kunst en fotografie': 'Art and photography', 'Gezondheid': 'Health',
     'Nederlands': 'Dutch', 'Engels': 'English', 'Frans': 'French', 'Duits': 'German', 'Spaans': 'Spanish', 'Italiaans': 'Italian', 'Portugees': 'Portuguese',

@@ -14,7 +14,7 @@
 var KOLOMMEN = {
   'Catalogus': [
     'boek_id', 'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas',
-    'uitvoering', 'nieuwstaat', 'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal',
+    'uitvoering', 'nieuwstaat', 'aanrader', 'genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'klassieker', 'aantal',
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
     // Films (zie Films.js): land, speelduur, kijktip. te_koop werkt voor elk boek of elke film.
     'land', 'duur', 'film_tip', 'te_koop',
@@ -83,6 +83,7 @@ var KOLOMMEN = {
   // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
   'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
+  'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken'],
   'Onderwerpen nakijken': ['boek_id', 'titel', 'auteur', 'genre', 'voorstel', 'onderwerp_nieuw', 'toepassen'],
   'Titelcontrole': ['boek_id', 'titel_nu', 'auteur_nu', 'titel_stock', 'auteur_stock', 'titel_oud', 'auteur_oud', 'status', 'wie', 'datum'],
   'Aankooplijst': ['aankoop_id', 'datum', 'titel', 'auteur', 'isbn', 'genre', 'prijs', 'link', 'reden', 'voorgesteld_door', 'status', 'gekozen', 'boek_id', 'datum_binnen', 'bron']

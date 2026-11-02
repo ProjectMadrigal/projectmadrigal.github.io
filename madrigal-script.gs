@@ -125,7 +125,7 @@ var BACKUP_VOORVOEGSEL = 'Madrigal back-up ';
 /** Velden van een boek die je via de website kan aanpassen. De rest (herkomst, ...) blijft enkel in de spreadsheet. */
 var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
-  'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
+  'aanrader', 'genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
   'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie',
   'land', 'duur', 'film_tip', 'te_koop', 'originele_titel'
 ];
@@ -212,7 +212,7 @@ var BRONKOLOMMEN = {
 };
 
 /** De standaard filtergroepen op de website, in deze volgorde. */
-var FILTERGROEPEN = ['Gender', 'Seksualiteit', 'Feminisme', 'Fictie', 'Klassiekers', 'Geschiedenis', 'Maatschappij', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
+var FILTERGROEPEN = ['Gender', 'Seksualiteit', 'Feminisme', 'Fictie', 'Klassiekers', 'Geschiedenis', 'Maatschappij', 'Politiek', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
 
 /** Voorstellen voor de vertaaltabel: een genre met dit woord erin gaat naar deze groep. */
 var ONDERWERP_VOORSTELLEN = [
@@ -221,7 +221,8 @@ var ONDERWERP_VOORSTELLEN = [
   [/femin|vrouw/, 'Feminisme'],
   [/roman|(?<!non ?)fictie|(?<!non ?)fiction|verhal|verhaal|proza|literatuur|thriller|detective|fantasy|science|kort/, 'Fictie'],
   [/geschied|histor|kolonial|fascis|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
-  [/maatschap|politi|sociolog|activis|essay|non ?fictie|non ?fiction|filosof|marx|ecolog|cultuur|onderzoek|anarch|racism|migrat|economi/, 'Maatschappij'],
+  [/maatschap|sociolog|essay|non ?fictie|non ?fiction|filosof|ecolog|cultuur|onderzoek|racism|migrat|economi/, 'Maatschappij'],
+  [/politi|activis|marx|anarch|socialis|communis|democrat|verkiezing|protest|revolut/, 'Politiek'],
   [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
   [/biogra|^bio$|memoir|dagboek/, 'Biografie'],
   [/poezie|gedicht|poetry|poem/, 'Poëzie'],
@@ -506,6 +507,7 @@ var STANDAARD_INSTELLINGEN = [
   ['nieuw_op_startpagina_dagen', 60, 'Hoeveel dagen een nieuw toegevoegd boek vooraan in "Nieuw binnen" staat. Zijn er te weinig, dan vult de site aan met de laatst gecatalogiseerde boeken. 0: de sectie Nieuw binnen staat uit.'],
   ['nieuw_op_startpagina_aantal', 8, 'Hoeveel boeken "Nieuw binnen" op de startpagina hoogstens toont. De nieuwste eerst.'],
   ['aanraders_uit_stocklijst', 'Johanna', 'Namen van wie de aanraders uit de oude stocklijst overgenomen worden, gescheiden door komma\'s. Andere namen uit de stocklijst niet. Een aanrader die je zelf typt in de kolom aanrader van de Catalogus, staat altijd op de website.'],
+  ['triggerwaarschuwingen_tonen', 'nee', 'ja: de triggerwaarschuwingen (kolom triggerwaarschuwingen in de Catalogus) staan bij het boek op de website, dichtgeklapt. nee: ze blijven enkel in de spreadsheet.'],
   ['eigen_themas', 'Kunst en Fotoboek', 'Thema\'s op de website bovenop de vaste thema\'s (Gender, Fictie, Poëzie, ...), gescheiden door komma\'s. Een genre met dezelfde naam komt vanzelf in dat thema. Andere namen in de kolommen filtergroepen en extra_onderwerpen worden vertaald naar een thema, of vallen weg.'],
   ['aanraders_verbergen', '', 'Namen van wie de aanraders nergens op de website staan, gescheiden door komma\'s (bv. Nance): niet op de startpagina, niet als label bij de boeken en niet in de filter Aanrader. De namen blijven in de Catalogus staan. Leeg: iedereen staat erop.'],
   ['tekst_herinnering', 'Hoi {voornaam}, je leende bij Project Madrigal "{titel}". Dat boek moest terug op {vervaldatum}. Breng je het binnenkort binnen? Lukt dat niet, laat het ons dan even weten. Dank je!', 'Herinnering voor een boek dat te laat is. Gebruik {voornaam}, {titel} en {vervaldatum}.'],
@@ -548,6 +550,9 @@ var KOLOM_INDELING = {
       aanrader: ['website', 'Wie dit boek aanraadt (bv. Johanna). Staat op de website.'],
       genre: ['website', 'Genre uit de stocklijst. Via het tabblad Onderwerpen bepaalt dit in welk thema het boek staat.'],
       extra_onderwerpen: ['website', 'Extra thema\'s voor de filters op de website, met een komma ertussen.'],
+      categorieen: ['website', 'Categorieën zoals op de oude website (bv. Roman, Essay), met een komma ertussen. Geel bij het boek, en een filter op de website. Keuzes: tabblad Categorieën en trefwoorden.'],
+      trefwoorden: ['website', 'Thema\'s en trefwoorden zoals op de oude website (bv. Lesbisch, Coming-out), met een komma ertussen. Paars bij het boek, een filter en zoekbaar op de website. Keuzes: tabblad Categorieën en trefwoorden.'],
+      triggerwaarschuwingen: ['website', 'Triggerwaarschuwingen (bv. geweld, zelfdoding), met een komma ertussen. Op de website enkel als de instelling triggerwaarschuwingen_tonen op ja staat.'],
       klassieker: ['website', 'ja = staat bij de klassiekers.'],
       publiek: ['website', 'ja = op de website. nee = verborgen.'],
       status: ['website', 'Leeg = gewoon.\nverloren: niet op de website, niet uitleenbaar.\ngevoelig verborgen: niet op de website, wel uitleenbaar.\ngevoelig zichtbaar: op de website met het label "Gevoelige inhoud".'],
@@ -636,7 +641,8 @@ var ONDERWERP_TEKST_WOORDEN = [
   ['Gender', ['transgender', 'transitie', 'transvrouw', 'transman', 'nonbinair', 'non binair', 'genderidentiteit', 'genderqueer', 'intersekse', 'intersex']],
   ['Feminisme', ['feminis', 'patriarchaat', 'patriarchy', 'vrouwenbeweging', 'vrouwenrechten', 'misogyn']],
   ['Geschiedenis', ['geschiedenis', 'history', 'historisch', 'historical', '=eeuw', '=eeuwen', '=century', '=centuries', 'oorlog', 'holocaust', 'archief']],
-  ['Maatschappij', ['essay', 'politiek', 'politics', 'samenleving', 'maatschappij', 'society', 'activis', 'sociolog', 'filosof', 'philosoph', 'onderzoek', 'research']],
+  ['Maatschappij', ['essay', 'samenleving', 'maatschappij', 'society', 'sociolog', 'filosof', 'philosoph', 'onderzoek', 'research']],
+  ['Politiek', ['politiek', 'politics', 'political', 'activis', 'activism', 'protest', 'revolutie', 'revolution']],
   ['Religie en Spiritualiteit', ['religie', 'religion', 'geloof', 'faith', 'kerk', 'church', 'bijbel', 'bible', 'islam', 'spiritualiteit', 'spiritual', 'tarot', 'heks', 'witch', '=god', '=goden', '=gods']],
   ['Young Adult', ['young adult', 'tiener', 'teen', 'jongeren', 'middelbare school', 'high school', 'puber']],
   ['Erotica en BDSM', ['erotisch', 'erotiek', 'erotic', 'bdsm', 'kink', 'fetish', '=leder', 'leather', 'dominant', 'submissive']],
@@ -660,7 +666,7 @@ var OL_VELDEN = ['uitgeverij', 'jaartal', 'paginas', 'taal', 'beschrijving', 'co
 var KOLOMMEN = {
   'Catalogus': [
     'boek_id', 'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas',
-    'uitvoering', 'nieuwstaat', 'aanrader', 'genre', 'extra_onderwerpen', 'klassieker', 'aantal',
+    'uitvoering', 'nieuwstaat', 'aanrader', 'genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'klassieker', 'aantal',
     'uitleenbaar', 'publiek', 'status', 'beschrijving', 'beschrijving_en', 'beschrijving_bron', 'cover_url', 'startpagina', 'leeslijsten', 'toegevoegd_op',
     // Films (zie Films.js): land, speelduur, kijktip. te_koop werkt voor elk boek of elke film.
     'land', 'duur', 'film_tip', 'te_koop',
@@ -729,6 +735,7 @@ var KOLOMMEN = {
   // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
   'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
+  'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken'],
   'Onderwerpen nakijken': ['boek_id', 'titel', 'auteur', 'genre', 'voorstel', 'onderwerp_nieuw', 'toepassen'],
   'Titelcontrole': ['boek_id', 'titel_nu', 'auteur_nu', 'titel_stock', 'auteur_stock', 'titel_oud', 'auteur_oud', 'status', 'wie', 'datum'],
   'Aankooplijst': ['aankoop_id', 'datum', 'titel', 'auteur', 'isbn', 'genre', 'prijs', 'link', 'reden', 'voorgesteld_door', 'status', 'gekozen', 'boek_id', 'datum_binnen', 'bron']
@@ -774,7 +781,7 @@ var INSTELLING_GROEPEN = [
   ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
   ['Website: bereikbaarheid en toegankelijkheid', ['tekst_toegankelijkheid', 'tekst_toegankelijkheid_en']],
   ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],
-  ['Website: onderwerpen', ['eigen_themas']],
+  ['Website: onderwerpen', ['eigen_themas', 'triggerwaarschuwingen_tonen']],
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
   ['Website: leeslijsten', ['leeslijsten_tonen']],
   ['Website: Doe mee', ['tekst_vrijwilliger', 'tekst_vrijwilliger_en', 'tekst_schenken', 'tekst_schenken_en', 'tekst_steunen', 'tekst_steunen_en']],
@@ -791,7 +798,7 @@ var INSTELLING_GROEPEN = [
 
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken', 'Genres opkuisen']],     // collectie
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Categorieën en trefwoorden', 'Onderwerpen nakijken', 'Genres opkuisen']],     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
@@ -2518,6 +2525,7 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
   var vertaal = vertaalTabel(onderwerpRijen);
   // Leeslijsten: zie leeslijstZichtbaar. Een geplande lijst volgt haar data, de rest de instelling leeslijsten_tonen.
   var schakelaar = (staat.inst || {}).leeslijsten_tonen === true;
+  var toonTriggers = (staat.inst || {}).triggerwaarschuwingen_tonen === true;
   var lijsten = leeslijstInfo(lijstRijen, staat.vandaag, schakelaar);
   var toonLijsten = schakelaar || lijsten.geplandZichtbaar;
   // Namen in de instelling aanraders_verbergen verschijnen nergens op de website.
@@ -2554,6 +2562,12 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
       d: schoonMetRegels(rij.beschrijving), c: veiligeCoverUrl(rij.cover_url), ta: parseerDatum(rij.toegevoegd_op),
       db: /^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\/[^\s"'<>]+$/.test(schoon(rij.beschrijving_bron)) && schoonMetRegels(rij.beschrijving) ? schoon(rij.beschrijving_bron) : ''
     };
+    var categorieen = splitsLijst(rij.categorieen);
+    if (categorieen.length) boek.ca = categorieen;
+    var trefwoorden = splitsLijst(rij.trefwoorden);
+    if (trefwoorden.length) boek.k = trefwoorden;
+    var triggers = toonTriggers ? splitsLijst(rij.triggerwaarschuwingen) : [];
+    if (triggers.length) boek.tw = triggers;
     var en = schoonMetRegels(rij.beschrijving_en);
     if (en && en !== extra.d) extra.de = en;
     Object.keys(extra).forEach(function (k) { if (!isLeeg(extra[k])) boek[k] = extra[k]; });
@@ -2791,6 +2805,31 @@ function bronSleutel(boek) {
 
 function bytesHash(bytes) {
   return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, bytes));
+}
+
+/**
+ * Het tabblad Categorieën en trefwoorden: alle namen, met de soort en het aantal boeken.
+ * oudeTags: de tabel tags van de oude website (mag leeg zijn). Namen uit de Catalogus komen er ook in,
+ * zodat een categorie die je zelf toevoegt ook in de keuzelijst staat.
+ */
+function categorieenOverzicht(catalogus, oudeTags) {
+  var lijst = {}, volgorde = [];
+  var zet = function (naam, soort) {
+    var k = normaliseerTekst(naam);
+    if (!k) return null;
+    if (!lijst[k]) { lijst[k] = { naam: genreMooi(naam), soort: soort, aantal_boeken: 0 }; volgorde.push(k); }
+    return lijst[k];
+  };
+  oudeOnderwerpen(oudeTags || []).forEach(function (o) { zet(o.naam, o.trigger ? 'triggerwaarschuwing' : (o.categorie ? 'categorie' : 'trefwoord')); });
+  [['categorieen', 'categorie'], ['trefwoorden', 'trefwoord'], ['triggerwaarschuwingen', 'triggerwaarschuwing']].forEach(function (paar) {
+    catalogus.forEach(function (b) {
+      splitsLijst(b[paar[0]]).forEach(function (n) { var r = zet(n, paar[1]); if (r && r.soort === paar[1]) r.aantal_boeken++; });
+    });
+  });
+  var orde = { categorie: 0, trefwoord: 1, triggerwaarschuwing: 2 };
+  return volgorde.map(function (k) { return lijst[k]; }).sort(function (a, b) {
+    return orde[a.soort] - orde[b.soort] || a.naam.localeCompare(b.naam, 'nl');
+  });
 }
 
 /** Zet een waarde om naar wat we in een cel schrijven. */
@@ -6457,12 +6496,14 @@ function neemOudeBoekenOver() {
   } finally {
     lock.releaseLock();
   }
+  // Alle categorieën en thema's van de oude website, ook die zonder boek: in het tabblad en de keuzelijsten.
+  vernieuwCategorieen(haalOudeTabel(db, 'tags'));
   leegCache();
   if (uit.covers) planTaak('kopieerOudeCovers', 60 * 1000);
   var velden = Object.keys(oud.rijen[0] || {}).join(', ');
   var hoe = Object.keys(uit.hoe).map(function (k) { return uit.hoe[k] + ' op ' + k; }).join(', ');
   var tekst = oudeBoeken.length + ' boeken gelezen op de oude website. Gevonden: ' + hoe + '. ' + uit.beschrijvingen + ' beschrijvingen overgenomen, ' +
-    uit.covers + ' covers klaargezet (die kopieert het script nu op de achtergrond naar Drive), ' + uit.onderwerpen + ' boeken kregen thema\'s van de oude website, ' + uit.eigen + ' keer eigen werk behouden, ' +
+    uit.covers + ' covers klaargezet (die kopieert het script nu op de achtergrond naar Drive), ' + uit.onderwerpen + ' boeken kregen thema\'s, trefwoorden of triggerwaarschuwingen van de oude website, ' + uit.eigen + ' keer eigen werk behouden, ' +
     uit.dubbel + ' keer een tweede exemplaar of uitgave van een boek dat al gekoppeld is, ' +
     uit.verborgen + ' boeken die op de oude website verborgen waren en niet in de Catalogus staan (niet in Na te kijken), ' +
     uit.nietGevonden.length + ' boeken niet gevonden in de Catalogus (zie Na te kijken).';
@@ -6824,7 +6865,8 @@ function onOpen() {
       .addItem('Onderwerpen: vul ontbrekende aan', 'vulOntbrekendeOnderwerpenMenu')
       .addItem('Onderwerpen: pas de nakijklijst toe', 'pasOnderwerpNakijklijstToe')
       .addSeparator()
-      .addItem('Genres en thema\'s: kuis op (zelfde schrijfwijze)', 'kuisGenresOp'))
+      .addItem('Genres en thema\'s: kuis op (zelfde schrijfwijze)', 'kuisGenresOp')
+      .addItem('Categorieën en trefwoorden: vernieuw de lijst en de keuzelijsten', 'vernieuwCategorieenMenu'))
     .addSubMenu(ui.createMenu('Titels en auteurs')
       .addItem('Schrijfwijze: maak een nakijklijst', 'maakTitelNakijklijst')
       .addItem('Schrijfwijze: pas de nakijklijst toe', 'pasTitelNakijklijstToe')
@@ -6878,7 +6920,7 @@ function onOpen() {
       .addItem('Wis de aanraders die uit de stocklijst kwamen', 'wisAanradersUitStock')
       .addSeparator()
       .addItem('Oude website: neem nieuws, agenda en vragen over', 'importeerOudeSite')
-      .addItem('Oude website: neem beschrijvingen en covers van de boeken over', 'neemOudeBoekenOver')
+      .addItem('Oude website: neem beschrijvingen, covers, categorieën en thema\'s van de boeken over', 'neemOudeBoekenOver')
       .addItem('Oude website: neem de rijen uit Na te kijken over met overnemen = ja', 'neemAangeduideOudeBoekenOver')
       .addItem('Oude website: kopieer de covers verder', 'startOudeCovers')
       .addSeparator()
@@ -7205,45 +7247,47 @@ function oudeLener(staat, o, teller) {
 }
 
 /**
- * De categorieën en thema's van een oud boek (tabel tags). Triggerwaarschuwingen (isTw) en tags
- * die de oude website niet toonde (showInFrontend false) vallen weg. Geeft [{ naam, categorie }].
+ * De categorieën, thema's en triggerwaarschuwingen van een oud boek (tabel tags). Tags die de oude
+ * website niet toonde (showInFrontend false) vallen weg, behalve triggerwaarschuwingen.
+ * Geeft [{ naam, categorie, trigger }].
  */
 function oudeOnderwerpen(tags) {
   if (!Array.isArray(tags)) return [];
   var uit = [], gezien = {};
   tags.forEach(function (t) {
-    if (!t || typeof t !== 'object' || t.isTw === true || t.showInFrontend === false) return;
+    if (!t || typeof t !== 'object') return;
+    var trigger = t.isTw === true;
+    if (!trigger && t.showInFrontend === false) return;
     var naam = schoon(t.displayName || t.name);
     var k = normaliseerTekst(naam);
     if (!k || gezien[k]) return;
     gezien[k] = true;
-    uit.push({ naam: naam, categorie: t.isCategory === true });
+    uit.push({ naam: naam, categorie: t.isCategory === true, trigger: trigger });
   });
   return uit;
 }
 
 /**
- * Zet de categorieën en thema's van de oude website om naar de Catalogus. Elk oud onderwerp wordt een
- * thema van de website (Lesbisch wordt Seksualiteit, Roman wordt Fictie, ...) in extra_onderwerpen.
- * Een categorie zonder thema wordt het genre, als het boek nog geen genre heeft.
+ * Zet de categorieën en thema's van de oude website om naar de Catalogus:
+ *   - een oude categorie (Roman, ...) komt in categorieen, een oud thema (Lesbisch, ...) in trefwoorden:
+ *     zo blijven de namen van de oude website bestaan, om op te filteren en te zoeken;
+ *   - het vaste thema van de website (Fictie, Seksualiteit, ...) komt erbij in extra_onderwerpen;
+ *   - een triggerwaarschuwing komt in triggerwaarschuwingen.
  * Geeft de velden die veranderen, of {}.
  */
 function oudeOnderwerpenVoorBoek(boek, onderwerpen, vertaal) {
-  var lijst = splitsLijst(boek.extra_onderwerpen);
-  var bekend = {};
-  lijst.forEach(function (g) { bekend[normaliseerTekst(g)] = true; });
-  var velden = {};
+  var themas = [], categorieen = [], trefwoorden = [], triggers = [], velden = {};
   (onderwerpen || []).forEach(function (o) {
+    var naam = genreMooi(o.naam);
+    if (o.trigger) { triggers.push(naam); return; }
+    (o.categorie ? categorieen : trefwoorden).push(naam);
     // Non-fictie is te breed voor een thema: dat zegt niets over de inhoud.
-    var themas = /^non ?fict/.test(normaliseerTekst(o.naam)) ? [] : themaVan(o.naam, vertaal);
-    themas.forEach(function (t) {
-      if (bekend[normaliseerTekst(t)]) return;
-      bekend[normaliseerTekst(t)] = true;
-      lijst.push(t);
-    });
-    if (!themas.length && o.categorie && isLeeg(boek.genre) && !velden.genre) velden.genre = genreMooi(o.naam);
+    if (!/^non ?fict/.test(normaliseerTekst(o.naam))) themas = themas.concat(themaVan(o.naam, vertaal));
   });
-  if (lijst.join(', ') !== splitsLijst(boek.extra_onderwerpen).join(', ')) velden.extra_onderwerpen = lijst.join(', ');
+  [['extra_onderwerpen', themas], ['categorieen', categorieen], ['trefwoorden', trefwoorden], ['triggerwaarschuwingen', triggers]].forEach(function (paar) {
+    var nieuw = voegLijstToe(boek[paar[0]], paar[1]);
+    if (nieuw !== splitsLijst(boek[paar[0]]).join(', ')) velden[paar[0]] = nieuw;
+  });
   return velden;
 }
 
@@ -9519,6 +9563,44 @@ function verlengen(staat, invoer) {
 
 /* ---------- Een uitlening aanpassen of annuleren ---------- */
 
+/** In Apps Script: schrijft het tabblad Categorieën en trefwoorden en zet de keuzelijsten in de Catalogus. */
+function vernieuwCategorieen(oudeTags) {
+  var naam = 'Categorieën en trefwoorden';
+  var catalogus = leesTabel('Catalogus');
+  var ss = spreadsheet();
+  var blad = ss.getSheetByName(naam);
+  // De namen die al in het tabblad staan, blijven (ook als ze aan geen enkel boek hangen).
+  var bestaand = blad && blad.getLastRow() > 1 ? leesTabel(naam).rijen.map(function (r) {
+    return { displayName: r.naam, isCategory: r.soort === 'categorie', isTw: r.soort === 'triggerwaarschuwing' };
+  }) : [];
+  var rijen = categorieenOverzicht(catalogus.rijen, bestaand.concat(oudeTags || []));
+  if (!blad) blad = ss.insertSheet(naam);
+  var kolommen = KOLOMMEN[naam];
+  blad.clear();
+  var waarden = [kolommen].concat(rijen.map(function (r) { return kolommen.map(function (k) { return r[k]; }); }));
+  blad.getRange(1, 1, waarden.length, kolommen.length).setValues(waarden);
+  opmaakKop(blad, kolommen.length);
+  // Keuzelijsten in de Catalogus. Ongeldige waarden mogen: meerdere namen met een komma ertussen.
+  [['categorieen', 'categorie'], ['trefwoorden', 'trefwoord'], ['triggerwaarschuwingen', 'triggerwaarschuwing']].forEach(function (paar) {
+    var kol = catalogus.kop.indexOf(paar[0]) + 1;
+    var keuzes = rijen.filter(function (r) { return r.soort === paar[1]; }).map(function (r) { return r.naam; }).slice(0, 500);
+    if (!kol || !keuzes.length) return;
+    catalogus.blad.getRange(2, kol, Math.max(1, catalogus.blad.getMaxRows() - 1), 1).setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(keuzes, true).setAllowInvalid(true).build());
+  });
+  return rijen;
+}
+
+/** Menu: Boeken > Categorieën en trefwoorden: vernieuw de lijst en de keuzelijsten. */
+function vernieuwCategorieenMenu() {
+  var rijen = vernieuwCategorieen([]);
+  var tel = function (s) { return rijen.filter(function (r) { return r.soort === s; }).length; };
+  var tekst = tel('categorie') + ' categorieën, ' + tel('trefwoord') + ' trefwoorden en ' + tel('triggerwaarschuwing') +
+    ' triggerwaarschuwingen in het tabblad Categorieën en trefwoorden. De kolommen in de Catalogus hebben nu een keuzelijst.';
+  logboek('menu', 'vernieuwCategorieen', tekst);
+  meld(tekst);
+}
+
 /** Menu: vertaalt de beschrijvingen naar het Nederlands en het Engels, in porties. */
 function vertaalBeschrijvingen() {
   var start = Date.now();
@@ -10080,6 +10162,19 @@ function voegFilmsToe(rijen, films, vandaag, nieuwId) {
 }
 
 /* ---------- Een export van IMDb of Letterboxd (CSV in een tabblad) ---------- */
+
+/** Voegt namen toe aan een lijst met komma's, zonder dubbels. Geeft de nieuwe tekst. */
+function voegLijstToe(bestaand, namen) {
+  var lijst = splitsLijst(bestaand), bekend = {};
+  lijst.forEach(function (n) { bekend[normaliseerTekst(n)] = true; });
+  namen.forEach(function (n) {
+    var k = normaliseerTekst(n);
+    if (!k || bekend[k]) return;
+    bekend[k] = true;
+    lijst.push(n);
+  });
+  return lijst.join(', ');
+}
 
 /**
  * Voegt twijfelgevallen toe aan het tabblad "Na te kijken", zonder dubbels.

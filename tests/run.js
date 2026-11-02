@@ -193,7 +193,7 @@ test('genres met andere schrijfwijze komen één keer in Onderwerpen', () => {
 
 test('thema\'s: Geschiedenis, Maatschappij en Religie en Spiritualiteit apart', () => {
   gelijk(M.stelFiltergroepenVoor('Geschiedenis'), ['Geschiedenis']);
-  gelijk(M.stelFiltergroepenVoor('Politiek'), ['Maatschappij']);
+  gelijk(M.stelFiltergroepenVoor('Politiek'), ['Politiek']);
   gelijk(M.stelFiltergroepenVoor('Religie'), ['Religie en Spiritualiteit']);
   gelijk(M.stelFiltergroepenVoor('Spiritualiteit'), ['Religie en Spiritualiteit']);
   const rijen = [
@@ -212,7 +212,7 @@ test('thema\'s: Geschiedenis, Maatschappij en Religie en Spiritualiteit apart', 
 
 test('filtergroepen: vertaaltabel, extra onderwerpen, klassieker en zines', () => {
   const v2 = M.vertaalTabel([{ genre: 'Politiek', filtergroepen: 'Maatschappij' }]);
-  gelijk(M.filtergroepenVan({ genre: '', extra_onderwerpen: 'Politiek, intersex, Iets onbekends, FICTIE', soort: 'boek' }, v2), ['Maatschappij', 'Gender', 'Fictie'], 'enkel vaste thema\'s');
+  gelijk(M.filtergroepenVan({ genre: '', extra_onderwerpen: 'Politiek, intersex, Iets onbekends, FICTIE', soort: 'boek' }, v2), ['Politiek', 'Gender', 'Fictie'], 'enkel vaste thema\'s');
   const vertaal = M.vertaalTabel([{ genre: 'Roman', filtergroepen: 'Fictie' }]);
   const g = M.filtergroepenVan({ genre: 'roman', extra_onderwerpen: 'gender; Seksualiteit', klassieker: true, soort: 'boek' }, vertaal);
   gelijk(Array.from(g), ['Fictie', 'Gender', 'Seksualiteit', 'Klassiekers']);
@@ -727,6 +727,17 @@ test('publieke catalogus toont geen herkomst, geen niet-publieke boeken en geen 
   const zine = p.boeken.find((b) => b.id === 'Z0001');
   assert.strictEqual(zine.b.l, 'Te koop in de bib, niet uitleenbaar');
   gelijk(Array.from(zine.g), ['Zines']);
+});
+test('publieke catalogus: categorieën en trefwoorden altijd, triggerwaarschuwingen enkel met de instelling', () => {
+  const s = maakStaat();
+  s.catalogus[0].categorieen = 'Roman';
+  s.catalogus[0].trefwoorden = 'lesbisch, coming-out';
+  s.catalogus[0].triggerwaarschuwingen = 'Geweld';
+  let b = M.bouwPubliekeCatalogus(s, []).boeken.find((x) => x.id === s.catalogus[0].boek_id);
+  gelijk([Array.from(b.ca), Array.from(b.k), b.tw], [['Roman'], ['lesbisch', 'coming-out'], undefined]);
+  s.inst.triggerwaarschuwingen_tonen = true;
+  b = M.bouwPubliekeCatalogus(s, []).boeken.find((x) => x.id === s.catalogus[0].boek_id);
+  gelijk(Array.from(b.tw), ['Geweld']);
 });
 test('publieke catalogus: leeslijsten met naam en uitleg uit het tabblad, verborgen lijsten weg', () => {
   const s = maakStaat();
@@ -1965,28 +1976,36 @@ test('oude website: ISBN-10 telt, en verborgen boeken die niet gevonden worden k
   gelijk([catalogus[0].beschrijving, uit.verborgen, uit.nietGevonden.map((x) => x.titel)], ['Tekst.', 1, ['Niet verborgen']]);
 });
 
-test('oude website: categorieën en thema\'s worden thema\'s van de website, triggerwaarschuwingen niet', () => {
+test('oude website: categorieën en thema\'s blijven bestaan (categorieen, trefwoorden), triggerwaarschuwingen apart', () => {
   const rij = { id: 1, title: 'Zee', tags: [
     { name: 'roman', displayName: 'Roman', isCategory: true, isTw: false, showInFrontend: true },
     { name: 'lesbisch', displayName: 'Lesbisch', isCategory: false, isTw: false, showInFrontend: true },
     { name: 'trans', displayName: 'Transgender', isCategory: false, isTw: false, showInFrontend: true },
-    { name: 'tw', displayName: 'Geweld', isCategory: false, isTw: true, showInFrontend: true },
+    { name: 'tw', displayName: 'geweld', isCategory: false, isTw: true, showInFrontend: false },
     { name: 'intern', displayName: 'Intern', isCategory: false, isTw: false, showInFrontend: false }] };
   const oud = M.oudBoekUitRij(rij, 'https://x');
-  gelijk(oud.onderwerpen.map((o) => o.naam + (o.categorie ? '*' : '')), ['Roman*', 'Lesbisch', 'Transgender']);
-  const boek = { boek_id: 'B0001', genre: '', extra_onderwerpen: 'Gender' };
-  gelijk(M.oudeOnderwerpenVoorBoek(boek, oud.onderwerpen, {}), { extra_onderwerpen: 'Gender, Fictie, Seksualiteit' });
-  // Een categorie zonder thema wordt het genre, als er nog geen is. Non-fictie geeft geen thema.
+  gelijk(oud.onderwerpen.map((o) => o.naam + (o.categorie ? '*' : '') + (o.trigger ? '!' : '')), ['Roman*', 'Lesbisch', 'Transgender', 'geweld!']);
+  const boek = { boek_id: 'B0001', genre: '', extra_onderwerpen: 'Gender', trefwoorden: 'lesbisch' };
+  gelijk(M.oudeOnderwerpenVoorBoek(boek, oud.onderwerpen, {}), {
+    extra_onderwerpen: 'Gender, Fictie, Seksualiteit', categorieen: 'Roman', trefwoorden: 'lesbisch, Transgender', triggerwaarschuwingen: 'Geweld' });
+  // Non-fictie geeft geen thema, wel een categorie.
   const andere = [{ naam: 'Kookboek', categorie: true }, { naam: 'Non-fictie', categorie: true }];
-  gelijk(M.oudeOnderwerpenVoorBoek({ genre: '', extra_onderwerpen: '' }, andere, {}), { genre: 'Kookboek' });
-  gelijk(M.oudeOnderwerpenVoorBoek({ genre: 'Essay', extra_onderwerpen: '' }, andere, {}), {});
+  gelijk(M.oudeOnderwerpenVoorBoek({ genre: '', extra_onderwerpen: '' }, andere, {}), { categorieen: 'Kookboek, Non-fictie' });
   // Opnieuw uitvoeren verandert niets meer.
-  gelijk(M.oudeOnderwerpenVoorBoek({ genre: '', extra_onderwerpen: 'Gender, Fictie, Seksualiteit' }, oud.onderwerpen, {}), {});
+  gelijk(M.oudeOnderwerpenVoorBoek({ genre: '', extra_onderwerpen: 'Gender, Fictie, Seksualiteit', categorieen: 'Roman', trefwoorden: 'Lesbisch, Transgender', triggerwaarschuwingen: 'Geweld' }, oud.onderwerpen, {}), {});
+  // Het overzicht: oude namen (ook zonder boek) en wat in de Catalogus staat, met het aantal boeken.
+  const rijen = M.categorieenOverzicht([{ categorieen: 'Roman, Essay', trefwoorden: 'Lesbisch' }, { categorieen: 'roman' }], rij.tags);
+  gelijk(rijen.map((r) => r.soort + ':' + r.naam + ':' + r.aantal_boeken), ['categorie:Essay:1', 'categorie:Roman:2', 'trefwoord:Lesbisch:1', 'trefwoord:Transgender:0', 'triggerwaarschuwing:Geweld:0']);
   // Via oudeBoekenToepassen.
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee', auteur: 'Fictief, Kim', isbn: '9780306406157', genre: '', extra_onderwerpen: '' }];
-  const lijst = [Object.assign({ titel: 'Zee', auteur: 'Kim Fictief', isbn: '9780306406157', ondertitel: '', beschrijving: '', cover: '' }, { onderwerpen: oud.onderwerpen })];
+  const lijst = [{ titel: 'Zee', auteur: 'Kim Fictief', isbn: '9780306406157', ondertitel: '', beschrijving: '', cover: '', onderwerpen: oud.onderwerpen }];
   const uit = M.oudeBoekenToepassen(catalogus, lijst, { beschrijving: {}, cover: {} }, {});
-  gelijk([uit.onderwerpen, catalogus[0].extra_onderwerpen], [1, 'Fictie, Seksualiteit, Gender']);
+  gelijk([uit.onderwerpen, catalogus[0].extra_onderwerpen, catalogus[0].categorieen, catalogus[0].trefwoorden], [1, 'Fictie, Seksualiteit, Gender', 'Roman', 'Lesbisch, Transgender']);
+});
+
+test('Politiek is een apart thema, los van Maatschappij', () => {
+  gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
+  gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
 });
 
 test('oude website: een lange beschrijving die al overgenomen is, telt de volgende keer als gelijk', () => {
@@ -3426,13 +3445,13 @@ test('onderwerpen raden: de keuzelijst bevat thema\'s en genres, een genre wordt
   assert.ok(!k.lijst.includes('Zines') && !k.lijst.includes('Klassiekers'));
   gelijk(k.lijst, k.lijst.slice().sort((a, b) => a.localeCompare(b, 'nl')), 'één lijst, alfabetisch');
   const rijen = [
-    { boek_id: 'B1', onderwerp_nieuw: 'Politiek', toepassen: 'ja' },
-    { boek_id: 'B2', onderwerp_nieuw: 'Politiek, Gender', toepassen: 'ja' },
+    { boek_id: 'B1', onderwerp_nieuw: 'Roman', toepassen: 'ja' },
+    { boek_id: 'B2', onderwerp_nieuw: 'Roman, Gender', toepassen: 'ja' },
     { boek_id: 'B3', onderwerp_nieuw: 'Iets nieuws', toepassen: 'ja' }
   ];
   assert.strictEqual(M.onderwerpNakijklijstToepassen(cat, rijen, onderwerpen), 3);
-  gelijk([cat[0].genre, cat[0].extra_onderwerpen], ['Politiek', ''], 'zonder genre: het genre wordt Politiek');
-  gelijk([cat[1].genre, cat[1].extra_onderwerpen], ['Varia', 'Eigen thema, Maatschappij, Gender'], 'met genre: de thema\'s van Politiek erbij');
+  gelijk([cat[0].genre, cat[0].extra_onderwerpen], ['Roman', ''], 'zonder genre: het genre wordt Roman');
+  gelijk([cat[1].genre, cat[1].extra_onderwerpen], ['Varia', 'Eigen thema, Fictie, Gender'], 'met genre: de thema\'s van Roman erbij');
   assert.strictEqual(cat[2].extra_onderwerpen, 'Iets nieuws');
 });
 
