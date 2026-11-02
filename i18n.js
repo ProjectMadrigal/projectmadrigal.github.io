@@ -54,7 +54,7 @@
       algemeen: 'Algemeen', events: 'Events',
       kaartTitel: 'Kaart met de locatie van Project Madrigal',
       voetTekst: 'Project Madrigal is een queer bibliotheek in Antwerpen, gedragen door vrijwilligers.',
-      privacy: 'Privacy', vrijwilligers: 'Voor vrijwilligers', instagramLabel: 'Project Madrigal op Instagram',
+      privacy: 'Privacy', toegankelijkheid: 'Bereikbaarheid en toegankelijkheid', toegTitel: 'Bereikbaarheid en toegankelijkheid', toegLeeg: 'Deze informatie is nog niet beschikbaar. Mail ons gerust met je vraag.', toegLink: 'Hoe geraak je in de bib? Bereikbaarheid en toegankelijkheid', vrijwilligers: 'Voor vrijwilligers', instagramLabel: 'Project Madrigal op Instagram',
       laden: 'Even laden...',
       // Catalogus
       catalogusTitel: 'Boeken', catalogusLead: 'Blader door onze collectie van maar liefst {aantal} boeken!',
@@ -138,7 +138,7 @@
       algemeen: 'General', events: 'Events',
       kaartTitel: 'Map with the location of Project Madrigal',
       voetTekst: 'Project Madrigal is a queer library in Antwerp, run by volunteers.',
-      privacy: 'Privacy', vrijwilligers: 'For volunteers', instagramLabel: 'Project Madrigal on Instagram',
+      privacy: 'Privacy', toegankelijkheid: 'Getting here and accessibility', toegTitel: 'Getting here and accessibility', toegLeeg: 'This information is not available yet. Feel free to email us your question.', toegLink: 'How do you get to the library? Getting here and accessibility', vrijwilligers: 'For volunteers', instagramLabel: 'Project Madrigal on Instagram',
       laden: 'Loading...',
       catalogusTitel: 'Books', catalogusLead: 'Browse our collection of no less than {aantal} books!',
       hoeLenen: 'How does borrowing work?', privacyLink: 'What do we do with your data?',

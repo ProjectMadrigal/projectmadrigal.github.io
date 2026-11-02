@@ -27,6 +27,7 @@ var INSTELLING_GROEPEN = [
   ['Vrijwilligers: handleiding', ['tekst_handleiding', 'tekst_handleiding_en']],
   ['Vrijwilligers: rooster', ['rooster_link', 'tekst_vaste_events']],
   ['Website: contact', ['adres', 'mail_algemeen', 'mail_events']],
+  ['Website: bereikbaarheid en toegankelijkheid', ['tekst_toegankelijkheid', 'tekst_toegankelijkheid_en']],
   ['Website: startpagina en aanraders', ['nieuw_op_startpagina_dagen', 'nieuw_op_startpagina_aantal', 'aanraders_uit_stocklijst', 'aanraders_verbergen']],
   ['Website: teksten bij Boeken', ['tekst_welkom', 'tekst_welkom_en', 'tekst_uitleg_lenen', 'tekst_uitleg_lenen_en', 'tekst_privacy', 'tekst_privacy_en']],
   ['Website: leeslijsten', ['leeslijsten_tonen']],
