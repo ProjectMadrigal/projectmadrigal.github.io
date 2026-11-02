@@ -958,6 +958,8 @@
    "‹ Vorige": "‹ Previous",
    "Sla over ›": "Skip ›",
    "Zonder onderwerp": "Without subject",
+   "Collectie": "Collection",
+   "Leners en borgen": "Borrowers and deposits",
    "anders": "different",
    "Staat in de velden": "Is in the fields",
    "Zelfde als nu": "Same as now",

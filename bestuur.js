@@ -34,42 +34,45 @@
   var ALLE_SECTIES = [
     ['vandaag', 'Vandaag', toonVandaag, 'start', 'beide'],
     ['meldingen', 'Meldingen', function (vak) { V.meldingen(vak, context()); }, 'start'],
+    ['rooster', 'Rooster', toonRoosterSectie, 'start', 'beide'],
     ['handleiding', 'Handleiding', function (vak) { V.handleiding(vak, context()); }, 'start', 'vrijwilliger'],
     ['shift', 'Checklist voor de shift', function (vak) { V.checklist(vak, context()); }, 'start', 'vrijwilliger'],
     ['melden', 'Iets melden', function (vak) { V.melden(vak, context()); }, 'start', 'vrijwilliger'],
     ['mijn', 'Mijn voorstellen en meldingen', function (vak) { V.mijn(vak, context()); }, 'start', 'vrijwilliger'],
+    // Het werk aan de balie.
     ['telaat', 'Te laat', toonTeLaat, 'uitlenen', 'beide'],
     ['binnenkort', 'Vervalt binnenkort', toonBinnenkort, 'uitlenen', 'beide'],
-    ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen', 'beide'],
     ['reservaties', 'Reservaties', toonReservaties, 'uitlenen', 'beide'],
-    ['terugzetten', 'Terug te zetten', function (vak) { V.terugzetten(vak, context()); }, 'uitlenen', 'beide'],
-    ['tevervangen', 'Te vervangen', toonTeVervangen, 'uitlenen', 'beide'],
-    ['opzoeken', 'Boek opzoeken', function (vak) { V.opzoeken(vak, context()); }, 'uitlenen', 'vrijwilliger'],
     ['aanvragen', 'Aanvragen van de website', toonAanvragen, 'uitlenen'],
-    ['leners', 'Leners', toonLeners, 'uitlenen'],
-    ['borgen', 'Borgen en giften', toonBorgen, 'uitlenen'],
-    ['uitzonderingen', 'Uitzonderingen', toonUitzonderingen, 'uitlenen'],
-    // De website aanpassen: zie bestuur-beheer.js.
-    ['boeken', 'Boeken', function (vak) { W.boeken(vak, context()); }, 'website'],
-    ['covers', 'Boeken zonder cover', function (vak) { W.covers(vak, context()); }, 'website', 'vrijwilliger'],
-    ['beschrijvingen', 'Boeken zonder beschrijving', function (vak) { W.zonderBeschrijving(vak, context()); }, 'website', 'vrijwilliger'],
-    ['voorstellen', 'Voorgestelde beschrijvingen', function (vak) { V.voorstellen(vak, context()); }, 'website'],
-    ['kast', 'Kastcontrole', function (vak) { V.kast(vak, context()); }, 'website', 'beide'],
-    ['aankoop', 'Aankooplijst', function (vak) { window.MadrigalAankoop.toon(vak, context()); }, 'website', 'beide'],
-    ['titelcontrole', 'Titels en auteurs nakijken', function (vak) { window.MadrigalTitelcontrole.toon(vak, context()); }, 'website', 'beide'],
-    ['boekstatus', 'Verloren en gevoelig', toonBoekstatus, 'website'],
+    ['terugzetten', 'Terug te zetten', function (vak) { V.terugzetten(vak, context()); }, 'uitlenen', 'beide'],
+    ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen', 'beide'],
+    ['opzoeken', 'Boek opzoeken', function (vak) { V.opzoeken(vak, context()); }, 'uitlenen', 'vrijwilliger'],
+    // Enkel het bestuur: leners en geld.
+    ['leners', 'Leners', toonLeners, 'leners'],
+    ['borgen', 'Borgen en giften', toonBorgen, 'leners'],
+    ['uitzonderingen', 'Uitzonderingen', toonUitzonderingen, 'leners'],
+    // De boeken in de kast (zie ook bestuur-beheer.js).
+    ['boeken', 'Boeken', function (vak) { W.boeken(vak, context()); }, 'collectie'],
+    ['covers', 'Boeken zonder cover', function (vak) { W.covers(vak, context()); }, 'collectie', 'vrijwilliger'],
+    ['beschrijvingen', 'Boeken zonder beschrijving', function (vak) { W.zonderBeschrijving(vak, context()); }, 'collectie', 'vrijwilliger'],
+    ['voorstellen', 'Voorgestelde beschrijvingen', function (vak) { V.voorstellen(vak, context()); }, 'collectie'],
+    ['titelcontrole', 'Titels en auteurs nakijken', function (vak) { window.MadrigalTitelcontrole.toon(vak, context()); }, 'collectie', 'beide'],
+    ['kast', 'Kastcontrole', function (vak) { V.kast(vak, context()); }, 'collectie', 'beide'],
+    ['tevervangen', 'Te vervangen', toonTeVervangen, 'collectie', 'beide'],
+    ['boekstatus', 'Verloren en gevoelig', toonBoekstatus, 'collectie'],
+    ['aankoop', 'Aankooplijst', function (vak) { window.MadrigalAankoop.toon(vak, context()); }, 'collectie', 'beide'],
+    // De website zelf.
     ['inhoud', 'Nieuws en agenda', function (vak) { W.inhoud(vak, context()); }, 'website', 'beide'],
     ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website', 'beide'],
     ['instellingen', 'Teksten en instellingen', function (vak) { W.instellingen(vak, context()); }, 'website'],
     ['cijfers', 'Cijfers', toonCijfers, 'overzicht'],
-    ['logboek', 'Logboek en taken', toonLogboek, 'overzicht'],
-    ['rooster', 'Rooster', toonRoosterSectie, 'overzicht', 'beide']
+    ['logboek', 'Logboek en taken', toonLogboek, 'overzicht']
   ];
   var SECTIES = ALLE_SECTIES.filter(function (s) {
     return VRIJWILLIGER ? s[4] === 'beide' || s[4] === 'vrijwilliger' : s[4] !== 'vrijwilliger';
   });
 
-  var GROEPEN = [['start', 'Start'], ['uitlenen', 'Uitlenen'], ['website', 'Website'], ['overzicht', 'Overzicht']];
+  var GROEPEN = [['start', 'Start'], ['uitlenen', 'Uitlenen'], ['leners', 'Leners en borgen'], ['collectie', 'Collectie'], ['website', 'Website'], ['overzicht', 'Overzicht']];
 
   /* Het onderdeel staat in het adres (bv. bestuur.html#telaat): na herladen blijf je waar je was, en Terug werkt. */
   function sectieUitAdres() {
@@ -152,7 +155,10 @@
   }
 
   function tekenNav() {
-    D.vervang($('sectienav'), keuzelijst(), GROEPEN.map(function (g) {
+    D.vervang($('sectienav'), keuzelijst(), GROEPEN.filter(function (g) {
+      // Een groep zonder onderdelen voor dit scherm (bv. Leners en borgen bij vrijwilligers) tonen we niet.
+      return SECTIES.some(function (s) { return s[3] === g[0] && zichtbaarInMenu(s); });
+    }).map(function (g) {
       var kopId = 'navgroep-' + g[0];
       return el('div', { class: 'navgroep', role: 'group', 'aria-labelledby': kopId },
         el('span', { class: 'navgroep-kop', id: kopId }, g[1]),
