@@ -80,6 +80,8 @@ var KOLOMMEN = {
   'Verkopen': ['verkoop_id', 'standje_id', 'boek_id', 'aantal', 'prijs', 'betaalwijze', 'tijdstip', 'vrijwilliger'],
   // Boeken die de bib wil kopen (Aankoop.js). status: open of in catalogus. gekozen: ja als het bestuur het aanduidde.
   // Titels en auteurs nakijken in de bib (Titelcontrole.js).
+  // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
+  'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
   'Onderwerpen nakijken': ['boek_id', 'titel', 'auteur', 'genre', 'voorstel', 'onderwerp_nieuw', 'toepassen'],
   'Titelcontrole': ['boek_id', 'titel_nu', 'auteur_nu', 'titel_stock', 'auteur_stock', 'titel_oud', 'auteur_oud', 'status', 'wie', 'datum'],

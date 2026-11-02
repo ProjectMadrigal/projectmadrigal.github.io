@@ -50,6 +50,7 @@ const SCRIPTS = [
   'apps-script/Titelcontrole.js',
   'apps-script/Kolommen.js',
   'apps-script/OnderwerpRaden.js',
+  'apps-script/Genres.js',
   'apps-script/Privacy.js',
   'apps-script/Overzetten.js',
   'apps-script/OudeSite.js',

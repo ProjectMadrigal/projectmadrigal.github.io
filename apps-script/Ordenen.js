@@ -45,7 +45,7 @@ var INSTELLING_GROEPEN = [
 
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken']],     // collectie
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken', 'Genres opkuisen']],     // collectie
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
