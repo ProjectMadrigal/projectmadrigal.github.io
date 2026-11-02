@@ -19,7 +19,8 @@ function achtergrondTaken() {
     ['zoekCoversAndereUitgaven', 'Covers van een andere uitgave', heeftAndereUitgaveNodig],
     ['zoekCoversInternetArchive', 'Covers bij Internet Archive', heeftIaNodig],
     ['zoekCoversBol', 'Covers bij Bol', heeftBolNodig],
-    ['vulFilmsAan', 'Films aanvullen (Wikidata en Wikipedia)', heeftFilmGegevensNodig]
+    ['vulFilmsAan', 'Films aanvullen (Wikidata en Wikipedia)', heeftFilmGegevensNodig],
+    ['kopieerOudeCovers', 'Covers van de oude website naar Drive', heeftOudeCoverNodig]
   ];
 }
 

@@ -1793,6 +1793,46 @@ test('verkoopscherm: cover, korte beschrijving en thema\'s zoals op de website',
   gelijk(M.verkoopOverzicht(Object.assign({}, t, { onderwerpen: undefined })).teKoop[1].g, ['Gender'], 'Zonder Onderwerpen');
 });
 
+console.log('\nBoeken van de oude website');
+test('oude website: beschrijving en cover gaan voor, behalve eigen werk; niet gevonden naar Na te kijken', () => {
+  const basis = 'https://voorbeeld.supabase.test';
+  const rij = (id, isbn, titel, auteurs, beschrijving, image) => ({ id, isbn, title: titel, authors: auteurs, description: beschrijving, image });
+  const oud = [
+    rij(1, '978-0-306-40615-7', 'Zee van glas', [{ name: 'Vera Verzonnen' }], '<p>Een <b>oude</b> beschrijving.</p>', 'abc'),
+    rij(2, '', 'Atlas van niets', 'Bedacht, Noor', 'Oude tekst over de atlas.', 'def'),
+    rij(3, '9781861972712', 'Stille lichten', 'Kim Fictief', 'Oude tekst.', 'ghi'),
+    rij(4, '', 'Niet in de bib', 'Iemand Anders', 'Ergens anders.', ''),
+    rij(5, '', 'Gedichten', 'Sam Fictief', 'Gedichten.', 'standaard'),
+    rij(6, '', 'Liedjes', 'Sam Fictief', '', 'standaard'),
+    rij(7, '', 'Verhalen', 'Sam Fictief', '', 'standaard')
+  ].map((r) => M.oudBoekUitRij(r, basis));
+  gelijk([oud[0].isbn, oud[0].auteur, oud[0].beschrijving, oud[0].cover], ['9780306406157', 'Vera Verzonnen', 'Een oude beschrijving.', basis + '/storage/v1/object/public/covers/abc.jpg']);
+  const catalogus = [
+    { boek_id: 'B0001', titel: 'Een andere titel', auteur: 'Verzonnen, Vera', isbn: '9780306406157', beschrijving: 'Van Google.', beschrijving_en: 'From Google.', cover_url: 'https://books.google.test/c', cover_bron: 'Google Books' },
+    { boek_id: 'B0002', titel: 'Atlas van niets', auteur: 'Noor Bedacht', isbn: '', beschrijving: 'Met de hand geschreven.', cover_url: 'https://lh3.googleusercontent.com/d/x', cover_bron: 'foto in de bib' },
+    { boek_id: 'B0003', titel: 'Stille lichten', auteur: 'Fictief, Kim', isbn: '9781861972712', beschrijving: '', cover_url: '', cover_bron: '' },
+    { boek_id: 'B0005', titel: 'Gedichten', auteur: 'Sam Fictief', isbn: '', beschrijving: '', cover_url: '' }
+  ];
+  const eigen = M.eigenWerkUitLogboek([
+    ['', 'Kim', 'boek aangepast', 'B0002: titel, beschrijving'],
+    ['', 'Kim', 'voorstel goedgekeurd', 'V0001, boek B0009'],
+    ['', 'Kim', 'cover-foto', 'B0007']
+  ]);
+  gelijk([Object.keys(eigen.beschrijving), Object.keys(eigen.cover)], [['B0002', 'B0009'], ['B0007']]);
+  const uit = M.oudeBoekenToepassen(catalogus, oud, eigen);
+  gelijk([catalogus[0].beschrijving, catalogus[0].beschrijving_en, catalogus[0].beschrijving_vertaald, catalogus[0].oude_cover, catalogus[0].beschrijving_bron], ['Een oude beschrijving.', '', '', basis + '/storage/v1/object/public/covers/abc.jpg', 'oude website'], 'Gevonden op ISBN: oude website gaat voor');
+  gelijk([catalogus[1].beschrijving, catalogus[1].oude_cover], ['Met de hand geschreven.', undefined], 'Eigen beschrijving en eigen cover blijven');
+  gelijk([catalogus[2].beschrijving, catalogus[2].oude_cover], ['Oude tekst.', basis + '/storage/v1/object/public/covers/ghi.jpg']);
+  gelijk([catalogus[3].beschrijving, catalogus[3].oude_cover], ['Gedichten.', undefined], 'Standaardafbeelding (bij 3 boeken dezelfde) niet');
+  gelijk([uit.beschrijvingen, uit.covers, uit.eigen, uit.nietGevonden.map((b) => b.titel)], [3, 2, 2, ['Niet in de bib', 'Liedjes', 'Verhalen']]);
+  gelijk([M.heeftOudeCoverNodig(catalogus[0]), M.heeftOudeCoverNodig(catalogus[1])], [true, false]);
+  // Daarna overschrijft geen enkele zoektocht dit nog: Google, Wikipedia en afgebroken teksten.
+  const b = Object.assign({}, catalogus[0], { isbn: '9780306406157', gb_gecontroleerd: '2026-10-01', beschrijving: 'Oude tekst die eindigt op...', cover_url: 'https://lh3.googleusercontent.com/d/oud', cover_bron: 'oude website' });
+  gelijk(M.maakAfgebrokenLeeg([b]), 0, 'Afgebroken tekst van de oude website blijft');
+  gelijk(Object.keys(M.verwerkGoogleBooks(b, { description: 'Van Google', imageLinks: { thumbnail: 'https://books.google.test/x' } })), [], 'Google vult niets');
+  gelijk([M.heeftWikiNodig(b), M.heeftBeschrijvingNodig(b), M.heeftGoogleBooksNodig(b)], [false, false, false]);
+});
+
 console.log('\nAankooplijst');
 test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als binnen', () => {
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera', isbn: '9780306406157' }];
