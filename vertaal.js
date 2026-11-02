@@ -950,7 +950,6 @@
    "Oude website": "Old website",
    "Nu op de website": "Now on the website",
    "Niet gevonden in deze bron": "Not found in this source",
-   "Neem over": "Take over",
    "Titel zoals op het boek": "Title as on the book",
    "Auteur zoals op het boek": "Author as on the book",
    "Klopt, volgende": "Correct, next",
@@ -962,7 +961,10 @@
    "anders": "different",
    "Staat in de velden": "Is in the fields",
    "Zelfde als nu": "Same as now",
-   "Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem over, of typ het zelf, en klik op Bewaar, volgende": "Compare with the book. Is what is in the fields correct? Then click Correct, next. Is it different on the book? Click Take over next to the right version, or type it yourself, and click Save, next"
+   "Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem titel over of Neem auteur over, of typ het zelf, en klik op Bewaar, volgende": "Compare with the book. Is what is in the fields correct? Then click Correct, next. Is it different on the book? Click Take over title or Take over author next to the right version, or type it yourself, and click Save, next",
+   "Hoofdletters, leestekens en de volgorde van de namen tellen niet als verschil": "Capitals, punctuation and the order of the names do not count as a difference",
+   "Neem titel over": "Take over title",
+   "Neem auteur over": "Take over author"
   };
 
   /** Zinnen met een getal, datum of naam erin. $1, $2 ... nemen dat deel over. Datums gaan mee naar het Engels. */

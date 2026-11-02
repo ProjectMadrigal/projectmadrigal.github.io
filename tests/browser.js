@@ -61,7 +61,7 @@ const INHOUD = {
 // Titelcontrole: verzonnen boeken met een verschil tussen de bronnen.
 const TITELCONTROLE = { open: [
   { id: 'B0002', isbn: '', nu: { t: 'Twee kasten vol', a: 'Dewit, Rein' }, stock: { t: 'Twee kasten vol', a: 'Dewit, Rein' }, oud: { t: 'Twee kasten vol', a: 'Rein De Wit' } },
-  { id: 'B0001', isbn: '9780000000001', nu: { t: 'De verzonen zee', a: 'Verbeek, Mira' }, stock: { t: 'De verzonnen zee', a: 'Verbeek, Mira' }, oud: null }
+  { id: 'B0001', isbn: '9780000000001', nu: { t: 'De verzonen zee', a: 'Verbeek, Mira' }, stock: { t: 'De verzonnen zee', a: 'Verbeek, Mira' }, oud: { t: 'De Verzonen Zee', a: 'Verbeek Myra' } }
 ], nietGevonden: [{ id: 'B0003', nu: { t: 'Stille lichten', a: 'Fictief, Kim' }, stock: null, oud: null, wie: 'Ilo', datum: '2026-11-01' }], gedaan: 4 };
 const AANKOOP = [
   { id: 'K0001', t: 'Atlas van niets', a: 'Bedacht, Noor', i: '9781861972712', g: 'Fictie', p: 19.99, l: 'https://voorbeeld.test/atlas', r: 'Gevraagd door een lener', d: '2026-10-28', w: 'Sam', k: false, s: 'open', b: '', db: '' },
@@ -997,8 +997,14 @@ async function meldAan(page, basis, pagina) {
     verwacht(!(await page.$('text=Maak de lijst opnieuw')) && !(await page.$('text=Niet gevonden in de kast')), 'Een vrijwilliger ziet de bestuursknoppen');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     verwacht((await page.textContent('#sectie button.knop:not(.tweede)')) === 'Klopt, volgende', 'Knop zonder verandering');
-    await page.click('button[aria-label="Neem de versie van stocklijst over"]');
-    verwacht((await page.inputValue('#tc-titel')) === 'De verzonnen zee', 'Versie niet overgenomen');
+    // Stocklijst: enkel de titel is anders. Oude website: enkel de auteur (hoofdletters in de titel tellen niet).
+    verwacht(!(await page.$('button[aria-label="Neem de auteur van stocklijst over"]')) && !(await page.$('button[aria-label="Neem de titel van oude website over"]')), 'Knop bij iets dat niet verschilt');
+    await page.click('button[aria-label="Neem de auteur van oude website over"]');
+    verwacht((await page.inputValue('#tc-auteur')) === 'Verbeek, Myra', 'Auteur niet in de vorm Achternaam, Voornaam: ' + await page.inputValue('#tc-auteur'));
+    verwacht((await page.inputValue('#tc-titel')) === 'De verzonen zee', 'De titel mag niet veranderen');
+    await page.fill('#tc-auteur', 'Verbeek, Mira');
+    await page.click('button[aria-label="Neem de titel van stocklijst over"]');
+    verwacht((await page.inputValue('#tc-titel')) === 'De verzonnen zee', 'Titel niet overgenomen');
     await page.click('button:has-text("Bewaar, volgende")');
     await page.waitForSelector('text=Bewaard.');
     const v = vragen.filter((x) => x.actie === 'titelcontroleBewaren').pop();
@@ -1009,6 +1015,9 @@ async function meldAan(page, basis, pagina) {
     // De stocklijst is hier gelijk aan nu: geen knop. Enkel de auteur van de oude website is anders.
     verwacht(/Zelfde als nu/.test(await page.textContent('#sectie table')), 'Gelijke versie zonder knop');
     verwacht((await page.$$('#sectie table button')).length === 1 && (await page.$$('#sectie table .status-anders')).length === 1, 'Enkel de echte verschillen');
+    verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Aaron William', 'Aaron, Willem'))) === 'Aaron, William', 'Achternaam vooraan');
+    verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Rein De Wit', 'Dewit, Rein'))) === 'Rein De Wit', 'Niet raden');
+    verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Kim van Dam; Jo Bos', 'Van Dam, Kim; Bos, Jo'))) === 'van Dam, Kim; Bos, Jo', 'Twee auteurs met tussenvoegsel');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await page.selectOption('#tc-kast', 'Maatschappij');
     await page.click('button:has-text("Niet in de kast")');

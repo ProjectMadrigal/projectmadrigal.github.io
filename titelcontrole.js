@@ -39,6 +39,32 @@
       }).map(function (o) { o.x.kast = kast || o.g[0]; return o.x; });
   }
 
+  /**
+   * Een auteur zonder komma in de vorm "Achternaam, Voornaam", met de achternaam uit het voorbeeld (wat nu op de
+   * website staat). "Aaron William" met voorbeeld "Aaron, Willem" wordt "Aaron, William". Vindt het de achternaam
+   * niet terug, dan blijft de naam zoals hij is: raden doen we niet.
+   */
+  function auteurInVorm(auteur, voorbeeld) {
+    var achternamen = String(voorbeeld || '').split(/\s*;\s*/).filter(function (d) { return d.indexOf(',') > -1; })
+      .map(function (d) { return Z.normaliseer(d.split(',')[0]).split(' ').filter(Boolean); });
+    return String(auteur || '').split(/\s*;\s*/).map(function (deel) {
+      deel = deel.trim();
+      if (!deel || deel.indexOf(',') > -1) return deel;
+      var woorden = deel.split(/\s+/);
+      var klein = woorden.map(function (w) { return Z.normaliseer(w); });
+      for (var i = 0; i < achternamen.length; i++) {
+        var an = achternamen[i];
+        for (var p = 0; p + an.length <= klein.length; p++) {
+          if (an.every(function (w, j) { return klein[p + j] === w; })) {
+            var rest = woorden.slice(0, p).concat(woorden.slice(p + an.length));
+            return woorden.slice(p, p + an.length).join(' ') + (rest.length ? ', ' + rest.join(' ') : '');
+          }
+        }
+      }
+      return deel;
+    }).join('; ');
+  }
+
   function laad(vak, ctx, okTekst) {
     D.vervang(vak, ctx.kop('Titels en auteurs nakijken'), el('p', {}, 'Lijst laden...'));
     B.voerUit('titelcontroleData', {}).then(function (r) {
@@ -110,24 +136,25 @@
       var sleutel = function (t) { return Z.normaliseer(t).split(' ').filter(function (w, i, alle) { return w && alle.indexOf(w) === i; }).sort().join(' '); };
       return !a || !b || sleutel(a) === sleutel(b);
     }
-    function cel(tekst, anders) {
-      return el('td', {}, tekst || '–', anders ? [' ', D.statusLabel('anders', 'anders')] : null);
+    function cel(tekst, anders, knop) {
+      return el('td', {}, tekst || '–', anders ? [' ', D.statusLabel('anders', 'anders')] : null, knop ? [el('br'), knop] : null);
     }
-    /** Een rij per bron. Nu op de website staat al in de velden. Een andere bron krijgt enkel een knop als ze echt verschilt. */
+    function neemKnop(tekst, label, doe) {
+      var k = el('button', { type: 'button', class: 'knop tweede klein', 'aria-label': label }, tekst);
+      k.addEventListener('click', function () { doe(); pasKnopAan(); });
+      return k;
+    }
+    /** Een rij per bron. Nu op de website staat al in de velden. Enkel wat echt verschilt, krijgt een knop: titel en auteur apart. */
     function versie(naam, v, isNu) {
       if (!v) return el('tr', {}, el('th', { scope: 'row' }, naam), el('td', { colspan: '3', class: 'hulptekst' }, 'Niet gevonden in deze bron'));
       if (isNu) return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t), cel(v.a), el('td', { class: 'hulptekst' }, 'Staat in de velden'));
-      var titelAnders = !zelfdeTitel(v.t, x.nu.t), auteurAnders = !zelfdeAuteur(v.a, x.nu.a);
-      if (!titelAnders && !auteurAnders) return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t), cel(v.a), el('td', { class: 'hulptekst' }, 'Zelfde als nu'));
-      var neem = el('button', { type: 'button', class: 'knop tweede klein' }, 'Neem over');
-      neem.setAttribute('aria-label', 'Neem de versie van ' + naam.toLowerCase() + ' over');
-      neem.addEventListener('click', function () {
-        if (v.t) titel.value = v.t;
-        if (v.a) auteur.value = v.a;
-        pasKnopAan();
-        titel.focus();
-      });
-      return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t, titelAnders), cel(v.a, auteurAnders), el('td', {}, neem));
+      var titelAnders = !!v.t && !zelfdeTitel(v.t, x.nu.t), auteurAnders = !!v.a && !zelfdeAuteur(v.a, x.nu.a);
+      var bron = naam.toLowerCase();
+      var titelKnop = titelAnders ? neemKnop('Neem titel over', 'Neem de titel van ' + bron + ' over', function () { titel.value = v.t; titel.focus(); }) : null;
+      // De auteur in de vorm Achternaam, Voornaam, met de achternaam zoals die nu op de website staat.
+      var auteurKnop = auteurAnders ? neemKnop('Neem auteur over', 'Neem de auteur van ' + bron + ' over', function () { auteur.value = auteurInVorm(v.a, x.nu.a); auteur.focus(); }) : null;
+      return el('tr', {}, el('th', { scope: 'row' }, naam), cel(v.t, titelAnders, titelKnop), cel(v.a, auteurAnders, auteurKnop),
+        el('td', { class: 'hulptekst' }, titelAnders || auteurAnders ? '' : 'Zelfde als nu'));
     }
 
     function stuur(status, knop) {
@@ -160,7 +187,8 @@
         el('caption', {}, 'Zo staat het in elke bron'),
         el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Bron'), el('th', { scope: 'col' }, 'Titel'), el('th', { scope: 'col' }, 'Auteur'), el('td', {}))),
         el('tbody', {}, versie('Nu op de website', x.nu, true), versie('Stocklijst', x.stock), versie('Oude website', x.oud)))),
-      el('p', {}, 'Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem over, of typ het zelf, en klik op Bewaar, volgende.'),
+      el('p', { class: 'hulptekst' }, 'Hoofdletters, leestekens en de volgorde van de namen tellen niet als verschil.'),
+      el('p', {}, 'Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem titel over of Neem auteur over, of typ het zelf, en klik op Bewaar, volgende.'),
       el('div', { class: 'veld' }, el('label', { for: 'tc-titel' }, 'Titel zoals op het boek'), titel),
       el('div', { class: 'veld' }, el('label', { for: 'tc-auteur' }, 'Auteur zoals op het boek'), auteur),
       knoppen(bewaar, niet),
@@ -211,5 +239,5 @@
       knoppen(knop));
   }
 
-  root.MadrigalTitelcontrole = { toon: toon };
+  root.MadrigalTitelcontrole = { toon: toon, auteurInVorm: auteurInVorm };
 })(window);
