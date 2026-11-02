@@ -98,6 +98,7 @@ function installeer() {
 
   ordenTabbladen(ss);
   logboekNieuwsteBoven(ss.getSheetByName('Logboek'));
+  naTeKijkenNieuwsteBoven();
   logboek('menu', 'installeer', 'tabbladen klaar');
   meld('De tabbladen staan klaar. Kijk in Instellingen de codes en teksten na.');
 }

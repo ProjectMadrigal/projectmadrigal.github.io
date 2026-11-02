@@ -395,6 +395,7 @@ function neemUitleningenOver() {
     }), 'Overzetten', staat.vandaag);
     bewaarStaat(staat);
     bewaarTabel(naTeKijken);
+    naTeKijkenNieuwsteBoven();
     leegCache();
     logboek('menu', 'neemUitleningenOver', resultaat.uitleningen + ' lopend, ' + resultaat.historiek + ' historiek, ' + resultaat.nietGevonden + ' boeken niet gevonden, ' + resultaat.leners + ' leners, ' + resultaat.hersteld + ' hersteld, ' + nieuw + ' na te kijken');
     meld(resultaat.uitleningen + ' lopende uitleningen en ' + resultaat.historiek + ' teruggebrachte uitleningen overgenomen, ' + resultaat.leners + ' nieuwe leners aangemaakt. ' +

@@ -340,6 +340,16 @@ function logboek(wie, actie, details) {
 }
 
 /** Zet de bestaande regels van het Logboek eenmalig met de nieuwste bovenaan (bij Installeer tabbladen). */
+/** Na te kijken: de nieuwste rijen bovenaan (op datum), zodat je niet naar onder moet scrollen. */
+function naTeKijkenNieuwsteBoven() {
+  var blad = spreadsheet().getSheetByName('Na te kijken');
+  if (!blad || blad.getLastRow() < 3) return;
+  var kop = blad.getRange(1, 1, 1, blad.getLastColumn()).getValues()[0].map(schoon);
+  var k = kop.indexOf('datum');
+  if (k === -1) return;
+  blad.getRange(2, 1, blad.getLastRow() - 1, blad.getLastColumn()).sort({ column: k + 1, ascending: false });
+}
+
 function logboekNieuwsteBoven(blad) {
   if (!blad || blad.getLastRow() < 3) return;
   blad.getRange(2, 1, blad.getLastRow() - 1, Math.max(4, blad.getLastColumn())).sort({ column: 1, ascending: false });

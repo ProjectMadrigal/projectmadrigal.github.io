@@ -4180,6 +4180,7 @@ function installeer() {
 
   ordenTabbladen(ss);
   logboekNieuwsteBoven(ss.getSheetByName('Logboek'));
+  naTeKijkenNieuwsteBoven();
   logboek('menu', 'installeer', 'tabbladen klaar');
   meld('De tabbladen staan klaar. Kijk in Instellingen de codes en teksten na.');
 }
@@ -5053,6 +5054,8 @@ function logboek(wie, actie, details) {
   blad.getRange(2, 1, 1, rij.length).setValues([rij]);
 }
 
+/** Zet de bestaande regels van het Logboek eenmalig met de nieuwste bovenaan (bij Installeer tabbladen). */
+
 /** Actie beheerLogboek (enkel het bestuur). */
 function logboekEnTaken() {
   var cache = CacheService.getScriptCache();
@@ -5070,7 +5073,6 @@ function logboekEnTaken() {
   return { ok: true, taken: stand, logboek: regels, daglimiet: daglimietWachttijd(sinds, Date.now()) ? sinds : 0 };
 }
 
-/** Zet de bestaande regels van het Logboek eenmalig met de nieuwste bovenaan (bij Installeer tabbladen). */
 function logboekNieuwsteBoven(blad) {
   if (!blad || blad.getLastRow() < 3) return;
   blad.getRange(2, 1, blad.getLastRow() - 1, Math.max(4, blad.getLastColumn())).sort({ column: 1, ascending: false });
@@ -5430,6 +5432,16 @@ function namenUitCel(waarde) {
   }).filter(function (n) { return n && /[a-z]/i.test(n); });
 }
 
+/** Na te kijken: de nieuwste rijen bovenaan (op datum), zodat je niet naar onder moet scrollen. */
+function naTeKijkenNieuwsteBoven() {
+  var blad = spreadsheet().getSheetByName('Na te kijken');
+  if (!blad || blad.getLastRow() < 3) return;
+  var kop = blad.getRange(1, 1, 1, blad.getLastColumn()).getValues()[0].map(schoon);
+  var k = kop.indexOf('datum');
+  if (k === -1) return;
+  blad.getRange(2, 1, blad.getLastRow() - 1, blad.getLastColumn()).sort({ column: k + 1, ascending: false });
+}
+
 /** De n-de weekdag (0 = zondag) van een maand, als JJJJ-MM-DD. n = 5: de laatste. */
 function nDeWeekdag(jaar, maand, dag, n) {
   var eerste = jaar + '-' + ('0' + maand).slice(-2) + '-01';
@@ -5516,6 +5528,7 @@ function neemOudeBoekenOver() {
       };
     }), 'oude website', vandaagTekst());
     bewaarTabel(naTeKijken);
+    naTeKijkenNieuwsteBoven();
   } finally {
     lock.releaseLock();
   }
@@ -5598,6 +5611,7 @@ function neemUitleningenOver() {
     }), 'Overzetten', staat.vandaag);
     bewaarStaat(staat);
     bewaarTabel(naTeKijken);
+    naTeKijkenNieuwsteBoven();
     leegCache();
     logboek('menu', 'neemUitleningenOver', resultaat.uitleningen + ' lopend, ' + resultaat.historiek + ' historiek, ' + resultaat.nietGevonden + ' boeken niet gevonden, ' + resultaat.leners + ' leners, ' + resultaat.hersteld + ' hersteld, ' + nieuw + ' na te kijken');
     meld(resultaat.uitleningen + ' lopende uitleningen en ' + resultaat.historiek + ' teruggebrachte uitleningen overgenomen, ' + resultaat.leners + ' nieuwe leners aangemaakt. ' +
@@ -8732,6 +8746,7 @@ function vulAanUitGoodreads(stil) {
     var nieuw = voegNaTeKijkenToe(naTeKijken.rijen, resultaat.naTeKijken, 'Goodreads', vandaagTekst());
     bewaarTabel(catalogus);
     schrijfVolledig(naTeKijken);
+    naTeKijkenNieuwsteBoven();
     leegCache();
     logboek('menu', 'vulAanUitGoodreads', resultaat.aanvullingen.length + ' velden aangevuld, ' + nieuw + ' na te kijken');
     if (!stil) meld(goodreads.length + ' boeken van Goodreads gebruikt' + (shelf ? ' (shelf "' + shelf + '")' : '') + '. ' +

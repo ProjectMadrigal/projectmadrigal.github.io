@@ -325,6 +325,7 @@ function neemOudeBoekenOver() {
       };
     }), 'oude website', vandaagTekst());
     bewaarTabel(naTeKijken);
+    naTeKijkenNieuwsteBoven();
   } finally {
     lock.releaseLock();
   }
