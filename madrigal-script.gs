@@ -3559,13 +3559,16 @@ function deelBoekenIn(catalogus, namen) {
   });
   var uit = [];
   catalogus.forEach(function (b) {
-    if (isLeeg(b.boek_id) || isLeeg(b.titel) || isFilm(b)) return;
+    if (isLeeg(b.boek_id) || isLeeg(b.titel)) return;
+    // Een film krijgt enkel trefwoorden: thema's en categorieën zijn voor boeken (een film heeft genres).
+    var film = isFilm(b);
     var titelWoorden = normaliseerTekst(b.titel).split(' ').filter(Boolean);
     var tekstWoorden = normaliseerTekst([b.beschrijving, b.beschrijving_en].join(' ')).split(' ').filter(Boolean);
     var erbij = { extra_onderwerpen: [], categorieen: [], trefwoorden: [] };
     // Thema's: elk thema dat duidelijk voorkomt.
-    onderwerpScores(b).forEach(function (s) { if (s[1] >= ONDERWERP_ZEKER_MIN) erbij.extra_onderwerpen.push(s[0]); });
+    if (!film) onderwerpScores(b).forEach(function (s) { if (s[1] >= ONDERWERP_ZEKER_MIN) erbij.extra_onderwerpen.push(s[0]); });
     kandidaten.forEach(function (k) {
+      if (film && k.kolom !== 'trefwoorden') return;
       if (indelenScore(k.zoekwoorden, titelWoorden, tekstWoorden) >= k.min) erbij[k.kolom].push(k.naam);
     });
     var velden = {}, nieuw = {};
@@ -3585,9 +3588,30 @@ function deelBoekenIn(catalogus, namen) {
   return uit;
 }
 
+/**
+ * Vanzelf, één keer per dag (vanuit verwerkNieuweBoekenAutomatisch, die elk uur loopt): zo krijgen nieuwe boeken
+ * en films hun thema's, categorieën en trefwoorden zodra hun beschrijving er is.
+ */
+function deelBoekenInAutomatisch() {
+  var eigenschappen = PropertiesService.getScriptProperties();
+  var vandaag = vandaagTekst();
+  if (eigenschappen.getProperty('indelen_laatst') === vandaag) return;
+  if (!spreadsheet().getSheetByName('Categorieën en trefwoorden') || !spreadsheet().getSheetByName('Indeling')) return;
+  eigenschappen.setProperty('indelen_laatst', vandaag);
+  var uit = deelBoekenInUitvoeren();
+  if (uit.length) logboek('systeem', 'deelBoekenIn', indelingTekst(uit));
+}
+
 /** Menu: Boeken > Deel de boeken in op titel en beschrijving. */
 function deelBoekenInMenu() {
   installeer(); // zorgt voor de kolom zoekwoorden en het tabblad Indeling
+  var tekst = indelingTekst(deelBoekenInUitvoeren());
+  logboek('menu', 'deelBoekenIn', tekst);
+  meld(tekst);
+}
+
+/** Deelt in en schrijft het tabblad Indeling. Geeft de rijen van Indeling. */
+function deelBoekenInUitvoeren() {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   var uit;
@@ -3596,25 +3620,22 @@ function deelBoekenInMenu() {
     var namen = leesTabel('Categorieën en trefwoorden').rijen;
     uit = deelBoekenIn(catalogus.rijen, namen);
     if (uit.length) schrijfKolommen(catalogus, ['extra_onderwerpen', 'categorieen', 'trefwoorden']);
-    var ss = spreadsheet();
-    var blad = ss.getSheetByName('Indeling') || ss.insertSheet('Indeling');
-    var kolommen = KOLOMMEN['Indeling'];
-    blad.clear();
-    var waarden = [kolommen].concat(uit.map(function (r) { return kolommen.map(function (k) { return r[k]; }); }));
-    blad.getRange(1, 1, waarden.length, kolommen.length).setValues(waarden);
-    opmaakKop(blad, kolommen.length);
+    if (uit.length) {
+      var ss = spreadsheet();
+      var blad = ss.getSheetByName('Indeling') || ss.insertSheet('Indeling');
+      var kolommen = KOLOMMEN['Indeling'];
+      blad.clear();
+      var waarden = [kolommen].concat(uit.map(function (r) { return kolommen.map(function (k) { return r[k]; }); }));
+      blad.getRange(1, 1, waarden.length, kolommen.length).setValues(waarden);
+      opmaakKop(blad, kolommen.length);
+    }
   } finally {
     lock.releaseLock();
   }
   // Het aantal boeken per naam bijwerken in Categorieën en trefwoorden.
   vernieuwCategorieen([]);
   leegCache();
-  var tel = function (k) { return uit.filter(function (r) { return r[k]; }).length; };
-  var tekst = uit.length + ' boeken ingedeeld op titel en beschrijving: ' + tel('themas') + ' kregen een thema erbij, ' +
-    tel('categorieen') + ' een categorie, ' + tel('trefwoorden') + ' een trefwoord. Wat erbij kwam, staat in het tabblad Indeling. ' +
-    'Er werd niets weggehaald.';
-  logboek('menu', 'deelBoekenIn', tekst);
-  meld(tekst);
+  return uit;
 }
 
 /** GET: de publieke catalogus. */
@@ -4980,6 +5001,13 @@ function indelenZoekwoorden(naam, eigen) {
   var uniek = [];
   lijst.forEach(function (w) { if (w && w !== '=' && uniek.indexOf(w) === -1) uniek.push(w); });
   return uniek;
+}
+
+function indelingTekst(uit) {
+  var tel = function (k) { return uit.filter(function (r) { return r[k]; }).length; };
+  return uit.length + ' boeken en films ingedeeld op titel en beschrijving: ' + tel('themas') + ' kregen een thema erbij, ' +
+    tel('categorieen') + ' een categorie, ' + tel('trefwoorden') + ' een trefwoord. Wat erbij kwam, staat in het tabblad Indeling. ' +
+    'Er werd niets weggehaald.';
 }
 
 /**
@@ -10095,6 +10123,8 @@ function verwerkNieuweBoeken() {
 function verwerkNieuweBoekenAutomatisch() {
   // Elk uur ook even kijken of het kopiëren van de oude covers niet stilviel (zie OudeBoeken.js).
   try { waakOverOudeCovers(); } catch (e) { /* volgend uur opnieuw */ }
+  // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
+  try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
   var aantal = geefNieuweBoekenEenId();
   if (!aantal) return;
   werkOnderwerpenBij();

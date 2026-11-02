@@ -90,7 +90,7 @@
     { sleutel: 'lijst', labelSleutel: 'fLeeslijst', label: 'Leeslijst', waarden: function (b) { return b.ll || []; } /* volgorde: zie catalogus */ }
   ];
 
-  /** De filters van de pagina Films (films.html): genre, land, periode, duur, taal en aanrader. */
+  /** De filters van de pagina Films (films.html): genre, land, periode, duur, trefwoord, taal en aanrader. */
   var FILMFILTERS = [
     { sleutel: 'genre', labelSleutel: 'fGenre', label: 'Genre', waarden: function (b) { return b.g || []; }, volgorde: alfabetisch },
     { sleutel: 'land', labelSleutel: 'fLand', label: 'Land', waarden: function (b) { return b.la ? String(b.la).split(/\s*,\s*/).filter(Boolean) : []; }, volgorde: alfabetisch },
@@ -110,6 +110,7 @@
         return labels.indexOf(a) - labels.indexOf(b);
       }
     },
+    { sleutel: 'trefwoord', labelSleutel: 'fTrefwoord', label: 'Trefwoord', waarden: function (b) { return b.k || []; }, volgorde: alfabetisch },
     { sleutel: 'taal', labelSleutel: 'fTaal', label: 'Taal', waarden: function (b) { return b.l ? [b.l] : []; }, volgorde: alfabetisch },
     { sleutel: 'aanrader', labelSleutel: 'fAanrader', label: 'Aanrader', waarden: function (b) { return (b.r || []).map(function (n) { return 'Aanrader van ' + n; }); }, volgorde: alfabetisch }
   ];
