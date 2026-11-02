@@ -3239,5 +3239,23 @@ test('Titelcontrole: een lege auteur aanvullen, als Achternaam, Voornaam', () =>
   assert.strictEqual(cat[0].auteur, 'Verzonnen, Matt');
 });
 
+
+test('Titelcontrole: een verjaardageditie altijd achteraan', () => {
+  assert.strictEqual(M.controleEditieNetjes('35th Anniversary Edition of The Verzonnen'), 'The Verzonnen, 35th Anniversary Edition');
+  assert.strictEqual(M.controleEditieNetjes('The Verzonnen: 35th Anniversary Edition'), 'The Verzonnen, 35th Anniversary Edition');
+  assert.strictEqual(M.controleEditieNetjes('The Verzonnen (10th anniversary edition)'), 'The Verzonnen, 10th anniversary edition');
+  assert.strictEqual(M.controleEditieNetjes('The Verzonnen, 35th Anniversary Edition'), 'The Verzonnen, 35th Anniversary Edition');
+  assert.strictEqual(M.controleEditieNetjes('Een gewone titel'), 'Een gewone titel');
+  assert.strictEqual(M.controleTitelGelijk('The Verzonnen', '35th Anniversary Edition of The Verzonnen'), true);
+  const cat = [
+    { boek_id: 'B1', soort: 'boek', titel: 'The Verzonnen', auteur: 'Bedacht, Sarah', taal: 'Engels', bron_sleutel: 'x' },
+    { boek_id: 'B2', soort: 'boek', titel: '20th Anniversary Edition of Stille Zee', auteur: 'Bos, Kim', taal: 'Engels', bron_sleutel: 'y' }
+  ];
+  const oud = [{ id: '1', isbn: '', titel: '35th Anniversary Edition of The Verzonnen', ondertitel: '', auteur: 'Sarah Bedacht' }];
+  const verbeterd = [];
+  gelijk(M.titelcontroleRijen(cat, [], oud, [], verbeterd), []);
+  gelijk(cat.map((b) => b.titel), ['The Verzonnen, 35th Anniversary Edition', 'Stille Zee, 20th Anniversary Edition']);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

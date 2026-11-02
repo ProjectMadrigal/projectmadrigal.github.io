@@ -726,6 +726,9 @@ var CONTROLE_AUTEUR_SCHEIDING = /(\s*;\s*|\s*&\s*|\s+(?:en|and|et|und)\s+)/i;
 
 var CONTROLE_TUSSENVOEGSELS = ['van', 'de', 'der', 'den', 'het', 'ten', 'ter', 'te', 'von', 'zu', 'la', 'le', 'du', 'da', 'di', 'del', 'des', 'dos', 'el', 'al', 'bin', 'ibn', 'mc'];
 
+// Een verjaardageditie: "35th Anniversary Edition", "10th anniversary edition", "Anniversary Edition".
+var CONTROLE_EDITIE = '(?:\\d+(?:st|nd|rd|th)\\s+)?anniversary\\s+edition';
+
 // Een reeksaanduiding achter de titel: "XXX (Ype, #6)", "Zee (Verhalen #2)".
 var CONTROLE_REEKS = /^(.*?)\s*\(([^()]*?)[,;]?\s*#\s*(\d+(?:[.,]\d+)?)\)\s*$/;
 
@@ -2770,6 +2773,19 @@ function controleAuteurZonderDubbels(auteur) {
 }
 
 /**
+ * Een verjaardageditie komt altijd achter de titel, na een komma: "35th Anniversary Edition of The Latecomer" en
+ * "The Latecomer: 35th Anniversary Edition" worden "The Latecomer, 35th Anniversary Edition".
+ */
+function controleEditieNetjes(titel) {
+  var t = schoon(titel);
+  var m = t.match(new RegExp('^(' + CONTROLE_EDITIE + ')\\s+of\\s+(.+)$', 'i'));
+  if (m) return schoon(m[2]) + ', ' + schoon(m[1]);
+  m = t.match(new RegExp('^(.+?)\\s*(?:[:(]|\\s[-–—]|,)\\s*(' + CONTROLE_EDITIE + ')\\)?$', 'i'));
+  if (m) return schoon(m[1]) + ', ' + schoon(m[2]);
+  return t;
+}
+
+/**
  * Controleert alle grenzen van een actie.
  * Geeft een lijst terug met de overschreden grenzen: [{ id, naam, melding }].
  */
@@ -2826,6 +2842,8 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
   if (!rest) return '';
   // Tussen haakjes: zoals het er staat.
   if (!teken && rest.charAt(0) === '(') return nu + ' ' + rest;
+  // Een verjaardageditie: zoals ze er staat, na een komma.
+  if (new RegExp('^' + CONTROLE_EDITIE + '$', 'i').test(rest)) return nu + ', ' + rest;
   var onder = titelSchrijfwijze(rest, taal, namen || {});
   // Na een komma loopt de titel gewoon door ("Homofilie, status of stigma").
   if (teken === ',') return nu + ', ' + (titelGroot(rest) && namen && namen[rest.split(' ')[0].toLowerCase()] ? onder : onder.charAt(0).toLowerCase() + onder.slice(1));
@@ -2834,6 +2852,7 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
 
 /** Zijn twee titels gelijk? Ook als de ene een ondertitel heeft (na ":" of " - ") en de andere niet. */
 function controleTitelGelijk(a, b) {
+  a = controleEditieNetjes(a); b = controleEditieNetjes(b);
   var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
   if (!x || !y || x === y) return true;
   if (controleTitelSleutel(controleTitelKort(a)) === y || controleTitelSleutel(controleTitelKort(b)) === x) return true;
@@ -8033,7 +8052,10 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     if (!id || isLeeg(b.titel) || isFilm(b) || klaar[id]) return;
     var st = perSleutel[b.bron_sleutel];
     var oud = oudPerId[id];
-    var oudeTitel = oud ? schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : '') : '';
+    var oudeTitel = oud ? controleEditieNetjes(schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : '')) : '';
+    var stockTitel = st ? controleEditieNetjes(st.titel) : '';
+    // Een verjaardageditie altijd achteraan: "The Latecomer, 35th Anniversary Edition".
+    var nuTitel = controleEditieNetjes(b.titel);
     // Dezelfde auteur, enkel anders geschreven: meteen in de juiste vorm in de Catalogus, niet op de lijst.
     var beter = controleAuteurVerbeterd(b.auteur, [st && st.auteur, oud && oud.auteur]);
     // Voorletters voluit als een andere bron de voornaam geeft.
@@ -8042,8 +8064,9 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     beter = beter || controleAuteurAangevuld(b.auteur, [st && st.auteur, oud && oud.auteur]);
     // Dezelfde titel, met een ondertitel op de oude website: de ondertitel erbij in de Catalogus.
     // Uit de oude website, anders uit de stocklijst: een titel met ondertitel wint altijd.
-    var aangevuld = controleTitelReeks(b.titel, oudeTitel) || controleTitelReeks(b.titel, st && st.titel) ||
-      controleTitelAangevuld(b.titel, oudeTitel, b.taal, namen) || controleTitelAangevuld(b.titel, st && st.titel, b.taal, namen);
+    var aangevuld = controleTitelReeks(nuTitel, oudeTitel) || controleTitelReeks(nuTitel, stockTitel) ||
+      controleTitelAangevuld(nuTitel, oudeTitel, b.taal, namen) || controleTitelAangevuld(nuTitel, stockTitel, b.taal, namen) ||
+      (nuTitel !== schoon(b.titel) ? nuTitel : '');
     if (verbeterd && (beter || aangevuld)) {
       var velden = {};
       if (beter) velden.auteur = beter;
@@ -8053,7 +8076,7 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     }
     var nu = { titel: schoon(b.titel), auteur: schoon(b.auteur) };
     var bronnen = [nu];
-    if (st) bronnen.push({ titel: schoon(st.titel), auteur: schoon(st.auteur) });
+    if (st) bronnen.push({ titel: stockTitel, auteur: schoon(st.auteur) });
     if (oud) bronnen.push({ titel: oudeTitel, auteur: schoon(oud.auteur) });
     var anders = false;
     for (var i = 0; i < bronnen.length && !anders; i++) {
