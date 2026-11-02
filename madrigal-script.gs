@@ -792,9 +792,11 @@ var RANGWOORDEN = { eerste: 1, tweede: 2, derde: 3, vierde: 4, vijfde: 5, laatst
 
 var MAANDEN_KORT = ['jan', 'feb', 'maa', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
-var SITE_CACHE_SLEUTEL = 'site_v6'; // v6: de bookclub maar één keer in de agenda
+var SITE_CACHE_SLEUTEL = 'site_v7'; // v7: voorbije events in de agenda
 
 var SITE_MAX_NIEUWS = 3;
+
+var SITE_MAX_VOORBIJ = 20; // zoveel voorbije events kan een bezoeker openklikken
 
 var SITE_MAX_AANRADERS = 12;
 
@@ -2661,7 +2663,8 @@ function bouwSiteInhoud(staat, tabellen) {
       mail_algemeen: inst.mail_algemeen, mail_events: inst.mail_events
     },
     nieuws: nieuws,
-    agenda: { komend: komend.slice(0, 3), vorig: voorbij[0] || null },
+    // voorbij: de voorbije events, nieuwste eerst. De site toont ze ingeklapt. vorig blijft voor oudere versies van de site.
+    agenda: { komend: komend.slice(0, 3), vorig: voorbij[0] || null, voorbij: voorbij.slice(0, SITE_MAX_VOORBIJ) },
     faq: faq,
     aanraders: aanraders,
     nieuw: nieuwBinnen,

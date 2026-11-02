@@ -178,6 +178,8 @@ input.kort { max-width: 5rem; }
 .checklist .vinkje { min-height: 2.75rem; }
 .welkom .knoppen { margin-top: .5rem; }
 .meer-opties { margin-top: .5rem; }
+.voorbije-events { margin-top: 1rem; }
+.voorbije-events > .kaarten { margin-top: .75rem; }
 .meer-opties summary { cursor: pointer; min-height: 2.75rem; display: flex; align-items: center; }
 .knop.gevaar { color: var(--kleur-fout); border-color: var(--kleur-fout); }
 .briefje { border-left: .35rem solid var(--kleur-accent); }
