@@ -294,6 +294,8 @@ mark { background: var(--kleur-let-op-vlak); color: var(--kleur-tekst); text-dec
 /* Categorieën en trefwoorden bij een boek, zoals op de oude website: een categorie in geel, een thema of trefwoord in paars. */
 .label-onderwerp.categorie { color: #1B1B1C; background: #FFCD30; border-color: #FFCD30; }
 .label-onderwerp.thema { color: #FFFFFF; background: #6B3597; border-color: #6B3597; }
+/* De vaste thema's van de website (Fictie, Gender, ...): donker met geel, de derde kleur van de huisstijl. */
+.label-onderwerp.vast { color: #FFCD30; background: #1B1B1C; border-color: #FFCD30; }
 .label-trigger { color: var(--kleur-tekst); background: var(--kleur-let-op-vlak); border-color: var(--kleur-rand); font-weight: normal; }
 .triggers summary { cursor: pointer; font-weight: bold; padding: 0.25rem 0; }
 .triggers summary { list-style: none; }
@@ -302,7 +304,7 @@ mark { background: var(--kleur-let-op-vlak); color: var(--kleur-tekst); text-dec
 .triggers[open] summary::before { content: "▾\00a0"; }
 .triggers summary:focus-visible { outline: 3px solid var(--kleur-focus); outline-offset: 2px; }
 .triggers ul { margin-top: 0.5rem; }
-.label-onderwerp.categorie:hover, .label-onderwerp.thema:hover { text-decoration-thickness: 2px; }
+.label-onderwerp.categorie:hover, .label-onderwerp.thema:hover, .label-onderwerp.vast:hover { text-decoration-thickness: 2px; }
 
 
 /* ---------- Catalogus ---------- */
