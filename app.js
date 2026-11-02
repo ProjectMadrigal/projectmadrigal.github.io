@@ -232,21 +232,39 @@
 
   /* ---------- Filters ---------- */
 
+  /** De filters, één keer opgebouwd. De keuzes erin vult werkFiltersBij. */
   function bouwFilters() {
-    var opties = F.opties(staat.data.boeken, staat.data.filtergroepen, leeslijsten().map(function (l) { return l.n; }), FILTERS);
     var raster = $('filterraster');
     D.vervang(raster, FILTERS.map(function (f) {
-      if (f.sleutel === 'lijst' && !opties.lijst.length) return null;
       var id = 'filter-' + f.sleutel;
-      var select = el('select', { id: id, onchange: function () { staat.keuzes[f.sleutel] = this.value; nieuweLijst(); } },
-        el('option', { value: '' }, t('alle')),
-        opties[f.sleutel].map(function (o) {
-          var naam = f.sleutel === 'lijst' ? lijstNaam(o.waarde) : T.waarde(o.waarde);
-          return el('option', { value: o.waarde, selected: staat.keuzes[f.sleutel] === o.waarde }, naam + ' (' + o.aantal + ')');
-        }));
-      return el('div', { class: 'veld' }, el('label', { for: id }, t(f.labelSleutel) || f.label), select);
+      var select = el('select', { id: id, onchange: function () { staat.keuzes[f.sleutel] = this.value; nieuweLijst(); } });
+      return el('div', { class: 'veld', id: 'veld-' + f.sleutel }, el('label', { for: id }, t(f.labelSleutel) || f.label), select);
     }));
     $('filter-beschikbaar').checked = staat.keuzes.beschikbaar;
+    werkFiltersBij();
+  }
+
+  /**
+   * Vult de keuzes van elke filter, rekening houdend met de zoekterm en de andere filters: zo kan je
+   * filters samen gebruiken (bv. Thema Biografie, Categorie Sport en Trefwoord Lesbisch) en zie je
+   * enkel wat nog boeken oplevert. De keuzelijsten blijven staan, dus ook de focus.
+   */
+  function werkFiltersBij() {
+    if (!staat.data) return;
+    var gevonden = Z.zoek(staat.index, staat.keuzes.q).map(function (r) { return r.boek; });
+    if (staat.keuzes.beschikbaar) gevonden = gevonden.filter(function (b) { return b.b && b.b.c === 'beschikbaar'; });
+    var opties = F.optiesSamen(gevonden, staat.keuzes, leeslijsten().map(function (l) { return l.n; }), FILTERS);
+    FILTERS.forEach(function (f) {
+      var select = $('filter-' + f.sleutel);
+      if (!select) return;
+      // De leeslijsten enkel als er zijn.
+      $('veld-' + f.sleutel).hidden = f.sleutel === 'lijst' && !opties.lijst.length && !staat.keuzes.lijst;
+      D.vervang(select, [el('option', { value: '' }, t('alle'))].concat(opties[f.sleutel].map(function (o) {
+        var naam = f.sleutel === 'lijst' ? lijstNaam(o.waarde) : T.waarde(o.waarde);
+        return el('option', { value: o.waarde, selected: staat.keuzes[f.sleutel] === o.waarde }, naam + ' (' + o.aantal + ')');
+      })));
+      select.value = staat.keuzes[f.sleutel] || '';
+    });
   }
 
   function zetFormulier() {
@@ -297,6 +315,7 @@
       : (n === 1 ? t('gevonden1' + v) : t('gevondenN' + v, { n: n })) + (paginas > 1 ? t('paginaVan', { nu: nu, totaal: paginas }) : '');
     tekenPaginas(nu, paginas);
     toonLijstKop();
+    werkFiltersBij();
     var actief = aantalActieveFilters();
     $('filter-teller').textContent = actief ? t('filtersActief', { n: actief }) : '';
   }

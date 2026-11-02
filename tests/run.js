@@ -3510,6 +3510,22 @@ test('genres opkuisen: vaste namen (Intersekse, Religie en Spiritualiteit, Young
 });
 
 
+test('filters samen: elke keuzelijst toont enkel wat met de andere filters nog boeken geeft', () => {
+  const boeken = [
+    { id: 'a', g: ['Biografie'], ca: ['Sport'], k: ['Lesbisch'] },
+    { id: 'b', g: ['Biografie'], ca: ['Roman'], k: ['Lesbisch'] },
+    { id: 'c', g: ['Fictie'], ca: ['Sport'], k: ['Trans'] }
+  ];
+  const keuzes = { groep: 'Biografie', categorie: 'Sport', trefwoord: 'Lesbisch' };
+  gelijk(F.pasToe(boeken, keuzes).map((b) => b.id), ['a']);
+  const o = F.optiesSamen(boeken, { groep: 'Biografie' });
+  gelijk(o.categorie.map((x) => x.waarde + x.aantal), ['Roman1', 'Sport1']);
+  gelijk(o.trefwoord.map((x) => x.waarde + x.aantal), ['Lesbisch2']);
+  gelijk(o.groep.map((x) => x.waarde + x.aantal), ['Biografie2', 'Fictie1'], 'de eigen filter telt zonder zichzelf');
+  // Een gekozen waarde die niets meer geeft, blijft zichtbaar (met 0).
+  gelijk(F.optiesSamen(boeken, { groep: 'Fictie', trefwoord: 'Lesbisch' }).trefwoord.map((x) => x.waarde + x.aantal), ['Lesbisch0', 'Trans1']);
+});
+
 test('dikte: vier groepen op het aantal pagina\'s, in vaste volgorde', () => {
   gelijk([0, 40, 80, 90, 150, 151, 300, 450, 501, ''].map(F.dikteVan), ['', 'Heel dun (tot 80 bladzijden)', 'Heel dun (tot 80 bladzijden)', 'Dun (80 tot 150 bladzijden)', 'Dun (80 tot 150 bladzijden)', 'Gemiddeld (150 tot 300 bladzijden)', 'Gemiddeld (150 tot 300 bladzijden)', 'Dik (300 tot 500 bladzijden)', 'Heel dik (meer dan 500 bladzijden)', '']);
   gelijk([0, 45, 60, 61, 90, 110, 121, ''].map(F.duurVan), ['', 'Kort (tot 60 minuten)', 'Kort (tot 60 minuten)', 'Gemiddeld (60 tot 90 minuten)', 'Gemiddeld (60 tot 90 minuten)', 'Lang (90 tot 120 minuten)', 'Heel lang (meer dan 120 minuten)', '']);
