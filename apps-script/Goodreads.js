@@ -168,6 +168,7 @@ function vulAanUitGoodreads(stil) {
     var nieuw = voegNaTeKijkenToe(naTeKijken.rijen, resultaat.naTeKijken, 'Goodreads', vandaagTekst());
     bewaarTabel(catalogus);
     schrijfVolledig(naTeKijken);
+    naTeKijkenNieuwsteBoven();
     leegCache();
     logboek('menu', 'vulAanUitGoodreads', resultaat.aanvullingen.length + ' velden aangevuld, ' + nieuw + ' na te kijken');
     if (!stil) meld(goodreads.length + ' boeken van Goodreads gebruikt' + (shelf ? ' (shelf "' + shelf + '")' : '') + '. ' +
