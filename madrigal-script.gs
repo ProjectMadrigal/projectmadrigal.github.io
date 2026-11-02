@@ -721,6 +721,8 @@ var TITELCONTROLE_TABBLAD = 'Titelcontrole';
 
 var TITELCONTROLE_STATUSSEN = ['klopt', 'aangepast', 'niet in de kast'];
 
+var CONTROLE_EN_WOORDEN = ['and', 'en', 'et', 'und'];
+
 // Tussen twee auteurs: ; of & of "en" (and, et, und). Een komma hoort bij "Achternaam, Voornaam".
 var CONTROLE_AUTEUR_SCHEIDING = /(\s*;\s*|\s*&\s*|\s+(?:en|and|et|und)\s+)/i;
 
@@ -2875,14 +2877,21 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
 }
 
 /**
- * Is de hoofdtitel dezelfde, of bijna (een tikfout van hoogstens twee letters, evenveel woorden)? "Amarican Homo"
- * en "American Homo". Dan mag de ondertitel erbij. De tikfout zelf blijft een verschil op de lijst.
+ * Is de hoofdtitel dezelfde, of bijna? Een tikfout van hoogstens twee letters ("Amarican Homo" en "American Homo"),
+ * een spatie meer of minder ("Goden zonen" en "Godenzonen"), & of and, of een lidwoord vooraan dat ontbreekt.
+ * Dan mag de ondertitel erbij. Een tikfout of spatie zelf blijft een verschil op de lijst.
  */
 function controleTitelBijna(a, b) {
   var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
   if (!x || !y) return false;
   if (x === y) return true;
-  return x.split(' ').length === y.split(' ').length && Math.min(x.length, y.length) >= 6 && levenshtein(x, y) <= 2;
+  // Een lidwoord vooraan dat bij de ene bron ontbreekt: "Well of Loneliness" en "The Well of Loneliness".
+  var zonder = function (t) { return t.replace(/^(the|a|an|de|het|een|le|la|les|l|der|die|das|el|il)\s+/, ''); };
+  if (zonder(x) === zonder(y)) return true;
+  // Een spatie meer of minder ("Goden zonen" en "Godenzonen"), of een tikfout van hoogstens twee letters.
+  var xs = zonder(x).replace(/ /g, ''), ys = zonder(y).replace(/ /g, '');
+  if (xs === ys) return true;
+  return Math.min(xs.length, ys.length) >= 6 && levenshtein(xs, ys) <= 2;
 }
 
 /** Zijn twee titels gelijk? Ook als de ene een ondertitel heeft (na ":" of " - ") en de andere niet. */
@@ -2915,7 +2924,10 @@ function controleTitelReeks(nu, ander) {
 
 /** Sleutel om titels te vergelijken: enkel letters en cijfers, in kleine letters. */
 function controleTitelSleutel(titel) {
-  return normaliseerTekst(titel);
+  // "&" en "and" (en, et, und) zijn hetzelfde: "Ethics & Homosexuality" = "Ethics and Homosexuality".
+  return normaliseerTekst(String(titel || '').replace(/&/g, ' ')).split(' ').filter(function (w) {
+    return w && CONTROLE_EN_WOORDEN.indexOf(w) === -1;
+  }).join(' ');
 }
 
 /** De woorden van een tekst, elk één keer, alfabetisch. */

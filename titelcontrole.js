@@ -177,7 +177,8 @@
       var nuWoorden = Z.normaliseer(nuTekst).split(' ');
       return String(tekst || '').split(/(\s+)/).map(function (w) {
         var k = Z.normaliseer(w);
-        return k && k.split(' ').some(function (d) { return nuWoorden.indexOf(d) === -1; }) ? el('mark', {}, w) : w;
+        // "&" en "and" (en, et, und) tellen niet als verschil.
+        return k && k.split(' ').some(function (d) { return nuWoorden.indexOf(d) === -1 && ['and', 'en', 'et', 'und'].indexOf(d) === -1; }) ? el('mark', {}, w) : w;
       });
     }
     function cel(tekst, anders, knop) {

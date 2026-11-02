@@ -3281,5 +3281,19 @@ test('Titelcontrole: de ondertitel komt erbij, ook bij een tikfout in de hoofdti
   gelijk(rijen.map((r) => [r.boek_id, r.titel_nu, r.titel_oud]), [['B1', 'Amarican Verzonnen: Community and Perversity', 'American Verzonnen: Community and Perversity']]);
 });
 
+
+test('Titelcontrole: & en and zijn hetzelfde, ook bij het aanvullen van de ondertitel', () => {
+  assert.strictEqual(M.controleTitelGelijk('Verzonnen Ethics & Mira', 'Verzonnen Ethics and Mira'), true);
+  assert.strictEqual(M.controleTitelGelijk('Zon & zee', 'Zon en zee'), true);
+  assert.strictEqual(M.controleTitelAangevuld('Verzonnen Ethics & Mira', 'Verzonnen Ethics and Mira: Listening to Scripture', 'Engels', {}), 'Verzonnen Ethics & Mira: Listening to Scripture');
+  assert.strictEqual(M.controleTitelAangevuld('Well of Verzonnen', 'The Well of Verzonnen: A Novel', 'Engels', {}), 'Well of Verzonnen: A Novel', 'een lidwoord vooraan');
+  assert.strictEqual(M.controleTitelAangevuld('Goden zonen', 'Godenzonen: verhalen over mannen', 'Nederlands', {}), 'Goden zonen: Verhalen over mannen', 'een spatie meer');
+  assert.strictEqual(M.controleTitelGelijk('Goden zonen: Verhalen over mannen', 'Godenzonen: verhalen over mannen'), false, 'de spatie blijft een verschil op de lijst');
+  const cat = [{ boek_id: 'B1', soort: 'boek', titel: 'Verzonnen Ethics & Mira', auteur: 'Bedacht, Rob L.', taal: 'Engels', bron_sleutel: 'x' }];
+  const oud = [{ id: '1', isbn: '', titel: 'Verzonnen Ethics and Mira: Listening to Scripture', ondertitel: '', auteur: 'Rob L. Bedacht' }];
+  gelijk(M.titelcontroleRijen(cat, [], oud, [], []), [], 'enkel & tegenover and en een ondertitel: niet op de lijst');
+  assert.strictEqual(cat[0].titel, 'Verzonnen Ethics & Mira: Listening to Scripture');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
