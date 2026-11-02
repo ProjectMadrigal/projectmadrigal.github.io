@@ -1949,6 +1949,16 @@ test('oude website: delen van een reeks, dubbel in de catalogus of op de oude we
   gelijk(uit.nietGevonden.map((b) => b.titel), ['Ladies Almanack'], 'Twee oude boeken voor een vrij boek: geen gok');
 });
 
+test('oude website: ISBN-10 telt, en verborgen boeken die niet gevonden worden komen niet in Na te kijken', () => {
+  const b = M.oudBoekUitRij({ id: 1, title: 'X', isbn13: '', isbn10: '0-306-40615-2', hidden: true }, 'https://x');
+  gelijk([b.isbn, b.verborgen], ['9780306406157', true]);
+  const catalogus = [{ boek_id: 'B0001', titel: 'Iets heel anders', auteur: 'Fictief, Kim', isbn: '9780306406157' }];
+  const oud = [Object.assign(M.oudBoekUitRij({ id: 1, title: 'Andere titel', isbn10: '0306406152', description: 'Tekst.' }, 'https://x')),
+    M.oudBoekUitRij({ id: 2, title: 'Weg uit de bib', hidden: true }, 'https://x'), M.oudBoekUitRij({ id: 3, title: 'Niet verborgen' }, 'https://x')];
+  const uit = M.oudeBoekenToepassen(catalogus, oud, { beschrijving: {}, cover: {} });
+  gelijk([catalogus[0].beschrijving, uit.verborgen, uit.nietGevonden.map((x) => x.titel)], ['Tekst.', 1, ['Niet verborgen']]);
+});
+
 console.log('\nAankooplijst');
 test('aankooplijst: voorstellen, dubbels, al in de catalogus en afvinken als binnen', () => {
   const catalogus = [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Verzonnen, Vera', isbn: '9780306406157' }];
