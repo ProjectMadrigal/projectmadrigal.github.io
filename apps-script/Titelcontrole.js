@@ -9,8 +9,11 @@
  *     de andere niet staat, tellen niet.
  *   - Een auteur die enkel anders geschreven is, zet het script meteen in de juiste vorm in de Catalogus:
  *     "Achternaam, Voornaam" (de vorm uit de stocklijst of de oude website), elke naam één keer.
- *   - Heeft de oude website dezelfde titel met een ondertitel, dan komt die ondertitel erbij: "Titel: Ondertitel".
+ *   - Heeft de oude website (of de stocklijst) dezelfde titel met een ondertitel, dan komt die ondertitel erbij:
+ *     "Titel: Ondertitel". Een titel met ondertitel wint altijd: een bron zonder ondertitel is geen verschil.
  *   - Een naam die volledig in een andere naam zit ("Aurora" en "Aurora Staff"), is geen verschil.
+ *   - De vorm "Achternaam, Voornaam" wint altijd: een auteur zonder die vorm telt niet als verschil met een auteur
+ *     die wel in die vorm staat.
  *   - De lijst staat in het tabblad Titelcontrole. In het bestuurs- en vrijwilligersscherm (Titels en auteurs
  *     nakijken) neem je de boeken een voor een door, kast per kast: een versie kiezen, zelf typen, "klopt" of
  *     "niet in de kast".
@@ -145,7 +148,10 @@ function controleTitelAangevuld(nu, ander, taal, namen) {
  */
 function controleAuteurGelijk(a, b) {
   var x = controleAuteurSleutel(a), y = controleAuteurSleutel(b);
-  return !x || !y || x === y || controleNamenIn(a, b) || controleNamenIn(b, a);
+  if (!x || !y || x === y || controleNamenIn(a, b) || controleNamenIn(b, a)) return true;
+  // De vorm "Achternaam, Voornaam" wint altijd: een bron die niet in die vorm staat ("Aaron William"),
+  // telt niet als verschil met een bron die wel in die vorm staat ("Aaron, Willem").
+  return controleAuteurGoedeVorm(a) !== controleAuteurGoedeVorm(b);
 }
 
 /**
@@ -173,7 +179,8 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     // Dezelfde auteur, enkel anders geschreven: meteen in de juiste vorm in de Catalogus, niet op de lijst.
     var beter = controleAuteurVerbeterd(b.auteur, [st && st.auteur, oud && oud.auteur]);
     // Dezelfde titel, met een ondertitel op de oude website: de ondertitel erbij in de Catalogus.
-    var aangevuld = controleTitelAangevuld(b.titel, oudeTitel, b.taal, namen);
+    // Uit de oude website, anders uit de stocklijst: een titel met ondertitel wint altijd.
+    var aangevuld = controleTitelAangevuld(b.titel, oudeTitel, b.taal, namen) || controleTitelAangevuld(b.titel, st && st.titel, b.taal, namen);
     if (verbeterd && (beter || aangevuld)) {
       var velden = {};
       if (beter) velden.auteur = beter;

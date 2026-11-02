@@ -44,6 +44,12 @@
   // Tussen titel en ondertitel: een dubbelpunt, een streepje met spaties, of een punt gevolgd door meer tekst.
   var ONDERTITEL = /\s*:\s*|\s+[-–—]\s+|\.\s+(?=\S)/;
   function sleutel(t) { return Z.normaliseer(t).split(' ').filter(function (w, i, alle) { return w && alle.indexOf(w) === i; }).sort().join(' '); }
+  /** Staat elke naam in de vorm "Achternaam, Voornaam"? (Een naam uit één woord telt als goed.) Zoals in Titelcontrole.js. */
+  function goedeVorm(auteur) {
+    var delen = String(auteur || '').split(SCHEIDING).filter(function (d, i) { return !(i % 2) && d.trim(); });
+    return delen.length > 0 && delen.every(function (d) { return d.indexOf(',') > -1 || d.trim().split(/\s+/).length === 1; });
+  }
+
   /** De namen in een veld, elk als sleutel, zonder dubbels. */
   function namen(auteur) {
     var uit = [];
@@ -161,7 +167,9 @@
       };
       var in_ = function (p, q) { return p.length > 0 && p.every(function (k) { return q.some(function (m) { return zelfde(k, m); }); }); };
       // Minder namen bij de ene bron, maar allemaal ook bij de andere: geen verschil.
-      return in_(na, nb) || in_(nb, na);
+      if (in_(na, nb) || in_(nb, na)) return true;
+      // De vorm "Achternaam, Voornaam" wint altijd: een bron zonder die vorm telt niet tegen een bron met die vorm.
+      return goedeVorm(a) !== goedeVorm(b);
     }
     function cel(tekst, anders, knop) {
       return el('td', {}, tekst || '–', anders ? [' ', D.statusLabel('anders', 'anders')] : null, knop ? [el('br'), knop] : null);
