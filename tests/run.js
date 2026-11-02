@@ -2100,6 +2100,21 @@ test('beschrijving op titel en auteur: wanneer, en enkel hetzelfde boek', () => 
   assert.ok(decodeURIComponent(M.googleBooksTitelUrl(boek, '')).indexOf('intitle:"de verzonnen zee" inauthor:verbeek') > -1);
 });
 
+test('covers op titel en auteur bij Google Books: wanneer, en enkel hetzelfde boek', () => {
+  const nodig = (b) => M.heeftGoogleTitelNodig(Object.assign({ titel: 'De verzonnen zee', auteur: 'Verbeek, Mira' }, b));
+  gelijk([
+    nodig({ isbn: '' }), nodig({ isbn: '9780306406157' }), nodig({ isbn: '9780306406157', gb_gecontroleerd: '2026-10-24' }),
+    nodig({ isbn: '', gb_gecontroleerd: 'TA 20261102' }), nodig({ cover_url: 'https://x/c.jpg' }), nodig({ soort: 'film' })
+  ], [true, false, true, false, false, false]);
+  const boek = { titel: 'De verzonnen zee', auteur: 'Verbeek, Mira', beschrijving: '' };
+  const items = [
+    { volumeInfo: { title: 'De verzonnen zee', authors: ['Kim Ander'], imageLinks: { thumbnail: 'http://x/fout.jpg' } } },
+    { volumeInfo: { title: 'De verzonnen zee', authors: ['Mira Verbeek'], description: 'Juist.', publishedDate: '1999', imageLinks: { thumbnail: 'http://x/juist.jpg&edge=curl' } } }
+  ];
+  gelijk(M.googleTitelVelden(boek, items), { cover_url: 'https://x/juist.jpg', cover_bron: 'titel en auteur (Google Books)', beschrijving: 'Juist.' });
+  gelijk(M.googleTitelVelden(boek, items.slice(0, 1)), {});
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);

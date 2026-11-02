@@ -2,6 +2,8 @@
  * GoogleBooks.js
  * Tweede bron, na Open Library: zoekt via de gratis Google Books-API een cover
  * (en wat dan nog ontbreekt) voor boeken met een ISBN die nog geen cover hebben.
+ * Daarna een tweede ronde op titel en auteur, voor boeken zonder ISBN of waar het ISBN niets gaf
+ * (cover_bron: titel en auteur (Google Books), gb_gecontroleerd: "TA" + de datum).
  *
  *   - Enkel lege velden worden aangevuld. Een cover-link die je zelf in
  *     cover_url zette, blijft altijd staan.
@@ -17,6 +19,43 @@
 var GB_PAUZE_MS = 400;
 var GB_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
 var GB_TALEN = { nl: 'Nederlands', en: 'Engels', fr: 'Frans', de: 'Duits', es: 'Spaans', it: 'Italiaans', pt: 'Portugees' };
+
+var GB_OP_TITEL = 'TA ';
+var GB_TITEL_BRON = 'titel en auteur (Google Books)';
+
+/**
+ * Tweede ronde: een boek zonder cover dat op ISBN niets opleverde, of dat geen ISBN heeft.
+ * gb_gecontroleerd krijgt daarna "TA" + de datum. Films niet.
+ */
+function heeftGoogleTitelNodig(boek) {
+  if (!isLeeg(boek.cover_url) || isLeeg(boek.titel) || isFilm(boek)) return false;
+  var gezocht = String(boek.gb_gecontroleerd || '');
+  if (gezocht.indexOf(GB_OP_TITEL) === 0) return false;
+  return !/^\d{13}$/.test(String(boek.isbn || '')) || !isLeeg(gezocht);
+}
+
+/**
+ * Uit de resultaten op titel en auteur: de cover (en beschrijving als die ontbreekt) van een uitgave die
+ * hetzelfde boek is (zelfdeBoek: titel en achternaam). Jaartal, uitgeverij en pagina's nemen we niet over:
+ * die horen bij een andere uitgave. Geeft de velden, of {}.
+ */
+function googleTitelVelden(boek, items) {
+  var juist = (items || []).filter(function (it) { return zelfdeBoek(it.volumeInfo || {}, boek); });
+  var v = {};
+  juist.some(function (it) {
+    var links = it.volumeInfo.imageLinks || {};
+    var cover = links.thumbnail || links.smallThumbnail;
+    if (!cover) return false;
+    v.cover_url = String(cover).replace(/^http:/, 'https:').replace(/&edge=curl/, '');
+    v.cover_bron = GB_TITEL_BRON;
+    return true;
+  });
+  if (isLeeg(boek.beschrijving)) {
+    var tekst = beschrijvingUitItems(juist, boek);
+    if (tekst) v.beschrijving = tekst;
+  }
+  return v;
+}
 
 /** Heeft dit boek nog een cover nodig van Google Books? */
 function heeftGoogleBooksNodig(boek) {
@@ -192,7 +231,7 @@ function vulAanUitGoogleBooks() {
     meldAlBezig('vulAanUitGoogleBooks');
     return;
   }
-  var verwerkt = 0, aangevuld = 0, rest = 0, limiet = false, fout = '', gekend = 0, storing = false, verdacht = false, vreemd = false;
+  var verwerkt = 0, aangevuld = 0, opTitelGevonden = 0, rest = 0, limiet = false, fout = '', gekend = 0, storing = false, verdacht = false, vreemd = false;
   var gedaan = [];
   try {
     var sleutel = leesInstellingen().google_books_api_key;
@@ -237,8 +276,26 @@ function vulAanUitGoogleBooks() {
       if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
       Utilities.sleep(GB_PAUZE_MS);
     }
+    // Tweede ronde: op titel en auteur, voor boeken zonder ISBN of waar het ISBN niets gaf.
+    if (!limiet && !storing && !verdacht) {
+      var opTitel = tabel.rijen.filter(heeftGoogleTitelNodig);
+      for (var j = 0; j < opTitel.length; j++) {
+        if (Date.now() - start > GB_MAX_LOOPTIJD_MS) break;
+        var b = opTitel[j];
+        var g = googleBooksVraag(googleBooksTitelUrl(b, sleutel)); // zie Beschrijvingen.js
+        if (g.limiet || g.code === 403 || g.code === 400) { limiet = true; fout = g.fout; break; }
+        if (g.code >= 500) { storing = true; fout = g.fout; break; }
+        var v = googleTitelVelden(b, g.items);
+        if (v.cover_url) { aangevuld++; opTitelGevonden++; }
+        v.gb_gecontroleerd = GB_OP_TITEL + vandaag.replace(/-/g, '');
+        wijzig(b, v);
+        verwerkt++;
+        if (verwerkt % 25 === 0) bewaarAchtergrond(tabel);
+        Utilities.sleep(GB_PAUZE_MS);
+      }
+    }
     bewaarAchtergrond(tabel);
-    rest = tabel.rijen.filter(heeftGoogleBooksNodig).length;
+    rest = tabel.rijen.filter(function (x) { return heeftGoogleBooksNodig(x) || heeftGoogleTitelNodig(x); }).length;
   } finally {
     stopAchtergrond('vulAanUitGoogleBooks');
   }
@@ -262,7 +319,7 @@ function vulAanUitGoogleBooks() {
   }
   if (aangevuld) leegCache();
   var reden = googleRondeReden(limiet, storing, fout, rest);
-  logboek('menu', 'vulAanUitGoogleBooks', verwerkt + ' opgevraagd, ' + gekend + ' gekend bij Google, ' + aangevuld + ' covers gevonden, ' + rest + ' te gaan' + reden + (fout ? '. Google meldt: ' + fout : '') + (sleutel ? '' : '. Er staat geen google_books_api_key in Instellingen.'));
+  logboek('menu', 'vulAanUitGoogleBooks', verwerkt + ' opgevraagd, ' + gekend + ' gekend bij Google, ' + aangevuld + ' covers gevonden (waarvan ' + opTitelGevonden + ' op titel en auteur), ' + rest + ' te gaan' + reden + (fout ? '. Google meldt: ' + fout : '') + (sleutel ? '' : '. Er staat geen google_books_api_key in Instellingen.'));
   var tekst = verwerkt + ' boeken opgevraagd bij Google Books, ' + aangevuld + ' covers gevonden.';
   if (rest > 0) tekst += limiet ? ' De daglimiet van Google is bereikt: het script gaat vanzelf verder als Google ze terugzet, rond 9 uur in de ochtend.'
     : storing ? ' Google heeft een storing: het script gaat over 15 minuten vanzelf verder.'
