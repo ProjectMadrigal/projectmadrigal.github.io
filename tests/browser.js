@@ -341,9 +341,33 @@ async function meldAan(page, basis, pagina) {
   await test('startpagina: een e-mailadres in de tekst van een event is een link', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, {});
     await page.goto(basis + '/index.html');
+    // Het tweede event staat kort: eerst openklikken.
+    await page.waitForSelector('#agenda details.event-kort summary');
+    await page.click('#agenda details.event-kort summary >> nth=0');
     await page.waitForSelector('#agenda a[href="mailto:info@voorbeeld.test"]');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
+  });
+
+  await test('startpagina: het volgende event volledig, de rest kort; het nieuws vult aan naast de agenda', async () => {
+    const site = JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/site.json')));
+    site.nieuws = Array.from({ length: 6 }, (_, i) => ({ datum: '2026-10-' + String(20 - i).padStart(2, '0'), titel: { nl: 'Verzonnen bericht ' + (i + 1), en: 'Made-up post ' + (i + 1) }, tekst: { nl: 'Korte tekst.', en: 'Short text.' }, afbeelding: '', link: '' }));
+    site.agenda.komend = Array.from({ length: 3 }, (_, i) => ({ datum: '2027-0' + (i + 1) + '-10', uur: '19:00', titel: { nl: 'Verzonnen event ' + (i + 1), en: 'Made-up event ' + (i + 1) }, tekst: { nl: 'Een lange verzonnen uitleg. '.repeat(40), en: 'A long made-up text. '.repeat(40) }, locatie: 'Bib', afbeelding: '', link: '' }));
+    for (const [breed, hoog] of [[1400, 900], [390, 800]]) {
+      const { ctx, page, fouten } = await nieuweContext(browser, {});
+      await page.setViewportSize({ width: breed, height: hoog });
+      await page.route('**/voorbeeld/site.json', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(site) }));
+      await page.goto(basis + '/index.html');
+      await page.waitForSelector('#agenda details.event-kort');
+      verwacht((await page.$$('#agenda > article')).length === 1 && (await page.$$('#agenda > details.event-kort')).length === 2, 'Een volledige kaart en twee korte');
+      const zichtbaar = (await page.$$eval('#nieuws > article', (a) => a.filter((x) => !x.hidden).length));
+      const h = await page.evaluate(() => [document.getElementById('nieuws-sectie').offsetHeight, document.getElementById('agenda').closest('section').offsetHeight]);
+      if (breed > 1000) verwacht(zichtbaar > 3 && zichtbaar <= 6 && h[0] <= h[1], 'Groot scherm: ' + zichtbaar + ' berichten, hoogte ' + h.join(' / '));
+      else verwacht(zichtbaar === 3, 'Gsm: ' + zichtbaar + ' berichten');
+      verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+      await ctx.close();
+      verwacht(!fouten.length, fouten.join(' | '));
+    }
   });
 
   await test('startpagina: voorbije events ingeklapt, een bezoeker kan ze openklikken', async () => {

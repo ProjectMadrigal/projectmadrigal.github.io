@@ -112,6 +112,33 @@
         } }, T.t('inMijnAgenda'))) : null));
   }
 
+  /** Een event kort: datum en titel. Wie erop klikt, ziet de volledige kaart. */
+  function eventKort(e) {
+    return el('details', { class: 'event-kort' },
+      el('summary', null, el('span', { class: 'event-kort-datum' }, T.datum(e.datum) + (e.uur ? ', ' + e.uur : '')), el('span', { class: 'event-kort-titel' }, tt(e.titel))),
+      eventKaart(e, ''));
+  }
+
+  var NIEUWS_MIN = 3;
+
+  /**
+   * Op een groot scherm staan nieuws en agenda naast elkaar. Is de agenda hoger, dan komen er nieuwsberichten bij
+   * (de web-app stuurt er tot 6), zolang het nieuws niet hoger wordt dan de agenda. Zo blijft er geen leeg vlak.
+   */
+  function vulNieuwsAan() {
+    var nieuws = $('nieuws-sectie'), agenda = $('agenda') && $('agenda').closest('section');
+    if (!nieuws || !agenda) return;
+    var kaarten = Array.prototype.slice.call($('nieuws').children);
+    kaarten.forEach(function (k, i) { if (i >= NIEUWS_MIN) k.hidden = true; });
+    if (nieuws.hidden || nieuws.offsetTop !== agenda.offsetTop) return; // onder elkaar (gsm): enkel de eerste 3
+    for (var i = NIEUWS_MIN; i < kaarten.length; i++) {
+      kaarten[i].hidden = false;
+      if (nieuws.offsetHeight > agenda.offsetHeight) { kaarten[i].hidden = true; break; }
+    }
+  }
+  var vulTimer = null;
+  window.addEventListener('resize', function () { clearTimeout(vulTimer); vulTimer = setTimeout(vulNieuwsAan, 200); });
+
   /** De datum van vandaag als "JJJJ-MM-DD", in de tijdzone van de bezoeker. */
   function vandaag() {
     var d = new Date();
@@ -168,19 +195,22 @@
 
     var nieuws = data.nieuws || [];
     $('nieuws-sectie').hidden = !nieuws.length;
-    D.vervang($('nieuws'), nieuws.map(nieuwsKaart));
+    // Eerst 3 berichten. De rest komt erbij zolang het nieuws naast de agenda past (zie vulNieuwsAan).
+    D.vervang($('nieuws'), nieuws.map(function (n, i) { var k = nieuwsKaart(n); if (i >= NIEUWS_MIN) k.hidden = true; return k; }));
 
     var ag = data.agenda || {};
-    var kaarten = (ag.komend || []).map(function (e, i) { return eventKaart(e, i === 0 ? T.t('volgendEvent') : ''); });
+    // Het volgende event als volledige kaart, de andere kort (datum en titel) om open te klikken.
+    var kaarten = (ag.komend || []).map(function (e, i) { return i === 0 ? eventKaart(e, T.t('volgendEvent')) : eventKort(e); });
     if (!kaarten.length) kaarten.push(el('p', null, T.t('geenEvents')));
     // Voorbije events: ingeklapt, een bezoeker kan ze openklikken. Een oudere web-app stuurt enkel het vorige event.
     var voorbij = (ag.voorbij || (ag.vorig ? [ag.vorig] : [])).filter(function (e) { return e.datum < vandaag(); });
     if (voorbij.length) {
       kaarten.push(el('details', { class: 'voorbije-events' },
         el('summary', null, T.t('voorbijeEvents', { aantal: voorbij.length })),
-        el('div', { class: 'kaarten' }, voorbij.map(function (e) { return eventKaart(e, ''); }))));
+        el('div', { class: 'kaarten' }, voorbij.map(eventKort))));
     }
     D.vervang($('agenda'), kaarten);
+    vulNieuwsAan();
 
     // Nieuw binnen: een eigen lijst van de web-app. Oudere versies van het script
     // stuurden die nog niet mee: dan de boeken met het kenmerk "nieuw" uit de aanraders.
