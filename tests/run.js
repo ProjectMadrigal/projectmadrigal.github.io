@@ -3019,5 +3019,64 @@ test('bewaarAchtergrond: kolom per kolom in één keer, andere cellen blijven zo
   assert.ok(cellen[1][3] instanceof Date || Object.prototype.toString.call(cellen[1][3]) === '[object Date]', 'een datum blijft een datum');
 });
 
+
+test('Titelcontrole: gelijk of echt anders', () => {
+  assert.strictEqual(M.controleTitelGelijk('Het Portret', 'het portret!'), true, 'hoofdletters en leestekens tellen niet');
+  assert.strictEqual(M.controleTitelGelijk('Zomer: verhalen', 'Zomer'), true, 'een ondertitel erbij telt niet');
+  assert.strictEqual(M.controleTitelGelijk('Zomer - verhalen', 'Zomer'), true);
+  assert.strictEqual(M.controleTitelGelijk("Mira's Room", 'Miras Room'), false, 'een letter anders telt');
+  assert.strictEqual(M.controleTitelGelijk('Zomer: verhalen', 'Zomer: gedichten'), false, 'een andere ondertitel telt');
+  assert.strictEqual(M.controleAuteurGelijk('Verzonnen, Fien', 'Fien Verzonnen'), true, 'volgorde van de namen telt niet');
+  assert.strictEqual(M.controleAuteurGelijk('Fien Verzonnen & Kim Bedacht', 'Kim Bedacht en Fien Verzonnen'), true);
+  assert.strictEqual(M.controleAuteurGelijk('Fien Verzonen', 'Fien Verzonnen'), false);
+  assert.strictEqual(M.controleAuteurGelijk('', 'Fien Verzonnen'), true, 'een lege auteur is geen verschil');
+});
+
+test('Titelcontrole: lijst maken uit stock, oude website en Catalogus', () => {
+  const stock = [
+    { soort: 'boek', isbn: '9780000000011', titel: "Mira's Room", auteur: 'Verzonnen, Fien' },
+    { soort: 'boek', isbn: '9780000000028', titel: 'De blauwe kamer', auteur: 'Bedacht, Kim' },
+    { soort: 'boek', isbn: '9780000000035', titel: 'Zomer', auteur: 'Uitvinder, Sam' }
+  ];
+  const cat = stock.map((b, i) => ({ boek_id: 'B' + (i + 1), soort: 'boek', isbn: b.isbn, titel: b.titel, auteur: b.auteur, bron_sleutel: M.bronSleutel(b) }));
+  cat[0].titel = 'Miras Room';           // fout overgetypt
+  cat[2].titel = 'Zomer: verhalen';      // enkel een ondertitel erbij
+  cat.push({ boek_id: 'B4', soort: 'boek', titel: 'Los boek', auteur: 'Iemand, Jo', bron_sleutel: 'boek:ta:los' });
+  const oud = [
+    { id: '1', isbn: '9780000000028', titel: 'De blauwe kamer', ondertitel: '', auteur: 'Kim Bedagt' },
+    { id: '2', isbn: '9780000000035', titel: 'Zomer', ondertitel: 'verhalen', auteur: 'Sam Uitvinder' }
+  ];
+  const rijen = M.titelcontroleRijen(cat, stock, oud, []);
+  gelijk(rijen.map((r) => [r.boek_id, r.titel_nu, r.titel_stock, r.titel_oud, r.auteur_oud]), [
+    ['B1', 'Miras Room', "Mira's Room", '', ''],
+    ['B2', 'De blauwe kamer', 'De blauwe kamer', 'De blauwe kamer', 'Kim Bedagt']
+  ]);
+  gelijk(M.titelcontroleRijen(cat, stock, oud, [{ boek_id: 'B1', status: 'klopt' }]).map((r) => r.boek_id), ['B2'], 'wat nagekeken is, komt niet terug');
+});
+
+test('Titelcontrole: kiezen, aanpassen, niet in de kast', () => {
+  const cat = [{ boek_id: 'B1', titel: 'Miras Room', auteur: 'Verzonnen, Fien', bron_sleutel: 'boek:isbn:1' }, { boek_id: 'B2', titel: 'Zee', auteur: 'Bedacht, Kim' }];
+  const rijen = [
+    { boek_id: 'B1', titel_nu: 'Miras Room', titel_stock: "Mira's Room", auteur_stock: 'Verzonnen, Fien', status: '' },
+    { boek_id: 'B2', titel_nu: 'Zee', titel_oud: 'De zee', auteur_oud: 'Kim Bedacht', status: '' }
+  ];
+  let r = M.titelcontroleToepassen(cat, rijen, { boek_id: 'B1', status: 'aangepast', titel: "Mira's Room", auteur: 'Verzonnen, Fien' }, 'Kim', '2026-11-02');
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.catalogusGewijzigd, true);
+  assert.strictEqual(cat[0].titel, "Mira's Room");
+  assert.strictEqual(cat[0].bron_sleutel, 'boek:isbn:1', 'de bron_sleutel blijft');
+  gelijk([rijen[0].status, rijen[0].wie, rijen[0].datum], ['aangepast', 'Kim', '2026-11-02']);
+  r = M.titelcontroleToepassen(cat, rijen, { boek_id: 'B2', status: 'aangepast', titel: 'Zee', auteur: 'Bedacht, Kim' }, 'Kim', '2026-11-02');
+  assert.strictEqual(rijen[1].status, 'klopt', 'niets veranderd: klopt');
+  r = M.titelcontroleToepassen(cat, rijen, { boek_id: 'B2', status: 'niet in de kast' }, 'Kim', '2026-11-02');
+  assert.strictEqual(rijen[1].status, 'niet in de kast');
+  const lijst = M.titelcontroleLijst(cat, rijen);
+  gelijk([lijst.open.length, lijst.nietGevonden.map((x) => x.id), lijst.gedaan], [0, ['B2'], 1]);
+  M.titelcontroleToepassen(cat, rijen, { boek_id: 'B2', status: 'open' }, 'Kim', '2026-11-02');
+  gelijk(M.titelcontroleLijst(cat, rijen).open.map((x) => [x.id, x.nu.t, x.oud.t, x.stock]), [['B2', 'Zee', 'De zee', null]]);
+  assert.strictEqual(M.titelcontroleToepassen(cat, rijen, { boek_id: 'B1', status: 'aangepast', titel: ' ' }, 'Kim', '2026-11-02').ok, false);
+  assert.strictEqual(M.titelcontroleToepassen(cat, rijen, { boek_id: 'B9', status: 'klopt' }, 'Kim', '2026-11-02').ok, false);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

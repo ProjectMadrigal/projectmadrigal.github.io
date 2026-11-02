@@ -58,6 +58,11 @@ const INHOUD = {
   instellingen: [{ titel: 'Website: leeslijsten', instellingen: [{ sleutel: 'leeslijsten_tonen', waarde: 'nee', uitleg: '' }] }]
 };
 
+// Titelcontrole: verzonnen boeken met een verschil tussen de bronnen.
+const TITELCONTROLE = { open: [
+  { id: 'B0002', isbn: '', nu: { t: 'Twee kasten vol', a: 'Dewit, Rein' }, stock: { t: 'Twee kasten vol', a: 'Dewit, Rein' }, oud: { t: 'Twee kasten vol', a: 'Rein De Wit' } },
+  { id: 'B0001', isbn: '9780000000001', nu: { t: 'De verzonen zee', a: 'Verbeek, Mira' }, stock: { t: 'De verzonnen zee', a: 'Verbeek, Mira' }, oud: null }
+], nietGevonden: [{ id: 'B0003', nu: { t: 'Stille lichten', a: 'Fictief, Kim' }, stock: null, oud: null, wie: 'Ilo', datum: '2026-11-01' }], gedaan: 4 };
 const AANKOOP = [
   { id: 'K0001', t: 'Atlas van niets', a: 'Bedacht, Noor', i: '9781861972712', g: 'Fictie', p: 19.99, l: 'https://voorbeeld.test/atlas', r: 'Gevraagd door een lener', d: '2026-10-28', w: 'Sam', k: false, s: 'open', b: '', db: '' },
   { id: 'K0002', t: 'Gedichten van niemand', a: 'Verzonnen, Vera', i: '', g: 'Poëzie', p: null, l: '', r: '', d: '2026-10-20', w: 'Kim', k: true, s: 'open', b: '', db: '' },
@@ -130,6 +135,9 @@ function antwoord(rol, actie, vraag) {
     beheerCoverVanLink: { ok: true, tekst: 'De afbeelding is de cover van "Stille lichten".', cover_url: 'https://lh3.googleusercontent.com/d/test' },
     verkoopData: { ok: true, data: VERKOOP },
     aankoopData: { ok: true, lijst: AANKOOP },
+    titelcontroleData: { ok: true, lijst: TITELCONTROLE },
+    titelcontroleBewaren: { ok: true, tekst: (vraag || {}).status === 'niet in de kast' ? 'Op de lijst voor het bestuur.' : (vraag || {}).status === 'open' ? 'Terug op de lijst.' : 'Bewaard.' },
+    titelcontroleMaken: { ok: true, tekst: '2 boeken om na te kijken.' },
     aankoopToevoegen: { ok: true, tekst: '"' + ((vraag || {}).titel || '') + '" staat op de aankooplijst. Dank je!', lijst: AANKOOP },
     aankoopAanpassen: { ok: true, tekst: 'Bewaard.', lijst: AANKOOP.map((b) => b.id === (vraag || {}).aankoop_id && (vraag || {}).hasOwnProperty('gekozen') ? Object.assign({}, b, { k: vraag.gekozen }) : b) },
     aankoopVerwijderen: { ok: true, tekst: 'Verwijderd.', lijst: AANKOOP },
@@ -620,7 +628,7 @@ async function meldAan(page, basis, pagina) {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
     await meldAan(page, basis, 'vrijwilliger.html');
     const knoppen = await page.$$eval('#sectienav button', (x) => x.map((e) => e.textContent.replace(/ \(.*\)$/, '')));
-    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Te vervangen', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Aankooplijst', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Alle uitleningen', 'Reservaties', 'Terug te zetten', 'Te vervangen', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Kastcontrole', 'Aankooplijst', 'Titels en auteurs nakijken', 'Nieuws en agenda', 'Leeslijsten', 'Rooster']), 'Onderdelen: ' + knoppen.join(', '));
     verwacht(!/Logboek/.test(await page.textContent('#sectie')), 'Vandaag toont het Logboek aan een vrijwilliger');
     await page.click('#sectienav button:has-text("Te laat")');
     verwacht(!/0400000000|Kopieer herinnering/.test(await page.textContent('#sectie')), 'Contactgegevens zichtbaar');
@@ -973,6 +981,54 @@ async function meldAan(page, basis, pagina) {
     await page.click('#sectie button:has-text("In de catalogus (1)")');
     verwacht(/In de catalogus als B0003/.test(await page.textContent('#sectie')), 'Binnen-lijst');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('titelcontrole: een vrijwilliger kijkt kast per kast na, neemt een versie over en meldt wat niet in de kast staat', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await meldAan(page, basis, 'vrijwilliger.html');
+    await page.click('#sectienav button:has-text("Titels en auteurs nakijken")');
+    await page.waitForSelector('#tc-titel');
+    // Alle kasten: eerst Fictie (De verzonen zee), dan Maatschappij.
+    verwacht((await page.inputValue('#tc-titel')) === 'De verzonen zee', 'Eerste boek: ' + await page.inputValue('#tc-titel'));
+    verwacht(/Fictie: boek 1 van 2/.test(await page.textContent('#sectie')), 'Kast en teller');
+    verwacht(!(await page.$('text=Maak de lijst opnieuw')) && !(await page.$('text=Niet gevonden in de kast')), 'Een vrijwilliger ziet de bestuursknoppen');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    verwacht((await page.textContent('#sectie button.knop:not(.tweede)')) === 'Klopt, volgende', 'Knop zonder verandering');
+    await page.click('button[aria-label="Neem de versie van stocklijst over"]');
+    verwacht((await page.inputValue('#tc-titel')) === 'De verzonnen zee', 'Versie niet overgenomen');
+    await page.click('button:has-text("Bewaar, volgende")');
+    await page.waitForSelector('text=Bewaard.');
+    const v = vragen.filter((x) => x.actie === 'titelcontroleBewaren').pop();
+    verwacht(v && v.boek_id === 'B0001' && v.status === 'aangepast' && v.titel === 'De verzonnen zee' && v.auteur === 'Verbeek, Mira', 'Doorgestuurd: ' + JSON.stringify(v));
+    // Volgende boek, in een andere kast
+    verwacht((await page.inputValue('#tc-titel')) === 'Twee kasten vol', 'Volgende boek');
+    verwacht(/Rein De Wit/.test(await page.textContent('#sectie table')), 'Versie van de oude website');
+    await page.selectOption('#tc-kast', 'Maatschappij');
+    await page.click('button:has-text("Niet in de kast")');
+    await page.waitForSelector('text=Op de lijst voor het bestuur.');
+    verwacht(vragen.some((x) => x.actie === 'titelcontroleBewaren' && x.boek_id === 'B0002' && x.status === 'niet in de kast'), 'Niet in de kast niet verstuurd');
+    await page.waitForSelector('text=Alles is nagekeken');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('titelcontrole: het bestuur ziet wat niet in de kast stond en maakt de lijst opnieuw', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await meldAan(page, basis, 'bestuur.html');
+    await page.click('#sectienav button:has-text("Titels en auteurs nakijken")');
+    await page.waitForSelector('text=Niet gevonden in de kast (1)');
+    verwacht(/Gemeld door Ilo op 2026-11-01/.test(await page.textContent('#sectie')), 'Wie en wanneer');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await page.click('button:has-text("Terug op de lijst")');
+    await page.waitForSelector('text=Terug op de lijst.');
+    verwacht(vragen.some((x) => x.actie === 'titelcontroleBewaren' && x.boek_id === 'B0003' && x.status === 'open'), 'Terug op de lijst niet verstuurd');
+    await page.click('button:has-text("Maak de lijst opnieuw")');
+    await page.waitForSelector('text=2 boeken om na te kijken.');
+    verwacht(vragen.some((x) => x.actie === 'titelcontroleMaken'), 'Maken niet verstuurd');
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });

@@ -306,10 +306,13 @@ function isEigenCover(boek, eigen) {
  * Past de Catalogus aan met de boeken van de oude website.
  * Geeft { beschrijvingen, covers, eigen, gelijk, nietGevonden: [oud boek], hoe: { manier: aantal } }.
  */
-function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
+/**
+ * Koppelt de boeken van de oude website aan de Catalogus. Geeft { paren: [[oud, { boek, hoe }]], rest: [oude boeken
+ * zonder koppeling], dubbel: aantal tweede exemplaren of uitgaven, verborgen: aantal verborgen en niet gevonden }.
+ */
+function oudeParen(catalogus, oudeBoeken) {
   var index = oudIndex(catalogus);
-  var standaard = oudeStandaardCovers(oudeBoeken);
-  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: 0, verborgen: 0, nietGevonden: [], hoe: {}, gekoppeld: {} };
+  var uit = { dubbel: 0, verborgen: 0 };
   var gezien = {};
   // Ronde 1: de zekere manieren. Ronde 2: ruimer, enkel voor wat overblijft en enkel als het uniek is.
   var paren = [], rest = [];
@@ -341,8 +344,14 @@ function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
   });
   // Verborgen op de oude website en niet gevonden: niet in Na te kijken (de melding telt ze).
   rest = rest.filter(function (oud) { if (oud.verborgen) uit.verborgen++; return !oud.verborgen; });
-  uit.nietGevonden = rest;
-  paren.forEach(function (paar) {
+  return { paren: paren, rest: rest, dubbel: uit.dubbel, verborgen: uit.verborgen };
+}
+
+function oudeBoekenToepassen(catalogus, oudeBoeken, eigen) {
+  var standaard = oudeStandaardCovers(oudeBoeken);
+  var koppeling = oudeParen(catalogus, oudeBoeken);
+  var uit = { beschrijvingen: 0, covers: 0, eigen: 0, gelijk: 0, dubbel: koppeling.dubbel, verborgen: koppeling.verborgen, nietGevonden: koppeling.rest, hoe: {}, gekoppeld: {} };
+  koppeling.paren.forEach(function (paar) {
     var oud = paar[0], gevonden = paar[1];
     uit.hoe[gevonden.hoe] = (uit.hoe[gevonden.hoe] || 0) + 1;
     var boek = gevonden.boek;

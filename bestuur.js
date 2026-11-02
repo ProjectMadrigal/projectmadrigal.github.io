@@ -56,6 +56,7 @@
     ['voorstellen', 'Voorgestelde beschrijvingen', function (vak) { V.voorstellen(vak, context()); }, 'website'],
     ['kast', 'Kastcontrole', function (vak) { V.kast(vak, context()); }, 'website', 'beide'],
     ['aankoop', 'Aankooplijst', function (vak) { window.MadrigalAankoop.toon(vak, context()); }, 'website', 'beide'],
+    ['titelcontrole', 'Titels en auteurs nakijken', function (vak) { window.MadrigalTitelcontrole.toon(vak, context()); }, 'website', 'beide'],
     ['boekstatus', 'Verloren en gevoelig', toonBoekstatus, 'website'],
     ['inhoud', 'Nieuws en agenda', function (vak) { W.inhoud(vak, context()); }, 'website', 'beide'],
     ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website', 'beide'],
