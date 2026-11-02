@@ -41,6 +41,8 @@
 
   // Tussen twee auteurs: ; of & of "en". Een komma hoort bij "Achternaam, Voornaam". Zoals in apps-script/Titelcontrole.js.
   var SCHEIDING = /(\s*;\s*|\s*&\s*|\s+(?:en|and|et|und)\s+)/i;
+  // Tussen titel en ondertitel: een dubbelpunt, een streepje met spaties, of een punt gevolgd door meer tekst.
+  var ONDERTITEL = /\s*:\s*|\s+[-–—]\s+|\.\s+(?=\S)/;
   function sleutel(t) { return Z.normaliseer(t).split(' ').filter(function (w, i, alle) { return w && alle.indexOf(w) === i; }).sort().join(' '); }
   /** De namen in een veld, elk als sleutel, zonder dubbels. */
   function namen(auteur) {
@@ -142,11 +144,22 @@
     auteur.addEventListener('input', pasKnopAan);
 
     // Gelijk zoals het script vergelijkt: hoofdletters, leestekens en de volgorde van de namen tellen niet.
-    function zelfdeTitel(a, b) { return Z.normaliseer(a) === Z.normaliseer(b); }
+    function zelfdeTitel(a, b) {
+      var x = Z.normaliseer(a), y = Z.normaliseer(b);
+      // Een ondertitel bij de ene bron en niet bij de andere is geen verschil.
+      var kort = function (t) { return Z.normaliseer(String(t || '').split(ONDERTITEL)[0]); };
+      return !x || !y || x === y || kort(a) === y || kort(b) === x;
+    }
     function zelfdeAuteur(a, b) {
       if (!a || !b) return true;
       var na = namen(a), nb = namen(b);
-      var in_ = function (p, q) { return p.length > 0 && p.every(function (k) { return q.indexOf(k) > -1; }); };
+      // Een naam die volledig in een andere naam zit ("Aurora" en "Aurora Staff"), is dezelfde.
+      var zelfde = function (k, m) {
+        var p = k.split(' '), q = m.split(' ');
+        var deel = function (u, v) { return u.every(function (w) { return v.indexOf(w) > -1; }); };
+        return deel(p, q) || deel(q, p);
+      };
+      var in_ = function (p, q) { return p.length > 0 && p.every(function (k) { return q.some(function (m) { return zelfde(k, m); }); }); };
       // Minder namen bij de ene bron, maar allemaal ook bij de andere: geen verschil.
       return in_(na, nb) || in_(nb, na);
     }
@@ -200,7 +213,10 @@
       el('div', { class: 'tabel-wrap' }, el('table', { class: 'tabel' },
         el('caption', {}, 'Zo staat het in elke bron'),
         el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Bron'), el('th', { scope: 'col' }, 'Titel'), el('th', { scope: 'col' }, 'Auteur'), el('td', {}))),
-        el('tbody', {}, versie('Nu op de website', x.nu, true), versie('Stocklijst', x.stock), versie('Oude website', x.oud)))),
+        el('tbody', {}, versie('Nu op de website', x.nu, true),
+          // De stocklijst enkel als ze iets anders zegt dan nu: meestal is ze gelijk (de Catalogus kwam eruit).
+          x.stock && zelfdeTitel(x.stock.t, x.nu.t) && zelfdeAuteur(x.stock.a, x.nu.a) ? null : versie('Stocklijst', x.stock),
+          versie('Oude website', x.oud)))),
       el('p', { class: 'hulptekst' }, 'Hoofdletters, leestekens en de volgorde van de namen tellen niet als verschil.'),
       el('p', {}, 'Vergelijk met het boek. Klopt wat in de velden staat? Klik dan op Klopt, volgende. Staat het anders op het boek? Klik bij de juiste versie op Neem titel over of Neem auteur over, of typ het zelf, en klik op Bewaar, volgende.'),
       el('div', { class: 'veld' }, el('label', { for: 'tc-titel' }, 'Titel zoals op het boek'), titel),

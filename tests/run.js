@@ -3129,5 +3129,28 @@ test('Titelcontrole: meerdere auteurs, een bron met minder namen', () => {
   gelijk(verbeterd, []);
 });
 
+
+test('Titelcontrole: ondertitel van de oude website aanvullen, een naam in een langere naam', () => {
+  assert.strictEqual(M.controleTitelGelijk('Een land zonder grenzen', 'Een land zonder grenzen. Een reis door verzonnen gebieden'), true);
+  assert.strictEqual(M.controleTitelGelijk('Het kan toch...', 'Het Kan Toch...'), true);
+  assert.strictEqual(M.controleTitelAangevuld('Een land zonder grenzen', 'Een land zonder grenzen. Een Reis Door Verzonnen Gebieden', 'Nederlands', {}), 'Een land zonder grenzen: Een reis door verzonnen gebieden');
+  assert.strictEqual(M.controleTitelAangevuld('Mira Love Signs', 'Mira Love Signs: An Astrological Guide for Women', 'Engels', {}), 'Mira Love Signs: An Astrological Guide for Women');
+  assert.strictEqual(M.controleTitelAangevuld('Zomer: verhalen', 'Zomer: gedichten', 'Nederlands', {}), '', 'nu heeft al een ondertitel');
+  assert.strictEqual(M.controleTitelAangevuld('Het kan toch...', 'Het Kan Toch...', 'Nederlands', {}), '', 'drie puntjes zijn geen ondertitel');
+  assert.strictEqual(M.controleTitelAangevuld('Zomer', 'Winter: verhalen', 'Nederlands', {}), '', 'een andere titel');
+  assert.strictEqual(M.controleAuteurGelijk('Aurora', 'Aurora Staff'), true, 'een naam in een langere naam');
+  assert.strictEqual(M.controleAuteurGelijk('Verzonnen, Nir', 'Nir Verzonnen'), true);
+  assert.strictEqual(M.controleAuteurGelijk('Aaron, Willem', 'Aaron William'), false, 'een ander woord blijft een verschil');
+  const stock = [{ soort: 'boek', isbn: '9780000000011', titel: 'Een land zonder grenzen', auteur: 'Verzonnen, Nir' },
+    { soort: 'boek', isbn: '9780000000028', titel: 'Mira Love Signs', auteur: 'Aurora' }];
+  const cat = stock.map((b, i) => ({ boek_id: 'B' + (i + 1), soort: 'boek', isbn: b.isbn, titel: b.titel, auteur: b.auteur, taal: i ? 'Engels' : 'Nederlands', bron_sleutel: M.bronSleutel(b) }));
+  const oud = [{ id: '1', isbn: stock[0].isbn, titel: 'Een land zonder grenzen. Een reis door bezette gebieden', ondertitel: '', auteur: 'Nir Verzonnen' },
+    { id: '2', isbn: stock[1].isbn, titel: 'Mira Love Signs', ondertitel: 'An Astrological Guide for Women', auteur: 'Aurora Staff' }];
+  const verbeterd = [];
+  gelijk(M.titelcontroleRijen(cat, stock, oud, [], verbeterd), []);
+  gelijk(verbeterd, ['B1', 'B2']);
+  gelijk(cat.map((b) => [b.titel, b.auteur]), [['Een land zonder grenzen: Een reis door bezette gebieden', 'Verzonnen, Nir'], ['Mira Love Signs: An Astrological Guide for Women', 'Aurora']]);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

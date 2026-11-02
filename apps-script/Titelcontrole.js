@@ -9,6 +9,8 @@
  *     de andere niet staat, tellen niet.
  *   - Een auteur die enkel anders geschreven is, zet het script meteen in de juiste vorm in de Catalogus:
  *     "Achternaam, Voornaam" (de vorm uit de stocklijst of de oude website), elke naam één keer.
+ *   - Heeft de oude website dezelfde titel met een ondertitel, dan komt die ondertitel erbij: "Titel: Ondertitel".
+ *   - Een naam die volledig in een andere naam zit ("Aurora" en "Aurora Staff"), is geen verschil.
  *   - De lijst staat in het tabblad Titelcontrole. In het bestuurs- en vrijwilligersscherm (Titels en auteurs
  *     nakijken) neem je de boeken een voor een door, kast per kast: een versie kiezen, zelf typen, "klopt" of
  *     "niet in de kast".
@@ -70,7 +72,18 @@ function controleAuteurGoedeVorm(auteur) {
 /** Staan alle namen van a ook in b? */
 function controleNamenIn(a, b) {
   var na = controleNamen(a), nb = controleNamen(b);
-  return na.length > 0 && na.every(function (k) { return nb.indexOf(k) > -1; });
+  return na.length > 0 && na.every(function (k) { return nb.some(function (m) { return controleZelfdeNaam(k, m); }); });
+}
+
+/**
+ * Twee namen (sleutels) zijn dezelfde als de woorden van de ene allemaal in de andere staan: "Aurora" en
+ * "Aurora Staff", "Ackerley" en "Ackerley J R". Een ander woord ("Willem" tegenover "William") is een verschil.
+ */
+function controleZelfdeNaam(k, m) {
+  if (k === m) return true;
+  var x = k.split(' '), y = m.split(' ');
+  var deel = function (p, q) { return p.every(function (w) { return q.indexOf(w) > -1; }); };
+  return deel(x, y) || deel(y, x);
 }
 
 /**
@@ -99,9 +112,31 @@ function controleAuteurVerbeterd(nu, anderen) {
 function controleTitelGelijk(a, b) {
   var x = controleTitelSleutel(a), y = controleTitelSleutel(b);
   if (!x || !y || x === y) return true;
-  var kortA = controleTitelSleutel(String(a).split(/:| [-–—] /)[0]);
-  var kortB = controleTitelSleutel(String(b).split(/:| [-–—] /)[0]);
-  return kortA === y || kortB === x;
+  return controleTitelSleutel(controleTitelKort(a)) === y || controleTitelSleutel(controleTitelKort(b)) === x;
+}
+
+// Tussen titel en ondertitel: een dubbelpunt, een streepje met spaties, of een punt gevolgd door meer tekst.
+var CONTROLE_ONDERTITEL = /\s*:\s*|\s+[-–—]\s+|\.\s+(?=\S)/;
+
+/** De titel zonder ondertitel. */
+function controleTitelKort(titel) {
+  return schoon(String(titel || '').split(CONTROLE_ONDERTITEL)[0]);
+}
+
+/**
+ * Heeft de andere titel dezelfde titel plus een ondertitel, en heeft nu nog geen ondertitel? Dan de titel van nu
+ * met die ondertitel erbij: "Titel: Ondertitel". namen en taal: voor de schrijfwijze van de ondertitel (Titels.js).
+ * Geeft '' als er niets aan te vullen valt.
+ */
+function controleTitelAangevuld(nu, ander, taal, namen) {
+  nu = schoon(nu); ander = schoon(ander);
+  if (!nu || !ander || CONTROLE_ONDERTITEL.test(nu)) return '';
+  var m = ander.match(CONTROLE_ONDERTITEL);
+  if (!m) return '';
+  var kort = ander.slice(0, m.index), rest = schoon(ander.slice(m.index + m[0].length));
+  if (!rest || controleTitelSleutel(kort) !== controleTitelSleutel(nu)) return '';
+  var onder = titelSchrijfwijze(rest, taal, namen || {});
+  return nu + ': ' + onder.charAt(0).toUpperCase() + onder.slice(1);
 }
 
 /**
@@ -128,18 +163,28 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
   var klaar = {};
   (bestaand || []).forEach(function (r) { if (TITELCONTROLE_STATUSSEN.indexOf(schoon(r.status)) > -1) klaar[String(r.boek_id)] = true; });
   var uit = [];
+  var namen = verbeterd ? titelNamen(catalogus) : {};
   catalogus.forEach(function (b) {
     var id = String(b.boek_id || '');
     if (!id || isLeeg(b.titel) || isFilm(b) || klaar[id]) return;
     var st = perSleutel[b.bron_sleutel];
     var oud = oudPerId[id];
+    var oudeTitel = oud ? schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : '') : '';
     // Dezelfde auteur, enkel anders geschreven: meteen in de juiste vorm in de Catalogus, niet op de lijst.
     var beter = controleAuteurVerbeterd(b.auteur, [st && st.auteur, oud && oud.auteur]);
-    if (beter && verbeterd) { wijzig(b, { auteur: beter }); verbeterd.push(id); }
+    // Dezelfde titel, met een ondertitel op de oude website: de ondertitel erbij in de Catalogus.
+    var aangevuld = controleTitelAangevuld(b.titel, oudeTitel, b.taal, namen);
+    if (verbeterd && (beter || aangevuld)) {
+      var velden = {};
+      if (beter) velden.auteur = beter;
+      if (aangevuld) velden.titel = aangevuld;
+      wijzig(b, velden);
+      verbeterd.push(id);
+    }
     var nu = { titel: schoon(b.titel), auteur: schoon(b.auteur) };
     var bronnen = [nu];
     if (st) bronnen.push({ titel: schoon(st.titel), auteur: schoon(st.auteur) });
-    if (oud) bronnen.push({ titel: schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : ''), auteur: schoon(oud.auteur) });
+    if (oud) bronnen.push({ titel: oudeTitel, auteur: schoon(oud.auteur) });
     var anders = false;
     for (var i = 0; i < bronnen.length && !anders; i++) {
       for (var j = i + 1; j < bronnen.length && !anders; j++) {
@@ -253,7 +298,7 @@ function maakTitelcontroleLijst() {
     var tabel = titelcontroleTabel();
     verbeterd = [];
     nieuw = titelcontroleRijen(catalogus.rijen, stock, oudeBoeken, tabel.rijen, verbeterd);
-    if (verbeterd.length) schrijfKolommen(catalogus, ['auteur']);
+    if (verbeterd.length) schrijfKolommen(catalogus, ['titel', 'auteur']);
     // Wat nagekeken is, blijft. De open rijen maken plaats voor de nieuwe. Alles in één keer schrijven.
     var blijft = tabel.rijen.filter(function (r) { return schoon(r.status); });
     var waarden = blijft.concat(nieuw).map(function (r) { return rijNaarWaarden(tabel.kop, r); });
@@ -265,10 +310,10 @@ function maakTitelcontroleLijst() {
   }
   if (verbeterd.length) leegCache();
   var tekst = nieuw.length + ' boeken om na te kijken: de titel of auteur verschilt tussen de stocklijst, de oude website en de Catalogus. ' +
-    verbeterd.length + ' auteurs meteen verbeterd naar "Achternaam, Voornaam", zonder dubbele naam.' +
+    verbeterd.length + ' boeken meteen verbeterd in de Catalogus: de auteur als "Achternaam, Voornaam" zonder dubbele naam, of de ondertitel van de oude website erbij.' +
     (oudeBoeken.length ? '' : ' Let op: de oude website kon ik niet lezen, enkel de stocklijst telde.') +
     (stock.length ? '' : ' Let op: de tabbladen Stock en Zines ontbreken.');
-  logboek('menu', 'maakTitelcontroleLijst', tekst + (verbeterd.length ? ' Verbeterde auteurs: ' + verbeterd.join(', ') : ''));
+  logboek('menu', 'maakTitelcontroleLijst', tekst + (verbeterd.length ? ' Verbeterde boeken: ' + verbeterd.join(', ') : ''));
   return { ok: true, tekst: tekst };
 }
 
