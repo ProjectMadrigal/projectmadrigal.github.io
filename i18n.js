@@ -196,7 +196,7 @@
     'Nieuw': 'New', 'Tweedehands': 'Second-hand', 'Hardcover': 'Hardcover', 'Paperback': 'Paperback', 'Pocket': 'Pocket',
     'Voor 1970': 'Before 1970', '1970 tot 1989': '1970 to 1989', '1990 tot 1999': '1990 to 1999',
     '2000 tot 2009': '2000 to 2009', '2010 tot 2019': '2010 to 2019', '2020 en later': '2020 and later',
-    'Dun (tot 150 bladzijden)': 'Short (up to 150 pages)', 'Gemiddeld (150 tot 300 bladzijden)': 'Medium (150 to 300 pages)',
+    'Heel dun (tot 80 bladzijden)': 'Very short (up to 80 pages)', 'Dun (80 tot 150 bladzijden)': 'Short (80 to 150 pages)', 'Gemiddeld (150 tot 300 bladzijden)': 'Medium (150 to 300 pages)',
     'Dik (300 tot 500 bladzijden)': 'Long (300 to 500 pages)', 'Heel dik (meer dan 500 bladzijden)': 'Very long (more than 500 pages)',
     'Kort (tot 60 minuten)': 'Short (up to 60 minutes)', 'Gemiddeld (60 tot 90 minuten)': 'Medium (60 to 90 minutes)',
     'Lang (90 tot 120 minuten)': 'Long (90 to 120 minutes)', 'Heel lang (meer dan 120 minuten)': 'Very long (more than 120 minutes)',

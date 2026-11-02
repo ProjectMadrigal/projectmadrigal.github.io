@@ -3479,12 +3479,12 @@ test('genres opkuisen: vaste namen (Intersekse, Religie en Spiritualiteit, Young
 
 
 test('dikte: vier groepen op het aantal pagina\'s, in vaste volgorde', () => {
-  gelijk([0, 90, 150, 151, 300, 450, 501, ''].map(F.dikteVan), ['', 'Dun (tot 150 bladzijden)', 'Dun (tot 150 bladzijden)', 'Gemiddeld (150 tot 300 bladzijden)', 'Gemiddeld (150 tot 300 bladzijden)', 'Dik (300 tot 500 bladzijden)', 'Heel dik (meer dan 500 bladzijden)', '']);
+  gelijk([0, 40, 80, 90, 150, 151, 300, 450, 501, ''].map(F.dikteVan), ['', 'Heel dun (tot 80 bladzijden)', 'Heel dun (tot 80 bladzijden)', 'Dun (80 tot 150 bladzijden)', 'Dun (80 tot 150 bladzijden)', 'Gemiddeld (150 tot 300 bladzijden)', 'Gemiddeld (150 tot 300 bladzijden)', 'Dik (300 tot 500 bladzijden)', 'Heel dik (meer dan 500 bladzijden)', '']);
   gelijk([0, 45, 60, 61, 90, 110, 121, ''].map(F.duurVan), ['', 'Kort (tot 60 minuten)', 'Kort (tot 60 minuten)', 'Gemiddeld (60 tot 90 minuten)', 'Gemiddeld (60 tot 90 minuten)', 'Lang (90 tot 120 minuten)', 'Heel lang (meer dan 120 minuten)', '']);
   gelijk(F.FILMFILTERS.map((f) => f.sleutel).indexOf('duur') > -1, true);
   const o = F.opties([{ p: 600 }, { p: 100 }, { p: 200 }, { p: 120 }, {}]);
-  gelijk(o.dikte.map((x) => [x.waarde, x.aantal]), [['Dun (tot 150 bladzijden)', 2], ['Gemiddeld (150 tot 300 bladzijden)', 1], ['Heel dik (meer dan 500 bladzijden)', 1]]);
-  gelijk(F.pasToe([{ id: 'a', p: 100 }, { id: 'b', p: 400 }], { dikte: 'Dun (tot 150 bladzijden)' }).map((b) => b.id), ['a']);
+  gelijk(o.dikte.map((x) => [x.waarde, x.aantal]), [['Dun (80 tot 150 bladzijden)', 2], ['Gemiddeld (150 tot 300 bladzijden)', 1], ['Heel dik (meer dan 500 bladzijden)', 1]]);
+  gelijk(F.pasToe([{ id: 'a', p: 100 }, { id: 'b', p: 400 }], { dikte: 'Dun (80 tot 150 bladzijden)' }).map((b) => b.id), ['a']);
 });
 
 test('eigen thema\'s: Kunst en Fotoboek blijft een thema, ook als genre', () => {

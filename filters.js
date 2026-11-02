@@ -31,7 +31,8 @@
 
   /** Dikte van een boek, op het aantal pagina's: voor wie liever een dunner boek leest. */
   var DIKTES = [
-    { label: 'Dun (tot 150 bladzijden)', tot: 150 },
+    { label: 'Heel dun (tot 80 bladzijden)', tot: 80 },
+    { label: 'Dun (80 tot 150 bladzijden)', tot: 150 },
     { label: 'Gemiddeld (150 tot 300 bladzijden)', tot: 300 },
     { label: 'Dik (300 tot 500 bladzijden)', tot: 500 },
     { label: 'Heel dik (meer dan 500 bladzijden)', tot: Infinity }
