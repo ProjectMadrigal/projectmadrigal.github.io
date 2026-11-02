@@ -3221,5 +3221,23 @@ test('Titelcontrole: reeksaanduiding met volumenummer', () => {
   assert.strictEqual(M.controleTitelAangevuld('Zee', 'Zee (Verzonnen reeks 2)', 'Nederlands', {}), 'Zee (Verzonnen reeks 2)');
 });
 
+
+test('Titelcontrole: een lege auteur aanvullen, als Achternaam, Voornaam', () => {
+  assert.strictEqual(M.controleAuteurOmgedraaid('Matt Verzonnen'), 'Verzonnen, Matt');
+  assert.strictEqual(M.controleAuteurOmgedraaid('Gea van Bedacht'), 'Bedacht, Gea van');
+  assert.strictEqual(M.controleAuteurOmgedraaid('Tinne Van den Bos'), 'Bos, Tinne Van den');
+  assert.strictEqual(M.controleAuteurOmgedraaid('Gea van Bedacht & Kim Bos'), 'Bedacht, Gea van & Bos, Kim');
+  assert.strictEqual(M.controleAuteurOmgedraaid('Bos, Kim'), 'Bos, Kim');
+  assert.strictEqual(M.controleAuteurOmgedraaid('Aurora'), 'Aurora');
+  assert.strictEqual(M.controleAuteurAangevuld('', ['', 'Matt Verzonnen']), 'Verzonnen, Matt');
+  assert.strictEqual(M.controleAuteurAangevuld('', ['Bos, Kim', 'Kim Bos']), 'Bos, Kim', 'de stocklijst eerst');
+  assert.strictEqual(M.controleAuteurAangevuld('Bos, Kim', ['Jo Dam']), '', 'nu niet leeg');
+  const cat = [{ boek_id: 'B1', soort: 'boek', titel: 'Verzonnen Magazine Issue One', auteur: '', bron_sleutel: 'x' }];
+  const oud = [{ id: '1', isbn: '', titel: 'Verzonnen Magazine Issue One', ondertitel: '', auteur: 'Matt Verzonnen' }];
+  const verbeterd = [];
+  M.titelcontroleRijen(cat, [], oud, [], verbeterd);
+  assert.strictEqual(cat[0].auteur, 'Verzonnen, Matt');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);
