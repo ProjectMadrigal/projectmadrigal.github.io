@@ -6666,7 +6666,7 @@ function ordenInstellingen(ss) {
 /**
  * Zet de rijen van het tabblad Instellingen (zonder kopregel) in de volgorde
  * van INSTELLING_GROEPEN. Elke rij is [sleutel, waarde, uitleg].
- *   - Bestaande waarden blijven staan. De uitleg komt uit STANDAARD_INSTELLINGEN.
+ *   - Bestaande waarden blijven staan. Een lege cel krijgt de standaardwaarde. De uitleg komt uit STANDAARD_INSTELLINGEN.
  *   - Ontbrekende instellingen komen erbij met hun standaardwaarde.
  *   - Onbekende sleutels (bv. zelf toegevoegd) gaan naar een groep "Overige".
  *   - Oude tussenkoppen en lege rijen verdwijnen.
@@ -6693,7 +6693,10 @@ function ordenInstellingRijen(bestaand) {
       gebruikt[s] = true;
       var oud = perSleutel[s];
       var std = standaard[s];
-      rijen.push([s, oud ? oud[1] : (std ? std[1] : ''), std ? std[2] : (oud ? oud[2] || '' : '')]);
+      // Een lege cel krijgt de standaardwaarde. De website gebruikte die toch al (zie verwerkInstellingen),
+      // zo zie en bewerk je ze ook in de spreadsheet. Een code laten we leeg: die vult installeer apart in.
+      var waarde = oud && (!isLeeg(oud[1]) || !std || CODE_INSTELLINGEN.indexOf(s) > -1) ? oud[1] : (std ? std[1] : '');
+      rijen.push([s, waarde, std ? std[2] : (oud ? oud[2] || '' : '')]);
     });
   }
   INSTELLING_GROEPEN.forEach(function (g) {

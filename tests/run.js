@@ -375,9 +375,13 @@ test('ordenen: waarden blijven, oude koppen weg, onbekende sleutels naar Overige
     ['── OUDE KOP ──', '', ''],
     ['', '', ''],
     ['eigen_notitie', 'iets', 'zelf toegevoegd'],
-    ['toegangscode_balie', 'geheim1', '']
+    ['toegangscode_balie', 'geheim1', ''],
+    ['tekst_toegankelijkheid', '', ''],
+    ['code_bestuur', '', '']
   ]);
   const waarde = (s) => r.rijen.find((x) => x[0] === s);
+  assert.ok(/Peperfabriek/.test(waarde('tekst_toegankelijkheid')[1]), 'een lege tekst krijgt de standaardtekst');
+  assert.strictEqual(waarde('code_bestuur')[1], '', 'een lege code blijft leeg (installeer vult ze apart in)');
   assert.strictEqual(r.rijen[0][0], '── UITLENEN ──');
   assert.strictEqual(waarde('toegangscode_balie')[1], 'geheim1');
   assert.strictEqual(waarde('max_verlengingen')[1], 3);
