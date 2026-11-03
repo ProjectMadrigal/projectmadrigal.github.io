@@ -686,7 +686,8 @@ function haalCoverLink(url) {
   try {
     a = haalExtern(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': 'Mozilla/5.0 (Project Madrigal)' } });
   } catch (e) {
-    return { code: isDaglimietFout(e) ? 429 : 0, type: '' };
+    // daglimiet: Google zelf (UrlFetch) weigert vandaag, niet de site. Dan ligt het aan geen enkele cover.
+    return { code: isDaglimietFout(e) ? 429 : 0, type: '', daglimiet: isDaglimietFout(e) };
   }
   var type = String((a.getHeaders() || {})['Content-Type'] || (a.getHeaders() || {})['content-type'] || '');
   var uit = { code: a.getResponseCode(), type: type };

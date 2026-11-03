@@ -84,7 +84,7 @@ var KOLOM_INDELING = {
       ia_gezocht: ['techniek', 'Datum: opgezocht bij Internet Archive. Leeg = opnieuw zoeken.', true],
       wiki_gezocht: ['techniek', 'Datum: opgezocht bij Wikipedia. Leeg = opnieuw zoeken.', true],
       cover_origineel: ['techniek', 'Waar de cover vandaan kwam voor ze naar Google Drive gekopieerd werd (Covers > Bewaar alle covers in Google Drive).', true],
-      cover_bewaard: ['techniek', 'Datum: cover naar Google Drive gekopieerd. "mislukt" + datum: die link lukte niet. Leeg = opnieuw proberen.', true],
+      cover_bewaard: ['techniek', 'Datum: cover naar Google Drive gekopieerd. "poging" + nummer: de site gaf een fout, het script probeert het nog eens. "mislukt" + datum: die link lukte niet. Leeg = opnieuw proberen.', true],
       oude_cover: ['techniek', 'Cover van de oude website die nog naar Drive gekopieerd moet worden. Leeg als het klaar is.', true],
       film_gezocht: ['techniek', 'Datum: film opgezocht bij Wikidata. Leeg = opnieuw zoeken.', true]
     }

@@ -15,6 +15,9 @@
 
 var CB_MAX_LOOPTIJD_MS = 4 * 60 * 1000;
 var CB_MISLUKT = 'mislukt ';
+var CB_POGING = 'poging ';
+var CB_MAX_POGINGEN = 3;     // zo vaak een fout van de site (storing, te druk) voor de cover als mislukt telt
+var CB_MAX_FOUTEN_NA_ELKAAR = 5; // zoveel covers na elkaar met een fout: dan is er echt een storing (bv. bij Google), ronde stoppen
 var CB_MIN_PIXELS = 50; // kleiner is geen echte cover (bv. een leeg plaatje van 1 op 1)
 
 /** Komt deze cover nog van een andere site? (niet van Google Drive en niet van deze website) */
@@ -32,6 +35,17 @@ function heeftCoverBewarenNodig(boek) {
   if (!isExterneCover(boek.cover_url)) return false;
   // Mislukt voor precies deze link: niet opnieuw. Een nieuwe link (bv. zelf aangepast) probeert het wel.
   return !(String(boek.cover_bewaard || '').indexOf(CB_MISLUKT) === 0 && schoon(boek.cover_origineel) === schoon(boek.cover_url));
+}
+
+/**
+ * Een site gaf een fout (geen antwoord, te druk, storing) voor deze cover. Geeft de nieuwe waarde voor
+ * cover_bewaard: "poging N", of "mislukt" + datum na CB_MAX_POGINGEN keer. Zo blijft het script niet
+ * eindeloos op dezelfde cover hangen.
+ */
+function coverPogingNaFout(coverBewaard, vandaag) {
+  var m = String(coverBewaard || '').match(/^poging (\d+)/);
+  var n = (m ? Number(m[1]) : 0) + 1;
+  return n >= CB_MAX_POGINGEN ? CB_MISLUKT + vandaag : CB_POGING + n;
 }
 
 /** De bestandsnaam in Drive: het boek-ID, zodat je een cover terugvindt. */
@@ -76,7 +90,7 @@ function bewaarCoversInDrive() {
   }
   // Vangnet: breekt Google deze ronde af, dan start ze vanzelf opnieuw.
   planTaak('bewaarCoversInDrive', 10 * 60 * 1000);
-  var bewaard = 0, mislukt = 0, rest = 0, storing = false, daglimiet = false, fout = '';
+  var bewaard = 0, mislukt = 0, later = 0, naElkaar = 0, rest = 0, storing = false, daglimiet = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
     var vandaag = vandaagTekst().replace(/-/g, '');
@@ -86,7 +100,17 @@ function bewaarCoversInDrive() {
       var boek = teDoen[i];
       var url = schoon(boek.cover_url);
       var a = haalCoverLink(url); // zie Beheer.js
-      if (a.code === 429 || a.code >= 500 || a.code === 0) { storing = true; break; }
+      if (a.daglimiet) { daglimiet = true; storing = true; fout = 'daglimiet van Google voor opvragingen'; break; }
+      if (a.code === 429 || a.code >= 500 || a.code === 0) {
+        // Een fout bij deze ene cover: noteren en verder met de volgende. Pas bij veel fouten na elkaar stoppen.
+        naElkaar++;
+        var nieuw = coverPogingNaFout(boek.cover_bewaard, vandaag);
+        wijzig(boek, { cover_bewaard: nieuw, cover_origineel: url });
+        if (nieuw.indexOf(CB_MISLUKT) === 0) mislukt++; else later++;
+        if (naElkaar >= CB_MAX_FOUTEN_NA_ELKAAR) { storing = true; break; }
+        continue;
+      }
+      naElkaar = 0;
       var goed = a.code === 200 && a.data && !isStandaardAfbeelding(a.data) &&
         coverGrootGenoeg(afbeeldingAfmetingen(Utilities.base64Decode(a.data)));
       if (!goed) {
@@ -117,8 +141,9 @@ function bewaarCoversInDrive() {
   verwijderTriggers('bewaarCoversInDrive');
   if (rest > 0) planTaak('bewaarCoversInDrive', (daglimiet ? 6 * 60 : storing ? 15 : 1) * 60 * 1000);
   if (bewaard) leegCache();
-  if (bewaard || mislukt || storing) {
+  if (bewaard || mislukt || later) {
     logboek('systeem', 'bewaarCoversInDrive', bewaard + ' covers naar Google Drive gekopieerd, ' + mislukt + ' lukten niet (die blijven zoals ze zijn), ' +
+      later + ' gaven een fout van de site (later nog eens), ' +
       rest + ' te gaan' + (daglimiet ? ' (Google Drive: daglimiet, over 6 uur verder)' : storing ? ' (even een storing, over 15 minuten verder)' : '') +
       (fout ? '. Fout: ' + fout : ''));
   }
