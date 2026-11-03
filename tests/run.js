@@ -2170,13 +2170,19 @@ test('auteurs: "Achternaam, Voornaam" met de voornamen uit de Catalogus, organis
     ['Fonds Mira Verbeek', 'Fonds Mira Verbeek'],
     ['Lila Verzonnenbond International', 'Lila Verzonnenbond International'],
     ['Seigneur de Verzonnen', 'Seigneur de Verzonnen'],
+    ['Verzonnenpunt 23', 'Verzonnenpunt 23'],
+    ['De Verzonnen Was', 'De Verzonnen Was'],
+    ['Verzonnen Doe-Front', 'Verzonnen Doe-Front'],
+    ['Mira Comics', 'Mira Comics'],
+    ['Daila Lama', 'Daila Lama'],
     ['Aurora', 'Aurora'],
     ['', '']
   ];
   gelijk(gevallen.map((g) => M.auteurNetjes(g[0], kennis)), gevallen.map((g) => g[1]));
   // Niet zeker: blijft staan, en het script zegt het.
-  const info = M.auteurNetjesInfo('Seigneur de Verzonnen', kennis);
-  gelijk([info.tekst, Array.from(info.nietZeker)], ['Seigneur de Verzonnen', ['Seigneur de Verzonnen']]);
+  const info = M.auteurNetjesInfo('Zandvoort Kristaline', kennis);
+  gelijk([info.tekst, Array.from(info.nietZeker)], ['Zandvoort Kristaline', ['Zandvoort Kristaline']]);
+  gelijk(Array.from(M.auteurNetjesInfo('Seigneur de Verzonnen', kennis).nietZeker), [], 'een titel is geen twijfel');
   // De Catalogus: herstel van wat de eerste versie verkeerd omdraaide, nieuwe namen netjes, films niet.
   const cat = [
     { boek_id: 'B1', titel: 'Zee', auteur: 'Verbeek, Mira' },
@@ -2184,13 +2190,13 @@ test('auteurs: "Achternaam, Voornaam" met de voornamen uit de Catalogus, organis
     { boek_id: 'B3', titel: 'Zines', auteur: 'Verzonnenstad, COC' },
     { boek_id: 'B4', titel: 'Wind', auteur: 'Heather, Lewisn' },
     { boek_id: 'B5', titel: 'Noord', auteur: 'Noorderlicht, Heather' },
-    { boek_id: 'B6', titel: 'Twijfel', auteur: 'Seigneur de Verzonnen' },
+    { boek_id: 'B6', titel: 'Twijfel', auteur: 'Zandvoort Kristaline' },
     { boek_id: 'B7', titel: 'Tempel', auteur: 'Tempel, Kate' },
     { boek_id: 'F1', titel: 'Film', soort: 'film', auteur: 'Noor Verzonnen' }
   ];
   const herstel = { B3: { vroeger: 'COC Verzonnenstad', nu: 'Verzonnenstad, COC' }, B4: { vroeger: 'Lewisn Heather', nu: 'Heather, Lewisn' } };
   const uit = M.auteursOpkuisen(cat, herstel);
-  gelijk(cat.map((b) => b.auteur), ['Verbeek, Mira', 'Zeemeeuw, Kate', 'COC Verzonnenstad', 'Lewisn, Heather', 'Noorderlicht, Heather', 'Seigneur de Verzonnen', 'Tempel, Kate', 'Noor Verzonnen']);
+  gelijk(cat.map((b) => b.auteur), ['Verbeek, Mira', 'Zeemeeuw, Kate', 'COC Verzonnenstad', 'Lewisn, Heather', 'Noorderlicht, Heather', 'Zandvoort Kristaline', 'Tempel, Kate', 'Noor Verzonnen']);
   gelijk(uit.filter((r) => r.opmerking).map((r) => r.boek_id), ['B6'], 'enkel de twijfel krijgt een opmerking');
   gelijk(M.auteursOpkuisen(cat, {}).filter((r) => r.auteur_nu !== r.auteur_vroeger).length, 0, 'opnieuw: niets meer te veranderen');
 });

@@ -134,7 +134,10 @@ var AUTEURS_TABBLAD = 'Auteurs aangepast';
 var AUTEUR_NIET_ZEKER = 'niet zeker: zet zelf de komma (of laat een organisatie zo staan)';
 
 // Woorden die zeker op een organisatie wijzen: die naam draaien we nooit om.
-var AUTEUR_ORGANISATIE = /\b(stichting|vzw|vereniging|collectief|collective|redactie|redaction|uitgeverij|publishing|publishers|press|association|society|group|groep|team|staff|magazine|tijdschrift|foundation|fonds|institute|instituut|museum|centrum|centra|center|centre|network|netwerk|coalition|project|projet|house|editors|redacteurs|various|diverse|diversen|anoniem|anonymous|onbekend|unknown|verzameld|anthology|antologie|international|internationaal|front|verbond|rebellion|comics|jeugd|coc|vlaanderen|nederland|belgie|amsterdam|antwerpen|brussel|gent)\b/i;
+var AUTEUR_ORGANISATIE = /\b(stichting|vzw|vereniging|collectief|collective|redactie|redaction|uitgeverij|publishing|publishers|press|association|society|group|groep|team|staff|magazine|tijdschrift|foundation|fonds|institute|instituut|museum|centrum|centra|center|centre|network|netwerk|coalition|project|projet|house|editors|redacteurs|various|diverse|diversen|anoniem|anonymous|onbekend|unknown|verzameld|anthology|antologie|international|internationaal|front|verbond|rebellion|comics|jeugd|coc|vlaanderen|nederland|belgie|amsterdam|antwerpen|brussel|gent|lama|dalai|daila|seigneur|paus|pope)\b/i;
+
+// Een getal ("Brandpunt 23") of een lidwoord vooraan ("De Bonte Was") wijst op een organisatie of een titel, niet op een persoon.
+var AUTEUR_GEEN_PERSOON = /\d|^(de|het|een|the|a|an|la|le|les|el|los|las|il|lo)\s/i;
 
 // Geen naam maar een aanvulling: blijft zoals ze is.
 var AUTEUR_AANVULLING = /^(e\.?a\.?|etc\.?|et al\.?|en anderen|and others|\.\.\.|…)$/i;
@@ -4093,7 +4096,7 @@ function echteAfbeeldingLink(url) {
  */
 function eenAuteurNetjes(deel, kennis) {
   var naam = schoon(deel).replace(/\s+,/g, ',');
-  if (!naam || naam.indexOf(',') > -1 || AUTEUR_AANVULLING.test(naam) || AUTEUR_ORGANISATIE.test(naam)) return { naam: naam, zeker: true };
+  if (!naam || naam.indexOf(',') > -1 || AUTEUR_AANVULLING.test(naam) || AUTEUR_ORGANISATIE.test(naam) || AUTEUR_GEEN_PERSOON.test(naam)) return { naam: naam, zeker: true };
   var woorden = naam.split(' ');
   if (woorden.length < 2) return { naam: naam, zeker: true };
   var eerste = woorden[0], laatste = woorden[woorden.length - 1];
