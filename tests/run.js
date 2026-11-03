@@ -2146,38 +2146,53 @@ test('beveiliging: na 30 foute codes binnen een kwartier is het aanmelden geblok
   gelijk(M.telFouteCode(cache), false, 'het Logboek meldt het maar één keer');
 });
 
-test('auteurs: altijd "Achternaam, Voornaam", ook bij meerdere auteurs', () => {
+test('auteurs: "Achternaam, Voornaam" met de voornamen uit de Catalogus, organisaties en twijfel blijven staan', () => {
+  const kennis = M.auteurKennis([
+    { auteur: 'Verbeek, Mira' }, { auteur: 'Ander, Kim & Fictief, Nancy' }, { auteur: 'Tempel, Kate' }, { auteur: 'Zandloper, Tor Age' },
+    { auteur: 'Noorderlicht, Heather' }, { soort: 'film', auteur: 'Regie, Fout' }
+  ]);
   const gevallen = [
-    ['Mira Verbeek', 'Verbeek, Mira'],
-    ['Verbeek, Mira', 'Verbeek, Mira'],
-    ['Gea van Beuningen', 'Beuningen, Gea van'],
-    ['Kim de la Fictief', 'Fictief, Kim de la'],
+    ['Kate Zeemeeuw', 'Kate Zeemeeuw'.split(' ').reverse().join(', ')],
+    ['Zeemeeuw Nancy', 'Zeemeeuw, Nancy'],
+    ['Lewisn Heather', 'Lewisn, Heather'],
+    ['Bringsvaerd Tor Age', 'Bringsvaerd, Tor Age'],
+    ['Mira van Beuningen', 'Beuningen, Mira van'],
     ['J.R. Ackerley', 'Ackerley, J.R.'],
     ['Ackerley J.R.', 'Ackerley, J.R.'],
     ['Mira Verbeek; Kim Ander', 'Verbeek, Mira & Ander, Kim'],
-    ['Mira Verbeek & Kim Ander', 'Verbeek, Mira & Ander, Kim'],
-    ['Mira Verbeek en Kim Ander', 'Verbeek, Mira & Ander, Kim'],
     ['Mira Verbeek, Kim Ander', 'Verbeek, Mira & Ander, Kim'],
-    ['Verbeek, Mira & Kim Ander', 'Verbeek, Mira & Ander, Kim'],
+    ['Cline, Cheryl & Zeemeeuw Nancy & etc.', 'Cline, Cheryl & Zeemeeuw, Nancy & etc.'],
+    ['Verbeek, Mira &etc.', 'Verbeek, Mira & etc.'],
     ['Van Bendegem, Jean Paul', 'Van Bendegem, Jean Paul'],
-    ['Verbeek, Mira Anna', 'Verbeek, Mira Anna'],
-    ['Kim Verzonnen Jr.', 'Verzonnen, Kim, Jr.'],
-    ['Mira Verbeek; M. Verbeek; Mira Verbeek', 'Verbeek, Mira & Verbeek, M.'],
-    ['Verbeek, Mira & e.a.', 'Verbeek, Mira & e.a.'],
-    ['Stichting Verzonnen Boeken', 'Stichting Verzonnen Boeken'],
-    ['Het Verzonnen Collectief', 'Het Verzonnen Collectief'],
+    ['Kate Zeemeeuw Jr.', 'Zeemeeuw, Kate, Jr.'],
+    ['Verzonnen Front', 'Verzonnen Front'],
+    ['COC Verzonnenstad', 'COC Verzonnenstad'],
+    ['Fonds Mira Verbeek', 'Fonds Mira Verbeek'],
+    ['Lila Verzonnenbond International', 'Lila Verzonnenbond International'],
+    ['Seigneur de Verzonnen', 'Seigneur de Verzonnen'],
     ['Aurora', 'Aurora'],
     ['', '']
   ];
-  gelijk(gevallen.map((g) => M.auteurNetjes(g[0])), gevallen.map((g) => g[1]));
+  gelijk(gevallen.map((g) => M.auteurNetjes(g[0], kennis)), gevallen.map((g) => g[1]));
+  // Niet zeker: blijft staan, en het script zegt het.
+  const info = M.auteurNetjesInfo('Seigneur de Verzonnen', kennis);
+  gelijk([info.tekst, Array.from(info.nietZeker)], ['Seigneur de Verzonnen', ['Seigneur de Verzonnen']]);
+  // De Catalogus: herstel van wat de eerste versie verkeerd omdraaide, nieuwe namen netjes, films niet.
   const cat = [
-    { boek_id: 'B1', titel: 'Zee', auteur: 'Mira Verbeek' },
-    { boek_id: 'B2', titel: 'Licht', auteur: 'Ander, Kim' },
+    { boek_id: 'B1', titel: 'Zee', auteur: 'Verbeek, Mira' },
+    { boek_id: 'B2', titel: 'Licht', auteur: 'Kate Zeemeeuw' },
+    { boek_id: 'B3', titel: 'Zines', auteur: 'Verzonnenstad, COC' },
+    { boek_id: 'B4', titel: 'Wind', auteur: 'Heather, Lewisn' },
+    { boek_id: 'B5', titel: 'Noord', auteur: 'Noorderlicht, Heather' },
+    { boek_id: 'B6', titel: 'Twijfel', auteur: 'Seigneur de Verzonnen' },
+    { boek_id: 'B7', titel: 'Tempel', auteur: 'Tempel, Kate' },
     { boek_id: 'F1', titel: 'Film', soort: 'film', auteur: 'Noor Verzonnen' }
   ];
-  gelijk(M.auteursOpkuisen(cat).map((r) => r.boek_id + ':' + r.auteur_nu), ['B1:Verbeek, Mira']);
-  gelijk(cat[2].auteur, 'Noor Verzonnen', 'films niet');
-  gelijk(M.auteursOpkuisen(cat).length, 0, 'opnieuw: niets meer');
+  const herstel = { B3: { vroeger: 'COC Verzonnenstad', nu: 'Verzonnenstad, COC' }, B4: { vroeger: 'Lewisn Heather', nu: 'Heather, Lewisn' } };
+  const uit = M.auteursOpkuisen(cat, herstel);
+  gelijk(cat.map((b) => b.auteur), ['Verbeek, Mira', 'Zeemeeuw, Kate', 'COC Verzonnenstad', 'Lewisn, Heather', 'Noorderlicht, Heather', 'Seigneur de Verzonnen', 'Tempel, Kate', 'Noor Verzonnen']);
+  gelijk(uit.filter((r) => r.opmerking).map((r) => r.boek_id), ['B6'], 'enkel de twijfel krijgt een opmerking');
+  gelijk(M.auteursOpkuisen(cat, {}).filter((r) => r.auteur_nu !== r.auteur_vroeger).length, 0, 'opnieuw: niets meer te veranderen');
 });
 
 test('Politiek is een apart thema, los van Maatschappij', () => {

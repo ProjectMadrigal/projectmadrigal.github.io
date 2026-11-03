@@ -202,6 +202,7 @@ function voegBronSamen(bestaand, bron, nieuwId, inst, vandaag) {
   bestaand.forEach(function (rij) { if (rij.bron_sleutel) index[rij.bron_sleutel] = rij; });
 
   var teller = { nieuw: 0, aangevuld: 0 };
+  var kennis = null; // voornamen en achternamen uit de Catalogus (Auteurs.js), pas opgebouwd bij het eerste nieuwe boek
   volgorde.forEach(function (s) {
     var b = perSleutel[s];
     var rij = index[s];
@@ -222,7 +223,7 @@ function voegBronSamen(bestaand, bron, nieuwId, inst, vandaag) {
     var nieuweRij = {
       boek_id: nieuwId(b.soort),
       soort: b.soort,
-      titel: b.titel, auteur: auteurNetjes(b.auteur), isbn: b.isbn, uitgeverij: b.uitgeverij, jaartal: b.jaartal,
+      titel: b.titel, auteur: auteurNetjes(b.auteur, kennis || (kennis = auteurKennis(bestaand))), isbn: b.isbn, uitgeverij: b.uitgeverij, jaartal: b.jaartal,
       taal: b.taal, paginas: b.paginas, uitvoering: b.uitvoering, nieuwstaat: b.nieuwstaat,
       aanrader: toegelatenStockAanrader(b.aanrader, inst), genre: b.genre, extra_onderwerpen: '', klassieker: '',
       aantal: b.aantal,
@@ -283,6 +284,7 @@ function maakCatalogus() {
     if (!bron.length) throw new Error('Geen boeken gevonden in de tabbladen Stock en Zines.');
     var tabel = leesTabel('Catalogus');
     var ids = maakIdGenerator(tabel.rijen);
+    var kennis = null;
     var teller = voegBronSamen(tabel.rijen, bron, ids.nieuw, inst, vandaagTekst());
     schrijfVolledig(tabel);
     ids.bewaar();
@@ -392,7 +394,7 @@ function geefNieuweBoekenEenId() {
       var velden = {
         boek_id: ids.nieuw(soort),
         soort: soort,
-        titel: schoon(rij.titel), auteur: soort === 'film' ? schoon(rij.auteur) : auteurNetjes(rij.auteur),
+        titel: schoon(rij.titel), auteur: soort === 'film' ? schoon(rij.auteur) : auteurNetjes(rij.auteur, kennis || (kennis = auteurKennis(tabel.rijen))),
         isbn: isbn.isbn || isbn.issn || schoon(rij.isbn),
         taal: normaliseerTaal(rij.taal),
         uitvoering: normaliseerUitvoering(rij.uitvoering),
