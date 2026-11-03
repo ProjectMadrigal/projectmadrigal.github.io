@@ -126,7 +126,7 @@ function boekAanpassen(staat, invoer) {
   var v = r.velden;
   if (v.hasOwnProperty('titel') && !v.titel) return { ok: false, fout: 'Een boek heeft een titel nodig.' };
   // De auteur altijd als "Achternaam, Voornaam" (zie Auteurs.js). Films niet: daar staat de regie.
-  if (v.auteur && (v.soort || boek.soort) !== 'film') v.auteur = auteurNetjes(v.auteur);
+  if (v.auteur && (v.soort || boek.soort) !== 'film') v.auteur = auteurNetjes(v.auteur, auteurKennis(staat.catalogus));
   if (v.hasOwnProperty('aantal')) {
     if (!v.aantal) v.aantal = 1;
     var inGebruik = hoogsteExemplaarInGebruik(staat, boek.boek_id);
@@ -163,7 +163,7 @@ function boekToevoegen(staat, invoer, nieuwId) {
   var v = r.velden;
   if (!v.titel) return { ok: false, fout: 'Een boek heeft een titel nodig.' };
   v.soort = v.soort || 'boek';
-  if (v.auteur && v.soort !== 'film') v.auteur = auteurNetjes(v.auteur);
+  if (v.auteur && v.soort !== 'film') v.auteur = auteurNetjes(v.auteur, auteurKennis(staat.catalogus));
   if (v.isbn && !invoer.toch) {
     var dubbel = staat.catalogus.filter(function (b) { return String(b.isbn) === String(v.isbn) && !isLeeg(b.boek_id); })[0];
     if (dubbel) {

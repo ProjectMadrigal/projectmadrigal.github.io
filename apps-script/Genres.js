@@ -199,6 +199,6 @@ function kuisGenresOp() {
   opmaakKop(blad, kop.length);
   var tekst = uit.genres + ' genres samengevoegd of in de juiste schrijfwijze gezet, ' + uit.boeken + ' boeken aangepast, ' +
     uit.themas + ' cellen met thema\'s in de juiste schrijfwijze. Het tabblad ' + GENRES_TABBLAD + ' toont welke genres veranderden.';
-  logboek('menu', 'kuisGenresOp', tekst + (voorstellen.length ? ' ' + voorstellen.map(function (r) { return r.genre_nu + ' > ' + r.genre_nieuw; }).join('; ') : ''));
+  logboek('menu', 'kuisGenresOp', tekst); // wat veranderde, staat in het tabblad
   meld(tekst + ' De website toont het binnen enkele minuten.');
 }

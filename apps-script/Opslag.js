@@ -82,7 +82,7 @@ var KOLOMMEN = {
   // Titels en auteurs nakijken in de bib (Titelcontrole.js).
   // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
   'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
-  'Auteurs aangepast': ['boek_id', 'titel', 'auteur_vroeger', 'auteur_nu'],
+  'Auteurs aangepast': ['boek_id', 'titel', 'auteur_vroeger', 'auteur_nu', 'opmerking'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
   'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken', 'zoekwoorden'],
   'Indeling': ['boek_id', 'titel', 'themas', 'categorieen', 'trefwoorden'],
