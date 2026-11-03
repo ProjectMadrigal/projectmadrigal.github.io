@@ -280,6 +280,12 @@ var CB_MAX_LOOPTIJD_MS = 4 * 60 * 1000;
 
 var CB_MISLUKT = 'mislukt ';
 
+var CB_POGING = 'poging ';
+
+var CB_MAX_POGINGEN = 3;     // zo vaak een fout van de site (storing, te druk) voor de cover als mislukt telt
+
+var CB_MAX_FOUTEN_NA_ELKAAR = 5; // zoveel covers na elkaar met een fout: dan is er echt een storing (bv. bij Google), ronde stoppen
+
 var CB_MIN_PIXELS = 50; // kleiner is geen echte cover (bv. een leeg plaatje van 1 op 1)
 
 var WEEKDAGEN = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
@@ -691,7 +697,7 @@ var KOLOM_INDELING = {
       ia_gezocht: ['techniek', 'Datum: opgezocht bij Internet Archive. Leeg = opnieuw zoeken.', true],
       wiki_gezocht: ['techniek', 'Datum: opgezocht bij Wikipedia. Leeg = opnieuw zoeken.', true],
       cover_origineel: ['techniek', 'Waar de cover vandaan kwam voor ze naar Google Drive gekopieerd werd (Covers > Bewaar alle covers in Google Drive).', true],
-      cover_bewaard: ['techniek', 'Datum: cover naar Google Drive gekopieerd. "mislukt" + datum: die link lukte niet. Leeg = opnieuw proberen.', true],
+      cover_bewaard: ['techniek', 'Datum: cover naar Google Drive gekopieerd. "poging" + nummer: de site gaf een fout, het script probeert het nog eens. "mislukt" + datum: die link lukte niet. Leeg = opnieuw proberen.', true],
       oude_cover: ['techniek', 'Cover van de oude website die nog naar Drive gekopieerd moet worden. Leeg als het klaar is.', true],
       film_gezocht: ['techniek', 'Datum: film opgezocht bij Wikidata. Leeg = opnieuw zoeken.', true]
     }
@@ -2142,7 +2148,7 @@ function bewaarCoversInDrive() {
   }
   // Vangnet: breekt Google deze ronde af, dan start ze vanzelf opnieuw.
   planTaak('bewaarCoversInDrive', 10 * 60 * 1000);
-  var bewaard = 0, mislukt = 0, rest = 0, storing = false, daglimiet = false, fout = '';
+  var bewaard = 0, mislukt = 0, later = 0, naElkaar = 0, rest = 0, storing = false, daglimiet = false, fout = '';
   try {
     var tabel = leesTabel('Catalogus');
     var vandaag = vandaagTekst().replace(/-/g, '');
@@ -2152,7 +2158,17 @@ function bewaarCoversInDrive() {
       var boek = teDoen[i];
       var url = schoon(boek.cover_url);
       var a = haalCoverLink(url); // zie Beheer.js
-      if (a.code === 429 || a.code >= 500 || a.code === 0) { storing = true; break; }
+      if (a.daglimiet) { daglimiet = true; storing = true; fout = 'daglimiet van Google voor opvragingen'; break; }
+      if (a.code === 429 || a.code >= 500 || a.code === 0) {
+        // Een fout bij deze ene cover: noteren en verder met de volgende. Pas bij veel fouten na elkaar stoppen.
+        naElkaar++;
+        var nieuw = coverPogingNaFout(boek.cover_bewaard, vandaag);
+        wijzig(boek, { cover_bewaard: nieuw, cover_origineel: url });
+        if (nieuw.indexOf(CB_MISLUKT) === 0) mislukt++; else later++;
+        if (naElkaar >= CB_MAX_FOUTEN_NA_ELKAAR) { storing = true; break; }
+        continue;
+      }
+      naElkaar = 0;
       var goed = a.code === 200 && a.data && !isStandaardAfbeelding(a.data) &&
         coverGrootGenoeg(afbeeldingAfmetingen(Utilities.base64Decode(a.data)));
       if (!goed) {
@@ -2183,8 +2199,9 @@ function bewaarCoversInDrive() {
   verwijderTriggers('bewaarCoversInDrive');
   if (rest > 0) planTaak('bewaarCoversInDrive', (daglimiet ? 6 * 60 : storing ? 15 : 1) * 60 * 1000);
   if (bewaard) leegCache();
-  if (bewaard || mislukt || storing) {
+  if (bewaard || mislukt || later) {
     logboek('systeem', 'bewaarCoversInDrive', bewaard + ' covers naar Google Drive gekopieerd, ' + mislukt + ' lukten niet (die blijven zoals ze zijn), ' +
+      later + ' gaven een fout van de site (later nog eens), ' +
       rest + ' te gaan' + (daglimiet ? ' (Google Drive: daglimiet, over 6 uur verder)' : storing ? ' (even een storing, over 15 minuten verder)' : '') +
       (fout ? '. Fout: ' + fout : ''));
   }
@@ -3454,6 +3471,17 @@ function coverLinks(rijen) {
 /* ---------- Geschiedenis per boek en per lener (bestuursscherm) ---------- */
 
 /**
+ * Een site gaf een fout (geen antwoord, te druk, storing) voor deze cover. Geeft de nieuwe waarde voor
+ * cover_bewaard: "poging N", of "mislukt" + datum na CB_MAX_POGINGEN keer. Zo blijft het script niet
+ * eindeloos op dezelfde cover hangen.
+ */
+function coverPogingNaFout(coverBewaard, vandaag) {
+  var m = String(coverBewaard || '').match(/^poging (\d+)/);
+  var n = (m ? Number(m[1]) : 0) + 1;
+  return n >= CB_MAX_POGINGEN ? CB_MISLUKT + vandaag : CB_POGING + n;
+}
+
+/**
  * Bewaart wat de browser bij Google Books en Open Library vond.
  * invoer.items: [{ boek_id, google, ol, bron, cover, meta: { beschrijving, uitgeverij, jaartal, paginas, taal } }]
  *   google / ol: dit boek werd daar opgezocht (dan krijgt het een datum in gb_gecontroleerd / cover_gezocht)
@@ -4644,7 +4672,8 @@ function haalCoverLink(url) {
   try {
     a = haalExtern(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': 'Mozilla/5.0 (Project Madrigal)' } });
   } catch (e) {
-    return { code: isDaglimietFout(e) ? 429 : 0, type: '' };
+    // daglimiet: Google zelf (UrlFetch) weigert vandaag, niet de site. Dan ligt het aan geen enkele cover.
+    return { code: isDaglimietFout(e) ? 429 : 0, type: '', daglimiet: isDaglimietFout(e) };
   }
   var type = String((a.getHeaders() || {})['Content-Type'] || (a.getHeaders() || {})['content-type'] || '');
   var uit = { code: a.getResponseCode(), type: type };

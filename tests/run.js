@@ -2127,6 +2127,15 @@ test('covers bewaren in Google Drive: welke covers, en niet opnieuw na een mislu
   gelijk([M.coverGrootGenoeg({ breedte: 1, hoogte: 1 }), M.coverGrootGenoeg({ breedte: 128, hoogte: 190 }), M.coverGrootGenoeg(null)], [false, true, true]);
 });
 
+test('covers bewaren: een fout bij één cover telt als poging, na drie keer mislukt', () => {
+  gelijk([M.coverPogingNaFout('', '20261103'), M.coverPogingNaFout('poging 1', '20261103'), M.coverPogingNaFout('poging 2', '20261103')],
+    ['poging 1', 'poging 2', 'mislukt 20261103']);
+  // Met "poging" blijft de cover op de lijst, met "mislukt" niet meer.
+  const url = 'https://covers.openlibrary.org/b/id/1-M.jpg';
+  gelijk([M.heeftCoverBewarenNodig({ cover_url: url, cover_bewaard: 'poging 2', cover_origineel: url }),
+    M.heeftCoverBewarenNodig({ cover_url: url, cover_bewaard: 'mislukt 20261103', cover_origineel: url })], [true, false]);
+});
+
 test('beveiliging: na 30 foute codes binnen een kwartier is het aanmelden geblokkeerd', () => {
   const opslag = {};
   const cache = { get: (k) => opslag[k] || null, put: (k, v) => { opslag[k] = v; } };
