@@ -2146,6 +2146,40 @@ test('beveiliging: na 30 foute codes binnen een kwartier is het aanmelden geblok
   gelijk(M.telFouteCode(cache), false, 'het Logboek meldt het maar één keer');
 });
 
+test('auteurs: altijd "Achternaam, Voornaam", ook bij meerdere auteurs', () => {
+  const gevallen = [
+    ['Mira Verbeek', 'Verbeek, Mira'],
+    ['Verbeek, Mira', 'Verbeek, Mira'],
+    ['Gea van Beuningen', 'Beuningen, Gea van'],
+    ['Kim de la Fictief', 'Fictief, Kim de la'],
+    ['J.R. Ackerley', 'Ackerley, J.R.'],
+    ['Ackerley J.R.', 'Ackerley, J.R.'],
+    ['Mira Verbeek; Kim Ander', 'Verbeek, Mira & Ander, Kim'],
+    ['Mira Verbeek & Kim Ander', 'Verbeek, Mira & Ander, Kim'],
+    ['Mira Verbeek en Kim Ander', 'Verbeek, Mira & Ander, Kim'],
+    ['Mira Verbeek, Kim Ander', 'Verbeek, Mira & Ander, Kim'],
+    ['Verbeek, Mira & Kim Ander', 'Verbeek, Mira & Ander, Kim'],
+    ['Van Bendegem, Jean Paul', 'Van Bendegem, Jean Paul'],
+    ['Verbeek, Mira Anna', 'Verbeek, Mira Anna'],
+    ['Kim Verzonnen Jr.', 'Verzonnen, Kim, Jr.'],
+    ['Mira Verbeek; M. Verbeek; Mira Verbeek', 'Verbeek, Mira & Verbeek, M.'],
+    ['Verbeek, Mira & e.a.', 'Verbeek, Mira & e.a.'],
+    ['Stichting Verzonnen Boeken', 'Stichting Verzonnen Boeken'],
+    ['Het Verzonnen Collectief', 'Het Verzonnen Collectief'],
+    ['Aurora', 'Aurora'],
+    ['', '']
+  ];
+  gelijk(gevallen.map((g) => M.auteurNetjes(g[0])), gevallen.map((g) => g[1]));
+  const cat = [
+    { boek_id: 'B1', titel: 'Zee', auteur: 'Mira Verbeek' },
+    { boek_id: 'B2', titel: 'Licht', auteur: 'Ander, Kim' },
+    { boek_id: 'F1', titel: 'Film', soort: 'film', auteur: 'Noor Verzonnen' }
+  ];
+  gelijk(M.auteursOpkuisen(cat).map((r) => r.boek_id + ':' + r.auteur_nu), ['B1:Verbeek, Mira']);
+  gelijk(cat[2].auteur, 'Noor Verzonnen', 'films niet');
+  gelijk(M.auteursOpkuisen(cat).length, 0, 'opnieuw: niets meer');
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
