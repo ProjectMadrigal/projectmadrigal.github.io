@@ -222,7 +222,7 @@ function voegBronSamen(bestaand, bron, nieuwId, inst, vandaag) {
     var nieuweRij = {
       boek_id: nieuwId(b.soort),
       soort: b.soort,
-      titel: b.titel, auteur: b.auteur, isbn: b.isbn, uitgeverij: b.uitgeverij, jaartal: b.jaartal,
+      titel: b.titel, auteur: auteurNetjes(b.auteur), isbn: b.isbn, uitgeverij: b.uitgeverij, jaartal: b.jaartal,
       taal: b.taal, paginas: b.paginas, uitvoering: b.uitvoering, nieuwstaat: b.nieuwstaat,
       aanrader: toegelatenStockAanrader(b.aanrader, inst), genre: b.genre, extra_onderwerpen: '', klassieker: '',
       aantal: b.aantal,
@@ -392,7 +392,7 @@ function geefNieuweBoekenEenId() {
       var velden = {
         boek_id: ids.nieuw(soort),
         soort: soort,
-        titel: schoon(rij.titel), auteur: schoon(rij.auteur),
+        titel: schoon(rij.titel), auteur: soort === 'film' ? schoon(rij.auteur) : auteurNetjes(rij.auteur),
         isbn: isbn.isbn || isbn.issn || schoon(rij.isbn),
         taal: normaliseerTaal(rij.taal),
         uitvoering: normaliseerUitvoering(rij.uitvoering),
@@ -426,6 +426,8 @@ function verwerkNieuweBoekenAutomatisch() {
   // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
   try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
+  // Eén keer per dag: elke auteur als "Achternaam, Voornaam" (Auteurs.js).
+  try { auteursOpkuisenAutomatisch(); } catch (e) { logboek('systeem', 'auteursOpkuisen', 'Fout: ' + e.message); }
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
   var aantal = geefNieuweBoekenEenId();
   if (!aantal) return;
