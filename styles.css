@@ -730,3 +730,17 @@ html.groot-lettertype { font-size: 118.75%; }
 .tc-cover { flex: none; width: 7rem; aspect-ratio: 2 / 3; border-radius: .3rem; background: var(--kleur-rand); overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: .3rem; }
 .tc-cover img { width: calc(100% + .6rem); height: calc(100% + .6rem); margin: -.3rem; object-fit: cover; display: block; }
 @media (max-width: 30rem) { .tc-cover { width: 5rem; } }
+
+/* Formulier van een boek: lijsten als vinkjes of labels (bestuur-beheer.js, lijstVeld). */
+.vinklijst.kolommen { columns: 2 14rem; column-gap: 1.5rem; }
+.vinklijst.kolommen li { break-inside: avoid; }
+.lijstveld-labels { margin: .25rem 0 .5rem; }
+.lijstveld-label { display: inline-flex; align-items: center; gap: .35rem; font-weight: normal; }
+.lijstveld-weg { border: 0; background: transparent; color: inherit; font: inherit; font-weight: bold; cursor: pointer; padding: 0 .25rem; min-width: 1.75rem; min-height: 1.75rem; line-height: 1; }
+.lijstveld-weg:hover { color: var(--kleur-fout); }
+.lijstveld-weg:focus-visible { outline: 3px solid var(--kleur-focus); outline-offset: 1px; }
+.lijstveld-toevoegen { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.lijstveld-toevoegen input { flex: 1 1 14rem; }
+details.meer-gegevens > summary { cursor: pointer; font-weight: bold; padding: .5rem 0; }
+details.meer-gegevens > summary:focus-visible { outline: 3px solid var(--kleur-focus); outline-offset: 2px; }
+.snel-bewerken .sb-kopje { margin: 1.25rem 0 .5rem; font-size: 1.05rem; }

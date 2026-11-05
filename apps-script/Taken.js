@@ -243,7 +243,10 @@ function extraCijfers(staat) {
 
 /* ---------- Meerdere boeken tegelijk aanpassen (bestuursscherm) ---------- */
 
-var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'status', 'aanrader', 'startpagina', 'publiek', 'uitleenbaar', 'klassieker'];
+var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'status', 'aanrader', 'startpagina',
+  'publiek', 'uitleenbaar', 'te_koop', 'klassieker', 'leeslijsten'];
+// Velden met een lijst (komma's): je kan er iets aan toevoegen of uit weghalen, zonder de rest te overschrijven.
+var BULK_LIJSTEN = ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'aanrader', 'leeslijsten'];
 
 /** invoer: { ids: [boek_id, ...], veld, waarde }. Past elk boek aan zoals het boekformulier. */
 function boekenBulk(staat, invoer) {
@@ -253,9 +256,18 @@ function boekenBulk(staat, invoer) {
   if (!ids.length) return { ok: false, fout: 'Kies eerst een of meer boeken.' };
   if (ids.length > 300) return { ok: false, fout: 'Kies hoogstens 300 boeken per keer.' };
   var gelukt = 0, fouten = [];
+  // modus: 'erbij' (toevoegen aan de lijst), 'weg' (uit de lijst halen) of leeg (de waarde vervangen).
+  var modus = BULK_LIJSTEN.indexOf(veld) > -1 ? String(invoer.modus || '') : '';
+  var namen = splitsLijst(invoer.waarde);
+  if (modus && !namen.length) return { ok: false, fout: 'Vul in wat erbij moet of weg moet.' };
   ids.forEach(function (id) {
     var velden = {};
-    velden[veld] = invoer.waarde;
+    var boek = boekVan(staat, id);
+    if (modus === 'erbij' && boek) velden[veld] = voegLijstToe(boek[veld], namen);
+    else if (modus === 'weg' && boek) {
+      var weg = namen.map(normaliseerTekst);
+      velden[veld] = splitsLijst(boek[veld]).filter(function (n) { return weg.indexOf(normaliseerTekst(n)) === -1; }).join(', ');
+    } else velden[veld] = invoer.waarde;
     var r = boekAanpassen(staat, { boek_id: id, velden: velden });
     if (r.ok) gelukt++; else fouten.push(id + ': ' + r.fout);
   });

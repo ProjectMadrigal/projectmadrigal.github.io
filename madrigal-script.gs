@@ -256,7 +256,7 @@ var ONDERWERP_VOORSTELLEN = [
   [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
   [/biogra|^bio$|memoir|dagboek/, 'Biografie'],
   [/poezie|gedicht|poetry|poem/, 'Poëzie'],
-  [/graphic|strip|comic|manga/, 'Graphic novel'],
+  [/graphic novel|graphic memoir|\bstrips?\b|stripverha|stripboek|stripalbum|\bcomics?\b|manga|beeldroman/, 'Graphic novel'],
   [/young adult|^ya$|jeugd|kinder/, 'Young Adult'],
   [/pulp/, 'Pulp'],
   [/erotic|erotiek|bdsm|kink|fetish|leder|leather/, 'Erotica en BDSM'],
@@ -513,15 +513,15 @@ var INDELEN_ZOEKWOORDEN = {
   'crime': ['misdaad', 'detective', 'thriller', 'moord', 'murder', 'rechercheur', 'politieonderzoek'],
   'misdaad': ['misdaad', 'detective', 'thriller', 'moord', 'murder', 'rechercheur', 'crime'],
   'thriller': ['thriller', 'spanning', 'suspense'],
-  'comic': ['strip', 'comic', 'graphic novel', 'manga', 'beeldroman'],
-  'strip': ['strip', 'comic', 'graphic novel', 'manga', 'beeldroman'],
+  'comic': ['=strip', '=strips', 'stripverhaal', 'stripboek', '=comic', '=comics', 'graphic novel', 'manga', 'beeldroman'],
+  'strip': ['=strip', '=strips', 'stripverhaal', 'stripboek', '=comic', '=comics', 'graphic novel', 'manga', 'beeldroman'],
   'manga': ['manga'],
   'roman': ['roman', 'novel', 'debuutroman'],
   'novel': ['roman', 'novel'],
   'verhal': ['verhalenbundel', 'kortverhal', 'short stor', 'verhalen'],
   'short story': ['verhalenbundel', 'kortverhal', 'short stor'],
   'essay': ['essay', 'essaybundel'],
-  'kinderbok': ['kinderboek', 'prentenboek', 'voorlezen', 'kleuter', 'picture book', 'children'],
+  'kinderboek': ['kinderboek', 'prentenboek', 'voorlezen', 'kleuter', 'picture book', 'children'],
   'children': ['kinderboek', 'prentenboek', 'picture book', 'children'],
   'young adult': ['young adult', 'tiener', 'teen', 'puber', 'middelbare school', 'high school'],
   'sport': ['sport', 'voetbal', 'football', 'soccer', 'atleet', 'athlete', 'olympisch', 'olympic', 'wielren', 'tennis', 'boks', 'zwemm'],
@@ -546,7 +546,7 @@ var INDELEN_ZOEKWOORDEN = {
   'racisme': ['racism', 'racist', 'kolonial', 'colonial', 'dekolonis', 'decolonis'],
   'migratie': ['migratie', 'migrant', 'vluchteling', 'refugee', 'asiel', 'asylum', 'diaspora'],
   'reizen': ['reis', 'reizen', 'travel', 'reisgids', 'roadtrip'],
-  'kookbok': ['kookboek', 'recept', 'recipe', 'koken', 'cooking'],
+  'kookboek': ['kookboek', 'recept', 'recipe', 'koken', 'cooking'],
   'sprookje': ['sprookje', 'fairy tale', 'fairytale'],
   'oorlog': ['oorlog', '=war', '=wars', 'wartime', 'wereldoorlog', 'world war', '=wwii', '=ww2', 'holocaust', 'nazi', 'soldaat', 'soldier', 'leger', 'army', 'verzet', 'resistance'],
   'sekswerk': ['sekswerk', 'sex work', 'sexwork', 'prostitu', 'escort', 'hustler', 'hooker', 'hoerenloper', 'bordeel', 'brothel', 'rosse buurt', 'red light', 'tippelaar'],
@@ -710,6 +710,7 @@ var KOLOM_INDELING = {
       te_koop_aantal: ['verkoop', 'Aantal exemplaren te koop.'],
       notitie: ['bestuur', 'Interne notitie van het bestuur (bv. schade, plaats in de kast).', true],
       herkomst: ['techniek', 'Waar het boek vandaan komt, uit de stocklijst.', true],
+      isbn10: ['boek', 'ISBN-10, berekend uit het ISBN (enkel bij nummers die met 978 beginnen). Vult het script vanzelf in. Niet op de website.'],
       isbn_origineel: ['techniek', 'Het ISBN zoals in de stocklijst, als het ongeldig was.', true],
       bron_sleutel: ['techniek', 'Koppeling met de stocklijst. Niet wijzigen.', true],
       ol_gecontroleerd: ['techniek', 'Datum: opgezocht bij Open Library. Leeg = opnieuw zoeken.', true],
@@ -771,7 +772,8 @@ var ONDERWERP_ZEKER_FACTOR = 2; // en zoveel keer vaker dan het volgende thema
 var ONDERWERP_TEKST_WOORDEN = [
   ['Fictie', ['roman', 'novel', 'verhalenbundel', 'kortverhal', 'fictie', 'fiction', 'thriller', 'detective', 'personage', 'hoofdpersonage', 'protagonist']],
   ['Poëzie', ['gedicht', 'poezie', 'poetry', 'poem', 'dichter', 'dichteres', 'poet', 'dichtbundel']],
-  ['Graphic novel', ['strip', 'stripverhaal', 'graphic', 'comic', 'manga', 'getekend', 'tekeningen']],
+  // Niet "graphic" alleen (graphic sex, graphic design) en niet "strip" als begin (striptease, stripped).
+  ['Graphic novel', ['graphic novel', 'graphic memoir', 'stripverhaal', 'stripboek', 'stripalbum', '=strip', '=strips', '=comic', '=comics', 'manga', 'beeldroman']],
   ['Biografie', ['biografie', 'biography', 'memoir', 'memoires', 'autobiografie', 'autobiography', 'dagboek', 'levensverhaal', 'diary']],
   ['Gender', ['transgender', 'transitie', 'transvrouw', 'transman', 'nonbinair', 'non binair', 'genderidentiteit', 'genderqueer', 'intersekse', 'intersex']],
   ['Feminisme', ['feminis', 'patriarchaat', 'patriarchy', 'vrouwenbeweging', 'vrouwenrechten', 'misogyn']],
@@ -810,7 +812,7 @@ var KOLOMMEN = {
     // De titel in de oorspronkelijke taal, als die verschilt (vooral films en vertaalde boeken).
     'originele_titel',
     // Vanaf hier: nooit publiek.
-    'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
+    'herkomst', 'isbn_origineel', 'isbn10', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
     // Een cover van de oude website die nog naar Drive gekopieerd moet worden (OudeBoeken.js). Leeg als het klaar is.
     'oude_cover', 'cover_origineel', 'cover_bewaard',
@@ -1024,7 +1026,11 @@ var VOORRANG_MS = 30 * 60 * 1000;
 
 var HUIDIGE_TAAK = ''; // de achtergrondtaak die nu loopt (zie startAchtergrond)
 
-var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'status', 'aanrader', 'startpagina', 'publiek', 'uitleenbaar', 'klassieker'];
+var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'status', 'aanrader', 'startpagina',
+  'publiek', 'uitleenbaar', 'te_koop', 'klassieker', 'leeslijsten'];
+
+// Velden met een lijst (komma's): je kan er iets aan toevoegen of uit weghalen, zonder de rest te overschrijven.
+var BULK_LIJSTEN = ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'aanrader', 'leeslijsten'];
 
 var TITELCONTROLE_TABBLAD = 'Titelcontrole';
 
@@ -1830,6 +1836,8 @@ function baliecatalogus(staat, vertaal) {
       // zb: zonder beschrijving, voor de lijst Boeken zonder beschrijving van het bestuursscherm.
       if (isLeeg(b.beschrijving)) info.zb = true;
     }
+    // f: een film. Het bestuursscherm toont films in een eigen onderdeel.
+    if (isFilm(b)) info.f = 1;
     // st: zodat de vrijwilliger het weet. Gevoelig (verborgen of zichtbaar) mag je gewoon uitlenen.
     var status = boekStatus(b);
     if (status === 'verloren') info.st = 'verloren';
@@ -2264,6 +2272,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
     privacy: staat.inst.tekst_privacy,
+    keuzes: boekKeuzes(staat.catalogus),
     boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {
@@ -2546,9 +2555,18 @@ function boekenBulk(staat, invoer) {
   if (!ids.length) return { ok: false, fout: 'Kies eerst een of meer boeken.' };
   if (ids.length > 300) return { ok: false, fout: 'Kies hoogstens 300 boeken per keer.' };
   var gelukt = 0, fouten = [];
+  // modus: 'erbij' (toevoegen aan de lijst), 'weg' (uit de lijst halen) of leeg (de waarde vervangen).
+  var modus = BULK_LIJSTEN.indexOf(veld) > -1 ? String(invoer.modus || '') : '';
+  var namen = splitsLijst(invoer.waarde);
+  if (modus && !namen.length) return { ok: false, fout: 'Vul in wat erbij moet of weg moet.' };
   ids.forEach(function (id) {
     var velden = {};
-    velden[veld] = invoer.waarde;
+    var boek = boekVan(staat, id);
+    if (modus === 'erbij' && boek) velden[veld] = voegLijstToe(boek[veld], namen);
+    else if (modus === 'weg' && boek) {
+      var weg = namen.map(normaliseerTekst);
+      velden[veld] = splitsLijst(boek[veld]).filter(function (n) { return weg.indexOf(normaliseerTekst(n)) === -1; }).join(', ');
+    } else velden[veld] = invoer.waarde;
     var r = boekAanpassen(staat, { boek_id: id, velden: velden });
     if (r.ok) gelukt++; else fouten.push(id + ': ' + r.fout);
   });
@@ -2577,12 +2595,38 @@ function boekHistoriek(staat, boekId) {
   return { keer: eigen.length, laatst: laatst };
 }
 
+/**
+ * De keuzes voor het formulier van een boek in het bestuursscherm: de thema's van de website, en alle
+ * categorieën, trefwoorden, triggerwaarschuwingen en genres die al in de Catalogus staan (alfabetisch).
+ */
+function boekKeuzes(catalogus) {
+  var lijst = function (kolom, enkelFilms) {
+    var gezien = {}, uit = [];
+    catalogus.forEach(function (b) {
+      if (enkelFilms !== undefined && isFilm(b) !== enkelFilms) return;
+      splitsLijst(b[kolom]).forEach(function (n) {
+        var k = normaliseerTekst(n);
+        if (k && !gezien[k]) { gezien[k] = true; uit.push(schoon(n)); }
+      });
+    });
+    return uit.sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+  };
+  return {
+    themas: alleThemas().slice().sort(function (a, b) { return a.localeCompare(b, 'nl'); }),
+    categorieen: zonderThemas(lijst('categorieen')),
+    trefwoorden: zonderThemas(lijst('trefwoorden')),
+    triggerwaarschuwingen: lijst('triggerwaarschuwingen'),
+    filmgenres: lijst('genre', true)
+  };
+}
+
 /** Een boek ophalen om aan te passen. */
 function boekOphalen(staat, invoer) {
   var boek = boekVan(staat, invoer.boek_id);
   if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
   // sleutel: zodat de browser van het bestuur dit ene boek bij Google Books kan opzoeken (knop in het formulier).
-  return { ok: true, boek: beheerBoek(boek), sleutel: String(staat.inst.google_books_api_key || '') };
+  // keuzes: de thema's, categorieën en trefwoorden, voor de vinkjes en labels in het formulier (snel bewerken op de website).
+  return { ok: true, boek: beheerBoek(boek), sleutel: String(staat.inst.google_books_api_key || ''), keuzes: boekKeuzes(staat.catalogus) };
 }
 
 /** Geeft '', 'verloren', 'gevoelig_verborgen' of 'gevoelig_zichtbaar'. Hoofdletters en kleine tikfouten mogen. */
@@ -4886,6 +4930,51 @@ function googleTitelVelden(boek, items) {
   return v;
 }
 
+/**
+ * Herstel: het thema Graphic novel kwam vroeger ook bij boeken met enkel het woord "graphic" in de titel of
+ * de beschrijving (graphic sex, graphic design). Haalt het thema weg bij boeken waar "graphic" staat maar
+ * niets anders op een graphic novel wijst (geen graphic novel, strip, comic of manga in de tekst, het genre,
+ * de categorieën of de trefwoorden). Geeft de boek_id's.
+ */
+function graphicNovelHerstellen(catalogus, vertaal) {
+  var weg = [];
+  catalogus.forEach(function (b) {
+    var themas = splitsLijst(b.extra_onderwerpen);
+    if (!themas.some(function (t) { return normaliseerTekst(t) === 'graphic novel'; })) return;
+    var tekst = normaliseerTekst([b.titel, b.beschrijving, b.beschrijving_en].join(' '));
+    if (!/\bgraphic\b/.test(tekst)) return;
+    var bewijs = onderwerpScores(b).some(function (s) { return s[0] === 'Graphic novel'; }) ||
+      [b.genre].concat(splitsLijst(b.categorieen), splitsLijst(b.trefwoorden)).some(function (n) {
+        return themaVan(n, vertaal || {}).indexOf('Graphic novel') > -1;
+      });
+    if (bewijs) return;
+    wijzig(b, { extra_onderwerpen: themas.filter(function (t) { return normaliseerTekst(t) !== 'graphic novel'; }).join(', ') });
+    weg.push(String(b.boek_id));
+  });
+  return weg;
+}
+
+/** Eén keer (vanuit verwerkNieuweBoekenAutomatisch): het herstel hierboven op de Catalogus. */
+function graphicNovelHerstellenEenmalig() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('graphic_novel_hersteld')) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var weg;
+  try {
+    var catalogus = leesTabel('Catalogus');
+    weg = graphicNovelHerstellen(catalogus.rijen, vertaalTabel(leesTabel('Onderwerpen').rijen));
+    if (weg.length) schrijfKolommen(catalogus, ['extra_onderwerpen']);
+  } finally {
+    lock.releaseLock();
+  }
+  props.setProperty('graphic_novel_hersteld', vandaagTekst());
+  if (weg.length) {
+    leegCache();
+    logboek('systeem', 'graphicNovelHerstellen', 'Het thema Graphic novel weggehaald bij ' + weg.length + ' boeken die het enkel door het woord "graphic" kregen: ' + weg.join(', '));
+  }
+}
+
 /** Menu: zet de gsm-nummers in het tabblad Leners in één vorm. */
 function gsmNummersMenu() {
   var lock = LockService.getScriptLock();
@@ -5526,10 +5615,12 @@ function indelenZoekwoorden(naam, eigen) {
   delen.forEach(function (deel) {
     var n = normaliseerTekst(deel);
     if (!n) return;
-    lijst.push(n.length < 4 ? '=' + n : n);
     var stam = genreSleutel(deel);
+    var ingebouwd = indelenIndex()[stam];
+    // Staat de naam in de ingebouwde lijst, dan bepaalt die lijst hoe hij telt ("Strip" enkel als woord, niet striptease).
+    if (ingebouwd) { ingebouwd.forEach(function (w) { lijst.push(w); }); return; }
+    lijst.push(n.length < 4 ? '=' + n : n);
     if (stam && stam !== n && stam.length >= 4) lijst.push(stam);
-    (indelenIndex()[stam] || []).forEach(function (w) { lijst.push(w); });
   });
   splitsLijst(eigen).forEach(function (w) { lijst.push(w.charAt(0) === '=' ? '=' + normaliseerTekst(w.slice(1)) : normaliseerTekst(w)); });
   var uniek = [];
@@ -5755,6 +5846,26 @@ function isAfgebroken(tekst) {
 /** Is er al beslist wat er met een verloren boek gebeurt (vervangen of niet)? */
 function isAfgehandeldVerloren(tekst) {
   return /vervangen/i.test(String(tekst || ''));
+}
+
+/**
+ * Vult de kolom isbn10 aan uit het ISBN (978...). Een ISBN dat met 979 begint, heeft geen ISBN-10.
+ * Geeft de rijen die veranderden.
+ */
+function isbn10Aanvullen(catalogus) {
+  var veranderd = [];
+  catalogus.forEach(function (b) {
+    var tien = isbn13Naar10(String(b.isbn || '').replace(/[^0-9X]/gi, ''));
+    if (tien && schoon(b.isbn10) !== tien) { wijzig(b, { isbn10: tien }); veranderd.push(b); }
+  });
+  return veranderd;
+}
+
+/** Vanzelf, elk uur (vanuit verwerkNieuweBoekenAutomatisch): enkel als er iets te doen is. */
+function isbn10AanvullenAutomatisch() {
+  var tabel = leesTabel('Catalogus');
+  if (tabel.kop.indexOf('isbn10') === -1) { zorgVoorTabbladen(['Catalogus']); tabel = leesTabel('Catalogus'); }
+  if (isbn10Aanvullen(tabel.rijen).length) schrijfKolommen(tabel, ['isbn10']);
 }
 
 /** Controleert het controlecijfer van een ISBN-10 (10 tekens, laatste mag X zijn). */
@@ -10738,6 +10849,10 @@ function verwerkNieuweBoekenAutomatisch() {
   // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
   try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
+  // Eén keer: Graphic novel weg bij boeken die het enkel door het woord "graphic" kregen (OnderwerpRaden.js).
+  try { graphicNovelHerstellenEenmalig(); } catch (e) { logboek('systeem', 'graphicNovelHerstellen', 'Fout: ' + e.message); }
+  // De ISBN-10 bij elk ISBN dat met 978 begint (Beschrijvingen.js).
+  try { isbn10AanvullenAutomatisch(); } catch (e) { logboek('systeem', 'isbn10', 'Fout: ' + e.message); }
   // Eén keer per dag: elke auteur als "Achternaam, Voornaam" (Auteurs.js).
   try { auteursOpkuisenAutomatisch(); } catch (e) { logboek('systeem', 'auteursOpkuisen', 'Fout: ' + e.message); }
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }

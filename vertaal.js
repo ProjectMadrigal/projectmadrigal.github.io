@@ -1237,7 +1237,9 @@
     b.className = 'knop tweede taal-knop';
     b.setAttribute('data-niet-vertalen', '');
     b.lang = engels() ? 'nl' : 'en';
-    b.textContent = engels() ? 'Nederlands' : 'English';
+    // Kort: ENG of NL. Het volledige woord staat in het label, voor schermlezers.
+    b.textContent = engels() ? 'NL' : 'ENG';
+    b.setAttribute('aria-label', engels() ? 'Nederlands' : 'English');
     b.addEventListener('click', function () {
       if (engels()) {
         bewaar(SLEUTEL, '');
@@ -1248,7 +1250,8 @@
       bewaar(SLEUTEL, 'en');
       bewaar(HANDLEIDING, 'en');
       b.lang = 'nl';
-      b.textContent = 'Nederlands';
+      b.textContent = 'NL';
+      b.setAttribute('aria-label', 'Nederlands');
       zetAan();
     });
     plek.appendChild(b);

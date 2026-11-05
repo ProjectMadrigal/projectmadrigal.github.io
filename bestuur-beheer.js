@@ -21,7 +21,8 @@
   var LABELS = {
     titel: 'Titel', auteur: 'Auteur', isbn: 'ISBN', soort: 'Soort', uitgeverij: 'Uitgeverij', jaartal: 'Jaartal',
     taal: 'Taal', paginas: 'Pagina\'s', uitvoering: 'Uitvoering', nieuwstaat: 'Nieuw of tweedehands',
-    aanrader: 'Aanrader van', genre: 'Genre', extra_onderwerpen: 'Extra onderwerpen', klassieker: 'Klassieker',
+    aanrader: 'Aanrader van', genre: 'Genre (uit de stocklijst)', extra_onderwerpen: 'Thema\'s', klassieker: 'Klassieker',
+    categorieen: 'Categorieën', trefwoorden: 'Trefwoorden', triggerwaarschuwingen: 'Triggerwaarschuwingen',
     aantal: 'Aantal exemplaren', uitleenbaar: 'Uitleenbaar', publiek: 'Op de website', status: 'Status',
     startpagina: 'Op de startpagina', leeslijsten: 'Leeslijsten', beschrijving: 'Beschrijving (Nederlands)', beschrijving_en: 'Beschrijving (Engels)',
     cover_url: 'Link naar de cover', herkomst: 'Herkomst', notitie: 'Notitie (enkel voor het bestuur)',
@@ -40,7 +41,10 @@
     film_tip: 'Ja: deze film is niet in de bib, maar we raden hem aan. Niet uitleenbaar.',
     aanrader: 'Voornamen, gescheiden door komma\'s. Wordt het label "Aanrader van ..."',
     leeslijsten: 'Namen van leeslijsten, gescheiden door komma\'s. Uitleg en Engelse naam zet je in het tabblad Leeslijsten.',
-    extra_onderwerpen: 'Extra filtergroepen, gescheiden door komma\'s',
+    extra_onderwerpen: 'De thema\'s van de website. Vink aan wat past. Een thema kan ook vanzelf komen uit het genre.',
+    categorieen: 'De soort boek, zoals op de oude website (Roman, Essay, ...). Geel bij het boek, en een filter op de website.',
+    trefwoorden: 'Waar het boek over gaat (Lesbisch, Coming-out, ...). Paars bij het boek, een filter en zoekbaar op de website.',
+    triggerwaarschuwingen: 'Staan enkel op de website als de instelling triggerwaarschuwingen_tonen op ja staat.',
     status: 'Verloren: op de website als niet meer beschikbaar, niet uitleenbaar. Gevoelig verborgen: niet op de website, wel uitleenbaar. Gevoelig zichtbaar: met het label "Gevoelige inhoud".',
     startpagina: 'Automatisch: als aanrader of als het nieuw binnen is',
     beschrijving_en: 'Leeg laten: dan vertaalt het script de Nederlandse tekst',
@@ -71,8 +75,15 @@
   var LANG = ['notitie', 'beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
   var GETAL = ['jaartal', 'paginas', 'aantal', 'volgorde', 'duur'];
 
+  // Velden met een lijst (komma's in de spreadsheet): vinkjes of labels in het formulier (zie lijstVeld).
+  var LIJSTVELDEN = { extra_onderwerpen: 'themas', categorieen: 'categorieen', trefwoorden: 'trefwoorden', triggerwaarschuwingen: 'triggerwaarschuwingen' };
+  var huidigeKeuzes = null; // ctx.data.keuzes van het formulier dat nu open is
+  var huidigeLabels = {};   // andere namen voor een film (Regie, Genres, ...)
+
   /** Eén veld van een formulier. Geeft { blok, lees } terug. */
   function veld(prefix, naam, waarde) {
+    if (LIJSTVELDEN[naam] && huidigeKeuzes) return lijstVeld(prefix, naam, waarde, huidigeKeuzes[LIJSTVELDEN[naam]] || [], naam === 'extra_onderwerpen');
+    if (naam === 'genre' && huidigeLabels.genre && huidigeKeuzes) return lijstVeld(prefix, naam, waarde, huidigeKeuzes.filmgenres || [], false);
     var id = prefix + '-' + naam;
     var w = waarde === undefined || waarde === null ? '' : String(waarde);
     var invoer;
@@ -92,9 +103,15 @@
     }
     var hulpId = HULP[naam] ? id + '-hulp' : null;
     if (hulpId) invoer.setAttribute('aria-describedby', hulpId);
-    var blok = el('div', { class: 'veld' }, el('label', { for: id }, LABELS[naam] || naam),
+    var blok = el('div', { class: 'veld' }, el('label', { for: id }, huidigeLabels[naam] || LABELS[naam] || naam),
       hulpId ? el('p', { class: 'hulptekst', id: hulpId }, HULP[naam]) : null, invoer);
     return { naam: naam, blok: blok, invoer: invoer, oud: w, lees: function () { return invoer.value; } };
+  }
+
+  /** Een veld met een lijst namen (vinkjes of labels): zie D.lijstVeld in dom.js. */
+  function lijstVeld(prefix, naam, waarde, keuzes, vinkjes) {
+    var v = D.lijstVeld({ id: prefix + '-' + naam, label: huidigeLabels[naam] || LABELS[naam] || naam, hulp: HULP[naam], waarde: waarde, keuzes: keuzes, vinkjes: vinkjes });
+    return { naam: naam, blok: v.blok, invoer: v.invoer, oud: String(waarde || ''), lees: v.lees };
   }
 
   /** Enkel de velden die veranderden (of alles bij iets nieuws). */
@@ -133,6 +150,8 @@
     return vak;
   }
 
+  function schoonSoort(s) { return String(s || '').trim().toLowerCase(); }
+
   /** Een knop in een lijst van boeken: kleine cover, titel en daaronder auteur en boek-ID. */
   function boekKnop(b, opKlik, extra) {
     return el('button', Object.assign({ type: 'button', class: 'knop keuzeknop met-mini', onclick: opKlik }, extra || {}), miniCover(b),
@@ -143,13 +162,24 @@
 
   /* ---------- Boeken ---------- */
 
+  // De eerste groep is het nodige om een boek toe te voegen. De rest kan later, of voor meerdere boeken samen.
   var GROEPEN_BOEK = [
-    ['Het boek', ['titel', 'auteur', 'isbn', 'soort', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat']],
-    ['Op de website', ['status', 'publiek', 'startpagina', 'aanrader', 'leeslijsten', 'genre', 'extra_onderwerpen', 'klassieker', 'cover_url', 'beschrijving', 'beschrijving_en']],
-    ['Uitlenen', ['aantal', 'uitleenbaar', 'te_koop']],
-    ['Film', ['originele_titel', 'land', 'duur', 'film_tip']],
+    ['Het boek', ['isbn', 'titel', 'auteur', 'soort', 'aantal']],
+    ['Thema\'s, categorieën en trefwoorden', ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'klassieker', 'genre']],
+    ['Beschikbaar en zichtbaar', ['status', 'publiek', 'uitleenbaar', 'te_koop', 'startpagina']],
+    ['Op de website', ['cover_url', 'beschrijving', 'beschrijving_en', 'aanrader', 'leeslijsten']],
+    ['Meer over het boek', ['uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat', 'originele_titel']],
     ['Intern (niet op de website)', ['notitie']]
   ];
+  var GROEPEN_FILM = [
+    ['De film', ['titel', 'auteur', 'jaartal', 'duur', 'aantal']],
+    ['Genres en trefwoorden', ['genre', 'trefwoorden', 'triggerwaarschuwingen']],
+    ['Beschikbaar en zichtbaar', ['status', 'publiek', 'uitleenbaar', 'film_tip', 'te_koop', 'startpagina']],
+    ['Op de website', ['cover_url', 'beschrijving', 'beschrijving_en', 'aanrader', 'leeslijsten']],
+    ['Meer over de film', ['originele_titel', 'land', 'taal', 'uitvoering']],
+    ['Intern (niet op de website)', ['notitie']]
+  ];
+  var LABELS_FILM = { auteur: 'Regie', jaartal: 'Jaar', genre: 'Genres', duur: 'Duur in minuten', land: 'Land', aantal: 'Aantal exemplaren' };
 
   var vanLijst = ''; // kwam je van de lijst zonder cover ('cover') of zonder beschrijving ('beschrijving')? Dan gaat "Terug" daarheen.
   var lijstBoeken = []; // de boeken van die lijst, in dezelfde volgorde en met de zoekterm: voor Vorig en Volgend boek
@@ -235,19 +265,24 @@
   }
 
   function terugNaarLijst(vak, ctx) {
-    if (vanLijst === 'cover') toonZonderCover(vak, ctx);
+    if (vanLijst === 'films') toonFilms(vak, ctx);
+    else if (vanLijst === 'cover') toonZonderCover(vak, ctx);
     else if (vanLijst === 'beschrijving') toonZonderBeschrijving(vak, ctx);
     else toonBoeken(vak, ctx);
   }
   function terugNaarLijstTekst() {
-    return vanLijst === 'cover' ? 'Terug naar de lijst zonder cover' : vanLijst === 'beschrijving' ? 'Terug naar de lijst zonder beschrijving' : 'Terug naar de boeken';
+    return vanLijst === 'films' ? 'Terug naar de films' : vanLijst === 'cover' ? 'Terug naar de lijst zonder cover' : vanLijst === 'beschrijving' ? 'Terug naar de lijst zonder beschrijving' : 'Terug naar de boeken';
   }
+
+  /** Enkel de boeken en zines, zonder de films (die hebben een eigen onderdeel). */
+  function enkelBoeken(ctx) { return (ctx.data.boeken || []).filter(function (b) { return !b.f; }); }
+  function enkelFilms(ctx) { return (ctx.data.boeken || []).filter(function (b) { return b.f; }); }
 
   function toonBoeken(vak, ctx) {
     vanLijst = '';
-    var zonder = (ctx.data.boeken || []).filter(function (b) { return !b.c; }).length;
-    var zonderTekst = (ctx.data.boeken || []).filter(function (b) { return b.zb; }).length;
-    var index = Z.maakIndex(ctx.data.boeken || []);
+    var zonder = enkelBoeken(ctx).filter(function (b) { return !b.c; }).length;
+    var zonderTekst = enkelBoeken(ctx).filter(function (b) { return b.zb; }).length;
+    var index = Z.maakIndex(enkelBoeken(ctx));
     var zoekveld = el('input', { type: 'search', id: 'beheer-boek-zoek', autocomplete: 'off', placeholder: 'Titel, auteur, ISBN of boek-ID' });
     var lijst = el('div', { 'aria-live': 'polite' });
     function teken() {
@@ -265,7 +300,7 @@
           // Een ISBN dat al in de catalogus staat: dat boek openen. Anders een nieuw boek met dat ISBN.
           scanIsbn().then(function (isbn) {
             if (!isbn) return;
-            var bekend = (ctx.data.boeken || []).filter(function (b) { return zelfdeIsbn(b.i, isbn); })[0];
+            var bekend = enkelBoeken(ctx).filter(function (b) { return zelfdeIsbn(b.i, isbn); })[0];
             if (bekend) bewerkBoek(vak, ctx, bekend.id); else boekFormulier(vak, ctx, {}, true, { isbn: isbn });
           });
         } }, 'Scan een ISBN'),
@@ -276,6 +311,28 @@
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBulk(vak, ctx); } }, 'Meerdere boeken tegelijk aanpassen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { downloadCsv('catalogus.csv', ctx.data.boeken || []); } }, 'Download de catalogus (CSV)')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
+    teken();
+  }
+
+  /** Films: een eigen onderdeel, met de velden van een film (regie, duur, land, genres). */
+  function toonFilms(vak, ctx) {
+    vanLijst = 'films';
+    var films = enkelFilms(ctx).slice().sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
+    var index = Z.maakIndex(films);
+    var zoekveld = el('input', { type: 'search', id: 'beheer-film-zoek', autocomplete: 'off', placeholder: 'Titel, regie of ID' });
+    var lijst = el('div', { 'aria-live': 'polite' });
+    function teken() {
+      var q = zoekveld.value.trim();
+      lijstBoeken = q ? Z.zoek(index, q).map(function (r) { return r.boek; }) : films;
+      D.vervang(lijst, lijstBoeken.length ? el('ul', { class: 'kaartlijst' }, lijstBoeken.map(function (b) {
+        return el('li', {}, boekKnop(b, function () { bewerkBoek(vak, ctx, b.id); }, { 'data-id': b.id }));
+      })) : el('p', {}, films.length ? 'Geen film gevonden.' : 'Er staan nog geen films in de catalogus.'));
+    }
+    zoekveld.addEventListener('input', teken);
+    D.vervang(vak, ctx.kop('Films (' + films.length + ')', 'Zoek een film om aan te passen, of voeg een nieuwe film toe. Films staan ook in het tabblad Catalogus, met soort film.'),
+      knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { boekFormulier(vak, ctx, { soort: 'film' }, true, { film: true }); } }, '+ Nieuwe film toevoegen'),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBulk(vak, ctx, true); } }, 'Meerdere films tegelijk aanpassen')),
+      el('div', { class: 'veld' }, el('label', { for: 'beheer-film-zoek' }, 'Zoek een film'), zoekveld), lijst);
     teken();
   }
 
@@ -760,25 +817,42 @@
 
   /* ---------- Meerdere boeken tegelijk aanpassen ---------- */
 
-  var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'status', 'aanrader', 'startpagina', 'publiek', 'uitleenbaar', 'klassieker'];
+  var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'status', 'publiek', 'uitleenbaar',
+    'te_koop', 'startpagina', 'aanrader', 'leeslijsten', 'klassieker'];
+  var BULK_FILM = ['genre', 'trefwoorden', 'triggerwaarschuwingen', 'status', 'publiek', 'uitleenbaar', 'film_tip', 'te_koop', 'startpagina', 'aanrader', 'leeslijsten'];
+  // Velden met een lijst: iets toevoegen of weghalen, de rest blijft (zelfde lijst als BULK_LIJSTEN in Taken.js).
+  var BULK_LIJSTEN = ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'aanrader', 'leeslijsten'];
 
-  function toonBulk(vak, ctx) {
+  function toonBulk(vak, ctx, films) {
     var gekozen = {};
-    var index = Z.maakIndex(ctx.data.boeken || []);
+    var wat = films ? 'film' : 'boek', wat2 = films ? 'films' : 'boeken';
+    var index = Z.maakIndex(films ? enkelFilms(ctx) : enkelBoeken(ctx));
+    var keuzes = ctx.data.keuzes || {};
     var zoek = el('input', { type: 'search', id: 'bulk-zoek', autocomplete: 'off', placeholder: 'Titel, auteur, ISBN of boek-ID' });
     var lijst = el('div', { 'aria-live': 'polite' });
     var teller = el('p', { 'aria-live': 'polite' });
-    var veldKeuze = el('select', { id: 'bulk-veld' }, BULK_VELDEN.map(function (v) { return el('option', { value: v }, LABELS[v] || v); }));
+    var veldKeuze = el('select', { id: 'bulk-veld' }, (films ? BULK_FILM : BULK_VELDEN).map(function (v) {
+      return el('option', { value: v }, (films && LABELS_FILM[v]) || LABELS[v] || v);
+    }));
+    var modusVak = el('div', { class: 'veld' });
     var waardeVak = el('div', { class: 'veld' });
     var fout = el('div', { 'aria-live': 'assertive' });
     var gevonden = [];
     function waardeInvoer() {
       var v = veldKeuze.value;
+      var lijst = BULK_LIJSTEN.indexOf(v) > -1;
+      // Suggesties: de bestaande namen van dat veld.
+      var sugg = { extra_onderwerpen: keuzes.themas, categorieen: keuzes.categorieen, trefwoorden: keuzes.trefwoorden,
+        triggerwaarschuwingen: keuzes.triggerwaarschuwingen, genre: films ? keuzes.filmgenres : null }[v] || [];
+      D.vervang(modusVak, lijst ? [el('label', { for: 'bulk-modus' }, 'Wat wil je doen?'),
+        el('select', { id: 'bulk-modus' }, el('option', { value: 'erbij' }, 'Voeg toe (de rest blijft)'), el('option', { value: 'weg' }, 'Haal weg (de rest blijft)'),
+          el('option', { value: '' }, 'Vervang alles door'))] : null);
       var invoer = KEUZES[v] ? el('select', { id: 'bulk-waarde' }, KEUZES[v].map(function (k) { return el('option', { value: k[0] }, k[1]); }))
-        : el('input', { type: 'text', id: 'bulk-waarde', maxlength: '200' });
-      D.vervang(waardeVak, el('label', { for: 'bulk-waarde' }, 'Nieuwe waarde'), invoer);
+        : el('input', { type: 'text', id: 'bulk-waarde', maxlength: '200', list: sugg.length ? 'bulk-suggesties' : null, autocomplete: 'off' });
+      D.vervang(waardeVak, el('label', { for: 'bulk-waarde' }, lijst ? 'Naam (meerdere: met een komma ertussen)' : 'Nieuwe waarde'), invoer,
+        sugg.length ? el('datalist', { id: 'bulk-suggesties' }, sugg.map(function (k) { return el('option', { value: k }); })) : null);
     }
-    function tel() { var n = Object.keys(gekozen).length; teller.textContent = n + (n === 1 ? ' boek gekozen.' : ' boeken gekozen.'); }
+    function tel() { var n = Object.keys(gekozen).length; teller.textContent = n + (n === 1 ? ' ' + wat + ' gekozen.' : ' ' + wat2 + ' gekozen.'); }
     function teken() {
       var q = zoek.value.trim();
       gevonden = q ? Z.zoek(index, q).slice(0, 200).map(function (r) { return r.boek; }) : [];
@@ -790,17 +864,22 @@
           vakje.addEventListener('change', function () { if (vakje.checked) gekozen[b.id] = true; else delete gekozen[b.id]; tel(); });
           return el('li', {}, el('label', { class: 'vinkje', for: id }, vakje, miniCover(b),
             el('span', {}, el('strong', {}, b.t), ' ', el('span', { class: 'hulptekst' }, [b.a, b.id].filter(Boolean).join(' · ')))));
-        }))] : el('p', { class: 'hulptekst' }, q ? 'Geen boek gevonden.' : 'Zoek boeken en vink ze aan. Je kan na elkaar op verschillende woorden zoeken: wat je aanvinkte, blijft gekozen.'));
+        }))] : el('p', { class: 'hulptekst' }, q ? 'Niets gevonden.' : 'Zoek ' + wat2 + ' en vink ze aan. Je kan na elkaar op verschillende woorden zoeken: wat je aanvinkte, blijft gekozen.'));
     }
     var toepassen = el('button', { type: 'button', class: 'knop' }, 'Pas aan');
     toepassen.addEventListener('click', function () {
       var ids = Object.keys(gekozen);
-      if (!ids.length) { B.melding(fout, 'fout', 'Vink eerst een of meer boeken aan.'); return; }
+      if (!ids.length) { B.melding(fout, 'fout', 'Vink eerst een of meer ' + wat2 + ' aan.'); return; }
       var waarde = $('bulk-waarde').value;
+      var modus = $('bulk-modus') ? $('bulk-modus').value : '';
       var tekstWaarde = KEUZES[veldKeuze.value] ? $('bulk-waarde').selectedOptions[0].textContent : (waarde || '(leeg)');
-      if (!window.confirm('Je zet ' + (LABELS[veldKeuze.value] || veldKeuze.value) + ' op "' + tekstWaarde + '" voor ' + ids.length + (ids.length === 1 ? ' boek' : ' boeken') + '. Doorgaan?')) return;
+      var veldNaam = (films && LABELS_FILM[veldKeuze.value]) || LABELS[veldKeuze.value] || veldKeuze.value;
+      var zin = modus === 'erbij' ? 'Je voegt "' + tekstWaarde + '" toe aan ' + veldNaam
+        : modus === 'weg' ? 'Je haalt "' + tekstWaarde + '" weg uit ' + veldNaam
+        : 'Je zet ' + veldNaam + ' op "' + tekstWaarde + '"';
+      if (!window.confirm(zin + ' voor ' + ids.length + ' ' + (ids.length === 1 ? wat : wat2) + '. Doorgaan?')) return;
       var klaar = bezig(toepassen, 'Bezig met aanpassen...');
-      B.voerUit('beheerBoekenBulk', { ids: ids, veld: veldKeuze.value, waarde: waarde }).then(function (r) {
+      B.voerUit('beheerBoekenBulk', { ids: ids, veld: veldKeuze.value, waarde: waarde, modus: modus }).then(function (r) {
         klaar();
         if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
         B.melding($('melding'), 'ok', r.tekst);
@@ -809,10 +888,10 @@
     });
     zoek.addEventListener('input', teken);
     veldKeuze.addEventListener('change', waardeInvoer);
-    D.vervang(vak, ctx.kop('Meerdere boeken tegelijk aanpassen', 'Kies de boeken, dan het veld en de nieuwe waarde. Je krijgt eerst een samenvatting. Elke aanpassing komt in het Logboek.'),
-      el('div', { class: 'veld' }, el('label', { for: 'bulk-zoek' }, 'Zoek boeken'), zoek), lijst, teller,
-      el('div', { class: 'veld' }, el('label', { for: 'bulk-veld' }, 'Veld'), veldKeuze), waardeVak, fout,
-      knoppen(toepassen, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBoeken(vak, ctx); } }, 'Terug naar de boeken')));
+    D.vervang(vak, ctx.kop('Meerdere ' + wat2 + ' tegelijk aanpassen', 'Kies de ' + wat2 + ', dan het veld en wat er moet veranderen. Bij thema\'s, categorieën en trefwoorden kan je iets toevoegen of weghalen: de rest blijft. Je krijgt eerst een samenvatting. Elke aanpassing komt in het Logboek.'),
+      el('div', { class: 'veld' }, el('label', { for: 'bulk-zoek' }, 'Zoek ' + wat2), zoek), lijst, teller,
+      el('div', { class: 'veld' }, el('label', { for: 'bulk-veld' }, 'Veld'), veldKeuze), modusVak, waardeVak, fout,
+      knoppen(toepassen, el('button', { type: 'button', class: 'knop tweede', onclick: function () { if (films) toonFilms(vak, ctx); else toonBoeken(vak, ctx); } }, films ? 'Terug naar de films' : 'Terug naar de boeken')));
     waardeInvoer();
     teken();
     tel();
@@ -821,19 +900,28 @@
   /** Het formulier voor een boek. boek: bestaand boek of {} voor een nieuw. */
   function boekFormulier(vak, ctx, boek, nieuw, extra) {
     extra = extra || {};
+    var film = extra.film || schoonSoort(boek.soort) === 'film';
     var velden = [];
     var fout = el('div', { 'aria-live': 'assertive' });
-    var delen = GROEPEN_BOEK.map(function (g) {
+    huidigeKeuzes = ctx.data.keuzes || null;
+    huidigeLabels = film ? LABELS_FILM : {};
+    var groepen = (film ? GROEPEN_FILM : GROEPEN_BOEK).map(function (g) {
       return el('fieldset', { class: 'blok' }, el('legend', {}, g[0]), g[1].map(function (naam) {
         var v = veld('bb', naam, boek[naam] !== undefined ? boek[naam] : (nieuw && KEUZES[naam] ? KEUZES[naam][0][0] : ''));
+        // Bij een boek is Film geen keuze: films hebben een eigen onderdeel.
+        if (naam === 'soort' && !film) Array.prototype.slice.call(v.invoer.options).forEach(function (o) { if (o.value === 'film' && v.oud !== 'film') o.remove(); });
         velden.push(v);
         return v.blok;
       }));
     });
+    huidigeLabels = {};
+    // Nieuw: enkel het nodige open. De rest staat dichtgeklapt: dat kan later, ook voor meerdere samen.
+    var delen = nieuw ? [groepen[0], el('details', { class: 'blok meer-gegevens' },
+      el('summary', {}, 'Meer gegevens (mag later, of voor meerdere ' + (film ? 'films' : 'boeken') + ' samen)'), groepen.slice(1))] : groepen;
     var herkomst = nieuw ? veld('bb', 'herkomst', extra.reeks ? extra.reeks.herkomst : '') : null;
     var opzoekMelding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
     var zoekKnop = el('button', { type: 'button', class: 'knop tweede', onclick: zoekOp }, 'Zoek gegevens op');
-    var opzoeken = nieuw ? el('div', { class: 'blok' },
+    var opzoeken = nieuw && !film ? el('div', { class: 'blok' },
       el('p', {}, 'Heeft het boek een ISBN? Vul het hieronder in bij ISBN en klik op ', el('strong', {}, 'Zoek gegevens op'), '. Dan vult de site titel, auteur, cover en beschrijving voor je in. Kijk alles nog even na.'),
       knoppen(zoekKnop, el('button', { type: 'button', class: 'knop tweede', onclick: function () {
         scanIsbn().then(function (isbn) { if (isbn) { $('bb-isbn').value = isbn; zoekKnop.click(); } });
@@ -889,6 +977,7 @@
 
     function verstuur(toch, daarnaVolgend) {
       var invoer = nieuw ? { velden: gewijzigd(velden, true), herkomst: herkomst.lees(), toch: toch === true } : { boek_id: boek.boek_id, velden: gewijzigd(velden, false) };
+      if (nieuw && film) invoer.velden.soort = 'film';
       if (!nieuw && !Object.keys(invoer.velden).length) {
         if (daarnaVolgend) { openUitLijst(vak, ctx, volgend); return; }
         B.melding(fout, 'ok', 'Er is niets veranderd.');
@@ -927,8 +1016,8 @@
         B.melding($('melding'), 'ok', 'Schenking afgesloten: ' + extra.reeks.aantal + (extra.reeks.aantal === 1 ? ' boek' : ' boeken') + ' toegevoegd.');
         ctx.laad();
       } }, 'Stop de reeks'))) : null;
-    var titel = nieuw ? 'Nieuw boek' : (boek.titel || boek.boek_id);
-    D.vervang(vak, ctx.kop(titel, nieuw ? 'Velden met een waarde uit een lijst mag je zo laten.' : boek.boek_id + (boek.toegevoegd_op ? ' · toegevoegd op ' + D.korteDatum(boek.toegevoegd_op) : '')), reeksBalk, formulier);
+    var titel = nieuw ? (film ? 'Nieuwe film' : 'Nieuw boek') : (boek.titel || boek.boek_id);
+    D.vervang(vak, ctx.kop(titel, nieuw ? 'Vul enkel in wat je weet. De rest kan later, ook voor meerdere ' + (film ? 'films' : 'boeken') + ' samen via Meerdere tegelijk aanpassen.' : boek.boek_id + (boek.toegevoegd_op ? ' · toegevoegd op ' + D.korteDatum(boek.toegevoegd_op) : '')), reeksBalk, formulier);
     vak.querySelector('h2').focus();
   }
 
@@ -1255,6 +1344,8 @@
     ['Veelgestelde vragen', 'Veelgestelde vragen', ['volgorde', 'vraag', 'antwoord', 'vraag_en', 'antwoord_en', 'publiek'], 'Nieuwe vraag']
   ];
   var gekozenInhoud = 'Nieuws';
+  // Nieuws en agenda horen samen. De veelgestelde vragen hebben een eigen plek in het menu (toonVragen).
+  var NIEUWS_AGENDA = ['Nieuws', 'Agenda'];
 
   function laadInhoud(vak, ctx, verder) {
     if (inhoud) { verder(); return; }
@@ -1266,24 +1357,30 @@
     });
   }
 
-  function toonInhoud(vak, ctx) {
+  /** Het onderdeel Veelgestelde vragen (enkel het bestuur). */
+  function toonVragen(vak, ctx) { toonInhoud(vak, ctx, true); }
+
+  function toonInhoud(vak, ctx, vragen) {
+    vragen = !!vragen;
     laadInhoud(vak, ctx, function () {
       var vrijwilliger = ctx.scherm === 'vrijwilliger';
-      var soorten = INHOUD.filter(function (s) { return !vrijwilliger || s[0] !== 'Veelgestelde vragen'; });
+      var soorten = INHOUD.filter(function (s) { return vragen ? s[0] === 'Veelgestelde vragen' : NIEUWS_AGENDA.indexOf(s[0]) > -1; });
       if (!soorten.some(function (s) { return s[0] === gekozenInhoud; })) gekozenInhoud = soorten[0][0];
       var soort = soorten.filter(function (s) { return s[0] === gekozenInhoud; })[0];
       var rijen = (inhoud.tabbladen[soort[0]] || []).slice();
       if (soort[0] === 'Veelgestelde vragen') rijen.sort(function (a, b) { return (Number(a.volgorde) || 999) - (Number(b.volgorde) || 999); });
       else rijen.sort(function (a, b) { return String(b.datum).localeCompare(String(a.datum)); });
-      var tabs = el('div', { class: 'knoppen', role: 'group', 'aria-label': 'Kies wat je wil aanpassen' }, soorten.map(function (s) {
+      var tabs = soorten.length < 2 ? null : el('div', { class: 'knoppen', role: 'group', 'aria-label': 'Kies wat je wil aanpassen' }, soorten.map(function (s) {
         return el('button', {
           type: 'button', class: 'knop' + (s[0] === gekozenInhoud ? '' : ' tweede'), 'aria-pressed': s[0] === gekozenInhoud ? 'true' : 'false',
-          onclick: function () { gekozenInhoud = s[0]; toonInhoud(vak, ctx); }
+          onclick: function () { gekozenInhoud = s[0]; toonInhoud(vak, ctx, vragen); }
         }, s[1]);
       }));
-      D.vervang(vak, ctx.kop('Nieuws en agenda', vrijwilliger
+      D.vervang(vak, ctx.kop(vragen ? 'Veelgestelde vragen' : 'Nieuws en agenda', vragen
+        ? 'De vragen en antwoorden op de website, in de volgorde van het nummer. Alles komt in het tabblad Veelgestelde vragen van de spreadsheet.'
+        : vrijwilliger
         ? 'Stel een bericht of event voor. Het bestuur leest het na en zet het online. Tot dan blijft het verborgen.'
-        : 'Berichten, events en veelgestelde vragen op de startpagina. Alles komt in het gelijknamige tabblad van de spreadsheet.'),
+        : 'Berichten en events op de startpagina. Alles komt in het gelijknamige tabblad van de spreadsheet.'),
         tabs,
         knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { inhoudFormulier(vak, ctx, soort, null); } }, '+ ' + soort[3])),
         rijen.length ? el('ul', { class: 'kaartlijst' }, rijen.map(function (r) {
@@ -1324,7 +1421,7 @@
       : (rij && rij.voorgesteld_door && rij.publiek === 'nee'
         ? el('p', { class: 'melding let-op' }, 'Voorstel van ' + rij.voorgesteld_door + '. Lees het na en klik op "Keur goed en zet online", of zet "Op de website" op Ja.') : null);
     var formulier = el('form', { novalidate: true }, uitleg, velden.map(function (v) { return v.blok; }), fout,
-      knoppen(goedkeuren, bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonInhoud(vak, ctx); } }, 'Terug'), verwijder));
+      knoppen(goedkeuren, bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonInhoud(vak, ctx, soort[0] === 'Veelgestelde vragen'); } }, 'Terug'), verwijder));
 
     function stuur(invoer, knop) {
       var klaar = bezig(knop, 'Bezig...');
@@ -1333,7 +1430,7 @@
         if (!r.ok) { B.melding(fout, 'fout', r.fout); return; }
         B.melding($('melding'), 'ok', r.tekst + ' De website toont het binnen enkele minuten.');
         inhoud = null;
-        toonInhoud(vak, ctx);
+        toonInhoud(vak, ctx, soort[0] === 'Veelgestelde vragen');
       });
     }
     formulier.addEventListener('submit', function (e) {
@@ -1630,7 +1727,9 @@
 
   root.MadrigalBestuurBeheer = {
     boeken: toonBoeken,
-    inhoud: toonInhoud,
+    films: toonFilms,
+    inhoud: function (vak, ctx) { toonInhoud(vak, ctx, false); },
+    vragen: toonVragen,
     covers: toonZonderCover,
     zonderBeschrijving: toonZonderBeschrijving,
     /** Voor de tests: een ISBN lezen uit een canvas met ZXing. */

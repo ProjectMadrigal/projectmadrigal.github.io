@@ -2201,6 +2201,27 @@ test('auteurs: "Achternaam, Voornaam" met de voornamen uit de Catalogus, organis
   gelijk(M.auteursOpkuisen(cat, {}).filter((r) => r.auteur_nu !== r.auteur_vroeger).length, 0, 'opnieuw: niets meer te veranderen');
 });
 
+test('ISBN-10: berekend uit een ISBN dat met 978 begint, niet bij 979', () => {
+  const cat = [{ isbn: '9780306406157' }, { isbn: '9791034567890' }, { isbn: '' }, { isbn: '9780306406157', isbn10: '0306406152' }];
+  gelijk(M.isbn10Aanvullen(cat).length, 1);
+  gelijk(cat.map((b) => b.isbn10 || ''), ['0306406152', '', '', '0306406152']);
+});
+
+test('Graphic novel: niet op het woord graphic of striptease, en herstel van wat vroeger fout ging', () => {
+  const thema = (titel) => M.onderwerpScores({ titel: titel, beschrijving: '' }).map((s) => s[0]).indexOf('Graphic novel') > -1;
+  gelijk(['Graphic verzonnen content', 'Een graphic novel over de zee', 'Striptease in de zee', 'Stripped', 'Een strip over Kim', 'Getekend door het leven', 'Verzonnen manga'].map(thema),
+    [false, true, false, false, true, false, true]);
+  gelijk([M.stelFiltergroepenVoor('Graphic'), M.stelFiltergroepenVoor('Strips'), M.stelFiltergroepenVoor('Striptease')], [[], ['Graphic novel'], []]);
+  const cat = [
+    { boek_id: 'B1', titel: 'Graphic verzonnen verhalen', extra_onderwerpen: 'Seksualiteit, Graphic novel' },
+    { boek_id: 'B2', titel: 'Een graphic novel over Kim', extra_onderwerpen: 'Graphic novel' },
+    { boek_id: 'B3', titel: 'Graphic en zo', categorieen: 'Comics', extra_onderwerpen: 'Graphic novel' },
+    { boek_id: 'B4', titel: 'Zee', extra_onderwerpen: 'Graphic novel' }
+  ];
+  gelijk(Array.from(M.graphicNovelHerstellen(cat, {})), ['B1']);
+  gelijk(cat.map((b) => b.extra_onderwerpen), ['Seksualiteit', 'Graphic novel', 'Graphic novel', 'Graphic novel'], 'zonder "graphic" in de tekst (B4) blijft het: dat koos iemand zelf');
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
@@ -2633,6 +2654,30 @@ test('extra cijfers en meerdere boeken tegelijk aanpassen', () => {
   gelijk([r.ok, r.gelukt, r.fouten.length], [true, 2, 1]);
   gelijk([s.catalogus[0].genre, s.catalogus[1].genre], ['Poëzie', 'Poëzie']);
   assert.strictEqual(M.boekenBulk(s, { ids: ['B0001'], veld: 'titel', waarde: 'X' }).ok, false, 'Titel mag niet in bulk');
+  // Lijsten: iets toevoegen of weghalen, de rest blijft.
+  s.catalogus[0].trefwoorden = 'Zee, Licht';
+  s.catalogus[1].trefwoorden = '';
+  gelijk(M.boekenBulk(s, { ids: ['B0001', 'B0002'], veld: 'trefwoorden', waarde: 'Coming-out, zee', modus: 'erbij' }).gelukt, 2);
+  gelijk([s.catalogus[0].trefwoorden, s.catalogus[1].trefwoorden], ['Zee, Licht, Coming-out', 'Coming-out, zee']);
+  M.boekenBulk(s, { ids: ['B0001', 'B0002'], veld: 'trefwoorden', waarde: 'ZEE', modus: 'weg' });
+  gelijk([s.catalogus[0].trefwoorden, s.catalogus[1].trefwoorden], ['Licht, Coming-out', 'Coming-out']);
+  gelijk(M.boekenBulk(s, { ids: ['B0001'], veld: 'trefwoorden', waarde: '', modus: 'erbij' }).ok, false, 'leeg toevoegen kan niet');
+});
+
+test('bestuursscherm: keuzelijsten voor thema\'s, categorieën en trefwoorden, en films herkend', () => {
+  const cat = [
+    { boek_id: 'B1', titel: 'Zee', categorieen: 'Roman, Fictie', trefwoorden: 'lesbisch, Zee', triggerwaarschuwingen: 'Geweld' },
+    { boek_id: 'B2', titel: 'Licht', categorieen: 'Essay', trefwoorden: 'Lesbisch' },
+    { boek_id: 'F1', titel: 'Film', soort: 'film', genre: 'Drama, Komedie' }
+  ];
+  const k = M.boekKeuzes(cat);
+  gelijk([Array.from(k.categorieen), Array.from(k.trefwoorden), Array.from(k.triggerwaarschuwingen), Array.from(k.filmgenres)],
+    [['Essay', 'Roman'], ['lesbisch', 'Zee'], ['Geweld'], ['Drama', 'Komedie']]);
+  assert.ok(k.themas.indexOf('Gender') > -1 && k.themas.indexOf('Politiek') > -1);
+  const s = maakStaat();
+  s.catalogus.push({ boek_id: 'F0001', soort: 'film', titel: 'Een film', aantal: 1, uitleenbaar: 'ja', publiek: 'ja' });
+  const b = M.baliecatalogus(s).filter((x) => x.id === 'F0001')[0];
+  gelijk(b.f, 1);
 });
 
 test('notities en de staat van een boek bij terugbrengen', () => {

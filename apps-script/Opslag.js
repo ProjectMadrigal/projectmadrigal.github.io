@@ -23,7 +23,7 @@ var KOLOMMEN = {
     // De titel in de oorspronkelijke taal, als die verschilt (vooral films en vertaalde boeken).
     'originele_titel',
     // Vanaf hier: nooit publiek.
-    'herkomst', 'isbn_origineel', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
+    'herkomst', 'isbn_origineel', 'isbn10', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
     // Een cover van de oude website die nog naar Drive gekopieerd moet worden (OudeBoeken.js). Leeg als het klaar is.
     'oude_cover', 'cover_origineel', 'cover_bewaard',
