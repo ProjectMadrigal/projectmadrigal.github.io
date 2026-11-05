@@ -522,6 +522,11 @@ async function meldAan(page, basis, pagina) {
     await page.click('#sectie .kaartlijst button:has-text("Een verzonnen film")');
     await page.waitForSelector('#bb-duur');
     verwacht(/Regie/.test(await page.textContent('#sectie form')) && !(await page.$('#bb-isbn')), 'Formulier van een film');
+    // Bij een film staat nergens "boek": geen Boek laden, geen Zoek dit boek, geen Dit boek heeft nog geen cover.
+    await page.fill('#bb-cover_url', '');
+    await page.dispatchEvent('#bb-cover_url', 'input');
+    const filmTekst = await page.textContent('#sectie');
+    verwacht(/Deze film heeft nog geen cover/.test(filmTekst) && !/dit boek|Boek laden|volgend boek/i.test(filmTekst), 'Tekst bij een film: ' + filmTekst.match(/.{0,40}boek.{0,40}/i));
     await page.click('button:has-text("Terug naar de films")');
     await page.click('button:has-text("+ Nieuwe film toevoegen")');
     verwacht(/Nieuwe film/.test(await page.textContent('#sectie h2')), 'Nieuwe film');
