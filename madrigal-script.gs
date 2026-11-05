@@ -242,17 +242,33 @@ var BRONKOLOMMEN = {
 };
 
 /** De standaard filtergroepen op de website, in deze volgorde. */
-var FILTERGROEPEN = ['Gender', 'Seksualiteit', 'Feminisme', 'Fictie', 'Klassiekers', 'Geschiedenis', 'Maatschappij', 'Politiek', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
+
+// De thema's van de bib (zoals in de kasten). Een eigen thema erbij kan ook met de instelling eigen_themas.
+var FILTERGROEPEN = ['Gender', 'Intersekse', 'Seksualiteit', 'Coming-out', 'Relaties', 'Polyamorie', 'Feminisme', 'Fictie', 'Klassiekers',
+  'Geschiedenis', 'Kolonialisme', 'Maatschappij', 'Cultuur', 'Diversiteit', 'Ecologie', 'Gezondheid', 'Onderzoek', 'Politiek', 'Marxisme',
+  'Cuba', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
 
 /** Voorstellen voor de vertaaltabel: een genre met dit woord erin gaat naar deze groep. */
 var ONDERWERP_VOORSTELLEN = [
   [/gender|trans|non ?binair|interseks|intersex/, 'Gender'],
+  [/interseks|intersex/, 'Intersekse'],
   [/seks|sexualiteit|homo|lesb|queer|lgbt|holebi|coming out|gay|polyamor|relatie/, 'Seksualiteit'],
+  [/coming out|comingout|uit de kast/, 'Coming-out'],
+  [/relatie|relationship|huwelijk|liefde/, 'Relaties'],
+  [/polyamor/, 'Polyamorie'],
   [/femin|vrouw/, 'Feminisme'],
   [/roman|(?<!non ?)fictie|(?<!non ?)fiction|verhal|verhaal|proza|literatuur|thriller|detective|fantasy|science|kort/, 'Fictie'],
   [/geschied|histor|kolonial|fascis|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
+  [/kolonial|colonial|dekolonis|decolonis|slavernij/, 'Kolonialisme'],
   [/maatschap|sociolog|essay|non ?fictie|non ?fiction|filosof|ecolog|cultuur|onderzoek|racism|migrat|economi/, 'Maatschappij'],
+  [/cultuur|culture|kunst/, 'Cultuur'],
+  [/divers|inclusi|racism|migrat/, 'Diversiteit'],
+  [/ecolog|klimaat|climate|milieu|duurzaam/, 'Ecologie'],
+  [/gezond|health|ziekte|medisch|medic|hiv|aids|psychisch|mentale/, 'Gezondheid'],
+  [/onderzoek|research|wetenschap|studie/, 'Onderzoek'],
   [/politi|activis|marx|anarch|socialis|communis|democrat|verkiezing|protest|revolut/, 'Politiek'],
+  [/marx|communis|socialis|kapitalis/, 'Marxisme'],
+  [/cuba|havana/, 'Cuba'],
   [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
   [/biogra|^bio$|memoir|dagboek/, 'Biografie'],
   [/poezie|gedicht|poetry|poem/, 'Poëzie'],
@@ -368,7 +384,7 @@ var GENRES_TABBLAD = 'Genres opkuisen';
 // Schrijfwijzen die altijd zo moeten: genre (zoals genreSleutel het maakt) -> correcte schrijfwijze. Vul gerust aan.
 var GENRE_SCHRIJFWIJZE_LIJST = {
   'poezie': 'Poëzie', 'seksualiteit': 'Seksualiteit', 'biografie': 'Biografie', 'autobiografie': 'Autobiografie',
-  'intersex': 'Intersekse', 'intersekse': 'Intersekse', 'religie': 'Religie en Spiritualiteit', 'religie en spiritualiteit': 'Religie en Spiritualiteit',
+  'intersex': 'Intersekse', 'intersekse': 'Intersekse', 'coming out': 'Coming-out', 'comingout': 'Coming-out', 'religie': 'Religie en Spiritualiteit', 'religie en spiritualiteit': 'Religie en Spiritualiteit',
   'fotoboek': 'Kunst en Fotoboek', 'kunst en fotoboek': 'Kunst en Fotoboek',
   'feminisme': 'Feminisme', 'young adult': 'Young Adult', 'graphic novel': 'Graphic novel', 'non fictie': 'Non-fictie',
   'nonfictie': 'Non-fictie', 'bdsm': 'BDSM', 'lgbt': 'LGBT', 'lgbtq': 'LGBTQ', 'lgbtqia': 'LGBTQIA+', 'lhbt': 'LHBT'
@@ -486,6 +502,9 @@ var INDELEN_MIN_CATEGORIE = 1;
 var INDELEN_MIN_TREFWOORD = 1;      // één treffer is genoeg: een beschrijving noemt een onderwerp vaak maar één keer
 
 var INDELEN_MIN_TREFWOORD_FILM = 1;
+
+// Thema's die bij een film geen trefwoord worden: dat zijn eigenlijk soorten boeken.
+var INDELEN_GEEN_FILMTREFWOORD = ['Fictie', 'Klassiekers', 'Zines', 'Pulp', 'Young Adult', 'Graphic novel', 'Poëzie', 'Biografie', 'Onderzoek', 'Kunst en Fotoboek'];
 
 /*
  * Ingebouwde zoekwoorden per naam (de sleutel is genreSleutel van de naam). Een woord telt als een woord in de
@@ -783,7 +802,19 @@ var ONDERWERP_TEKST_WOORDEN = [
   ['Religie en Spiritualiteit', ['religie', 'religion', 'geloof', 'faith', 'kerk', 'church', 'bijbel', 'bible', 'islam', 'spiritualiteit', 'spiritual', 'tarot', 'heks', 'witch', '=god', '=goden', '=gods']],
   ['Young Adult', ['young adult', 'tiener', 'teen', 'jongeren', 'middelbare school', 'high school', 'puber']],
   ['Erotica en BDSM', ['erotisch', 'erotiek', 'erotic', 'bdsm', 'kink', 'fetish', '=leder', 'leather', 'dominant', 'submissive']],
-  ['Seksualiteit', ['seksualiteit', 'sexuality', 'coming out', 'comingout', 'seksuele', 'sexual']]
+  ['Seksualiteit', ['seksualiteit', 'sexuality', 'coming out', 'comingout', 'seksuele', 'sexual']],
+  ['Intersekse', ['intersekse', 'interseks', 'intersex']],
+  ['Coming-out', ['coming out', 'comingout', 'uit de kast']],
+  ['Relaties', ['relatie', 'relationship', 'huwelijk', 'marriage', 'scheiding', 'divorce']],
+  ['Polyamorie', ['polyamor', 'open relatie', 'open relationship']],
+  ['Kolonialisme', ['kolonial', 'colonial', 'dekolonis', 'decolonis', 'slavernij', 'slavery']],
+  ['Cultuur', ['cultuur', 'culture', 'kunstenaar', 'artist']],
+  ['Diversiteit', ['diversiteit', 'diversity', 'inclusie', 'inclusion', 'racisme', 'racism']],
+  ['Ecologie', ['ecolog', 'klimaat', 'climate', 'milieu', 'duurzaam', 'sustainab']],
+  ['Gezondheid', ['gezondheid', 'health', 'ziekte', 'illness', 'medisch', 'medical', '=hiv', '=aids']],
+  ['Onderzoek', ['onderzoek', 'research', 'wetenschap', 'science', 'studie']],
+  ['Marxisme', ['marx', 'communis', 'socialis', 'kapitalis', 'capitalis']],
+  ['Cuba', ['cuba', 'cubaan', 'havana']]
 ];
 
 var ONDERWERP_KOLOMMEN = ['boek_id', 'titel', 'auteur', 'genre', 'voorstel', 'onderwerp_nieuw', 'toepassen'];
@@ -957,6 +988,13 @@ var OUD_RONDE_SLEUTEL = 'oude_covers_ronde_start';
 var CATEGORIE_SOORTEN = ['categorie', 'trefwoord', 'triggerwaarschuwing', 'weg'];
 
 var CATEGORIE_KOLOM = { categorie: 'categorieen', trefwoord: 'trefwoorden', triggerwaarschuwing: 'triggerwaarschuwingen' };
+
+/**
+ * Eén keer na nieuwe thema's (bv. Coming-out, Kolonialisme): namen die nu een thema zijn, verhuizen uit de kolommen
+ * categorieen en trefwoorden naar extra_onderwerpen, en verdwijnen uit het tabblad en de keuzelijsten.
+ * Vanuit verwerkNieuweBoekenAutomatisch. THEMAS_VERSIE verhogen als er weer thema's bijkomen.
+ */
+var THEMAS_VERSIE = 'bib-2026-11';
 
 // Woorden in een naam die niets zeggen over wie het is.
 var NAAM_STOPWOORDEN = ['van', 'der', 'den', 'het', 'von', 'and', 'een', 'etc', 'the', 'les', 'des', 'del', 'della', 'ter', 'ten'];
@@ -3002,7 +3040,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     // Een categorie of trefwoord met de naam van een thema staat al bij de thema's: niet dubbel.
     var categorieen = zonderThemas(splitsLijst(rij.categorieen));
     if (categorieen.length) boek.ca = categorieen;
-    var trefwoorden = zonderThemas(splitsLijst(rij.trefwoorden));
+    // Bij een film mag een trefwoord de naam van een thema hebben: een film heeft geen thema's, enkel genres.
+    var trefwoorden = film ? splitsLijst(rij.trefwoorden) : zonderThemas(splitsLijst(rij.trefwoorden));
     if (trefwoorden.length) boek.k = trefwoorden;
     var triggers = toonTriggers ? splitsLijst(rij.triggerwaarschuwingen) : [];
     if (triggers.length) boek.tw = triggers;
@@ -3316,6 +3355,7 @@ function categorieenTabRijen() {
 function categorieenZonderThemas(catalogus) {
   var veranderd = [];
   catalogus.forEach(function (b) {
+    if (isFilm(b)) return; // een film heeft geen thema's: daar blijft het trefwoord
     var naarThema = [], velden = {};
     ['categorieen', 'trefwoorden'].forEach(function (kol) {
       var lijst = splitsLijst(b[kol]);
@@ -4007,6 +4047,13 @@ function deelBoekenIn(catalogus, namen, welke) {
       minFilm: INDELEN_MIN_TREFWOORD_FILM,
       zoekwoorden: indelenZoekwoorden(r.naam, r.zoekwoorden) };
   });
+  // Films hebben geen thema's maar genres. Een thema als Coming-out of Kolonialisme kan daarom bij een film
+  // een trefwoord zijn (niet de thema's die eigenlijk een soort boek zijn, zoals Fictie of Poëzie).
+  var filmKandidaten = kandidaten.filter(function (k) { return k.kolom === 'trefwoorden'; }).concat(alleThemas().filter(function (t) {
+    return INDELEN_GEEN_FILMTREFWOORD.indexOf(t) === -1;
+  }).map(function (t) {
+    return { naam: t, kolom: 'trefwoorden', min: INDELEN_MIN_TREFWOORD_FILM, minFilm: INDELEN_MIN_TREFWOORD_FILM, zoekwoorden: indelenZoekwoorden(t, '') };
+  }));
   var uit = [];
   catalogus.forEach(function (b) {
     if (isLeeg(b.boek_id) || isLeeg(b.titel)) return;
@@ -4020,8 +4067,7 @@ function deelBoekenIn(catalogus, namen, welke) {
     var erbij = { extra_onderwerpen: [], categorieen: [], trefwoorden: [] };
     // Thema's: elk thema dat duidelijk voorkomt.
     if (!film) onderwerpScores(b).forEach(function (s) { if (s[1] >= ONDERWERP_ZEKER_MIN) erbij.extra_onderwerpen.push(s[0]); });
-    kandidaten.forEach(function (k) {
-      if (film && k.kolom !== 'trefwoorden') return;
+    (film ? filmKandidaten : kandidaten).forEach(function (k) {
       if (indelenScore(k.zoekwoorden, titelWoorden, tekstWoorden) >= (film ? k.minFilm : k.min)) erbij[k.kolom].push(k.naam);
     });
     var velden = {}, nieuw = {};
@@ -9717,6 +9763,18 @@ function themasMooi(waarde, telling) {
   return uit.join(', ');
 }
 
+function themasOpnieuwIndelenEenmalig() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('themas_versie') === THEMAS_VERSIE) return;
+  if (!spreadsheet().getSheetByName('Categorieën en trefwoorden')) { props.setProperty('themas_versie', THEMAS_VERSIE); return; }
+  var tabel = leesTabel('Catalogus');
+  var voor = categorieenZonderThemas(tabel.rijen.map(function (b) { return Object.assign({}, b); })).length;
+  vernieuwCategorieen([]);
+  props.setProperty('themas_versie', THEMAS_VERSIE);
+  leegCache();
+  logboek('systeem', 'thema\'s', 'Nieuwe thema\'s van de bib: ' + voor + ' boeken hadden een categorie of trefwoord met de naam van een thema. Die staat nu bij de thema\'s.');
+}
+
 /** Telt hoe vaak elke schrijfwijze van een thema voorkomt, in Onderwerpen en de Catalogus. */
 function themaTelling(onderwerpRijen, catalogus) {
   var telling = {};
@@ -10876,6 +10934,8 @@ function verwerkNieuweBoekenAutomatisch() {
   // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
   try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
+  // Eén keer na nieuwe thema's: dubbels uit categorieën en trefwoorden naar de thema's (OudeBoeken.js).
+  try { themasOpnieuwIndelenEenmalig(); } catch (e) { logboek('systeem', 'thema\'s', 'Fout: ' + e.message); }
   // Eén keer: Graphic novel weg bij boeken die het enkel door het woord "graphic" kregen (OnderwerpRaden.js).
   try { graphicNovelHerstellenEenmalig(); } catch (e) { logboek('systeem', 'graphicNovelHerstellen', 'Fout: ' + e.message); }
   // De ISBN-10 bij elk ISBN dat met 978 begint (Beschrijvingen.js).

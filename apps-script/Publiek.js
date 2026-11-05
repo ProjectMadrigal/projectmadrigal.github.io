@@ -71,7 +71,8 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     // Een categorie of trefwoord met de naam van een thema staat al bij de thema's: niet dubbel.
     var categorieen = zonderThemas(splitsLijst(rij.categorieen));
     if (categorieen.length) boek.ca = categorieen;
-    var trefwoorden = zonderThemas(splitsLijst(rij.trefwoorden));
+    // Bij een film mag een trefwoord de naam van een thema hebben: een film heeft geen thema's, enkel genres.
+    var trefwoorden = film ? splitsLijst(rij.trefwoorden) : zonderThemas(splitsLijst(rij.trefwoorden));
     if (trefwoorden.length) boek.k = trefwoorden;
     var triggers = toonTriggers ? splitsLijst(rij.triggerwaarschuwingen) : [];
     if (triggers.length) boek.tw = triggers;

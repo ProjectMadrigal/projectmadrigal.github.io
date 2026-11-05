@@ -37,7 +37,19 @@ var ONDERWERP_TEKST_WOORDEN = [
   ['Religie en Spiritualiteit', ['religie', 'religion', 'geloof', 'faith', 'kerk', 'church', 'bijbel', 'bible', 'islam', 'spiritualiteit', 'spiritual', 'tarot', 'heks', 'witch', '=god', '=goden', '=gods']],
   ['Young Adult', ['young adult', 'tiener', 'teen', 'jongeren', 'middelbare school', 'high school', 'puber']],
   ['Erotica en BDSM', ['erotisch', 'erotiek', 'erotic', 'bdsm', 'kink', 'fetish', '=leder', 'leather', 'dominant', 'submissive']],
-  ['Seksualiteit', ['seksualiteit', 'sexuality', 'coming out', 'comingout', 'seksuele', 'sexual']]
+  ['Seksualiteit', ['seksualiteit', 'sexuality', 'coming out', 'comingout', 'seksuele', 'sexual']],
+  ['Intersekse', ['intersekse', 'interseks', 'intersex']],
+  ['Coming-out', ['coming out', 'comingout', 'uit de kast']],
+  ['Relaties', ['relatie', 'relationship', 'huwelijk', 'marriage', 'scheiding', 'divorce']],
+  ['Polyamorie', ['polyamor', 'open relatie', 'open relationship']],
+  ['Kolonialisme', ['kolonial', 'colonial', 'dekolonis', 'decolonis', 'slavernij', 'slavery']],
+  ['Cultuur', ['cultuur', 'culture', 'kunstenaar', 'artist']],
+  ['Diversiteit', ['diversiteit', 'diversity', 'inclusie', 'inclusion', 'racisme', 'racism']],
+  ['Ecologie', ['ecolog', 'klimaat', 'climate', 'milieu', 'duurzaam', 'sustainab']],
+  ['Gezondheid', ['gezondheid', 'health', 'ziekte', 'illness', 'medisch', 'medical', '=hiv', '=aids']],
+  ['Onderzoek', ['onderzoek', 'research', 'wetenschap', 'science', 'studie']],
+  ['Marxisme', ['marx', 'communis', 'socialis', 'kapitalis', 'capitalis']],
+  ['Cuba', ['cuba', 'cubaan', 'havana']]
 ];
 
 /** Hoe vaak elk thema voorkomt in de titel en de beschrijving van een boek. Geeft [[thema, aantal]], hoogste eerst. */
