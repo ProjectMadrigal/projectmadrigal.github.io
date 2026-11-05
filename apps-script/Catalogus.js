@@ -518,6 +518,47 @@ function vulOnderwerpenAan(onderwerpRijen, catalogusRijen) {
   return nieuw;
 }
 
+// De thema's die in november 2026 bijkwamen (zie FILTERGROEPEN).
+var NIEUWE_THEMAS = ['Intersekse', 'Coming-out', 'Relaties', 'Polyamorie', 'Kolonialisme', 'Fascisme', 'Cultuur', 'Diversiteit', 'Ecologie',
+  'Gezondheid', 'Onderzoek', 'Marxisme', 'Cuba'];
+
+/**
+ * De vertaaltabel Onderwerpen bijwerken voor de nieuwe thema's: een genre dat bij een nieuw thema hoort
+ * ("Fascisme en nazisme", "Koloniale geschiedenis", ...) krijgt het voorstel volgens de huidige regels
+ * (dus Fascisme, niet langer Geschiedenis). Andere genres blijven zoals ze zijn. Geeft de genres die veranderden.
+ */
+function vertaaltabelNieuweThemas(onderwerpRijen) {
+  var uit = [];
+  onderwerpRijen.forEach(function (r) {
+    if (isLeeg(r.genre)) return;
+    var exact = themaExact(r.genre);
+    var voorstel = exact ? [exact] : stelFiltergroepenVoor(r.genre);
+    if (!voorstel.some(function (t) { return NIEUWE_THEMAS.indexOf(t) > -1; })) return;
+    var nu = voorstel.join(', ');
+    if (normaliseerTekst(nu) === normaliseerTekst(r.filtergroepen)) return;
+    uit.push({ genre: schoon(r.genre), vroeger: schoon(r.filtergroepen), nu: nu });
+    wijzig(r, { filtergroepen: nu });
+  });
+  return uit;
+}
+
+/** In Apps Script: past vertaaltabelNieuweThemas toe op het tabblad Onderwerpen. Geeft het aantal genres. */
+function vertaaltabelNieuweThemasUitvoeren() {
+  var tabel = leesTabel('Onderwerpen');
+  var uit = vertaaltabelNieuweThemas(tabel.rijen);
+  if (uit.length) { bewaarTabel(tabel); leegCache(); }
+  return uit.length;
+}
+
+/** Menu: Boeken > Onderwerpen: pas de nieuwe thema's toe op de vertaaltabel. */
+function vertaaltabelNieuweThemasMenu() {
+  var n = vertaaltabelNieuweThemasUitvoeren();
+  var tekst = n ? n + ' genres in het tabblad Onderwerpen staan nu bij hun nieuwe thema (bv. Fascisme, Marxisme, Kolonialisme). De website toont het binnen enkele minuten.'
+    : 'Alle genres in het tabblad Onderwerpen staan al bij de juiste thema\'s.';
+  logboek('menu', 'vertaaltabel', tekst);
+  meld(tekst);
+}
+
 /**
  * De oude groep "Geschiedenis en maatschappij" werd drie groepen: Geschiedenis, Maatschappij en
  * Religie en Spiritualiteit. Verdeelt de rijen van Onderwerpen op basis van het genre. Past een

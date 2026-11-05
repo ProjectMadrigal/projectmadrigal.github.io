@@ -2233,6 +2233,20 @@ test('de thema\'s van de bib: Intersekse, Coming-out, Kolonialisme, Marxisme, ..
   gelijk([cat[0].trefwoorden, cat[0].extra_onderwerpen, cat[1].trefwoorden], ['Lesbisch', 'Fictie, Coming-out, Polyamorie', 'Coming-out']);
 });
 
+test('vertaaltabel: genres die bij een nieuw thema horen, krijgen dat thema (en enkel dat)', () => {
+  const rijen = [
+    { genre: 'Fascisme en nazisme', filtergroepen: 'Geschiedenis' },
+    { genre: 'Marxisme', filtergroepen: 'Politiek' },
+    { genre: 'Koloniale geschiedenis', filtergroepen: 'Geschiedenis' },
+    { genre: 'Intersex', filtergroepen: 'Gender' },
+    { genre: 'Roman', filtergroepen: 'Fictie' },
+    { genre: 'Cuba', filtergroepen: 'Cuba' }
+  ];
+  gelijk(M.vertaaltabelNieuweThemas(rijen).map((r) => r.genre), ['Fascisme en nazisme', 'Marxisme', 'Koloniale geschiedenis', 'Intersex']);
+  gelijk(rijen.map((r) => r.filtergroepen), ['Fascisme', 'Marxisme', 'Geschiedenis, Kolonialisme', 'Intersekse', 'Fictie', 'Cuba']);
+  gelijk(M.vertaaltabelNieuweThemas(rijen).length, 0, 'opnieuw: niets meer');
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
