@@ -5,6 +5,10 @@
  *   - De boeken waarvan de titel of de auteur verschilt tussen de stocklijst, de oude website en de Catalogus.
  *   - Kast per kast (onderwerp), binnen een kast op auteur, zoals bij Kastcontrole.
  *   - Een voor een: een versie overnemen, zelf typen, "klopt" of "niet in de kast". Overslaan en terug kan ook.
+ *   - Met de cover van het boek erbij, zodat je het sneller vindt in de kast.
+ *   - Bewaren gebeurt op de achtergrond: het volgende boek staat er meteen. Wat je in dit bezoek nakeek, blijft
+ *     in de rij staan: met Vorige ga je terug naar een boek dat je net bewaarde, en pas je het nog aan.
+ *     Lukt bewaren niet, dan komt het boek terug op de lijst, met een melding.
  *   - Enkel het bestuur: de lijst (opnieuw) maken, en de boeken die niet in de kast stonden terug op de lijst zetten.
  */
 (function (root) {
@@ -19,6 +23,14 @@
   var lijst = null;   // { open, nietGevonden, gedaan, leeg }
   var kast = '';      // gekozen onderwerp, '' = alle kasten
   var plaats = 0;     // het hoeveelste boek in de gekozen kast
+  var nagekeken = {}; // boek_id: { x, status, bezig } van wat je in dit bezoek nakeek: blijft in de rij voor Vorige
+  var wachtrij = [];  // bewaren gebeurt een voor een op de achtergrond
+  var bezigMet = 0;   // zoveel boeken worden nog bewaard
+  var statusVak = null; // de melding van het bewaren: blijft staan als het scherm opnieuw tekent
+  var W = root.MadrigalBestuurBeheer;
+
+  // Pagina sluiten terwijl er nog iets bewaard wordt: eerst waarschuwen.
+  root.addEventListener('beforeunload', function (e) { if (bezigMet) { e.preventDefault(); e.returnValue = ''; } });
 
   function isBestuur(ctx) { return ctx.scherm === 'bestuur' && B.sessie.rol === 'bestuur'; }
   function knoppen() { return el('div', { class: 'knoppen' }, Array.prototype.slice.call(arguments)); }
@@ -26,12 +38,18 @@
   /** Het onderwerp (kast) en de auteur van een boek, uit de gegevens van het scherm. */
   function info(ctx, id) {
     var b = (ctx.data.boeken || []).filter(function (x) { return x.id === id; })[0];
-    return { g: b && b.g && b.g.length ? b.g : [ZONDER] };
+    return { g: b && b.g && b.g.length ? b.g : [ZONDER], boek: b };
+  }
+
+  /** De open boeken en wat je in dit bezoek al nakeek (dat blijft op zijn plaats staan, voor Vorige). */
+  function inDeRij() {
+    var ids = lijst.open.map(function (x) { return x.id; });
+    return lijst.open.concat(Object.keys(nagekeken).filter(function (id) { return ids.indexOf(id) === -1; }).map(function (id) { return nagekeken[id].x; }));
   }
 
   /** De boeken van de gekozen kast, op onderwerp en daarbinnen op auteur. */
   function boekenInKast(ctx) {
-    return lijst.open.map(function (x) { return { x: x, g: info(ctx, x.id).g }; })
+    return inDeRij().map(function (x) { return { x: x, g: info(ctx, x.id).g }; })
       .filter(function (o) { return !kast || o.g.indexOf(kast) > -1; })
       .sort(function (p, q) {
         var gp = kast || p.g[0], gq = kast || q.g[0];
@@ -89,6 +107,8 @@
     B.voerUit('titelcontroleData', {}).then(function (r) {
       if (!r.ok) { D.vervang(vak, ctx.kop('Titels en auteurs nakijken'), el('div', { class: 'melding fout', role: 'alert' }, r.fout || 'De lijst kon niet laden.')); return; }
       lijst = r.lijst;
+      // Staat een boek volgens de spreadsheet weer open (bv. terug op de lijst gezet), dan telt het niet meer als nagekeken.
+      lijst.open.forEach(function (o) { if (nagekeken[o.id] && !nagekeken[o.id].bezig) delete nagekeken[o.id]; });
       teken(vak, ctx, okTekst);
     });
   }
@@ -106,7 +126,8 @@
       if (ctx.tekenNav) ctx.tekenNav();
     }
     var bestuur = isBestuur(ctx);
-    var melding = el('div', { 'aria-live': 'polite' });
+    if (!statusVak) statusVak = el('div', { 'aria-live': 'polite' });
+    var melding = statusVak;
     if (okTekst) B.melding(melding, 'ok', okTekst);
     var uitleg = 'Boeken waarvan de titel of de auteur anders geschreven is in de stocklijst, op de oude website of nu op de website. Neem het boek uit de kast en kijk hoe het op de cover staat. Neem een versie over of typ het zelf.';
     var delen = [ctx.kop('Titels en auteurs nakijken', uitleg), melding];
@@ -123,8 +144,10 @@
   function kastKeuze(vak, ctx) {
     var tel = {};
     lijst.open.forEach(function (x) { info(ctx, x.id).g.forEach(function (g) { tel[g] = (tel[g] || 0) + 1; }); });
+    // Een kast waarvan je alles nakeek, blijft in de lijst (met 0): zo kan je er nog naar terug.
+    inDeRij().forEach(function (x) { info(ctx, x.id).g.forEach(function (g) { tel[g] = tel[g] || 0; }); });
     var kasten = Object.keys(tel).sort(function (a, b) { return a.localeCompare(b, 'nl'); });
-    if (kast && !tel[kast]) kast = '';
+    if (kast && !tel.hasOwnProperty(kast)) kast = '';
     var keuze = el('select', { id: 'tc-kast' }, [el('option', { value: '' }, 'Alle kasten (' + lijst.open.length + ')')].concat(kasten.map(function (g) {
       return el('option', { value: g, selected: g === kast ? 'selected' : null }, g + ' (' + tel[g] + ')');
     })));
@@ -134,12 +157,21 @@
 
   function huidig(vak, ctx, melding) {
     var boeken = boekenInKast(ctx);
-    if (!boeken.length) {
-      return el('p', {}, lijst.open.length ? 'Deze kast is klaar. Kies een andere kast.' : 'Alles is nagekeken. ' + lijst.gedaan + ' boeken gedaan. Dank je!');
-    }
-    if (plaats >= boeken.length) plaats = boeken.length - 1;
     if (plaats < 0) plaats = 0;
+    if (plaats >= boeken.length) {
+      // Voorbij het laatste boek: klaar met deze kast. Vorige brengt je terug naar het laatste boek.
+      plaats = boeken.length;
+      var terug = boeken.length ? el('button', { type: 'button', class: 'knop tweede' }, '‹ Vorige') : null;
+      if (terug) terug.addEventListener('click', function () { plaats = boeken.length - 1; teken(vak, ctx); focusTitel(); });
+      var openHier = boeken.filter(function (b) { return !nagekeken[b.id]; }).length;
+      return el('div', {},
+        el('p', {}, !lijst.open.length ? 'Alles is nagekeken. ' + lijst.gedaan + ' boeken gedaan. Dank je!'
+          : openHier ? 'Je bent aan het einde van deze kast. Er staan nog ' + openHier + ' boeken open die je oversloeg: klik op Vorige.'
+            : 'Deze kast is klaar. Kies een andere kast.'),
+        terug ? knoppen(terug) : null);
+    }
     var x = boeken[plaats];
+    var al = nagekeken[x.id]; // in dit bezoek al nagekeken?
     var titel = el('input', { type: 'text', id: 'tc-titel', value: x.nu.t, autocomplete: 'off' });
     var auteur = el('input', { type: 'text', id: 'tc-auteur', value: x.nu.a, autocomplete: 'off' });
     var bewaar = el('button', { type: 'button', class: 'knop' }, 'Klopt, volgende');
@@ -204,32 +236,67 @@
         el('td', { class: 'hulptekst' }, titelAnders || auteurAnders ? '' : 'Zelfde als nu'));
     }
 
-    function stuur(status, knop) {
-      knop.disabled = true;
-      B.voerUit('titelcontroleBewaren', { boek_id: x.id, status: status, titel: titel.value, auteur: auteur.value }).then(function (r) {
-        knop.disabled = false;
-        if (r.geannuleerd) return;
-        if (!r.ok) { B.melding(melding, 'fout', r.fout || 'Dat lukte niet.'); return; }
-        lijst.open = lijst.open.filter(function (o) { return o.id !== x.id; });
-        if (status === 'niet in de kast') lijst.nietGevonden.push(Object.assign({}, x, { wie: B.sessie.wie || '', datum: '' }));
-        else lijst.gedaan++;
-        teken(vak, ctx, r.tekst);
-        var volgende = document.getElementById('tc-titel');
-        if (volgende) volgende.focus();
+    /**
+     * Bewaart op de achtergrond: het scherm gaat meteen naar het volgende boek. Lukt het niet, dan komt
+     * alles terug zoals het was en zegt de melding welk boek niet bewaard is.
+     */
+    function stuur(status) {
+      var vroeger = nagekeken[x.id] || null;
+      var oudNu = x.nu;
+      var wasOpen = lijst.open.some(function (o) { return o.id === x.id; });
+      var oudNiet = lijst.nietGevonden.slice();
+      var telt = function (st) { return st && st !== 'niet in de kast' ? 1 : 0; };
+      var invoer = { boek_id: x.id, status: status, titel: titel.value, auteur: auteur.value };
+      // Meteen op het scherm.
+      if (status === 'aangepast') x.nu = Object.assign({}, x.nu, { t: titel.value.trim(), a: auteur.value.trim() });
+      lijst.open = lijst.open.filter(function (o) { return o.id !== x.id; });
+      lijst.nietGevonden = lijst.nietGevonden.filter(function (o) { return o.id !== x.id; });
+      if (status === 'niet in de kast') lijst.nietGevonden.push(Object.assign({}, x, { wie: B.sessie.wie || '', datum: '' }));
+      lijst.gedaan += telt(status) - telt(vroeger && vroeger.status);
+      var dit = { x: x, status: status, bezig: true };
+      nagekeken[x.id] = dit;
+      bezigMet++;
+      B.melding(melding, 'info', 'Bezig met bewaren: "' + x.nu.t + '"...');
+      plaats++;
+      teken(vak, ctx);
+      focusTitel();
+      bewaarOpAchtergrond(invoer, function (r) {
+        dit.bezig = false;
+        if (r.ok) {
+          B.melding(melding, 'ok', r.tekst + (bezigMet ? ' Nog ' + bezigMet + ' aan het bewaren.' : ''));
+          // Toont het scherm dit boek nog (je ging terug)? Enkel de melding bijwerken, niet wat je typt.
+          var alVak = document.getElementById('tc-al');
+          if (alVak && alVak.getAttribute('data-id') === x.id) alVak.textContent = alTekst(dit);
+          return;
+        }
+        // Terug zoals het was.
+        x.nu = oudNu;
+        if (nagekeken[x.id] === dit) { if (vroeger) nagekeken[x.id] = vroeger; else delete nagekeken[x.id]; }
+        if (wasOpen && !lijst.open.some(function (o) { return o.id === x.id; })) lijst.open.push(x);
+        lijst.nietGevonden = oudNiet;
+        lijst.gedaan -= telt(status) - telt(vroeger && vroeger.status);
+        teken(vak, ctx);
+        if (!r.geannuleerd) B.melding(melding, 'fout', 'Bewaren lukte niet voor "' + oudNu.t + '": ' + (r.fout || 'geen verbinding.') + ' Het boek staat terug op de lijst.');
       });
     }
-    bewaar.addEventListener('click', function () { stuur('aangepast', bewaar); });
+    bewaar.addEventListener('click', function () { stuur('aangepast'); });
     var niet = el('button', { type: 'button', class: 'knop tweede' }, 'Niet in de kast');
-    niet.addEventListener('click', function () { stuur('niet in de kast', niet); });
+    niet.addEventListener('click', function () { stuur('niet in de kast'); });
     var vorige = el('button', { type: 'button', class: 'knop tweede', disabled: plaats === 0 ? true : null }, '‹ Vorige');
-    vorige.addEventListener('click', function () { plaats--; teken(vak, ctx); });
-    var sla = el('button', { type: 'button', class: 'knop tweede', disabled: plaats >= boeken.length - 1 ? true : null }, 'Sla over ›');
-    sla.addEventListener('click', function () { plaats++; teken(vak, ctx); });
+    vorige.addEventListener('click', function () { plaats--; teken(vak, ctx); focusTitel(); });
+    var sla = el('button', { type: 'button', class: 'knop tweede', disabled: plaats >= boeken.length - 1 ? true : null }, al ? 'Volgende ›' : 'Sla over ›');
+    sla.addEventListener('click', function () { plaats++; teken(vak, ctx); focusTitel(); });
+    var kaft = coverVak(ctx, x);
+    var volgendBoek = boeken[plaats + 1];
+    if (volgendBoek) laadCoverVooraf(ctx, volgendBoek.id);
 
     return el('section', { class: 'blok', 'aria-labelledby': 'tc-kop' },
       el('p', { class: 'hulptekst' }, x.kast + ': boek ' + (plaats + 1) + ' van ' + boeken.length + '. Al nagekeken: ' + lijst.gedaan + '.'),
-      el('h3', { id: 'tc-kop' }, x.nu.t + (x.nu.a ? ' (' + x.nu.a + ')' : '')),
-      el('p', { class: 'hulptekst' }, 'Boek ' + x.id + (x.isbn ? ', ISBN ' + x.isbn : '')),
+      el('div', { class: 'tc-boek' }, kaft,
+        el('div', {},
+          el('h3', { id: 'tc-kop' }, x.nu.t + (x.nu.a ? ' (' + x.nu.a + ')' : '')),
+          el('p', { class: 'hulptekst' }, 'Boek ' + x.id + (x.isbn ? ', ISBN ' + x.isbn : '')))),
+      al ? el('p', { class: 'melding info', id: 'tc-al', 'data-id': x.id }, alTekst(al)) : null,
       el('div', { class: 'tabel-wrap' }, el('table', { class: 'tabel' },
         el('caption', {}, 'Zo staat het in elke bron'),
         el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, 'Bron'), el('th', { scope: 'col' }, 'Titel'), el('th', { scope: 'col' }, 'Auteur'), el('td', {}))),
@@ -243,6 +310,50 @@
       el('div', { class: 'veld' }, el('label', { for: 'tc-auteur' }, 'Auteur zoals op het boek'), auteur),
       knoppen(bewaar, niet),
       knoppen(vorige, sla));
+  }
+
+  /** De uitleg bij een boek dat je in dit bezoek al nakeek. */
+  function alTekst(al) {
+    return (al.bezig ? 'Wordt bewaard: ' : 'Al nagekeken in dit bezoek: ') +
+      (al.status === 'niet in de kast' ? 'niet in de kast.' : al.status === 'aangepast' ? 'bewaard zoals in de velden.' : 'klopt.') +
+      ' Klopt het niet? Pas het aan en bewaar opnieuw.';
+  }
+
+  function focusTitel() { var t = document.getElementById('tc-titel'); if (t) t.focus(); }
+
+  /** Bewaart een voor een, in de volgorde waarin je klikte. doe(r) krijgt het antwoord. */
+  function bewaarOpAchtergrond(invoer, doe) {
+    wachtrij.push(function () {
+      return B.voerUit('titelcontroleBewaren', invoer).then(null, function () { return { ok: false, fout: 'geen verbinding' }; }).then(function (r) {
+        bezigMet--;
+        doe(r || { ok: false });
+      });
+    });
+    if (wachtrij.length === 1) volgende();
+    function volgende() {
+      if (!wachtrij.length) return;
+      wachtrij[0]().then(function () { wachtrij.shift(); volgende(); });
+    }
+  }
+
+  /** De cover van het boek, zodat je het sneller vindt in de kast. Zonder cover: een grijs vlak. */
+  function coverVak(ctx, x) {
+    var vak = el('span', { class: 'tc-cover' });
+    var b = info(ctx, x.id).boek;
+    if (!b || !b.c || !W || !W.coverLink) { vak.appendChild(el('span', { class: 'hulptekst' }, 'Geen cover')); return vak; }
+    W.coverLink(x.id).then(function (link) {
+      if (!link) { vak.appendChild(el('span', { class: 'hulptekst' }, 'Geen cover')); return; }
+      var beeld = el('img', { src: link, alt: 'Cover van ' + x.nu.t });
+      beeld.addEventListener('error', function () { beeld.remove(); vak.appendChild(el('span', { class: 'hulptekst' }, 'Cover laadt niet')); });
+      vak.appendChild(beeld);
+    });
+    return vak;
+  }
+
+  /** De cover van het volgende boek alvast laden: dan staat ze er meteen. */
+  function laadCoverVooraf(ctx, id) {
+    var b = info(ctx, id).boek;
+    if (b && b.c && W && W.coverLink) W.coverLink(id).then(function (link) { if (link) { var i = new Image(); i.src = link; } });
   }
 
   /** Enkel het bestuur: de boeken die niet in de kast stonden. */
@@ -260,6 +371,7 @@
             if (r.geannuleerd) return;
             if (!r.ok) { B.melding(melding, 'fout', r.fout || 'Dat lukte niet.'); return; }
             lijst.nietGevonden = lijst.nietGevonden.filter(function (o) { return o.id !== x.id; });
+            delete nagekeken[x.id];
             lijst.open.push(x);
             teken(vak, ctx, r.tekst);
           });

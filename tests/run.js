@@ -3743,5 +3743,41 @@ test('eigen thema\'s: Kunst en Fotoboek blijft een thema, ook als genre', () => 
   assert.ok(M.onderwerpKeuzes([], []).lijst.includes('Kunst en Fotoboek'));
 });
 
+test('schrijfCellen: één boek cel per cel, meer dan vijf rijen kolom per kolom', () => {
+  const geschreven = [];
+  let kolomBeurten = 0;
+  const blad = {
+    getLastRow: () => 8,
+    getRange: (r, k, n) => ({
+      setValue: (w) => geschreven.push([r, k, w]),
+      getValues: () => { kolomBeurten++; return Array.from({ length: n || 1 }, () => ['']); },
+      setValues: () => { kolomBeurten++; }
+    })
+  };
+  const rijen = Array.from({ length: 7 }, (_, i) => ({ _rij: i + 2, boek_id: 'B' + i, status: '', wie: '' }));
+  const tabel = { blad, kop: ['boek_id', 'status', 'wie'], rijen };
+  M.wijzig(rijen[3], { status: 'klopt', wie: 'Sam' });
+  M.schrijfCellen(tabel, ['status', 'wie']);
+  gelijk(geschreven, [[5, 2, 'klopt'], [5, 3, 'Sam']]);
+  assert.strictEqual(kolomBeurten, 0);
+  assert.strictEqual(rijen[3]._gewijzigd, false);
+  rijen.forEach((r) => M.wijzig(r, { status: 'klopt' }));
+  M.schrijfCellen(tabel, ['status']);
+  assert.ok(kolomBeurten > 0, 'bij veel rijen kolom per kolom');
+});
+
+test('controleerIaCovers: enkel covers van Internet Archive, op boek-ID, na het laatst nagekeken boek', () => {
+  const rijen = [
+    { boek_id: 'B0003', cover_bron: 'Internet Archive', cover_url: 'https://archive.org/c3.jpg' },
+    { boek_id: 'B0001', cover_bron: 'Internet Archive', cover_url: 'https://archive.org/c1.jpg' },
+    { boek_id: 'B0002', cover_bron: 'Google Books', cover_url: 'https://books.google.com/c2.jpg' },
+    { boek_id: 'B0004', cover_bron: 'Internet Archive', cover_url: '' }
+  ];
+  gelijk(M.iaCoversTeControleren(rijen, '').map((b) => b.boek_id), ['B0001', 'B0003']);
+  gelijk(M.iaCoversTeControleren(rijen, 'B0001').map((b) => b.boek_id), ['B0003']);
+  assert.strictEqual(M.iaControleLink({ cover_url: 'https://lh3.googleusercontent.com/d/x', cover_origineel: 'https://archive.org/c1.jpg' }), 'https://archive.org/c1.jpg');
+  assert.strictEqual(M.iaControleLink({ cover_url: 'https://archive.org/c1.jpg', cover_origineel: '' }), 'https://archive.org/c1.jpg');
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

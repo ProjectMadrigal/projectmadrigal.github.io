@@ -252,3 +252,79 @@ function zoekCoversInternetArchive() {
   logboek('menu', 'zoekCoversInternetArchive', verwerkt + ' opgezocht, ' + gevonden + ' covers gevonden, ' + rest + ' te gaan' + (fout ? ' (Internet Archive: ' + fout + ', later verder)' : ''));
   try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Internet Archive, ' + gevonden + ' covers gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
 }
+
+/* ---------- Bewaarde covers van Internet Archive nakijken ---------- */
+
+/*
+ * Vroeger kwam soms het logo van Internet Archive als cover in de Catalogus (geen afbeelding van het boek).
+ * Nieuwe covers kijkt het script meteen na (iaCoverIsEcht). Deze taak kijkt de covers na die er al staan.
+ * Stond vroeger in het bestuursscherm, nu enkel in het menu: Madrigal > Covers.
+ */
+var IA_CONTROLE_SLEUTEL = 'ia_controle_vanaf'; // het laatst nagekeken boek-ID, om in porties verder te gaan
+
+/** De boeken met een cover van Internet Archive, op boek-ID, na het boek-ID vanaf (leeg: allemaal). */
+function iaCoversTeControleren(rijen, vanaf) {
+  return rijen.filter(function (b) {
+    return !isLeeg(b.boek_id) && schoon(b.cover_bron) === IA_BRON && !isLeeg(b.cover_url) && (!vanaf || String(b.boek_id) > vanaf);
+  }).sort(function (a, b) { return String(a.boek_id) < String(b.boek_id) ? -1 : 1; });
+}
+
+/** De link om na te kijken: de oorspronkelijke link van Internet Archive als de cover al in Drive staat. */
+function iaControleLink(boek) {
+  var origineel = schoon(boek.cover_origineel);
+  return /archive\.org/i.test(origineel) ? origineel : schoon(boek.cover_url);
+}
+
+/**
+ * Menu: kijkt de covers van Internet Archive na. Is de afbeelding niet staand (het logo, een pictogram),
+ * dan wist het script de cover: het boek komt weer in de lijst Boeken zonder cover en Google zoekt opnieuw.
+ * Laadt een afbeelding niet, dan blijft ze staan (misschien een storing). Werkt in porties op de achtergrond.
+ */
+function controleerIaCovers() {
+  var start = Date.now();
+  if (wachtOpDaglimiet('controleerIaCovers')) return;
+  if (!startAchtergrond('controleerIaCovers')) { meldAlBezig('controleerIaCovers'); return; }
+  var props = PropertiesService.getScriptProperties();
+  var vanaf = props.getProperty(IA_CONTROLE_SLEUTEL) || '';
+  var nagekeken = 0, gewist = [], laadtNiet = 0, rest = 0, wachten = false;
+  try {
+    var tabel = leesTabel('Catalogus');
+    var teDoen = iaCoversTeControleren(tabel.rijen, vanaf);
+    for (var i = 0; i < teDoen.length; i++) {
+      if (Date.now() - start > CV_MAX_LOOPTIJD_MS) break;
+      var boek = teDoen[i];
+      var r = null;
+      try {
+        r = haalExtern(iaControleLink(boek), { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
+      } catch (e) {
+        if (isDaglimietFout(e)) { wachten = true; break; } // haalExtern plant de herstart al
+      }
+      var code = r ? r.getResponseCode() : 0;
+      if (code === 429 || code >= 500) { wachten = true; break; }
+      if (code !== 200) laadtNiet++;
+      else {
+        var afm = afbeeldingAfmetingen(r.getBlob().getBytes());
+        if (afm && !isStaandeCover(afm)) {
+          wijzig(boek, { cover_url: '', cover_bron: '', gb_gecontroleerd: '', cover_origineel: '', cover_bewaard: '' });
+          gewist.push(String(boek.boek_id));
+        }
+      }
+      nagekeken++;
+      vanaf = String(boek.boek_id);
+      if (nagekeken % 25 === 0 && bewaarAchtergrond(tabel)) props.setProperty(IA_CONTROLE_SLEUTEL, vanaf);
+      Utilities.sleep(CV_PAUZE_MS);
+    }
+    if (bewaarAchtergrond(tabel)) props.setProperty(IA_CONTROLE_SLEUTEL, vanaf);
+    rest = iaCoversTeControleren(tabel.rijen, vanaf).length;
+  } finally {
+    stopAchtergrond('controleerIaCovers');
+  }
+  verwijderTriggers('controleerIaCovers');
+  if (rest > 0) planTaak('controleerIaCovers', (wachten ? 15 : 1) * 60 * 1000);
+  else props.deleteProperty(IA_CONTROLE_SLEUTEL); // klaar: de volgende keer begint het vooraan
+  if (gewist.length) leegCache();
+  var tekst = nagekeken + ' covers van Internet Archive nagekeken, ' + gewist.length + ' gewist (enkel het logo)' +
+    (laadtNiet ? ', ' + laadtNiet + ' laden niet en blijven staan' : '') + ', ' + rest + ' te gaan' + (wachten ? ' (Internet Archive is druk, later verder)' : '') + '.';
+  logboek('menu', 'controleerIaCovers', tekst + (gewist.length ? ' Gewist: ' + gewist.join(', ') : ''));
+  try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
+}

@@ -712,3 +712,21 @@ html.groot-lettertype { font-size: 118.75%; }
 /* Uitleenscherm: de knop terug naar het menu, in het midden. */
 .knoppen.midden { justify-content: center; }
 .menu-knop { min-width: min(100%, 18rem); font-size: 1.05rem; }
+
+/* ---------- Bestuurs- en vrijwilligersscherm: icoontjes in de kop (donkere modus, grotere letters) ---------- */
+.kop-binnen:has(.kop-ikonen) { flex-wrap: wrap; }
+.kop-binnen:has(.kop-ikonen) > div:not(.kop-ikonen) { flex: 1 1 13rem; min-width: 0; }
+.kop-ikonen { margin-left: auto; display: flex; gap: .3rem; flex-shrink: 0; }
+.kop-ikonen ~ .taal-knop { margin-left: 0; }
+.kop-ikonen .ikoonknop { border: 2px solid transparent; }
+.kop-ikonen .ikoonknop[aria-pressed="true"] { background: var(--kleur-geel); color: var(--kleur-op-geel); }
+.kop-ikonen .ikoonknop:focus-visible { outline: 3px solid var(--kleur-geel); outline-offset: 2px; }
+.ikoon-letters { font-weight: 700; line-height: 1; font-size: .85rem; }
+.ikoon-letters span { font-size: 1.35rem; margin-left: .05rem; }
+
+/* ---------- Titels en auteurs nakijken: de cover naast de titel ---------- */
+.tc-boek { display: flex; gap: 1rem; align-items: flex-start; margin: .5rem 0 1rem; }
+.tc-boek h3 { margin-top: 0; }
+.tc-cover { flex: none; width: 7rem; aspect-ratio: 2 / 3; border-radius: .3rem; background: var(--kleur-rand); overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: .3rem; }
+.tc-cover img { width: calc(100% + .6rem); height: calc(100% + .6rem); margin: -.3rem; object-fit: cover; display: block; }
+@media (max-width: 30rem) { .tc-cover { width: 5rem; } }
