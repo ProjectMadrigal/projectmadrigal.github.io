@@ -42,8 +42,8 @@
     aanrader: 'Voornamen, gescheiden door komma\'s. Wordt het label "Aanrader van ..."',
     leeslijsten: 'Namen van leeslijsten, gescheiden door komma\'s. Uitleg en Engelse naam zet je in het tabblad Leeslijsten.',
     extra_onderwerpen: 'De thema\'s van de website. Vink aan wat past. Een thema kan ook vanzelf komen uit het genre.',
-    categorieen: 'De soort boek, zoals op de oude website (Roman, Essay, ...). Geel bij het boek, en een filter op de website.',
-    trefwoorden: 'Waar het boek over gaat (Lesbisch, Coming-out, ...). Paars bij het boek, een filter en zoekbaar op de website.',
+    categorieen: 'De soort boek, zoals op de oude website (Roman, Essay, ...). Geel bij het boek, en een filter op de website. Staat een naam er niet bij? Typ hem, of zet hem in het tabblad Categorieën en trefwoorden.',
+    trefwoorden: 'Waar het boek over gaat (Lesbisch, Coming-out, ...). Paars bij het boek, een filter en zoekbaar op de website. Staat een naam er niet bij? Typ hem, of zet hem in het tabblad Categorieën en trefwoorden.',
     triggerwaarschuwingen: 'Staan enkel op de website als de instelling triggerwaarschuwingen_tonen op ja staat.',
     status: 'Verloren: op de website als niet meer beschikbaar, niet uitleenbaar. Gevoelig verborgen: niet op de website, wel uitleenbaar. Gevoelig zichtbaar: met het label "Gevoelige inhoud".',
     startpagina: 'Automatisch: als aanrader of als het nieuw binnen is',
@@ -65,6 +65,8 @@
     film_tip: [['', 'Nee'], ['ja', 'Ja, enkel een kijktip']],
     te_koop: [['', 'Nee'], ['ja', 'Ja, te koop en niet uitleenbaar']],
     nieuwstaat: [['', 'Onbekend'], ['ja', 'Nieuw'], ['nee', 'Tweedehands']],
+    taal: [['', 'Onbekend'], ['Nederlands', 'Nederlands'], ['Engels', 'Engels'], ['Frans', 'Frans'], ['Duits', 'Duits']],
+    uitvoering: [['', 'Onbekend'], ['Hardcover', 'Hardcover'], ['Paperback', 'Paperback'], ['Pocket', 'Pocket']],
     klassieker: [['', 'Nee'], ['ja', 'Ja']],
     uitleenbaar: [['ja', 'Ja'], ['nee', 'Nee']],
     publiek: [['ja', 'Ja'], ['nee', 'Nee, verborgen']],
@@ -162,13 +164,14 @@
 
   /* ---------- Boeken ---------- */
 
-  // De eerste groep is het nodige om een boek toe te voegen. De rest kan later, of voor meerdere boeken samen.
+  // Bij een nieuw boek staan de groepen uit ZICHTBAAR_NIEUW open (het boek, thema's en meer over het boek).
+  // De rest staat dichtgeklapt: dat kan later, of voor meerdere boeken samen.
   var GROEPEN_BOEK = [
     ['Het boek', ['isbn', 'titel', 'auteur', 'soort', 'aantal']],
     ['Thema\'s, categorieën en trefwoorden', ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'klassieker', 'genre']],
     ['Beschikbaar en zichtbaar', ['status', 'publiek', 'uitleenbaar', 'te_koop', 'startpagina']],
-    ['Op de website', ['cover_url', 'beschrijving', 'beschrijving_en', 'aanrader', 'leeslijsten']],
-    ['Meer over het boek', ['uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat', 'originele_titel']],
+    ['Op de website', ['cover_url', 'beschrijving', 'beschrijving_en', 'originele_titel', 'aanrader', 'leeslijsten']],
+    ['Meer over het boek', ['uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat']],
     ['Intern (niet op de website)', ['notitie']]
   ];
   var GROEPEN_FILM = [
@@ -179,6 +182,8 @@
     ['Meer over de film', ['originele_titel', 'land', 'taal', 'uitvoering']],
     ['Intern (niet op de website)', ['notitie']]
   ];
+  // Welke groepen (nummer in GROEPEN_BOEK of GROEPEN_FILM) bij een nieuw boek of een nieuwe film open staan.
+  var ZICHTBAAR_NIEUW = [0, 1, 4];
   var LABELS_FILM = { auteur: 'Regie', jaartal: 'Jaar', genre: 'Genres', duur: 'Duur in minuten', land: 'Land', aantal: 'Aantal exemplaren' };
 
   var vanLijst = ''; // kwam je van de lijst zonder cover ('cover') of zonder beschrijving ('beschrijving')? Dan gaat "Terug" daarheen.
@@ -915,9 +920,11 @@
       }));
     });
     huidigeLabels = {};
-    // Nieuw: enkel het nodige open. De rest staat dichtgeklapt: dat kan later, ook voor meerdere samen.
-    var delen = nieuw ? [groepen[0], el('details', { class: 'blok meer-gegevens' },
-      el('summary', {}, 'Meer gegevens (mag later, of voor meerdere ' + (film ? 'films' : 'boeken') + ' samen)'), groepen.slice(1))] : groepen;
+    // Nieuw: het boek, de thema's en de gegevens open. De rest staat dichtgeklapt: dat kan later, ook voor meerdere samen.
+    var open = ZICHTBAAR_NIEUW.map(function (i) { return groepen[i]; });
+    var dicht = groepen.filter(function (g, i) { return ZICHTBAAR_NIEUW.indexOf(i) === -1; });
+    var delen = nieuw ? open.concat(el('details', { class: 'blok meer-gegevens' },
+      el('summary', {}, 'Meer gegevens (mag later, of voor meerdere ' + (film ? 'films' : 'boeken') + ' samen)'), dicht)) : groepen;
     var herkomst = nieuw ? veld('bb', 'herkomst', extra.reeks ? extra.reeks.herkomst : '') : null;
     var opzoekMelding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
     var zoekKnop = el('button', { type: 'button', class: 'knop tweede', onclick: zoekOp }, 'Zoek gegevens op');

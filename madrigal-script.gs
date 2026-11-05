@@ -2272,7 +2272,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
     privacy: staat.inst.tekst_privacy,
-    keuzes: boekKeuzes(staat.catalogus),
+    keuzes: boekKeuzes(staat.catalogus, staat.categorieenTab),
     boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {
@@ -2598,10 +2598,17 @@ function boekHistoriek(staat, boekId) {
 /**
  * De keuzes voor het formulier van een boek in het bestuursscherm: de thema's van de website, en alle
  * categorieën, trefwoorden, triggerwaarschuwingen en genres die al in de Catalogus staan (alfabetisch).
+ * tabRijen: het tabblad Categorieën en trefwoorden (mag leeg zijn), voor namen die nog bij geen boek staan.
  */
-function boekKeuzes(catalogus) {
+function boekKeuzes(catalogus, tabRijen) {
   var lijst = function (kolom, enkelFilms) {
     var gezien = {}, uit = [];
+    // Ook de namen uit het tabblad Categorieën en trefwoorden, die nog bij geen boek staan: zo vul je de keuzes aan.
+    var soort = { categorieen: 'categorie', trefwoorden: 'trefwoord', triggerwaarschuwingen: 'triggerwaarschuwing' }[kolom];
+    (soort ? tabRijen || [] : []).forEach(function (r) {
+      var k = normaliseerTekst(r.naam);
+      if (k && normaliseerTekst(r.soort) === soort && !gezien[k]) { gezien[k] = true; uit.push(schoon(r.naam)); }
+    });
     catalogus.forEach(function (b) {
       if (enkelFilms !== undefined && isFilm(b) !== enkelFilms) return;
       splitsLijst(b[kolom]).forEach(function (n) {
@@ -2626,7 +2633,7 @@ function boekOphalen(staat, invoer) {
   if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
   // sleutel: zodat de browser van het bestuur dit ene boek bij Google Books kan opzoeken (knop in het formulier).
   // keuzes: de thema's, categorieën en trefwoorden, voor de vinkjes en labels in het formulier (snel bewerken op de website).
-  return { ok: true, boek: beheerBoek(boek), sleutel: String(staat.inst.google_books_api_key || ''), keuzes: boekKeuzes(staat.catalogus) };
+  return { ok: true, boek: beheerBoek(boek), sleutel: String(staat.inst.google_books_api_key || ''), keuzes: boekKeuzes(staat.catalogus, staat.categorieenTab) };
 }
 
 /** Geeft '', 'verloren', 'gevoelig_verborgen' of 'gevoelig_zichtbaar'. Hoofdletters en kleine tikfouten mogen. */
@@ -3292,6 +3299,14 @@ function categorieenOverzicht(catalogus, oudeTags) {
   return volgorde.map(function (k) { return lijst[k]; }).sort(function (a, b) {
     return orde[a.soort] - orde[b.soort] || a.naam.localeCompare(b.naam, 'nl');
   });
+}
+
+/** De rijen van het tabblad Categorieën en trefwoorden, of [] als het (nog) niet bestaat. */
+function categorieenTabRijen() {
+  try {
+    var blad = spreadsheet().getSheetByName('Categorieën en trefwoorden');
+    return blad && blad.getLastRow() > 1 ? leesTabel('Categorieën en trefwoorden').rijen : [];
+  } catch (e) { return []; }
 }
 
 /**
@@ -5868,6 +5883,17 @@ function isbn10AanvullenAutomatisch() {
   if (isbn10Aanvullen(tabel.rijen).length) schrijfKolommen(tabel, ['isbn10']);
 }
 
+/** Menu: Boeken > ISBN-10: vul aan uit het ISBN. */
+function isbn10AanvullenMenu() {
+  zorgVoorTabbladen(['Catalogus']);
+  var tabel = leesTabel('Catalogus');
+  var n = isbn10Aanvullen(tabel.rijen).length;
+  if (n) schrijfKolommen(tabel, ['isbn10']);
+  var tekst = n ? n + ' boeken kregen een ISBN-10 in de kolom isbn10.' : 'Alle boeken met een ISBN dat met 978 begint, hebben al een ISBN-10.';
+  logboek('menu', 'isbn10', tekst);
+  meld(tekst + ' Dit gebeurt ook elk uur vanzelf.');
+}
+
 /** Controleert het controlecijfer van een ISBN-10 (10 tekens, laatste mag X zijn). */
 function isbn10Geldig(isbn) {
   if (!/^\d{9}[\dX]$/.test(isbn)) return false;
@@ -7822,7 +7848,8 @@ function onOpen() {
       .addSeparator()
       .addItem('Genres en thema\'s: kuis op (zelfde schrijfwijze)', 'kuisGenresOp')
       .addItem('Categorieën en trefwoorden: vernieuw de lijst en de keuzelijsten', 'vernieuwCategorieenMenu')
-      .addItem('Deel de boeken in op titel en beschrijving (thema, categorie, trefwoord)', 'deelBoekenInMenu'))
+      .addItem('Deel de boeken in op titel en beschrijving (thema, categorie, trefwoord)', 'deelBoekenInMenu')
+      .addItem('ISBN-10: vul aan uit het ISBN', 'isbn10AanvullenMenu'))
     .addSubMenu(ui.createMenu('Titels en auteurs')
       .addItem('Schrijfwijze: maak een nakijklijst', 'maakTitelNakijklijst')
       .addItem('Schrijfwijze: pas de nakijklijst toe', 'pasTitelNakijklijstToe')
@@ -11333,6 +11360,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.handleiding = handleiding(staat.inst);
         break;
       case 'bestuurData':
+        staat.categorieenTab = categorieenTabRijen();
         antwoord = { ok: true, data: bestuurGegevens(staat, leesTabel('Onderwerpen').rijen) };
         antwoord.data.aanvragen = openAanvragen(spreadsheet().getSheetByName('Aanvragen') ? leesTabel('Aanvragen').rijen : []);
         antwoord.data.onlineReserveren = staat.inst.online_reserveren === true;
@@ -11375,6 +11403,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'borgTerugbetaald': antwoord = borgTerugbetaald(staat, invoer); break;
       case 'herinneringVerstuurd': antwoord = herinneringVerstuurd(staat, invoer); break;
       case 'beheerBoekOphalen':
+        staat.categorieenTab = categorieenTabRijen();
         antwoord = boekOphalen(staat, invoer);
         if (antwoord.ok) {
           antwoord.historiek = boekHistoriek(staat, invoer.boek_id);

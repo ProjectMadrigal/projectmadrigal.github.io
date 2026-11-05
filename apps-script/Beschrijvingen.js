@@ -197,6 +197,17 @@ function isbn10AanvullenAutomatisch() {
   if (isbn10Aanvullen(tabel.rijen).length) schrijfKolommen(tabel, ['isbn10']);
 }
 
+/** Menu: Boeken > ISBN-10: vul aan uit het ISBN. */
+function isbn10AanvullenMenu() {
+  zorgVoorTabbladen(['Catalogus']);
+  var tabel = leesTabel('Catalogus');
+  var n = isbn10Aanvullen(tabel.rijen).length;
+  if (n) schrijfKolommen(tabel, ['isbn10']);
+  var tekst = n ? n + ' boeken kregen een ISBN-10 in de kolom isbn10.' : 'Alle boeken met een ISBN dat met 978 begint, hebben al een ISBN-10.';
+  logboek('menu', 'isbn10', tekst);
+  meld(tekst + ' Dit gebeurt ook elk uur vanzelf.');
+}
+
 /** ISBN-13 (978…) naar ISBN-10. Geeft '' als dat niet kan. */
 function isbn13Naar10(isbn13) {
   var s = String(isbn13 || '');

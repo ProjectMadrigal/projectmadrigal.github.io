@@ -161,7 +161,7 @@
         return;
       }
       var lijstId = id + '-keuzes';
-      var nieuw = el('input', { type: 'text', id: id + '-nieuw', list: lijstId, autocomplete: 'off', placeholder: 'Typ of kies een naam' });
+      var nieuw = el('input', { type: 'text', id: id + '-nieuw', list: lijstId, autocomplete: 'off', placeholder: 'Of typ een nieuwe naam' });
       if (hulpId) nieuw.setAttribute('aria-describedby', hulpId);
       var voegToe = function () {
         var n = nieuw.value.trim();
@@ -170,6 +170,16 @@
         var terug = document.getElementById(id + '-nieuw'); if (terug) terug.focus();
       };
       nieuw.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); voegToe(); } });
+      // Een selectielijst met alle bestaande namen: kies er een, en hij komt erbij.
+      var nog = keuzes.filter(function (k) { return !nu.some(function (n) { return n.toLowerCase() === k.toLowerCase(); }); });
+      var kies = nog.length ? el('select', { id: id + '-kies', 'aria-label': 'Kies uit de lijst: ' + label }, [el('option', { value: '' }, 'Kies uit de lijst...')].concat(nog.map(function (k) {
+        return el('option', { value: k }, k);
+      }))) : null;
+      if (kies) kies.addEventListener('change', function () {
+        if (!kies.value) return;
+        zet(namen().concat(kies.value));
+        var terug = document.getElementById(id + '-kies'); if (terug) terug.focus();
+      });
       vervang(vak,
         nu.length ? el('ul', { class: 'labels lijstveld-labels', 'aria-label': label }, nu.map(function (n) {
           return el('li', {}, el('span', { class: 'label lijstveld-label' }, n,
@@ -178,6 +188,7 @@
               var terug = document.getElementById(id + '-nieuw'); if (terug) terug.focus();
             } }, '×')));
         })) : el('p', { class: 'hulptekst' }, 'Nog niets.'),
+        kies ? el('div', { class: 'lijstveld-toevoegen' }, kies) : null,
         el('div', { class: 'lijstveld-toevoegen' }, nieuw,
           el('datalist', { id: lijstId }, keuzes.filter(function (k) { return nu.indexOf(k) === -1; }).map(function (k) { return el('option', { value: k }); })),
           el('button', { type: 'button', class: 'knop tweede klein', onclick: voegToe }, 'Voeg toe')));
