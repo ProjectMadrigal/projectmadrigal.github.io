@@ -456,6 +456,8 @@ function verwerkNieuweBoekenAutomatisch() {
   try { isbn10AanvullenAutomatisch(); } catch (e) { logboek('systeem', 'isbn10', 'Fout: ' + e.message); }
   // Eén keer per dag: elke auteur als "Achternaam, Voornaam" (Auteurs.js).
   try { auteursOpkuisenAutomatisch(); } catch (e) { logboek('systeem', 'auteursOpkuisen', 'Fout: ' + e.message); }
+  // Gekozen namen en pseudoniemen van auteurs (Auteursnamen.js).
+  try { auteursnamenAutomatisch(); } catch (e) { logboek('systeem', 'auteursnamen', 'Fout: ' + e.message); }
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
   var aantal = geefNieuweBoekenEenId();
   if (!aantal) return;

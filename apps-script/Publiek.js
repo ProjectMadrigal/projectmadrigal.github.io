@@ -76,6 +76,9 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     if (trefwoorden.length) boek.k = trefwoorden;
     var triggers = toonTriggers ? splitsLijst(rij.triggerwaarschuwingen) : [];
     if (triggers.length) boek.tw = triggers;
+    // az: vroegere namen en pseudoniemen van de auteur (Auteursnamen.js). Enkel om op te zoeken, nooit getoond.
+    var zoeknamen = auteurZoeknamen(rij);
+    if (zoeknamen.length) boek.az = zoeknamen;
     var en = schoonMetRegels(rij.beschrijving_en);
     if (en && en !== extra.d) extra.de = en;
     Object.keys(extra).forEach(function (k) { if (!isLeeg(extra[k])) boek[k] = extra[k]; });

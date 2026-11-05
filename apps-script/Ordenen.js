@@ -49,7 +49,7 @@ var TABBLAD_GROEPEN = [
   // collectie: eerst de tabbladen die je zelf invult, dan de nakijklijsten, dan de overzichten die het script maakt
   ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Categorieën en trefwoorden', 'Voorstellen', 'Aankooplijst',
     'Na te kijken', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken',
-    'Indeling', 'Genres opkuisen', 'Auteurs aangepast']],
+    'Indeling', 'Genres opkuisen', 'Auteurs aangepast', 'Auteursnamen']],
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen', 'Verkooplijst']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer

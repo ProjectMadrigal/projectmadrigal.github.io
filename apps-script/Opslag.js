@@ -22,6 +22,8 @@ var KOLOMMEN = {
     'prijs', 'onderhandelbaar', 'te_koop_aantal',
     // De titel in de oorspronkelijke taal, als die verschilt (vooral films en vertaalde boeken).
     'originele_titel',
+    // Vroegere namen en pseudoniemen van de auteur (Auteursnamen.js): enkel om op te zoeken, nooit getoond. Het script vult dit.
+    'auteur_zoeknamen',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'isbn10', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
@@ -82,6 +84,8 @@ var KOLOMMEN = {
   // Titels en auteurs nakijken in de bib (Titelcontrole.js).
   // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
   'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
+  // Gekozen namen en pseudoniemen (Auteursnamen.js). boeken: het script telt de boeken met die naam.
+  'Auteursnamen': ['auteur', 'andere_namen', 'soort', 'boeken', 'opmerking'],
   'Auteurs aangepast': ['boek_id', 'titel', 'auteur_vroeger', 'auteur_nu', 'opmerking'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
   'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken', 'zoekwoorden'],
