@@ -775,7 +775,8 @@ var KOLOM_INDELING = {
       cover_origineel: ['techniek', 'Waar de cover vandaan kwam voor ze naar Google Drive gekopieerd werd (Covers > Bewaar alle covers in Google Drive).', true],
       cover_bewaard: ['techniek', 'Datum: cover naar Google Drive gekopieerd. "poging" + nummer: de site gaf een fout, het script probeert het nog eens. "mislukt" + datum: die link lukte niet. Leeg = opnieuw proberen.', true],
       oude_cover: ['techniek', 'Cover van de oude website die nog naar Drive gekopieerd moet worden. Leeg als het klaar is.', true],
-      film_gezocht: ['techniek', 'Datum: film opgezocht bij Wikidata. Leeg = opnieuw zoeken.', true]
+      film_gezocht: ['techniek', 'Datum: film opgezocht bij Wikidata. Leeg = opnieuw zoeken.', true],
+      zoek_sleutel: ['techniek', 'Vingerafdruk van ISBN, titel en auteur. Verandert er een, dan zoekt het script opnieuw naar een cover en een beschrijving. Niet zelf invullen.', true]
     }
   },
   'Uitleningen': {
@@ -879,6 +880,8 @@ var KOLOMMEN = {
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'isbn10', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
+    // Vingerafdruk van ISBN, titel en auteur (ZoekOpnieuw.js): verandert die, dan zoekt het script opnieuw.
+    'zoek_sleutel',
     // Een cover van de oude website die nog naar Drive gekopieerd moet worden (OudeBoeken.js). Leeg als het klaar is.
     'oude_cover', 'cover_origineel', 'cover_bewaard',
     'letterboxd', 'imdb', 'wikidata', 'film_gezocht',
@@ -1255,6 +1258,12 @@ var WIKI_TALEN = ['nl', 'en'];
 var WIKI_PAUZE_MS = 500; // rustig zoeken: Wikipedia remt anders sneller af
 
 var WIKI_MAX_LOOPTIJD_MS = 4.5 * 60 * 1000;
+
+var ZOEK_OPNIEUW_COVER = ['cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'gb_gecontroleerd', 'ol_gecontroleerd'];
+
+var ZOEK_OPNIEUW_BESCHRIJVING = ['beschrijving_gezocht', 'wiki_gezocht', 'gb_gecontroleerd', 'ol_gecontroleerd'];
+
+var ZOEK_OPNIEUW_FILM = ['film_gezocht'];
 
 /* ==================== Functies, van A tot Z ==================== */
 
@@ -8217,6 +8226,7 @@ function onOpen() {
       .addItem('Zoek covers van andere uitgaven', 'zoekCoversAndereUitgaven')
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
+      .addItem('Zoek opnieuw bij boeken met nieuwe gegevens (cover en beschrijving)', 'zoekOpnieuwMenu')
       .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
       .addItem('Internet Archive: kijk de bewaarde covers na (wist het logo)', 'controleerIaCovers')
       .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers')
@@ -11390,6 +11400,8 @@ function verwerkNieuweBoekenAutomatisch() {
   try { auteursOpkuisenAutomatisch(); } catch (e) { logboek('systeem', 'auteursOpkuisen', 'Fout: ' + e.message); }
   // Gekozen namen en pseudoniemen van auteurs (Auteursnamen.js).
   try { auteursnamenAutomatisch(); } catch (e) { logboek('systeem', 'auteursnamen', 'Fout: ' + e.message); }
+  // Nieuwe of betere gegevens (ISBN, titel, auteur): opnieuw zoeken naar een cover en een beschrijving (ZoekOpnieuw.js).
+  try { zoekOpnieuwAutomatisch(); } catch (e) { logboek('systeem', 'zoekOpnieuw', 'Fout: ' + e.message); }
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
   var aantal = geefNieuweBoekenEenId();
   if (!aantal) return;
@@ -13291,6 +13303,85 @@ function zoekIaVanVandaagOpnieuw() {
   meld(boeken.length ? boeken.length + ' boeken worden opnieuw opgezocht bij Internet Archive. Dat begint over een minuut, of later als de daglimiet van Google nog op is.' : 'Geen boeken van vandaag zonder cover bij Internet Archive.');
 }
 
+/** Vanzelf, elk uur (vanuit verwerkNieuweBoekenAutomatisch). */
+function zoekOpnieuwAutomatisch() {
+  var uit = zoekOpnieuwUitvoeren();
+  if (uit.cover || uit.beschrijving || uit.film) logboek('systeem', 'zoekOpnieuw', zoekOpnieuwTekst(uit));
+}
+
+/**
+ * Vergelijkt de vingerafdruk van elk boek. Maakt de vinkjes leeg waar nodig (wijzig).
+ * Geeft { cover, beschrijving, film } (aantal boeken waarvoor het script opnieuw zoekt) en { nieuw } (nieuwe vingerafdrukken).
+ */
+function zoekOpnieuwBijNieuweInfo(catalogus) {
+  var uit = { cover: 0, beschrijving: 0, film: 0, nieuw: 0 };
+  catalogus.forEach(function (b) {
+    if (isLeeg(b.boek_id) || isLeeg(b.titel)) return;
+    var sleutel = zoekSleutel(b);
+    if (schoon(b.zoek_sleutel) === sleutel) return;
+    var velden = { zoek_sleutel: sleutel };
+    var leeg = function (namen) {
+      var iets = false;
+      namen.forEach(function (n) { if (!isLeeg(b[n])) { velden[n] = ''; iets = true; } });
+      return iets;
+    };
+    if (isFilm(b)) {
+      if ((isLeeg(b.cover_url) || isLeeg(b.beschrijving)) && leeg(ZOEK_OPNIEUW_FILM)) uit.film++;
+    } else {
+      if (isLeeg(b.cover_url) && leeg(ZOEK_OPNIEUW_COVER)) uit.cover++;
+      if (isLeeg(b.beschrijving) && leeg(ZOEK_OPNIEUW_BESCHRIJVING)) uit.beschrijving++;
+    }
+    wijzig(b, velden);
+    uit.nieuw++;
+  });
+  return uit;
+}
+
+/** Menu: Covers > Zoek opnieuw bij boeken met nieuwe gegevens. */
+function zoekOpnieuwMenu() {
+  var uit = zoekOpnieuwUitvoeren();
+  var tekst = uit.cover || uit.beschrijving || uit.film ? zoekOpnieuwTekst(uit) : 'Geen enkel boek kreeg nieuwe gegevens sinds de vorige keer.';
+  logboek('menu', 'zoekOpnieuw', tekst);
+  meld(tekst);
+}
+
+function zoekOpnieuwTekst(uit) {
+  return 'Het script zoekt opnieuw: ' + uit.cover + ' boeken naar een cover, ' + uit.beschrijving + ' boeken naar een beschrijving, ' +
+    uit.film + ' films. De zoektochten starten vanzelf, na elkaar, binnen het uur.';
+}
+
+/** Doet het werk in de spreadsheet en plant de zoektochten. Geeft het resultaat. */
+function zoekOpnieuwUitvoeren() {
+  zorgVoorTabbladen(['Catalogus']); // kolom zoek_sleutel
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var uit;
+  try {
+    var tabel = leesTabel('Catalogus');
+    uit = zoekOpnieuwBijNieuweInfo(tabel.rijen);
+    if (uit.nieuw) {
+      var kolommen = ['zoek_sleutel'].concat(ZOEK_OPNIEUW_COVER, ZOEK_OPNIEUW_BESCHRIJVING, ZOEK_OPNIEUW_FILM)
+        .filter(function (k, i, a) { return a.indexOf(k) === i && tabel.kop.indexOf(k) > -1; });
+      schrijfKolommen(tabel, kolommen);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  // De zoektochten na elkaar, zodat ze elkaar niet in de weg zitten. Open Library start daarna zelf
+  // Google Books, en Google Books daarna de beschrijvingen.
+  if (uit.cover || uit.beschrijving) {
+    planTaak('vulAanUitOpenLibrary', 60 * 1000);
+    if (uit.cover) {
+      planTaak('zoekCoversAndereUitgaven', 15 * 60 * 1000);
+      planTaak('zoekCoversBol', 25 * 60 * 1000);
+      planTaak('zoekCoversInternetArchive', 35 * 60 * 1000);
+    }
+    if (uit.beschrijving) planTaak('zoekBeschrijvingenWikipedia', 45 * 60 * 1000);
+  }
+  if (uit.film) planTaak('vulFilmsAan', 55 * 60 * 1000);
+  return uit;
+}
+
 /**
  * Ronde 1: zoekt het boek in de Catalogus, van zeker naar minder zeker. Geeft { boek, hoe } of null.
  *   isbn:   zelfde ISBN (ook isbn_origineel);
@@ -13368,6 +13459,20 @@ function zoekOudBoekRuim(oud, index, bezet, rest) {
     if (keuze[0].g >= 0.6 && keuze[0].g - keuze[1].g >= 0.15) return { boek: keuze[0].c, hoe: 'auteur uniek' };
   }
   return null;
+}
+
+/** De vingerafdruk van de gegevens waarop de zoektochten zoeken. Kort, zodat de kolom klein blijft. */
+function zoekSleutel(boek) {
+  var tekst = [normaliseerIsbn(boek.isbn).isbn || schoon(boek.isbn), normaliseerTekst(boek.titel),
+    controleAuteurSleutel(boek.auteur), normaliseerTekst(boek.originele_titel)].join('|');
+  var h1 = 5381, h2 = 52711;
+  for (var i = 0; i < tekst.length; i++) {
+    var c = tekst.charCodeAt(i);
+    h1 = (h1 * 33) ^ c;
+    h2 = (h2 * 33) ^ c;
+    h1 |= 0; h2 |= 0;
+  }
+  return (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
 }
 
 /** Zoekt een boek op bij Wikipedia in één taal. Geeft { tekst, link }, {} of { fout }. */

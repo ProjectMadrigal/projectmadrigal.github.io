@@ -166,6 +166,7 @@ function onOpen() {
       .addItem('Zoek covers van andere uitgaven', 'zoekCoversAndereUitgaven')
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
+      .addItem('Zoek opnieuw bij boeken met nieuwe gegevens (cover en beschrijving)', 'zoekOpnieuwMenu')
       .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
       .addItem('Internet Archive: kijk de bewaarde covers na (wist het logo)', 'controleerIaCovers')
       .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers')

@@ -458,6 +458,8 @@ function verwerkNieuweBoekenAutomatisch() {
   try { auteursOpkuisenAutomatisch(); } catch (e) { logboek('systeem', 'auteursOpkuisen', 'Fout: ' + e.message); }
   // Gekozen namen en pseudoniemen van auteurs (Auteursnamen.js).
   try { auteursnamenAutomatisch(); } catch (e) { logboek('systeem', 'auteursnamen', 'Fout: ' + e.message); }
+  // Nieuwe of betere gegevens (ISBN, titel, auteur): opnieuw zoeken naar een cover en een beschrijving (ZoekOpnieuw.js).
+  try { zoekOpnieuwAutomatisch(); } catch (e) { logboek('systeem', 'zoekOpnieuw', 'Fout: ' + e.message); }
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
   var aantal = geefNieuweBoekenEenId();
   if (!aantal) return;

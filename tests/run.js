@@ -3958,5 +3958,35 @@ test('Zoeken: een vroegere naam of pseudoniem vindt het boek', () => {
   gelijk(Z.zoek(index, 'lien echtnaam').filter((r) => r.score > 0).map((r) => r.boek.id), ['B1']);
 });
 
+test('Zoek opnieuw: nieuwe gegevens maken de vinkjes leeg, enkel voor wat nog ontbreekt', () => {
+  const cat = [
+    { boek_id: 'B1', soort: 'boek', titel: 'Een zomer', auteur: 'Verzonnen, Rob', isbn: '9780000000011', cover_gezocht: '2026-10-01', bol_gezocht: '2026-10-01', beschrijving: 'Tekst.', beschrijving_gezocht: '2026-10-01' },
+    { boek_id: 'B2', soort: 'boek', titel: 'De kamer', auteur: 'Bedacht, Kim', cover_url: 'https://x/c.jpg', beschrijving_gezocht: '2026-10-01', wiki_gezocht: '2026-10-01', gb_gecontroleerd: '2026-10-01' },
+    { boek_id: 'B3', soort: 'film', titel: 'Een film', auteur: 'Regie, Lo', film_gezocht: '2026-10-01' },
+    { boek_id: 'B4', soort: 'boek', titel: 'Compleet', auteur: 'Ander, Mo', cover_url: 'https://x/d.jpg', beschrijving: 'Tekst.', cover_gezocht: '2026-10-01' }
+  ];
+  // De eerste keer: geen vingerafdruk, dus opnieuw zoeken bij alles wat nog iets mist.
+  const eerst = M.zoekOpnieuwBijNieuweInfo(cat);
+  gelijk([eerst.cover, eerst.beschrijving, eerst.film, eerst.nieuw], [1, 1, 1, 4]);
+  gelijk([cat[0].cover_gezocht, cat[0].bol_gezocht, cat[0].beschrijving_gezocht], ['', '', '2026-10-01'], 'beschrijving was er al');
+  gelijk([cat[1].beschrijving_gezocht, cat[1].wiki_gezocht, cat[1].gb_gecontroleerd], ['', '', '']);
+  assert.strictEqual(cat[2].film_gezocht, '');
+  assert.strictEqual(cat[3].cover_gezocht, '2026-10-01', 'compleet boek: niets leeg');
+  // Opnieuw gezocht, niets veranderd: niets leeg.
+  cat[0].cover_gezocht = '2026-11-05';
+  const dan = M.zoekOpnieuwBijNieuweInfo(cat);
+  gelijk([dan.cover, dan.nieuw], [0, 0]);
+  // Een betere auteur of een ISBN erbij: opnieuw. Een andere volgorde van de naam telt niet.
+  cat[0].auteur = 'Rob Verzonnen';
+  assert.strictEqual(M.zoekOpnieuwBijNieuweInfo(cat).nieuw, 0, 'zelfde naam');
+  cat[0].isbn = '9780000000028';
+  gelijk(M.zoekOpnieuwBijNieuweInfo(cat).cover, 1);
+  assert.strictEqual(cat[0].cover_gezocht, '');
+  // Uitgeverij of jaartal (vult de zoektocht zelf aan) tellen niet.
+  cat[1].uitgeverij = 'Uitgeverij X'; cat[1].jaartal = 1999;
+  assert.strictEqual(M.zoekOpnieuwBijNieuweInfo(cat).nieuw, 0);
+  assert.ok(M.KOLOMMEN.Catalogus.indexOf('zoek_sleutel') > -1);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

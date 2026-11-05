@@ -54,6 +54,7 @@ const SCRIPTS = [
   'apps-script/Indelen.js',
   'apps-script/Auteurs.js',
   'apps-script/Auteursnamen.js',
+  'apps-script/ZoekOpnieuw.js',
   'apps-script/VerkoopLijst.js',
   'apps-script/CoversBewaren.js',
   'apps-script/Privacy.js',

@@ -88,7 +88,8 @@ var KOLOM_INDELING = {
       cover_origineel: ['techniek', 'Waar de cover vandaan kwam voor ze naar Google Drive gekopieerd werd (Covers > Bewaar alle covers in Google Drive).', true],
       cover_bewaard: ['techniek', 'Datum: cover naar Google Drive gekopieerd. "poging" + nummer: de site gaf een fout, het script probeert het nog eens. "mislukt" + datum: die link lukte niet. Leeg = opnieuw proberen.', true],
       oude_cover: ['techniek', 'Cover van de oude website die nog naar Drive gekopieerd moet worden. Leeg als het klaar is.', true],
-      film_gezocht: ['techniek', 'Datum: film opgezocht bij Wikidata. Leeg = opnieuw zoeken.', true]
+      film_gezocht: ['techniek', 'Datum: film opgezocht bij Wikidata. Leeg = opnieuw zoeken.', true],
+      zoek_sleutel: ['techniek', 'Vingerafdruk van ISBN, titel en auteur. Verandert er een, dan zoekt het script opnieuw naar een cover en een beschrijving. Niet zelf invullen.', true]
     }
   },
   'Uitleningen': {
