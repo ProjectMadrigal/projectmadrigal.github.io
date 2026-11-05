@@ -397,8 +397,8 @@ test('ordenen: waarden blijven, oude koppen weg, onbekende sleutels naar Overige
   gelijk(M.ordenInstellingRijen(r.rijen).rijen, r.rijen);
 });
 test('ordenen: tabbladen per gebruik, onbekende achteraan', () => {
-  const v = M.tabbladVolgorde(['Instellingen', 'Oud uitleenblad', 'Catalogus', 'Uitleningen', 'Logboek', 'Stock']);
-  gelijk(v.map((t) => t.naam), ['Uitleningen', 'Catalogus', 'Instellingen', 'Logboek', 'Stock', 'Oud uitleenblad']);
+  const v = M.tabbladVolgorde(['Instellingen', 'Blad1', 'Catalogus', 'Uitleningen', 'Logboek', 'Stock']);
+  gelijk(v.map((t) => t.naam), ['Uitleningen', 'Catalogus', 'Instellingen', 'Logboek', 'Stock', 'Blad1']);
   assert.strictEqual(v[v.length - 1].kleur, null);
 });
 
@@ -2276,6 +2276,22 @@ test('verkooplijst: bestaande boeken krijgen een aantal en prijs te koop, nieuwe
   // Opnieuw: verwerkte rijen worden overgeslagen.
   lijst.forEach((r, i) => { r.verwerkt = uit[i].verwerkt; });
   gelijk(M.verkooplijstToepassen(cat, lijst, () => 'X', '2026-11-05').length, 0);
+});
+
+test('tabbladen: elk tabblad van het script heeft een vaste plaats in een groep', () => {
+  const metPlaats = [].concat(...M.TABBLAD_GROEPEN.map((g) => Array.from(g[1])));
+  const namen = Object.keys(M.KOLOMMEN).concat(['Instellingen', 'Voorraad', M.VERKOOPLIJST_TABBLAD, M.GENRES_TABBLAD, M.ONDERWERP_NAKIJKEN,
+    M.TITELS_TABBLAD, M.TITELCONTROLE_TABBLAD, M.AUTEURS_TABBLAD, 'Indeling', 'Categorieën en trefwoorden']);
+  const zonder = namen.filter((n) => metPlaats.indexOf(n) === -1);
+  gelijk(zonder, [], 'Zet deze tabbladen in TABBLAD_GROEPEN (Ordenen.js)');
+  // Geen enkel script maakt nog een tabblad met insertSheet (behalve maakTabblad zelf).
+  const fs = require('fs');
+  const fout = fs.readdirSync('apps-script').filter((f) => f.endsWith('.js') && f !== 'Ordenen.js')
+    .filter((f) => /insertSheet\(/.test(fs.readFileSync('apps-script/' + f, 'utf8')));
+  gelijk(fout, [], 'Gebruik maakTabblad in plaats van insertSheet');
+  // Een nieuw tabblad komt in zijn groep, niet achteraan.
+  const v = M.tabbladVolgorde(['Catalogus', 'Onderwerpen', 'Leeslijsten', 'Logboek', 'Verkooplijst', 'Voorraad']).map((t) => t.naam);
+  assert.ok(v.indexOf('Verkooplijst') > v.indexOf('Voorraad') && v.indexOf('Verkooplijst') < v.indexOf('Logboek'));
 });
 
 test('Politiek is een apart thema, los van Maatschappij', () => {

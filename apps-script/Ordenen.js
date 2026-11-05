@@ -46,12 +46,17 @@ var INSTELLING_GROEPEN = [
 
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Categorieën en trefwoorden', 'Indeling', 'Onderwerpen nakijken', 'Genres opkuisen', 'Auteurs aangepast']],     // collectie
+  // collectie: eerst de tabbladen die je zelf invult, dan de nakijklijsten, dan de overzichten die het script maakt
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Categorieën en trefwoorden', 'Voorstellen', 'Aankooplijst',
+    'Na te kijken', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken',
+    'Indeling', 'Genres opkuisen', 'Auteurs aangepast']],
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
-  ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen']],           // verkoop op standjes
+  ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen', 'Verkooplijst']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
-  ['#bdbdbd', ['Stock', 'Zines', 'Goodreads-export']]                            // bronnen, zelden nodig
+  ['#bdbdbd', ['Stock', 'Zines', 'Films', 'Goodreads-export', 'Oud uitleenblad']]          // bronnen, zelden nodig
 ];
+// Een nieuw tabblad van het script: zet het hier in de juiste groep, en maak het aan met maakTabblad (niet insertSheet).
+// Dan staat het meteen op zijn plaats, met de kleur van de groep. Een test controleert dat elk tabblad een plaats heeft.
 
 /** Een tussenkop in het tabblad Instellingen: "── UITLENEN ──". */
 function instellingKop(titel) {
@@ -141,6 +146,27 @@ function ordenInstellingen(ss) {
   opmaakKop(blad, 3);
 }
 
+/**
+ * Maakt een tabblad aan op zijn vaste plaats (zie TABBLAD_GROEPEN), met de kleur van zijn groep.
+ * Bestaat het al, dan geeft het dat tabblad terug. De andere tabbladen blijven waar ze staan.
+ */
+function maakTabblad(naam) {
+  var ss = spreadsheet();
+  var bestaand = ss.getSheetByName(naam);
+  if (bestaand) return bestaand;
+  var namen = ss.getSheets().map(function (b) { return b.getName(); });
+  var volgorde = tabbladVolgorde(namen.concat(naam));
+  var plaats = volgorde.map(function (t) { return t.naam; }).indexOf(naam);
+  // De plaats tussen de bestaande tabbladen: na het laatste bestaande tabblad dat ervoor hoort.
+  var voor = volgorde.slice(0, plaats).map(function (t) { return t.naam; });
+  var index = 0;
+  namen.forEach(function (n, i) { if (voor.indexOf(n) > -1) index = Math.max(index, i + 1); });
+  var blad = ss.insertSheet(naam, index);
+  var kleur = volgorde[plaats].kleur;
+  if (kleur) blad.setTabColor(kleur);
+  return blad;
+}
+
 /** Zet de tabbladen in vaste volgorde, met een kleur per groep. */
 function ordenTabbladen(ss) {
   var volgorde = tabbladVolgorde(ss.getSheets().map(function (b) { return b.getName(); }));
@@ -151,6 +177,19 @@ function ordenTabbladen(ss) {
     if (t.kleur) blad.setTabColor(t.kleur);
   });
   ss.setActiveSheet(ss.getSheets()[0]);
+}
+
+/**
+ * Eén keer na een nieuwe indeling van TABBLAD_GROEPEN: de bestaande tabbladen op hun plaats zetten
+ * (vanuit verwerkNieuweBoekenAutomatisch). TABBLADEN_VERSIE verhogen als de groepen veranderen.
+ */
+var TABBLADEN_VERSIE = '2026-11-05';
+function ordenTabbladenEenmalig() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('tabbladen_versie') === TABBLADEN_VERSIE) return;
+  ordenTabbladen(spreadsheet());
+  props.setProperty('tabbladen_versie', TABBLADEN_VERSIE);
+  logboek('systeem', 'tabbladen', 'De tabbladen staan in hun vaste volgorde, per groep.');
 }
 
 /** Menu: orden de tabbladen en de instellingen. */

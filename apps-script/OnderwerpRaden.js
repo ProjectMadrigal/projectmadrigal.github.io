@@ -189,7 +189,7 @@ function vulOntbrekendeOnderwerpenMenu() {
     bewaarTabel(onderwerpen);
     if (uit.boeken.length) schrijfKolommen(catalogus, ['extra_onderwerpen']);
     var ss = spreadsheet();
-    var blad = ss.getSheetByName(ONDERWERP_NAKIJKEN) || ss.insertSheet(ONDERWERP_NAKIJKEN);
+    var blad = ss.getSheetByName(ONDERWERP_NAKIJKEN) || maakTabblad(ONDERWERP_NAKIJKEN);
     blad.clear();
     blad.getRange(1, 1, blad.getMaxRows(), blad.getMaxColumns()).clearDataValidations();
     var waarden = [ONDERWERP_KOLOMMEN].concat(uit.nakijken.map(function (r) { return ONDERWERP_KOLOMMEN.map(function (k) { return r[k]; }); }));

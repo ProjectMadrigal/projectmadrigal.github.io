@@ -243,7 +243,7 @@ function maakTitelNakijklijst() {
   var lijst = titelNakijklijst(catalogus);
   var datums = catalogus.filter(function (b) { return !isLeeg(b.boek_id) && titelIsDatum(b.titel); }).map(function (b) { return String(b.boek_id); });
   var ss = spreadsheet();
-  var blad = ss.getSheetByName(TITELS_TABBLAD) || ss.insertSheet(TITELS_TABBLAD);
+  var blad = ss.getSheetByName(TITELS_TABBLAD) || maakTabblad(TITELS_TABBLAD);
   blad.clear();
   // clear() laat keuzelijsten staan: die van een vorige versie (andere kolommen) eerst weghalen.
   blad.getRange(1, 1, blad.getMaxRows(), blad.getMaxColumns()).clearDataValidations();

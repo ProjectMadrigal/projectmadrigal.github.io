@@ -446,6 +446,8 @@ function verwerkNieuweBoekenAutomatisch() {
   // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
   try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
+  // Eén keer na een nieuwe indeling: de tabbladen op hun plaats (Ordenen.js).
+  try { ordenTabbladenEenmalig(); } catch (e) { logboek('systeem', 'tabbladen', 'Fout: ' + e.message); }
   // Eén keer na nieuwe thema's: dubbels uit categorieën en trefwoorden naar de thema's (OudeBoeken.js).
   try { themasOpnieuwIndelenEenmalig(); } catch (e) { logboek('systeem', 'thema\'s', 'Fout: ' + e.message); }
   // Eén keer: Graphic novel weg bij boeken die het enkel door het woord "graphic" kregen (OnderwerpRaden.js).

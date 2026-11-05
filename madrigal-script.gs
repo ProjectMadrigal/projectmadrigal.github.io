@@ -982,12 +982,23 @@ var INSTELLING_GROEPEN = [
 
 var TABBLAD_GROEPEN = [
   ['#6b3597', ['Uitleningen', 'Reservaties', 'Aanvragen', 'Leners', 'Uitzonderingen', 'Meldingen', 'Briefjes']],      // uitlenen
-  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Voorstellen', 'Na te kijken', 'Aankooplijst', 'Titels nakijken', 'Titelcontrole', 'Categorieën en trefwoorden', 'Indeling', 'Onderwerpen nakijken', 'Genres opkuisen', 'Auteurs aangepast']],     // collectie
+  // collectie: eerst de tabbladen die je zelf invult, dan de nakijklijsten, dan de overzichten die het script maakt
+  ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Categorieën en trefwoorden', 'Voorstellen', 'Aankooplijst',
+    'Na te kijken', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken',
+    'Indeling', 'Genres opkuisen', 'Auteurs aangepast']],
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
-  ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen']],           // verkoop op standjes
+  ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen', 'Verkooplijst']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
-  ['#bdbdbd', ['Stock', 'Zines', 'Goodreads-export']]                            // bronnen, zelden nodig
+  ['#bdbdbd', ['Stock', 'Zines', 'Films', 'Goodreads-export', 'Oud uitleenblad']]          // bronnen, zelden nodig
 ];
+// Een nieuw tabblad van het script: zet het hier in de juiste groep, en maak het aan met maakTabblad (niet insertSheet).
+// Dan staat het meteen op zijn plaats, met de kleur van de groep. Een test controleert dat elk tabblad een plaats heeft.
+
+/**
+ * Eén keer na een nieuwe indeling van TABBLAD_GROEPEN: de bestaande tabbladen op hun plaats zetten
+ * (vanuit verwerkNieuweBoekenAutomatisch). TABBLADEN_VERSIE verhogen als de groepen veranderen.
+ */
+var TABBLADEN_VERSIE = '2026-11-05';
 
 var OUDE_COVER_BRON = 'oude website';
 
@@ -4139,7 +4150,7 @@ function deelBoekenInUitvoeren(welke) {
     if (uit.length) schrijfKolommen(catalogus, ['extra_onderwerpen', 'categorieen', 'trefwoorden']);
     if (uit.length) {
       var ss = spreadsheet();
-      var blad = ss.getSheetByName('Indeling') || ss.insertSheet('Indeling');
+      var blad = ss.getSheetByName('Indeling') || maakTabblad('Indeling');
       var kolommen = KOLOMMEN['Indeling'];
       blad.clear();
       var waarden = [kolommen].concat(uit.map(function (r) { return kolommen.map(function (k) { return r[k]; }); }));
@@ -5792,7 +5803,7 @@ function installeer() {
   var ss = spreadsheet();
 
   // Instellingen: sleutel, waarde, uitleg.
-  var inst = ss.getSheetByName('Instellingen') || ss.insertSheet('Instellingen');
+  var inst = ss.getSheetByName('Instellingen') || maakTabblad('Instellingen');
   if (inst.getLastRow() === 0) {
     inst.appendRow(['sleutel', 'waarde', 'uitleg']);
     opmaakKop(inst, 3);
@@ -5819,7 +5830,7 @@ function installeer() {
 
   // De andere tabbladen met hun kolommen.
   Object.keys(KOLOMMEN).forEach(function (naam) {
-    var blad = ss.getSheetByName(naam) || ss.insertSheet(naam);
+    var blad = ss.getSheetByName(naam) || maakTabblad(naam);
     var kolommen = KOLOMMEN[naam];
     var kop = blad.getLastRow() > 0 ? blad.getRange(1, 1, 1, Math.max(1, blad.getLastColumn())).getValues()[0].map(schoon) : [];
     var ontbrekend = kolommen.filter(function (k) { return kop.indexOf(k) === -1; });
@@ -6441,7 +6452,7 @@ function kuisGenresOp() {
   leegCache();
   // Overzicht van wat veranderde.
   var ss = spreadsheet();
-  var blad = ss.getSheetByName(GENRES_TABBLAD) || ss.insertSheet(GENRES_TABBLAD);
+  var blad = ss.getSheetByName(GENRES_TABBLAD) || maakTabblad(GENRES_TABBLAD);
   blad.clear();
   blad.getRange(1, 1, blad.getMaxRows(), blad.getMaxColumns()).clearDataValidations();
   var kop = ['genre_vroeger', 'aantal_boeken', 'genre_nu'];
@@ -7192,6 +7203,27 @@ function maakOcrTekstNetjes(ruw) {
   return kortAfOpZin(t, BS_MAX_LENGTE);
 }
 
+/**
+ * Maakt een tabblad aan op zijn vaste plaats (zie TABBLAD_GROEPEN), met de kleur van zijn groep.
+ * Bestaat het al, dan geeft het dat tabblad terug. De andere tabbladen blijven waar ze staan.
+ */
+function maakTabblad(naam) {
+  var ss = spreadsheet();
+  var bestaand = ss.getSheetByName(naam);
+  if (bestaand) return bestaand;
+  var namen = ss.getSheets().map(function (b) { return b.getName(); });
+  var volgorde = tabbladVolgorde(namen.concat(naam));
+  var plaats = volgorde.map(function (t) { return t.naam; }).indexOf(naam);
+  // De plaats tussen de bestaande tabbladen: na het laatste bestaande tabblad dat ervoor hoort.
+  var voor = volgorde.slice(0, plaats).map(function (t) { return t.naam; });
+  var index = 0;
+  namen.forEach(function (n, i) { if (voor.indexOf(n) > -1) index = Math.max(index, i + 1); });
+  var blad = ss.insertSheet(naam, index);
+  var kleur = volgorde[plaats].kleur;
+  if (kleur) blad.setTabColor(kleur);
+  return blad;
+}
+
 /** Menu (en Installeer tabbladen): Catalogus en Uitleningen overzichtelijk maken. */
 function maakTabbladenOverzichtelijk(stil) {
   var ss = spreadsheet();
@@ -7285,7 +7317,7 @@ function maakTitelNakijklijst() {
   var lijst = titelNakijklijst(catalogus);
   var datums = catalogus.filter(function (b) { return !isLeeg(b.boek_id) && titelIsDatum(b.titel); }).map(function (b) { return String(b.boek_id); });
   var ss = spreadsheet();
-  var blad = ss.getSheetByName(TITELS_TABBLAD) || ss.insertSheet(TITELS_TABBLAD);
+  var blad = ss.getSheetByName(TITELS_TABBLAD) || maakTabblad(TITELS_TABBLAD);
   blad.clear();
   // clear() laat keuzelijsten staan: die van een vorige versie (andere kolommen) eerst weghalen.
   blad.getRange(1, 1, blad.getMaxRows(), blad.getMaxColumns()).clearDataValidations();
@@ -7667,7 +7699,7 @@ function neemVerkooplijstOver() {
   var blad = ss.getSheetByName(VERKOOPLIJST_TABBLAD);
   if (!blad || blad.getLastRow() < 2) {
     if (!blad) {
-      blad = ss.insertSheet(VERKOOPLIJST_TABBLAD);
+      blad = maakTabblad(VERKOOPLIJST_TABBLAD);
       blad.getRange(1, 1, 1, VERKOOPLIJST_KOP.length).setValues([VERKOOPLIJST_KOP]);
       opmaakKop(blad, VERKOOPLIJST_KOP.length);
     }
@@ -8210,6 +8242,14 @@ function ordenTabbladen(ss) {
     if (t.kleur) blad.setTabColor(t.kleur);
   });
   ss.setActiveSheet(ss.getSheets()[0]);
+}
+
+function ordenTabbladenEenmalig() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('tabbladen_versie') === TABBLADEN_VERSIE) return;
+  ordenTabbladen(spreadsheet());
+  props.setProperty('tabbladen_versie', TABBLADEN_VERSIE);
+  logboek('systeem', 'tabbladen', 'De tabbladen staan in hun vaste volgorde, per groep.');
 }
 
 /** Een boek van de oude website: { id, isbn, titel, auteur, beschrijving, cover }. basis: adres van de databank. */
@@ -9293,7 +9333,7 @@ function schrijfVolledig(tabel) {
 /** Schrijft het tabblad Voorraad opnieuw. catalogus en verkopen: rijen (zoals leesTabel ze geeft). */
 function schrijfVoorraad(catalogus, verkopen) {
   var ss = spreadsheet();
-  var blad = ss.getSheetByName('Voorraad') || ss.insertSheet('Voorraad');
+  var blad = ss.getSheetByName('Voorraad') || maakTabblad('Voorraad');
   var v = voorraadRijen(catalogus, verkopen);
   var info = 'Overzicht van het script, bijgewerkt op ' + Utilities.formatDate(new Date(), tijdzone(), 'dd/MM/yyyy HH:mm') +
     '. Pas prijzen en aantallen aan in de Catalogus (te_koop_aantal, prijs, onderhandelbaar): dit tabblad volgt vanzelf.';
@@ -10032,7 +10072,7 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
 function titelcontroleTabel() {
   var ss = spreadsheet();
   if (!ss.getSheetByName(TITELCONTROLE_TABBLAD)) {
-    var blad = ss.insertSheet(TITELCONTROLE_TABBLAD);
+    var blad = maakTabblad(TITELCONTROLE_TABBLAD);
     var kop = KOLOMMEN[TITELCONTROLE_TABBLAD];
     blad.getRange(1, 1, 1, kop.length).setValues([kop]);
     opmaakKop(blad, kop.length);
@@ -10855,7 +10895,7 @@ function vernieuwCategorieen(oudeTags) {
   rijen.forEach(function (r) { r.zoekwoorden = zoekwoorden[normaliseerTekst(r.naam)] || ''; });
   // Wat op weg staat, blijft onderaan in het tabblad: zo komt het ook na opnieuw overnemen niet terug.
   tabRijen.forEach(function (r) { if (weg[normaliseerTekst(r.naam)]) rijen.push({ naam: schoon(r.naam), soort: 'weg', aantal_boeken: 0, zoekwoorden: schoon(r.zoekwoorden) }); });
-  if (!blad) blad = ss.insertSheet(naam);
+  if (!blad) blad = maakTabblad(naam);
   var kolommen = KOLOMMEN[naam];
   blad.clear();
   var waarden = [kolommen].concat(rijen.map(function (r) { return kolommen.map(function (k) { return r[k]; }); }));
@@ -11148,6 +11188,8 @@ function verwerkNieuweBoekenAutomatisch() {
   // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
   try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
+  // Eén keer na een nieuwe indeling: de tabbladen op hun plaats (Ordenen.js).
+  try { ordenTabbladenEenmalig(); } catch (e) { logboek('systeem', 'tabbladen', 'Fout: ' + e.message); }
   // Eén keer na nieuwe thema's: dubbels uit categorieën en trefwoorden naar de thema's (OudeBoeken.js).
   try { themasOpnieuwIndelenEenmalig(); } catch (e) { logboek('systeem', 'thema\'s', 'Fout: ' + e.message); }
   // Eén keer: Graphic novel weg bij boeken die het enkel door het woord "graphic" kregen (OnderwerpRaden.js).
@@ -12355,7 +12397,7 @@ function vulOntbrekendeOnderwerpenMenu() {
     bewaarTabel(onderwerpen);
     if (uit.boeken.length) schrijfKolommen(catalogus, ['extra_onderwerpen']);
     var ss = spreadsheet();
-    var blad = ss.getSheetByName(ONDERWERP_NAKIJKEN) || ss.insertSheet(ONDERWERP_NAKIJKEN);
+    var blad = ss.getSheetByName(ONDERWERP_NAKIJKEN) || maakTabblad(ONDERWERP_NAKIJKEN);
     blad.clear();
     blad.getRange(1, 1, blad.getMaxRows(), blad.getMaxColumns()).clearDataValidations();
     var waarden = [ONDERWERP_KOLOMMEN].concat(uit.nakijken.map(function (r) { return ONDERWERP_KOLOMMEN.map(function (k) { return r[k]; }); }));
@@ -13169,7 +13211,7 @@ function zorgVoorTabbladen(namen) {
     if (!kolommen) return;
     var blad = ss.getSheetByName(naam);
     if (!blad) {
-      blad = ss.insertSheet(naam);
+      blad = maakTabblad(naam);
       blad.getRange(1, 1, 1, kolommen.length).setValues([kolommen]);
       opmaakKop(blad, kolommen.length);
       return;

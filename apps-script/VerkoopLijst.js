@@ -125,7 +125,7 @@ function neemVerkooplijstOver() {
   var blad = ss.getSheetByName(VERKOOPLIJST_TABBLAD);
   if (!blad || blad.getLastRow() < 2) {
     if (!blad) {
-      blad = ss.insertSheet(VERKOOPLIJST_TABBLAD);
+      blad = maakTabblad(VERKOOPLIJST_TABBLAD);
       blad.getRange(1, 1, 1, VERKOOPLIJST_KOP.length).setValues([VERKOOPLIJST_KOP]);
       opmaakKop(blad, VERKOOPLIJST_KOP.length);
     }
