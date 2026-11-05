@@ -606,8 +606,17 @@ function stelFiltergroepenVoor(genre) {
   ONDERWERP_VOORSTELLEN.forEach(function (paar) {
     if (paar[0].test(g) && groepen.indexOf(paar[1]) === -1) groepen.push(paar[1]);
   });
-  return groepen;
+  // Het specifieke thema wint: "Koloniale geschiedenis" wordt Kolonialisme, niet ook Geschiedenis.
+  return groepen.filter(function (t) {
+    return !groepen.some(function (s) { return SPECIFIEK_THEMA[s] === t; });
+  });
 }
+
+// Een specifiek thema en het bredere thema dat het verdringt als een genre ze allebei noemt.
+var SPECIFIEK_THEMA = {
+  'Kolonialisme': 'Geschiedenis', 'Fascisme': 'Geschiedenis', 'Intersekse': 'Gender', 'Coming-out': 'Seksualiteit',
+  'Marxisme': 'Politiek', 'Cultuur': 'Maatschappij', 'Diversiteit': 'Maatschappij', 'Ecologie': 'Maatschappij', 'Onderzoek': 'Maatschappij'
+};
 
 /**
  * Bepaalt de filtergroepen van een boek: via de vertaaltabel, de kolom

@@ -2243,7 +2243,9 @@ test('vertaaltabel: genres die bij een nieuw thema horen, krijgen dat thema (en 
     { genre: 'Cuba', filtergroepen: 'Cuba' }
   ];
   gelijk(M.vertaaltabelNieuweThemas(rijen).map((r) => r.genre), ['Fascisme en nazisme', 'Marxisme', 'Koloniale geschiedenis', 'Intersex']);
-  gelijk(rijen.map((r) => r.filtergroepen), ['Fascisme', 'Marxisme', 'Geschiedenis, Kolonialisme', 'Intersekse', 'Fictie', 'Cuba']);
+  gelijk(rijen.map((r) => r.filtergroepen), ['Fascisme', 'Marxisme', 'Kolonialisme', 'Intersekse', 'Fictie', 'Cuba'], 'het specifieke thema wint');
+  gelijk([M.stelFiltergroepenVoor('Ecologie en samenleving'), M.stelFiltergroepenVoor('Geschiedenis van het fascisme'), M.stelFiltergroepenVoor('Lesbische coming out')],
+    [['Ecologie'], ['Fascisme'], ['Coming-out']]);
   gelijk(M.vertaaltabelNieuweThemas(rijen).length, 0, 'opnieuw: niets meer');
 });
 

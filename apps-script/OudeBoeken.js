@@ -247,7 +247,7 @@ function vernieuwCategorieen(oudeTags) {
  * categorieen en trefwoorden naar extra_onderwerpen, en verdwijnen uit het tabblad en de keuzelijsten.
  * Vanuit verwerkNieuweBoekenAutomatisch. THEMAS_VERSIE verhogen als er weer thema's bijkomen.
  */
-var THEMAS_VERSIE = 'bib-2026-11c';
+var THEMAS_VERSIE = 'bib-2026-11d';
 function themasOpnieuwIndelenEenmalig() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('themas_versie') === THEMAS_VERSIE) return;

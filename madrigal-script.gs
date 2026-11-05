@@ -304,6 +304,12 @@ var OUDE_GROEP = 'geschiedenis en maatschappij';
 
 var NIEUWE_GROEPEN = ['Geschiedenis', 'Maatschappij', 'Religie en Spiritualiteit'];
 
+// Een specifiek thema en het bredere thema dat het verdringt als een genre ze allebei noemt.
+var SPECIFIEK_THEMA = {
+  'Kolonialisme': 'Geschiedenis', 'Fascisme': 'Geschiedenis', 'Intersekse': 'Gender', 'Coming-out': 'Seksualiteit',
+  'Marxisme': 'Politiek', 'Cultuur': 'Maatschappij', 'Diversiteit': 'Maatschappij', 'Ecologie': 'Maatschappij', 'Onderzoek': 'Maatschappij'
+};
+
 // Eigen thema's bovenop FILTERGROEPEN (instelling eigen_themas, gezet door leesInstellingen).
 var EIGEN_THEMAS = ['Kunst en Fotoboek'];
 
@@ -1002,7 +1008,7 @@ var CATEGORIE_KOLOM = { categorie: 'categorieen', trefwoord: 'trefwoorden', trig
  * categorieen en trefwoorden naar extra_onderwerpen, en verdwijnen uit het tabblad en de keuzelijsten.
  * Vanuit verwerkNieuweBoekenAutomatisch. THEMAS_VERSIE verhogen als er weer thema's bijkomen.
  */
-var THEMAS_VERSIE = 'bib-2026-11c';
+var THEMAS_VERSIE = 'bib-2026-11d';
 
 // Woorden in een naam die niets zeggen over wie het is.
 var NAAM_STOPWOORDEN = ['van', 'der', 'den', 'het', 'von', 'and', 'een', 'etc', 'the', 'les', 'des', 'del', 'della', 'ter', 'ten'];
@@ -9422,7 +9428,10 @@ function stelFiltergroepenVoor(genre) {
   ONDERWERP_VOORSTELLEN.forEach(function (paar) {
     if (paar[0].test(g) && groepen.indexOf(paar[1]) === -1) groepen.push(paar[1]);
   });
-  return groepen;
+  // Het specifieke thema wint: "Koloniale geschiedenis" wordt Kolonialisme, niet ook Geschiedenis.
+  return groepen.filter(function (t) {
+    return !groepen.some(function (s) { return SPECIFIEK_THEMA[s] === t; });
+  });
 }
 
 /** Hoeveel exemplaren de bib te koop heeft. */
