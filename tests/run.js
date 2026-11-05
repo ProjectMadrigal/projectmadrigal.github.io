@@ -3906,5 +3906,57 @@ test('controleerIaCovers: enkel covers van Internet Archive, op boek-ID, na het 
   assert.strictEqual(M.iaControleLink({ cover_url: 'https://archive.org/c1.jpg', cover_origineel: '' }), 'https://archive.org/c1.jpg');
 });
 
+test('Auteursnamen: gekozen naam vervangt de vroegere naam, die blijft zoekbaar', () => {
+  const tab = [
+    { auteur: 'Verzonnen, Robin', andere_namen: 'Verzonnen, Rob; Bedacht, Rob', soort: 'gekozen naam' },
+    { auteur: 'Schuilnaam, Mo', andere_namen: 'Echtnaam, Lien', soort: 'pseudoniem' },
+    { auteur: '', andere_namen: 'Leeg, Rij' }
+  ];
+  const cat = [
+    { boek_id: 'B1', soort: 'boek', titel: 'Een', auteur: 'Verzonnen, Rob' },
+    { boek_id: 'B2', soort: 'boek', titel: 'Twee', auteur: 'Rob Bedacht & Ander, Kim' },
+    { boek_id: 'B3', soort: 'boek', titel: 'Drie', auteur: 'Verzonnen, Robin' },
+    { boek_id: 'B4', soort: 'boek', titel: 'Vier', auteur: 'Schuilnaam, Mo' },
+    { boek_id: 'B5', soort: 'boek', titel: 'Vijf', auteur: 'Lien Echtnaam' },
+    { boek_id: 'B6', soort: 'boek', titel: 'Zes', auteur: 'Ander, Kim', auteur_zoeknamen: 'Oud, Spoor' },
+    { boek_id: 'B7', soort: 'film', titel: 'Zeven', auteur: 'Verzonnen, Rob' }
+  ];
+  const uit = M.auteursnamenToepassen(cat, tab);
+  gelijk(cat.map((b) => b.auteur), ['Verzonnen, Robin', 'Verzonnen, Robin & Ander, Kim', 'Verzonnen, Robin', 'Schuilnaam, Mo', 'Lien Echtnaam', 'Ander, Kim', 'Verzonnen, Robin']);
+  gelijk(cat.map((b) => b.auteur_zoeknamen || ''), ['Verzonnen, Rob; Bedacht, Rob', 'Verzonnen, Rob; Bedacht, Rob', 'Verzonnen, Rob; Bedacht, Rob',
+    'Echtnaam, Lien', 'Schuilnaam, Mo', '', 'Verzonnen, Rob; Bedacht, Rob'], 'pseudoniem in beide richtingen, oude zoeknamen weg');
+  assert.strictEqual(uit.vervangen, 3);
+  gelijk(uit.perRegel, [4, 2]);
+  // Een tweede keer verandert er niets.
+  const opnieuw = M.auteursnamenToepassen(cat, tab);
+  assert.strictEqual(opnieuw.vervangen + opnieuw.zoeknamen, 0);
+  gelijk(M.auteurZoeknamen(cat[0]), ['Verzonnen, Rob', 'Bedacht, Rob']);
+});
+
+test('Auteursnamen: de voorbeelden van het bestuur, enkel wat ontbreekt', () => {
+  assert.strictEqual(M.auteursnamenOntbrekend([]).length, M.AUTEURSNAMEN_STANDAARD.length);
+  const eerste = M.AUTEURSNAMEN_STANDAARD[0];
+  const naam = eerste.auteur.split(', ').reverse().join(' ');
+  assert.strictEqual(M.auteursnamenOntbrekend([{ auteur: naam }]).length, M.AUTEURSNAMEN_STANDAARD.length - 1);
+  assert.ok(M.auteursnamenRegels(M.AUTEURSNAMEN_STANDAARD).length === M.AUTEURSNAMEN_STANDAARD.length);
+  assert.ok(M.KOLOMMEN.Catalogus.indexOf('auteur_zoeknamen') > -1);
+});
+
+test('Auteursnamen: de titelcontrole zet geen vroegere naam terug', () => {
+  const stock = [{ soort: 'boek', isbn: '9780000000011', titel: 'Een zomer', auteur: 'Verzonnen, Rob' }];
+  const cat = [{ boek_id: 'B1', soort: 'boek', isbn: stock[0].isbn, titel: 'Een zomer', auteur: 'Verzonnen, Robin', bron_sleutel: M.bronSleutel(stock[0]) }];
+  const tab = [{ auteur: 'Verzonnen, Robin', andere_namen: 'Verzonnen, Rob', soort: 'gekozen naam' }];
+  const verbeterd = [];
+  gelijk(M.titelcontroleRijen(cat, stock, [], [], verbeterd, tab), []);
+  gelijk(verbeterd, []);
+  assert.strictEqual(cat[0].auteur, 'Verzonnen, Robin');
+});
+
+test('Zoeken: een vroegere naam of pseudoniem vindt het boek', () => {
+  const Z = M.MadrigalZoeken || require('../zoeken.js');
+  const index = Z.maakIndex([{ id: 'B1', t: 'Een zomer', a: 'Verzonnen, Robin', az: ['Verzonnen, Rob', 'Echtnaam, Lien'] }, { id: 'B2', t: 'Ander', a: 'Kim' }]);
+  gelijk(Z.zoek(index, 'lien echtnaam').filter((r) => r.score > 0).map((r) => r.boek.id), ['B1']);
+});
+
 console.log('\n' + geslaagd + ' geslaagd, ' + mislukt.length + ' mislukt');
 if (mislukt.length) process.exit(1);

@@ -147,6 +147,23 @@ var AUTEUR_ACHTERVOEGSEL = /^(jr\.?|sr\.?|ii|iii|iv)$/i;
 // Initialen: "J.R.", "J.", "JR".
 var AUTEUR_INITIALEN = /^([A-Z]\.){1,4}$|^[A-Z]{1,3}$/;
 
+var AUTEURSNAMEN_TABBLAD = 'Auteursnamen';
+
+var AUTEURSNAMEN_PSEUDONIEM = 'pseudoniem';
+
+var AUTEURSNAMEN_GEKOZEN = 'gekozen naam';
+
+// De voorbeelden van het bestuur: één keer in het tabblad gezet. Daarna beheer je ze in het tabblad zelf.
+// Het zijn publiek bekende namen van auteurs, geen gegevens van leners of schenkers.
+var AUTEURSNAMEN_STANDAARD = [
+  { auteur: 'Califia, Patrick', andere_namen: 'Califia, Pat', soort: AUTEURSNAMEN_GEKOZEN },
+  { auteur: 'Tempest, Kae', andere_namen: 'Tempest, Kate', soort: AUTEURSNAMEN_GEKOZEN },
+  { auteur: 'Februari, Maxim', andere_namen: 'Februari, Marjolijn', soort: AUTEURSNAMEN_GEKOZEN },
+  { auteur: 'Fraus, Pia', andere_namen: 'Schoeters, Gaea', soort: AUTEURSNAMEN_PSEUDONIEM }
+];
+
+var AUTEURSNAMEN_STANDAARD_VERSIE = 'v1';
+
 var BACKUP_VOORVOEGSEL = 'Madrigal back-up ';
 
 /** Velden van een boek die je via de website kan aanpassen. De rest (herkomst, ...) blijft enkel in de spreadsheet. */
@@ -712,6 +729,7 @@ var KOLOM_INDELING = {
       uitvoering: ['boek', 'Hardcover, Paperback of Pocket.'],
       nieuwstaat: ['boek', 'Staat van het boek, uit de stocklijst.'],
       originele_titel: ['boek', 'Titel in de oorspronkelijke taal, als die anders is (vertalingen, films).'],
+      auteur_zoeknamen: ['boek', 'Vroegere namen en pseudoniemen van de auteur, enkel om op te zoeken. Het script vult dit uit het tabblad Auteursnamen. Niet zelf invullen.'],
       aanrader: ['website', 'Wie dit boek aanraadt (bv. Johanna). Staat op de website.'],
       genre: ['website', 'Genre uit de stocklijst. Via het tabblad Onderwerpen bepaalt dit in welk thema het boek staat.'],
       extra_onderwerpen: ['website', 'Extra thema\'s voor de filters op de website, met een komma ertussen.'],
@@ -856,6 +874,8 @@ var KOLOMMEN = {
     'prijs', 'onderhandelbaar', 'te_koop_aantal',
     // De titel in de oorspronkelijke taal, als die verschilt (vooral films en vertaalde boeken).
     'originele_titel',
+    // Vroegere namen en pseudoniemen van de auteur (Auteursnamen.js): enkel om op te zoeken, nooit getoond. Het script vult dit.
+    'auteur_zoeknamen',
     // Vanaf hier: nooit publiek.
     'herkomst', 'isbn_origineel', 'isbn10', 'bron_sleutel', 'ol_gecontroleerd', 'gb_gecontroleerd', 'beschrijving_gezocht', 'beschrijving_vertaald',
     'cover_bron', 'cover_gezocht', 'bol_gezocht', 'ia_gezocht', 'wiki_gezocht',
@@ -916,6 +936,8 @@ var KOLOMMEN = {
   // Titels en auteurs nakijken in de bib (Titelcontrole.js).
   // Genres opkuisen: overzicht van de genres die een andere naam kregen (Genres.js).
   'Genres opkuisen': ['genre_vroeger', 'aantal_boeken', 'genre_nu'],
+  // Gekozen namen en pseudoniemen (Auteursnamen.js). boeken: het script telt de boeken met die naam.
+  'Auteursnamen': ['auteur', 'andere_namen', 'soort', 'boeken', 'opmerking'],
   'Auteurs aangepast': ['boek_id', 'titel', 'auteur_vroeger', 'auteur_nu', 'opmerking'],
   // Boeken zonder onderwerp waar het script twijfelt (OnderwerpRaden.js).
   'Categorieën en trefwoorden': ['naam', 'soort', 'aantal_boeken', 'zoekwoorden'],
@@ -985,7 +1007,7 @@ var TABBLAD_GROEPEN = [
   // collectie: eerst de tabbladen die je zelf invult, dan de nakijklijsten, dan de overzichten die het script maakt
   ['#ffcd30', ['Catalogus', 'Onderwerpen', 'Categorieën en trefwoorden', 'Voorstellen', 'Aankooplijst',
     'Na te kijken', 'Titels nakijken', 'Titelcontrole', 'Onderwerpen nakijken',
-    'Indeling', 'Genres opkuisen', 'Auteurs aangepast']],
+    'Indeling', 'Genres opkuisen', 'Auteurs aangepast', 'Auteursnamen']],
   ['#2a6f73', ['Nieuws', 'Agenda', 'Vaste events', 'Veelgestelde vragen', 'Leeslijsten']],       // website
   ['#d95f3b', ['Voorraad', 'Standjes', 'Standje boeken', 'Verkopen', 'Verkooplijst']],           // verkoop op standjes
   ['#1b1b1c', ['Instellingen', 'Logboek', 'Shifts']],                                      // beheer
@@ -1783,6 +1805,140 @@ function auteursDelen(a, b) {
   return !!normaliseerTekst(a) && !/[;&\/]/.test(a + b) && letters(a).length >= 8 && letters(a) === letters(b);
 }
 
+/** Vanzelf, elk uur (vanuit verwerkNieuweBoekenAutomatisch). Schrijft enkel als er iets verandert. */
+function auteursnamenAutomatisch() {
+  var uit = auteursnamenUitvoeren();
+  if (uit.vervangen || uit.zoeknamen) logboek('systeem', 'auteursnamen', auteursnamenTekst(uit));
+}
+
+/** Menu: Titels en auteurs > Auteursnamen: pas gekozen namen en pseudoniemen toe. */
+function auteursnamenMenu() {
+  var tekst = auteursnamenTekst(auteursnamenUitvoeren());
+  logboek('menu', 'auteursnamen', tekst);
+  meld(tekst);
+}
+
+/** De rijen uit AUTEURSNAMEN_STANDAARD die nog niet in het tabblad staan (zelfde getoonde naam). */
+function auteursnamenOntbrekend(rijen) {
+  var er = {};
+  (rijen || []).forEach(function (r) { er[controleAuteurSleutel(r.auteur)] = true; });
+  return AUTEURSNAMEN_STANDAARD.filter(function (r) { return !er[controleAuteurSleutel(r.auteur)]; });
+}
+
+/** De rijen van het tabblad als regels: [{ toon, pseudoniem, namen: [{ naam, sleutel }] }]. namen[0] is de getoonde naam. */
+function auteursnamenRegels(rijen) {
+  var uit = [];
+  (rijen || []).forEach(function (r) {
+    var toon = schoon(r.auteur);
+    if (!toon) return;
+    var namen = [{ naam: toon, sleutel: controleAuteurSleutel(toon) }];
+    String(r.andere_namen || '').split(/\s*[;\n]\s*/).forEach(function (n) {
+      n = schoon(n);
+      var s = controleAuteurSleutel(n);
+      if (n && s && !namen.some(function (x) { return x.sleutel === s; })) namen.push({ naam: n, sleutel: s });
+    });
+    if (namen.length < 2) return;
+    uit.push({ toon: toon, pseudoniem: /pseudo/i.test(String(r.soort || '')), namen: namen });
+  });
+  return uit;
+}
+
+function auteursnamenTekst(uit) {
+  return uit.vervangen + ' boeken kregen de gekozen naam van de auteur, bij ' + uit.zoeknamen +
+    ' boeken veranderden de namen om op te zoeken. De kolom boeken in het tabblad ' + AUTEURSNAMEN_TABBLAD + ' toont per naam hoeveel boeken er zijn.';
+}
+
+/**
+ * Past het tabblad toe op de Catalogus (wijzig). Ook films.
+ * Geeft { vervangen: boeken met een andere auteur, zoeknamen: boeken met andere zoeknamen, perRegel: [aantal boeken] }.
+ */
+function auteursnamenToepassen(catalogus, rijen) {
+  var regels = auteursnamenRegels(rijen);
+  var uit = { vervangen: 0, zoeknamen: 0, perRegel: regels.map(function () { return 0; }) };
+  catalogus.forEach(function (b) {
+    if (isLeeg(b.boek_id)) return;
+    var r = auteursnamenVervang(b.auteur, regels);
+    r.regels.forEach(function (i) { uit.perRegel[i]++; });
+    var velden = {};
+    if (!isLeeg(b.auteur) && r.tekst !== String(b.auteur)) { velden.auteur = r.tekst; uit.vervangen++; }
+    var zoek = r.zoek.join('; ');
+    if (zoek !== schoon(b.auteur_zoeknamen)) { velden.auteur_zoeknamen = zoek; uit.zoeknamen++; }
+    if (Object.keys(velden).length) wijzig(b, velden);
+  });
+  return uit;
+}
+
+/** Doet het werk in de spreadsheet. Geeft het resultaat van auteursnamenToepassen. */
+function auteursnamenUitvoeren() {
+  zorgVoorTabbladen(['Catalogus', AUTEURSNAMEN_TABBLAD]);
+  var eigenschappen = PropertiesService.getScriptProperties();
+  var tab = leesTabel(AUTEURSNAMEN_TABBLAD);
+  // Eén keer: de voorbeelden van het bestuur erin. Haal je er later een weg, dan komt die niet terug.
+  if (eigenschappen.getProperty('auteursnamen_standaard') !== AUTEURSNAMEN_STANDAARD_VERSIE) {
+    var erbij = auteursnamenOntbrekend(tab.rijen);
+    if (erbij.length) {
+      var start = tab.blad.getLastRow() + 1;
+      tab.blad.getRange(start, 1, erbij.length, tab.kop.length).setValues(erbij.map(function (r) { return rijNaarWaarden(tab.kop, r); }));
+      tab = leesTabel(AUTEURSNAMEN_TABBLAD);
+    }
+    eigenschappen.setProperty('auteursnamen_standaard', AUTEURSNAMEN_STANDAARD_VERSIE);
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var uit;
+  try {
+    var catalogus = leesTabel('Catalogus');
+    uit = auteursnamenToepassen(catalogus.rijen, tab.rijen);
+    if (uit.vervangen || uit.zoeknamen) schrijfKolommen(catalogus, ['auteur', 'auteur_zoeknamen']);
+  } finally {
+    lock.releaseLock();
+  }
+  // Per rij in het tabblad: bij hoeveel boeken de naam voorkomt.
+  var kolBoeken = tab.kop.indexOf('boeken');
+  if (kolBoeken > -1) {
+    var i = 0;
+    tab.rijen.forEach(function (r) {
+      if (!auteursnamenRegels([r]).length) return;
+      var n = uit.perRegel[i++];
+      if (String(r.boeken) !== String(n)) tab.blad.getRange(r._rij, kolBoeken + 1).setValue(n);
+    });
+  }
+  if (uit.vervangen || uit.zoeknamen) leegCache();
+  return uit;
+}
+
+/**
+ * Past de regels toe op één auteursveld (meer auteurs met ; of & ertussen).
+ * Geeft { tekst, zoek: [namen om op te zoeken], regels: [indexen van de regels die pasten] }.
+ */
+function auteursnamenVervang(auteur, regels) {
+  var delen = String(auteur || '').split(CONTROLE_AUTEUR_SCHEIDING);
+  var zoek = [], gepast = [];
+  var voegToe = function (naam) { if (zoek.indexOf(naam) === -1) zoek.push(naam); };
+  for (var i = 0; i < delen.length; i += 2) {
+    var sleutel = controleAuteurSleutel(delen[i]);
+    if (!sleutel) continue;
+    for (var r = 0; r < regels.length; r++) {
+      var regel = regels[r];
+      var j = -1;
+      regel.namen.forEach(function (n, k) { if (j === -1 && n.sleutel === sleutel) j = k; });
+      if (j === -1) continue;
+      if (gepast.indexOf(r) === -1) gepast.push(r);
+      if (regel.pseudoniem) {
+        // De naam op het boek blijft. De andere namen van dezelfde auteur zijn zoekbaar.
+        regel.namen.forEach(function (n, k) { if (k !== j) voegToe(n.naam); });
+      } else {
+        // Een vroegere naam: de gekozen naam in de plaats. De vroegere namen blijven zoekbaar, nooit zichtbaar.
+        var voor = delen[i].match(/^\s*/)[0], na = delen[i].match(/\s*$/)[0];
+        delen[i] = voor + regel.toon + na;
+        regel.namen.forEach(function (n, k) { if (k > 0) voegToe(n.naam); });
+      }
+      break;
+    }
+  }
+  return { tekst: delen.join(''), zoek: zoek, regels: gepast };
+}
+
 /**
  * Zet alle auteurs in de Catalogus netjes. herstel: { boek_id: { vroeger, nu } } uit het tabblad Auteurs aangepast
  * van een vorige keer: staat de auteur nog zoals het script ze toen zette, dan vertrekt het opnieuw van vroeger.
@@ -1875,6 +2031,11 @@ function auteurWoorden(auteur) {
   return normaliseerTekst(auteur).split(' ').filter(function (w) { return w.length >= 3 && NAAM_STOPWOORDEN.indexOf(w) === -1 && !/^\d+$/.test(w); });
 }
 
+/** De namen om op te zoeken van een boek (kolom auteur_zoeknamen), als lijst. */
+function auteurZoeknamen(rij) {
+  return String((rij && rij.auteur_zoeknamen) || '').split(/\s*;\s*/).map(schoon).filter(function (x) { return x; });
+}
+
 /** De map voor de back-ups. Bestaat ze nog niet, dan maken we ze. */
 function backupMap(naam) {
   var mappen = DriveApp.getFoldersByName(naam);
@@ -1896,6 +2057,9 @@ function baliecatalogus(staat, vertaal) {
     // ll: de leeslijsten van het boek, voor het onderdeel Leeslijsten van het bestuursscherm.
     var ll = splitsLijst(b.leeslijsten);
     if (ll.length) info.ll = ll;
+    // az: vroegere namen en pseudoniemen van de auteur, enkel om op te zoeken (Auteursnamen.js).
+    var az = auteurZoeknamen(b);
+    if (az.length) info.az = az;
     // g: de onderwerpen (filtergroepen), enkel voor het bestuursscherm (filter bij Leeslijsten).
     if (vertaal) {
       var g = filtergroepenVan(b, vertaal);
@@ -3074,6 +3238,9 @@ function bouwPubliekeCatalogus(staat, onderwerpRijen, lijstRijen, opties) {
     if (trefwoorden.length) boek.k = trefwoorden;
     var triggers = toonTriggers ? splitsLijst(rij.triggerwaarschuwingen) : [];
     if (triggers.length) boek.tw = triggers;
+    // az: vroegere namen en pseudoniemen van de auteur (Auteursnamen.js). Enkel om op te zoeken, nooit getoond.
+    var zoeknamen = auteurZoeknamen(rij);
+    if (zoeknamen.length) boek.az = zoeknamen;
     var en = schoonMetRegels(rij.beschrijving_en);
     if (en && en !== extra.d) extra.de = en;
     Object.keys(extra).forEach(function (k) { if (!isLeeg(extra[k])) boek[k] = extra[k]; });
@@ -7286,7 +7453,9 @@ function maakTitelcontroleLijst() {
     var catalogus = leesTabel('Catalogus');
     var tabel = titelcontroleTabel();
     verbeterd = [];
-    nieuw = titelcontroleRijen(catalogus.rijen, stock, oudeBoeken, tabel.rijen, verbeterd);
+    var namenBlad = ss.getSheetByName(AUTEURSNAMEN_TABBLAD);
+    var auteursnamen = namenBlad && namenBlad.getLastRow() > 1 ? leesTabel(AUTEURSNAMEN_TABBLAD).rijen : [];
+    nieuw = titelcontroleRijen(catalogus.rijen, stock, oudeBoeken, tabel.rijen, verbeterd, auteursnamen);
     if (verbeterd.length) schrijfKolommen(catalogus, ['titel', 'auteur']);
     // Wat nagekeken is, blijft. De open rijen maken plaats voor de nieuwe. Alles in één keer schrijven.
     var blijft = tabel.rijen.filter(function (r) { return schoon(r.status); });
@@ -8039,7 +8208,8 @@ function onOpen() {
       .addSeparator()
       .addItem('Titelcontrole in de bib: maak de lijst', 'maakTitelcontroleMenu')
       .addSeparator()
-      .addItem('Auteurs: zet alles in de vorm Achternaam, Voornaam', 'auteursOpkuisenMenu'))
+      .addItem('Auteurs: zet alles in de vorm Achternaam, Voornaam', 'auteursOpkuisenMenu')
+      .addItem('Auteursnamen: pas gekozen namen en pseudoniemen toe', 'auteursnamenMenu'))
     .addSubMenu(ui.createMenu('Covers')
       .addItem('Zoek covers bij Google Books', 'vulAanUitGoogleBooks')
       .addItem('Zoek covers bij bol.com', 'zoekCoversBol')
@@ -10011,7 +10181,11 @@ function titelcontroleLijst(catalogus, rijen) {
  * vorm (zie controleAuteurVerbeterd) en komt de boek_id in de lijst.
  * Geeft de nieuwe open rijen: { boek_id, titel_nu, auteur_nu, titel_stock, auteur_stock, titel_oud, auteur_oud, status: '' }.
  */
-function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
+function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd, auteursnamen) {
+  // Een vroegere naam in de stocklijst of op de oude website: eerst de gekozen naam (tabblad Auteursnamen).
+  // Zo zet het script nooit een vroegere naam terug, en is die naam geen verschil.
+  var regels = auteursnamenRegels(auteursnamen || []);
+  var gekozen = function (auteur) { return auteur ? auteursnamenVervang(auteur, regels).tekst : auteur; };
   var perSleutel = {};
   stock.forEach(function (b) { var s = bronSleutel(b); if (!perSleutel[s]) perSleutel[s] = b; });
   var oudPerId = {};
@@ -10025,6 +10199,8 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     if (!id || isLeeg(b.titel) || isFilm(b) || klaar[id]) return;
     var st = perSleutel[b.bron_sleutel];
     var oud = oudPerId[id];
+    if (st) st = Object.assign({}, st, { auteur: gekozen(st.auteur) });
+    if (oud) oud = Object.assign({}, oud, { auteur: gekozen(oud.auteur) });
     var oudeTitel = oud ? controleEditieNetjes(schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : '')) : '';
     var stockTitel = st ? controleEditieNetjes(st.titel) : '';
     // Een verjaardageditie altijd achteraan: "The Latecomer, 35th Anniversary Edition".
@@ -11212,6 +11388,8 @@ function verwerkNieuweBoekenAutomatisch() {
   try { isbn10AanvullenAutomatisch(); } catch (e) { logboek('systeem', 'isbn10', 'Fout: ' + e.message); }
   // Eén keer per dag: elke auteur als "Achternaam, Voornaam" (Auteurs.js).
   try { auteursOpkuisenAutomatisch(); } catch (e) { logboek('systeem', 'auteursOpkuisen', 'Fout: ' + e.message); }
+  // Gekozen namen en pseudoniemen van auteurs (Auteursnamen.js).
+  try { auteursnamenAutomatisch(); } catch (e) { logboek('systeem', 'auteursnamen', 'Fout: ' + e.message); }
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
   var aantal = geefNieuweBoekenEenId();
   if (!aantal) return;

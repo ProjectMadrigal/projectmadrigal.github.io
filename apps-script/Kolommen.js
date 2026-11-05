@@ -42,6 +42,7 @@ var KOLOM_INDELING = {
       uitvoering: ['boek', 'Hardcover, Paperback of Pocket.'],
       nieuwstaat: ['boek', 'Staat van het boek, uit de stocklijst.'],
       originele_titel: ['boek', 'Titel in de oorspronkelijke taal, als die anders is (vertalingen, films).'],
+      auteur_zoeknamen: ['boek', 'Vroegere namen en pseudoniemen van de auteur, enkel om op te zoeken. Het script vult dit uit het tabblad Auteursnamen. Niet zelf invullen.'],
       aanrader: ['website', 'Wie dit boek aanraadt (bv. Johanna). Staat op de website.'],
       genre: ['website', 'Genre uit de stocklijst. Via het tabblad Onderwerpen bepaalt dit in welk thema het boek staat.'],
       extra_onderwerpen: ['website', 'Extra thema\'s voor de filters op de website, met een komma ertussen.'],

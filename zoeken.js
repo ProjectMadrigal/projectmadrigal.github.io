@@ -77,6 +77,8 @@
           { gewicht: 3, woorden: woorden(b.t) },
           { gewicht: 2, woorden: woorden(b.ot) },
           { gewicht: 2, woorden: woorden(b.a) },
+          // Vroegere namen en pseudoniemen van de auteur: vindbaar, maar nooit getoond.
+          { gewicht: 2, woorden: woorden((b.az || []).join(' ')) },
           { gewicht: 2, woorden: woorden((b.ca || []).concat(b.k || []).join(' ')) },
           { gewicht: 1, woorden: woorden(b.u) }
         ],

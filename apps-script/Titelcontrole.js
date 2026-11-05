@@ -355,7 +355,11 @@ function controleAuteurGelijk(a, b) {
  * vorm (zie controleAuteurVerbeterd) en komt de boek_id in de lijst.
  * Geeft de nieuwe open rijen: { boek_id, titel_nu, auteur_nu, titel_stock, auteur_stock, titel_oud, auteur_oud, status: '' }.
  */
-function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
+function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd, auteursnamen) {
+  // Een vroegere naam in de stocklijst of op de oude website: eerst de gekozen naam (tabblad Auteursnamen).
+  // Zo zet het script nooit een vroegere naam terug, en is die naam geen verschil.
+  var regels = auteursnamenRegels(auteursnamen || []);
+  var gekozen = function (auteur) { return auteur ? auteursnamenVervang(auteur, regels).tekst : auteur; };
   var perSleutel = {};
   stock.forEach(function (b) { var s = bronSleutel(b); if (!perSleutel[s]) perSleutel[s] = b; });
   var oudPerId = {};
@@ -369,6 +373,8 @@ function titelcontroleRijen(catalogus, stock, oudeBoeken, bestaand, verbeterd) {
     if (!id || isLeeg(b.titel) || isFilm(b) || klaar[id]) return;
     var st = perSleutel[b.bron_sleutel];
     var oud = oudPerId[id];
+    if (st) st = Object.assign({}, st, { auteur: gekozen(st.auteur) });
+    if (oud) oud = Object.assign({}, oud, { auteur: gekozen(oud.auteur) });
     var oudeTitel = oud ? controleEditieNetjes(schoon(oud.titel) + (oud.ondertitel ? ': ' + schoon(oud.ondertitel) : '')) : '';
     var stockTitel = st ? controleEditieNetjes(st.titel) : '';
     // Een verjaardageditie altijd achteraan: "The Latecomer, 35th Anniversary Edition".
@@ -508,7 +514,9 @@ function maakTitelcontroleLijst() {
     var catalogus = leesTabel('Catalogus');
     var tabel = titelcontroleTabel();
     verbeterd = [];
-    nieuw = titelcontroleRijen(catalogus.rijen, stock, oudeBoeken, tabel.rijen, verbeterd);
+    var namenBlad = ss.getSheetByName(AUTEURSNAMEN_TABBLAD);
+    var auteursnamen = namenBlad && namenBlad.getLastRow() > 1 ? leesTabel(AUTEURSNAMEN_TABBLAD).rijen : [];
+    nieuw = titelcontroleRijen(catalogus.rijen, stock, oudeBoeken, tabel.rijen, verbeterd, auteursnamen);
     if (verbeterd.length) schrijfKolommen(catalogus, ['titel', 'auteur']);
     // Wat nagekeken is, blijft. De open rijen maken plaats voor de nieuwe. Alles in één keer schrijven.
     var blijft = tabel.rijen.filter(function (r) { return schoon(r.status); });

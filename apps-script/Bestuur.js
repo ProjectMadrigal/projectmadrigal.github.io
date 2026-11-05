@@ -15,6 +15,9 @@ function baliecatalogus(staat, vertaal) {
     // ll: de leeslijsten van het boek, voor het onderdeel Leeslijsten van het bestuursscherm.
     var ll = splitsLijst(b.leeslijsten);
     if (ll.length) info.ll = ll;
+    // az: vroegere namen en pseudoniemen van de auteur, enkel om op te zoeken (Auteursnamen.js).
+    var az = auteurZoeknamen(b);
+    if (az.length) info.az = az;
     // g: de onderwerpen (filtergroepen), enkel voor het bestuursscherm (filter bij Leeslijsten).
     if (vertaal) {
       var g = filtergroepenVan(b, vertaal);
