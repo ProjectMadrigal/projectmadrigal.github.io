@@ -145,6 +145,7 @@ function onOpen() {
       .addSeparator()
       .addItem('Onderwerpen: vul ontbrekende aan', 'vulOntbrekendeOnderwerpenMenu')
       .addItem('Onderwerpen: pas de nakijklijst toe', 'pasOnderwerpNakijklijstToe')
+      .addItem('Onderwerpen: pas de nieuwe thema\'s toe op de vertaaltabel', 'vertaaltabelNieuweThemasMenu')
       .addSeparator()
       .addItem('Genres en thema\'s: kuis op (zelfde schrijfwijze)', 'kuisGenresOp')
       .addItem('Categorieën en trefwoorden: vernieuw de lijst en de keuzelijsten', 'vernieuwCategorieenMenu')

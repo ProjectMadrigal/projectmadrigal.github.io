@@ -247,10 +247,13 @@ function vernieuwCategorieen(oudeTags) {
  * categorieen en trefwoorden naar extra_onderwerpen, en verdwijnen uit het tabblad en de keuzelijsten.
  * Vanuit verwerkNieuweBoekenAutomatisch. THEMAS_VERSIE verhogen als er weer thema's bijkomen.
  */
-var THEMAS_VERSIE = 'bib-2026-11b';
+var THEMAS_VERSIE = 'bib-2026-11c';
 function themasOpnieuwIndelenEenmalig() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('themas_versie') === THEMAS_VERSIE) return;
+  // De vertaaltabel: genres die bij een nieuw thema horen (Fascisme, Marxisme, ...), krijgen dat thema.
+  var genres = vertaaltabelNieuweThemasUitvoeren();
+  if (genres) logboek('systeem', 'vertaaltabel', genres + ' genres in het tabblad Onderwerpen staan nu bij hun nieuwe thema.');
   if (!spreadsheet().getSheetByName('Categorieën en trefwoorden')) { props.setProperty('themas_versie', THEMAS_VERSIE); return; }
   var tabel = leesTabel('Catalogus');
   var voor = categorieenZonderThemas(tabel.rijen.map(function (b) { return Object.assign({}, b); })).length;

@@ -290,6 +290,10 @@ var ONDERWERP_VOORSTELLEN = [
  */
 var BOEKSTATUSSEN = ['verloren', 'gevoelig verborgen', 'gevoelig zichtbaar'];
 
+// De thema's die in november 2026 bijkwamen (zie FILTERGROEPEN).
+var NIEUWE_THEMAS = ['Intersekse', 'Coming-out', 'Relaties', 'Polyamorie', 'Kolonialisme', 'Fascisme', 'Cultuur', 'Diversiteit', 'Ecologie',
+  'Gezondheid', 'Onderzoek', 'Marxisme', 'Cuba'];
+
 /**
  * De oude groep "Geschiedenis en maatschappij" werd drie groepen: Geschiedenis, Maatschappij en
  * Religie en Spiritualiteit. Verdeelt de rijen van Onderwerpen op basis van het genre. Past een
@@ -998,7 +1002,7 @@ var CATEGORIE_KOLOM = { categorie: 'categorieen', trefwoord: 'trefwoorden', trig
  * categorieen en trefwoorden naar extra_onderwerpen, en verdwijnen uit het tabblad en de keuzelijsten.
  * Vanuit verwerkNieuweBoekenAutomatisch. THEMAS_VERSIE verhogen als er weer thema's bijkomen.
  */
-var THEMAS_VERSIE = 'bib-2026-11b';
+var THEMAS_VERSIE = 'bib-2026-11c';
 
 // Woorden in een naam die niets zeggen over wie het is.
 var NAAM_STOPWOORDEN = ['van', 'der', 'den', 'het', 'von', 'and', 'een', 'etc', 'the', 'les', 'des', 'del', 'della', 'ter', 'ten'];
@@ -7895,6 +7899,7 @@ function onOpen() {
       .addSeparator()
       .addItem('Onderwerpen: vul ontbrekende aan', 'vulOntbrekendeOnderwerpenMenu')
       .addItem('Onderwerpen: pas de nakijklijst toe', 'pasOnderwerpNakijklijstToe')
+      .addItem('Onderwerpen: pas de nieuwe thema\'s toe op de vertaaltabel', 'vertaaltabelNieuweThemasMenu')
       .addSeparator()
       .addItem('Genres en thema\'s: kuis op (zelfde schrijfwijze)', 'kuisGenresOp')
       .addItem('Categorieën en trefwoorden: vernieuw de lijst en de keuzelijsten', 'vernieuwCategorieenMenu')
@@ -9770,6 +9775,9 @@ function themasMooi(waarde, telling) {
 function themasOpnieuwIndelenEenmalig() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('themas_versie') === THEMAS_VERSIE) return;
+  // De vertaaltabel: genres die bij een nieuw thema horen (Fascisme, Marxisme, ...), krijgen dat thema.
+  var genres = vertaaltabelNieuweThemasUitvoeren();
+  if (genres) logboek('systeem', 'vertaaltabel', genres + ' genres in het tabblad Onderwerpen staan nu bij hun nieuwe thema.');
   if (!spreadsheet().getSheetByName('Categorieën en trefwoorden')) { props.setProperty('themas_versie', THEMAS_VERSIE); return; }
   var tabel = leesTabel('Catalogus');
   var voor = categorieenZonderThemas(tabel.rijen.map(function (b) { return Object.assign({}, b); })).length;
@@ -10770,6 +10778,43 @@ function vertaalTabel(onderwerpRijen) {
     vertaal[normaliseerTekst(r.genre)] = splitsLijst(r.filtergroepen);
   });
   return vertaal;
+}
+
+/**
+ * De vertaaltabel Onderwerpen bijwerken voor de nieuwe thema's: een genre dat bij een nieuw thema hoort
+ * ("Fascisme en nazisme", "Koloniale geschiedenis", ...) krijgt het voorstel volgens de huidige regels
+ * (dus Fascisme, niet langer Geschiedenis). Andere genres blijven zoals ze zijn. Geeft de genres die veranderden.
+ */
+function vertaaltabelNieuweThemas(onderwerpRijen) {
+  var uit = [];
+  onderwerpRijen.forEach(function (r) {
+    if (isLeeg(r.genre)) return;
+    var exact = themaExact(r.genre);
+    var voorstel = exact ? [exact] : stelFiltergroepenVoor(r.genre);
+    if (!voorstel.some(function (t) { return NIEUWE_THEMAS.indexOf(t) > -1; })) return;
+    var nu = voorstel.join(', ');
+    if (normaliseerTekst(nu) === normaliseerTekst(r.filtergroepen)) return;
+    uit.push({ genre: schoon(r.genre), vroeger: schoon(r.filtergroepen), nu: nu });
+    wijzig(r, { filtergroepen: nu });
+  });
+  return uit;
+}
+
+/** Menu: Boeken > Onderwerpen: pas de nieuwe thema's toe op de vertaaltabel. */
+function vertaaltabelNieuweThemasMenu() {
+  var n = vertaaltabelNieuweThemasUitvoeren();
+  var tekst = n ? n + ' genres in het tabblad Onderwerpen staan nu bij hun nieuwe thema (bv. Fascisme, Marxisme, Kolonialisme). De website toont het binnen enkele minuten.'
+    : 'Alle genres in het tabblad Onderwerpen staan al bij de juiste thema\'s.';
+  logboek('menu', 'vertaaltabel', tekst);
+  meld(tekst);
+}
+
+/** In Apps Script: past vertaaltabelNieuweThemas toe op het tabblad Onderwerpen. Geeft het aantal genres. */
+function vertaaltabelNieuweThemasUitvoeren() {
+  var tabel = leesTabel('Onderwerpen');
+  var uit = vertaaltabelNieuweThemas(tabel.rijen);
+  if (uit.length) { bewaarTabel(tabel); leegCache(); }
+  return uit.length;
 }
 
 /**
