@@ -57,6 +57,7 @@
     ['covers', 'Boeken zonder cover', function (vak) { W.covers(vak, context()); }, 'kast', 'vrijwilliger'],
     // De collectie: de gegevens van de boeken, van thuis uit (zie ook bestuur-beheer.js).
     ['boeken', 'Boek zoeken of toevoegen', function (vak) { W.boeken(vak, context()); }, 'collectie'],
+    ['films', 'Films', function (vak) { W.films(vak, context()); }, 'collectie'],
     ['beschrijvingen', 'Boeken zonder beschrijving', function (vak) { W.zonderBeschrijving(vak, context()); }, 'collectie', 'vrijwilliger'],
     ['voorstellen', 'Voorgestelde beschrijvingen', function (vak) { V.voorstellen(vak, context()); }, 'collectie'],
     ['tevervangen', 'Te vervangen', toonTeVervangen, 'collectie', 'beide'],
@@ -64,6 +65,7 @@
     ['aankoop', 'Aankooplijst', function (vak) { window.MadrigalAankoop.toon(vak, context()); }, 'collectie', 'beide'],
     // De website zelf.
     ['inhoud', 'Nieuws en agenda', function (vak) { W.inhoud(vak, context()); }, 'website', 'beide'],
+    ['vragen', 'Veelgestelde vragen', function (vak) { W.vragen(vak, context()); }, 'website'],
     ['leeslijsten', 'Leeslijsten', function (vak) { W.leeslijsten(vak, context()); }, 'website', 'beide'],
     ['instellingen', 'Teksten en instellingen', function (vak) { W.instellingen(vak, context()); }, 'website'],
     ['cijfers', 'Cijfers', toonCijfers, 'overzicht'],

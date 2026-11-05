@@ -128,5 +128,67 @@
     });
   }
 
-  root.MadrigalDom = { el: el, vervang: vervang, statusLabel: statusLabel, korteDatum: korteDatum, euro: euro, plaatshouder: plaatshouder, coverUitFoto: coverUitFoto };
+  /**
+   * Een veld met een lijst namen. vinkjes: elke keuze een vinkje (de thema's). Anders: de namen als labels met
+   * een kruisje, en een veld om er een toe te voegen (met de bestaande namen als suggestie).
+   * In de spreadsheet blijft het één cel met komma's: invoer.value is die tekst.
+   * o: { id, label, hulp, waarde, keuzes, vinkjes }. Geeft { blok, invoer, lees }.
+   */
+  function lijstVeld(o) {
+    var id = o.id, keuzes = o.keuzes || [], vinkjes = !!o.vinkjes, label = o.label;
+    var invoer = el('input', { type: 'hidden', id: id, value: String(o.waarde || '') });
+    var hulpId = o.hulp ? id + '-hulp' : null;
+    var hulp = hulpId ? el('p', { class: 'hulptekst', id: hulpId }, o.hulp) : null;
+    var namen = function () { return String(invoer.value || '').split(',').map(function (n) { return n.trim(); }).filter(Boolean); };
+    var zet = function (lijst) { invoer.value = lijst.join(', '); teken(); };
+    var vak = el('div', {});
+    var blok;
+    function teken() {
+      var nu = namen();
+      if (vinkjes) {
+        var gekend = keuzes.map(function (k) { return k.toLowerCase(); });
+        var extra = nu.filter(function (n) { return gekend.indexOf(n.toLowerCase()) === -1; });
+        vervang(vak, el('ul', { class: 'vinklijst kolommen' }, keuzes.concat(extra).map(function (k, i) {
+          var vid = id + '-' + i;
+          var vakje = el('input', { type: 'checkbox', id: vid, checked: nu.some(function (n) { return n.toLowerCase() === k.toLowerCase(); }) });
+          vakje.addEventListener('change', function () {
+            var rest = namen().filter(function (n) { return n.toLowerCase() !== k.toLowerCase(); });
+            zet(vakje.checked ? rest.concat(k) : rest);
+            var terug = document.getElementById(vid); if (terug) terug.focus();
+          });
+          return el('li', {}, el('label', { class: 'vinkje', for: vid }, vakje, ' ' + k));
+        })));
+        return;
+      }
+      var lijstId = id + '-keuzes';
+      var nieuw = el('input', { type: 'text', id: id + '-nieuw', list: lijstId, autocomplete: 'off', placeholder: 'Typ of kies een naam' });
+      if (hulpId) nieuw.setAttribute('aria-describedby', hulpId);
+      var voegToe = function () {
+        var n = nieuw.value.trim();
+        if (!n) return;
+        if (!namen().some(function (x) { return x.toLowerCase() === n.toLowerCase(); })) zet(namen().concat(n)); else nieuw.value = '';
+        var terug = document.getElementById(id + '-nieuw'); if (terug) terug.focus();
+      };
+      nieuw.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); voegToe(); } });
+      vervang(vak,
+        nu.length ? el('ul', { class: 'labels lijstveld-labels', 'aria-label': label }, nu.map(function (n) {
+          return el('li', {}, el('span', { class: 'label lijstveld-label' }, n,
+            el('button', { type: 'button', class: 'lijstveld-weg', 'aria-label': 'Haal ' + n + ' weg', onclick: function () {
+              zet(namen().filter(function (x) { return x !== n; }));
+              var terug = document.getElementById(id + '-nieuw'); if (terug) terug.focus();
+            } }, '×')));
+        })) : el('p', { class: 'hulptekst' }, 'Nog niets.'),
+        el('div', { class: 'lijstveld-toevoegen' }, nieuw,
+          el('datalist', { id: lijstId }, keuzes.filter(function (k) { return nu.indexOf(k) === -1; }).map(function (k) { return el('option', { value: k }); })),
+          el('button', { type: 'button', class: 'knop tweede klein', onclick: voegToe }, 'Voeg toe')));
+    }
+    invoer.addEventListener('input', teken);
+    teken();
+    blok = vinkjes
+      ? el('fieldset', { class: 'veld lijstveld' }, el('legend', {}, label), hulp, vak, invoer)
+      : el('div', { class: 'veld lijstveld' }, el('label', { for: id + '-nieuw' }, label), hulp, vak, invoer);
+    return { blok: blok, invoer: invoer, lees: function () { return invoer.value; } };
+  }
+
+  root.MadrigalDom = { el: el, vervang: vervang, statusLabel: statusLabel, korteDatum: korteDatum, euro: euro, plaatshouder: plaatshouder, coverUitFoto: coverUitFoto, lijstVeld: lijstVeld };
 })(window);

@@ -72,6 +72,7 @@ var KOLOM_INDELING = {
       te_koop_aantal: ['verkoop', 'Aantal exemplaren te koop.'],
       notitie: ['bestuur', 'Interne notitie van het bestuur (bv. schade, plaats in de kast).', true],
       herkomst: ['techniek', 'Waar het boek vandaan komt, uit de stocklijst.', true],
+      isbn10: ['boek', 'ISBN-10, berekend uit het ISBN (enkel bij nummers die met 978 beginnen). Vult het script vanzelf in. Niet op de website.'],
       isbn_origineel: ['techniek', 'Het ISBN zoals in de stocklijst, als het ongeldig was.', true],
       bron_sleutel: ['techniek', 'Koppeling met de stocklijst. Niet wijzigen.', true],
       ol_gecontroleerd: ['techniek', 'Datum: opgezocht bij Open Library. Leeg = opnieuw zoeken.', true],

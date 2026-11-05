@@ -177,6 +177,26 @@ function googleItemKort(it) {
     .filter(Boolean).join(', ').slice(0, 120);
 }
 
+/**
+ * Vult de kolom isbn10 aan uit het ISBN (978...). Een ISBN dat met 979 begint, heeft geen ISBN-10.
+ * Geeft de rijen die veranderden.
+ */
+function isbn10Aanvullen(catalogus) {
+  var veranderd = [];
+  catalogus.forEach(function (b) {
+    var tien = isbn13Naar10(String(b.isbn || '').replace(/[^0-9X]/gi, ''));
+    if (tien && schoon(b.isbn10) !== tien) { wijzig(b, { isbn10: tien }); veranderd.push(b); }
+  });
+  return veranderd;
+}
+
+/** Vanzelf, elk uur (vanuit verwerkNieuweBoekenAutomatisch): enkel als er iets te doen is. */
+function isbn10AanvullenAutomatisch() {
+  var tabel = leesTabel('Catalogus');
+  if (tabel.kop.indexOf('isbn10') === -1) { zorgVoorTabbladen(['Catalogus']); tabel = leesTabel('Catalogus'); }
+  if (isbn10Aanvullen(tabel.rijen).length) schrijfKolommen(tabel, ['isbn10']);
+}
+
 /** ISBN-13 (978…) naar ISBN-10. Geeft '' als dat niet kan. */
 function isbn13Naar10(isbn13) {
   var s = String(isbn13 || '');

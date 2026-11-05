@@ -43,15 +43,15 @@ var INDELEN_ZOEKWOORDEN = {
   'crime': ['misdaad', 'detective', 'thriller', 'moord', 'murder', 'rechercheur', 'politieonderzoek'],
   'misdaad': ['misdaad', 'detective', 'thriller', 'moord', 'murder', 'rechercheur', 'crime'],
   'thriller': ['thriller', 'spanning', 'suspense'],
-  'comic': ['strip', 'comic', 'graphic novel', 'manga', 'beeldroman'],
-  'strip': ['strip', 'comic', 'graphic novel', 'manga', 'beeldroman'],
+  'comic': ['=strip', '=strips', 'stripverhaal', 'stripboek', '=comic', '=comics', 'graphic novel', 'manga', 'beeldroman'],
+  'strip': ['=strip', '=strips', 'stripverhaal', 'stripboek', '=comic', '=comics', 'graphic novel', 'manga', 'beeldroman'],
   'manga': ['manga'],
   'roman': ['roman', 'novel', 'debuutroman'],
   'novel': ['roman', 'novel'],
   'verhal': ['verhalenbundel', 'kortverhal', 'short stor', 'verhalen'],
   'short story': ['verhalenbundel', 'kortverhal', 'short stor'],
   'essay': ['essay', 'essaybundel'],
-  'kinderbok': ['kinderboek', 'prentenboek', 'voorlezen', 'kleuter', 'picture book', 'children'],
+  'kinderboek': ['kinderboek', 'prentenboek', 'voorlezen', 'kleuter', 'picture book', 'children'],
   'children': ['kinderboek', 'prentenboek', 'picture book', 'children'],
   'young adult': ['young adult', 'tiener', 'teen', 'puber', 'middelbare school', 'high school'],
   'sport': ['sport', 'voetbal', 'football', 'soccer', 'atleet', 'athlete', 'olympisch', 'olympic', 'wielren', 'tennis', 'boks', 'zwemm'],
@@ -76,7 +76,7 @@ var INDELEN_ZOEKWOORDEN = {
   'racisme': ['racism', 'racist', 'kolonial', 'colonial', 'dekolonis', 'decolonis'],
   'migratie': ['migratie', 'migrant', 'vluchteling', 'refugee', 'asiel', 'asylum', 'diaspora'],
   'reizen': ['reis', 'reizen', 'travel', 'reisgids', 'roadtrip'],
-  'kookbok': ['kookboek', 'recept', 'recipe', 'koken', 'cooking'],
+  'kookboek': ['kookboek', 'recept', 'recipe', 'koken', 'cooking'],
   'sprookje': ['sprookje', 'fairy tale', 'fairytale'],
   'oorlog': ['oorlog', '=war', '=wars', 'wartime', 'wereldoorlog', 'world war', '=wwii', '=ww2', 'holocaust', 'nazi', 'soldaat', 'soldier', 'leger', 'army', 'verzet', 'resistance'],
   'sekswerk': ['sekswerk', 'sex work', 'sexwork', 'prostitu', 'escort', 'hustler', 'hooker', 'hoerenloper', 'bordeel', 'brothel', 'rosse buurt', 'red light', 'tippelaar'],
@@ -110,10 +110,12 @@ function indelenZoekwoorden(naam, eigen) {
   delen.forEach(function (deel) {
     var n = normaliseerTekst(deel);
     if (!n) return;
-    lijst.push(n.length < 4 ? '=' + n : n);
     var stam = genreSleutel(deel);
+    var ingebouwd = indelenIndex()[stam];
+    // Staat de naam in de ingebouwde lijst, dan bepaalt die lijst hoe hij telt ("Strip" enkel als woord, niet striptease).
+    if (ingebouwd) { ingebouwd.forEach(function (w) { lijst.push(w); }); return; }
+    lijst.push(n.length < 4 ? '=' + n : n);
     if (stam && stam !== n && stam.length >= 4) lijst.push(stam);
-    (indelenIndex()[stam] || []).forEach(function (w) { lijst.push(w); });
   });
   splitsLijst(eigen).forEach(function (w) { lijst.push(w.charAt(0) === '=' ? '=' + normaliseerTekst(w.slice(1)) : normaliseerTekst(w)); });
   var uniek = [];

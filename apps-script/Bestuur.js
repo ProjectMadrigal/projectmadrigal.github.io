@@ -22,12 +22,39 @@ function baliecatalogus(staat, vertaal) {
       // zb: zonder beschrijving, voor de lijst Boeken zonder beschrijving van het bestuursscherm.
       if (isLeeg(b.beschrijving)) info.zb = true;
     }
+    // f: een film. Het bestuursscherm toont films in een eigen onderdeel.
+    if (isFilm(b)) info.f = 1;
     // st: zodat de vrijwilliger het weet. Gevoelig (verborgen of zichtbaar) mag je gewoon uitlenen.
     var status = boekStatus(b);
     if (status === 'verloren') info.st = 'verloren';
     else if (status) info.st = 'gevoelig';
     return info;
   });
+}
+
+/**
+ * De keuzes voor het formulier van een boek in het bestuursscherm: de thema's van de website, en alle
+ * categorieën, trefwoorden, triggerwaarschuwingen en genres die al in de Catalogus staan (alfabetisch).
+ */
+function boekKeuzes(catalogus) {
+  var lijst = function (kolom, enkelFilms) {
+    var gezien = {}, uit = [];
+    catalogus.forEach(function (b) {
+      if (enkelFilms !== undefined && isFilm(b) !== enkelFilms) return;
+      splitsLijst(b[kolom]).forEach(function (n) {
+        var k = normaliseerTekst(n);
+        if (k && !gezien[k]) { gezien[k] = true; uit.push(schoon(n)); }
+      });
+    });
+    return uit.sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+  };
+  return {
+    themas: alleThemas().slice().sort(function (a, b) { return a.localeCompare(b, 'nl'); }),
+    categorieen: zonderThemas(lijst('categorieen')),
+    trefwoorden: zonderThemas(lijst('trefwoorden')),
+    triggerwaarschuwingen: lijst('triggerwaarschuwingen'),
+    filmgenres: lijst('genre', true)
+  };
 }
 
 /** Boeken met een status, per status, voor het bestuursscherm. */
@@ -213,6 +240,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
     privacy: staat.inst.tekst_privacy,
+    keuzes: boekKeuzes(staat.catalogus),
     boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {

@@ -114,7 +114,8 @@ function boekOphalen(staat, invoer) {
   var boek = boekVan(staat, invoer.boek_id);
   if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
   // sleutel: zodat de browser van het bestuur dit ene boek bij Google Books kan opzoeken (knop in het formulier).
-  return { ok: true, boek: beheerBoek(boek), sleutel: String(staat.inst.google_books_api_key || '') };
+  // keuzes: de thema's, categorieën en trefwoorden, voor de vinkjes en labels in het formulier (snel bewerken op de website).
+  return { ok: true, boek: beheerBoek(boek), sleutel: String(staat.inst.google_books_api_key || ''), keuzes: boekKeuzes(staat.catalogus) };
 }
 
 /** Een boek aanpassen. invoer: { boek_id, velden: { ... } } */

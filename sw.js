@@ -13,7 +13,7 @@
  */
 'use strict';
 
-var VERSIE = 'madrigal-v7';
+var VERSIE = 'madrigal-v8';
 var VASTE_BESTANDEN = [
   './', 'index.html', 'boeken.html', 'films.html', 'over-ons.html', 'doe-mee.html', 'peperfabriek.html',
   'styles.css', 'config.js', 'i18n.js', 'layout.js', 'api.js', 'dom.js', 'zoeken.js', 'filters.js',

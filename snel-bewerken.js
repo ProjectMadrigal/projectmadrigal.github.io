@@ -5,6 +5,8 @@
  *   - Enkel als je op dit toestel aangemeld bent in het bestuursscherm (de code van het bestuur staat
  *     dan in localStorage). Bezoekers zien niets.
  *   - Titel, auteur, de gegevens (uitgeverij, jaartal, taal, pagina's, ISBN, ...) en de beschrijving.
+ *   - Thema's (vinkjes), categorieën, trefwoorden en triggerwaarschuwingen (labels), en of het boek zichtbaar en
+ *     uitleenbaar is (status, op de website, uitleenbaar, aantal, te koop).
  *   - De cover: een foto (bijgesneden tot 2 op 3, zoals op de website) of een link.
  *   - Dezelfde acties als het bestuursscherm: beheerBoekOphalen, beheerBoekBewaren, beheerCoverUpload
  *     en beheerCoverVanLink. De web-app kijkt de code bij elke vraag na.
@@ -18,7 +20,15 @@
   var CODE = 'madrigal_code_bestuur';
   var WIE = 'madrigal_wie';
 
-  // [veld in de Catalogus, label, soort invoer]
+  // Keuzes voor de velden met een vaste lijst (zoals in het bestuursscherm).
+  var KEUZES = {
+    status: [['', 'Gewoon'], ['verloren', 'Verloren'], ['gevoelig verborgen', 'Gevoelig, verborgen'], ['gevoelig zichtbaar', 'Gevoelig, zichtbaar met label']],
+    publiek: [['ja', 'Ja'], ['nee', 'Nee, verborgen']],
+    uitleenbaar: [['ja', 'Ja'], ['nee', 'Nee']],
+    te_koop: [['', 'Nee'], ['ja', 'Ja, te koop en niet uitleenbaar']]
+  };
+  // [veld in de Catalogus, label, soort invoer, groep]. Soort: tekst, getal, lang, keuze, vinkjes, lijst.
+  // Een lijst krijgt zijn keuzes uit beheerBoekOphalen (r.keuzes): themas, categorieen, trefwoorden, triggerwaarschuwingen.
   var VELDEN = [
     ['titel', 'Titel', 'tekst'],
     ['originele_titel', 'Originele titel', 'tekst'],
@@ -30,8 +40,19 @@
     ['uitvoering', 'Uitvoering', 'tekst'],
     ['isbn', 'ISBN', 'tekst'],
     ['beschrijving', 'Beschrijving', 'lang'],
-    ['beschrijving_en', 'Beschrijving in het Engels (leeg: het script vertaalt ze)', 'lang']
+    ['beschrijving_en', 'Beschrijving in het Engels (leeg: het script vertaalt ze)', 'lang'],
+    ['extra_onderwerpen', 'Thema\'s', 'vinkjes', 'themas'],
+    ['categorieen', 'Categorieën', 'lijst', 'categorieen'],
+    ['trefwoorden', 'Trefwoorden', 'lijst', 'trefwoorden'],
+    ['triggerwaarschuwingen', 'Triggerwaarschuwingen', 'lijst', 'triggerwaarschuwingen'],
+    ['status', 'Status', 'keuze'],
+    ['publiek', 'Op de website', 'keuze'],
+    ['uitleenbaar', 'Uitleenbaar', 'keuze'],
+    ['aantal', 'Aantal exemplaren', 'getal'],
+    ['te_koop', 'Te koop', 'keuze']
   ];
+  // Kopjes in het formulier: voor welk veld een nieuw blok begint.
+  var KOPJES = { titel: 'Het boek', extra_onderwerpen: 'Thema\'s, categorieën en trefwoorden', status: 'Beschikbaar en zichtbaar' };
 
   function lees(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
 
@@ -67,21 +88,32 @@
 
     vraag('beheerBoekOphalen', { boek_id: b.id }).then(function (r) {
       if (!r.ok) { melding(inhoud, 'fout', r.fout || 'Het boek kon niet laden.'); return; }
-      D.vervang(inhoud, coverBlok(b, r.boek, klaar), formulier(b, r.boek, klaar, venster));
+      D.vervang(inhoud, coverBlok(b, r.boek, klaar), formulier(b, r.boek, klaar, venster, r.keuzes || {}));
     });
   }
 
-  function formulier(b, boek, klaar, venster) {
+  function formulier(b, boek, klaar, venster, keuzes) {
     var invoer = {};
     var fout = el('div', { 'aria-live': 'assertive' });
     var knop = el('button', { type: 'submit', class: 'knop' }, 'Bewaar');
     var vorm = el('form', { novalidate: true }, VELDEN.map(function (v) {
       var id = 'sb-' + v[0];
       var waarde = boek[v[0]] === undefined || boek[v[0]] === null ? '' : String(boek[v[0]]);
-      invoer[v[0]] = v[2] === 'lang'
-        ? el('textarea', { id: id, rows: v[0] === 'beschrijving' ? '8' : '4' }, waarde)
-        : el('input', { type: 'text', id: id, value: waarde, inputmode: v[2] === 'getal' ? 'numeric' : null });
-      return el('div', { class: 'veld' }, el('label', { for: id }, v[1]), invoer[v[0]]);
+      var kop = KOPJES[v[0]] ? el('h3', { class: 'sb-kopje' }, KOPJES[v[0]]) : null;
+      if (v[2] === 'vinkjes' || v[2] === 'lijst') {
+        var l = D.lijstVeld({ id: id, label: v[1], waarde: waarde, keuzes: keuzes[v[3]] || [], vinkjes: v[2] === 'vinkjes' });
+        invoer[v[0]] = l.invoer;
+        return [kop, l.blok];
+      }
+      if (v[2] === 'keuze') {
+        invoer[v[0]] = el('select', { id: id }, KEUZES[v[0]].map(function (k) { return el('option', { value: k[0], selected: k[0] === waarde }, k[1]); }));
+        if (waarde && !KEUZES[v[0]].some(function (k) { return k[0] === waarde; })) invoer[v[0]].appendChild(el('option', { value: waarde, selected: true }, waarde));
+      } else {
+        invoer[v[0]] = v[2] === 'lang'
+          ? el('textarea', { id: id, rows: v[0] === 'beschrijving' ? '8' : '4' }, waarde)
+          : el('input', { type: 'text', id: id, value: waarde, inputmode: v[2] === 'getal' ? 'numeric' : null });
+      }
+      return [kop, el('div', { class: 'veld' }, el('label', { for: id }, v[1]), invoer[v[0]])];
     }), fout, el('div', { class: 'knoppen' }, knop));
     vorm.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -89,6 +121,8 @@
       var velden = {};
       VELDEN.forEach(function (v) {
         var oud = boek[v[0]] === undefined || boek[v[0]] === null ? '' : String(boek[v[0]]);
+        // Een lege cel en de eerste keuze (bv. Op de website: Ja) zijn hetzelfde: niets veranderd.
+        if (v[2] === 'keuze' && !oud && invoer[v[0]].value === KEUZES[v[0]][0][0]) return;
         if (invoer[v[0]].value.trim() !== oud.trim()) velden[v[0]] = invoer[v[0]].value;
       });
       if (!Object.keys(velden).length) { melding(fout, 'info', 'Er is niets veranderd.'); return; }

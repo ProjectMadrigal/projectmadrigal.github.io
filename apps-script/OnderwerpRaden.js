@@ -26,7 +26,8 @@ var ONDERWERP_ZEKER_FACTOR = 2; // en zoveel keer vaker dan het volgende thema
 var ONDERWERP_TEKST_WOORDEN = [
   ['Fictie', ['roman', 'novel', 'verhalenbundel', 'kortverhal', 'fictie', 'fiction', 'thriller', 'detective', 'personage', 'hoofdpersonage', 'protagonist']],
   ['Poëzie', ['gedicht', 'poezie', 'poetry', 'poem', 'dichter', 'dichteres', 'poet', 'dichtbundel']],
-  ['Graphic novel', ['strip', 'stripverhaal', 'graphic', 'comic', 'manga', 'getekend', 'tekeningen']],
+  // Niet "graphic" alleen (graphic sex, graphic design) en niet "strip" als begin (striptease, stripped).
+  ['Graphic novel', ['graphic novel', 'graphic memoir', 'stripverhaal', 'stripboek', 'stripalbum', '=strip', '=strips', '=comic', '=comics', 'manga', 'beeldroman']],
   ['Biografie', ['biografie', 'biography', 'memoir', 'memoires', 'autobiografie', 'autobiography', 'dagboek', 'levensverhaal', 'diary']],
   ['Gender', ['transgender', 'transitie', 'transvrouw', 'transman', 'nonbinair', 'non binair', 'genderidentiteit', 'genderqueer', 'intersekse', 'intersex']],
   ['Feminisme', ['feminis', 'patriarchaat', 'patriarchy', 'vrouwenbeweging', 'vrouwenrechten', 'misogyn']],
@@ -217,4 +218,49 @@ function pasOnderwerpNakijklijstToe() {
   leegCache();
   logboek('menu', 'pasOnderwerpNakijklijstToe', n + ' boeken kregen een thema');
   meld(n + ' boeken kregen een thema. Ze staan binnen enkele minuten in dat thema op de website.');
+}
+
+/**
+ * Herstel: het thema Graphic novel kwam vroeger ook bij boeken met enkel het woord "graphic" in de titel of
+ * de beschrijving (graphic sex, graphic design). Haalt het thema weg bij boeken waar "graphic" staat maar
+ * niets anders op een graphic novel wijst (geen graphic novel, strip, comic of manga in de tekst, het genre,
+ * de categorieën of de trefwoorden). Geeft de boek_id's.
+ */
+function graphicNovelHerstellen(catalogus, vertaal) {
+  var weg = [];
+  catalogus.forEach(function (b) {
+    var themas = splitsLijst(b.extra_onderwerpen);
+    if (!themas.some(function (t) { return normaliseerTekst(t) === 'graphic novel'; })) return;
+    var tekst = normaliseerTekst([b.titel, b.beschrijving, b.beschrijving_en].join(' '));
+    if (!/\bgraphic\b/.test(tekst)) return;
+    var bewijs = onderwerpScores(b).some(function (s) { return s[0] === 'Graphic novel'; }) ||
+      [b.genre].concat(splitsLijst(b.categorieen), splitsLijst(b.trefwoorden)).some(function (n) {
+        return themaVan(n, vertaal || {}).indexOf('Graphic novel') > -1;
+      });
+    if (bewijs) return;
+    wijzig(b, { extra_onderwerpen: themas.filter(function (t) { return normaliseerTekst(t) !== 'graphic novel'; }).join(', ') });
+    weg.push(String(b.boek_id));
+  });
+  return weg;
+}
+
+/** Eén keer (vanuit verwerkNieuweBoekenAutomatisch): het herstel hierboven op de Catalogus. */
+function graphicNovelHerstellenEenmalig() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('graphic_novel_hersteld')) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var weg;
+  try {
+    var catalogus = leesTabel('Catalogus');
+    weg = graphicNovelHerstellen(catalogus.rijen, vertaalTabel(leesTabel('Onderwerpen').rijen));
+    if (weg.length) schrijfKolommen(catalogus, ['extra_onderwerpen']);
+  } finally {
+    lock.releaseLock();
+  }
+  props.setProperty('graphic_novel_hersteld', vandaagTekst());
+  if (weg.length) {
+    leegCache();
+    logboek('systeem', 'graphicNovelHerstellen', 'Het thema Graphic novel weggehaald bij ' + weg.length + ' boeken die het enkel door het woord "graphic" kregen: ' + weg.join(', '));
+  }
 }

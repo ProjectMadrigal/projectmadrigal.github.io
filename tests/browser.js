@@ -47,6 +47,8 @@ const STATUS = (code, label) => ({ code, label, tekst: label });
 const UITLENING = { uitlening_id: 'U0001', exemplaar: 'B0001-1', boek_id: 'B0001', titel: 'De verzonnen zee', lenersnummer: '12', voornaam: 'Sam', datum_uit: '2026-09-20', vervaldatum: '2026-10-18', status: STATUS('telaat', 'Te laat') };
 const BOEKEN = [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', x: 1, u: true, c: false, zb: true, g: ['Fictie'] }, { id: 'B0002', t: 'Twee kasten vol', a: 'Dewit, Rein', x: 1, u: true, c: true, g: ['Maatschappij'] }];
 // Veel boeken zonder beschrijving (verzonnen), om Toon er nog 100 te testen.
+const KEUZES = { themas: ['Fictie', 'Gender', 'Politiek', 'Seksualiteit'], categorieen: ['Essay', 'Roman'], trefwoorden: ['Coming-out', 'Lesbisch'], triggerwaarschuwingen: ['Geweld'], filmgenres: ['Drama', 'Komedie'] };
+const FILM = { id: 'F0001', t: 'Een verzonnen film', a: 'Regie, Kim', x: 1, u: true, c: false, f: 1 };
 const VEEL = Array.from({ length: 150 }, (_, i) => ({ id: 'X' + String(i).padStart(3, '0'), t: 'Verzonnen titel ' + String(i).padStart(3, '0'), a: '', c: true, zb: true }));
 const UITLENING2 = Object.assign({}, UITLENING, { uitlening_id: 'U0002', exemplaar: 'B0002-1', boek_id: 'B0002', titel: 'Twee kasten vol', lenersnummer: '13', voornaam: 'Jo', aantal_verlengingen: 1, borg: 5, betaalwijze_borg: 'cash' });
 const INHOUD = {
@@ -87,7 +89,7 @@ function antwoord(rol, actie, vraag) {
       reservaties: [{ reservatie_id: 'R0001', boek_id: 'B0001', lenersnummer: '13', voornaam: 'Jo', status: 'wacht', tekst: 'Wacht' }],
       mijn: { voorstellen: [{ datum: '2026-10-20', titel: 'Stille lichten', status: 'goedgekeurd', datum_behandeld: '2026-10-21' }], meldingen: [{ datum: '2026-10-22', soort: 'boek kapot', onderwerp: 'B0001', status: 'nieuw', datum_afgehandeld: '' }] } }) },
     bestuurData: { ok: true, data: Object.assign({}, basis, {
-      boeken: BOEKEN.concat(VEEL),
+      boeken: BOEKEN.concat(VEEL, [FILM]), keuzes: KEUZES,
       telaat: [Object.assign({}, UITLENING, { telefoon: '0400000000', herinnering: 'Hoi Sam' }), Object.assign({}, UITLENING2, { email: 'jo@voorbeeld.test', herinnering: 'Hoi Jo' })],
       lopend: [UITLENING, UITLENING2], aanvragen: [], uitzonderingen: [],
       leners: [{ lenersnummer: '12', voornaam: 'Sam', achternaam: 'Verzonnen', telefoon: '0400000000', email: '', actief: true, toestemming_privacy: 'ja', lopend: 1, datum_inschrijving: '2026-01-01' }],
@@ -117,7 +119,7 @@ function antwoord(rol, actie, vraag) {
     beheerLogboek: { ok: true, daglimiet: 0,
       taken: [{ functie: 'zoekBeschrijvingenWikipedia', naam: 'Beschrijvingen bij Wikipedia', teGaan: 12, status: 'gepland', sinds: 0 }],
       logboek: [{ tijd: Date.UTC(2026, 9, 25, 10, 0), wie: 'menu', actie: 'zoekBeschrijvingenWikipedia', details: '20 opgezocht' }, { tijd: Date.UTC(2026, 9, 25, 9, 0), wie: 'Kim', actie: 'uitlenen', details: 'B0001-1' }] },
-    beheerBoekOphalen: { ok: true, historiek: { keer: 3, laatst: '2026-09-20' }, wijzigingen: [{ tijd: Date.UTC(2026, 9, 24, 9), wie: 'Kim', actie: 'boek aangepast', details: 'B0001: beschrijving' }], boek: { boek_id: (vraag || {}).boek_id, titel: (BOEKEN.concat(VEEL).find((b) => b.id === (vraag || {}).boek_id) || {}).t, auteur: '', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
+    beheerBoekOphalen: { ok: true, keuzes: KEUZES, historiek: { keer: 3, laatst: '2026-09-20' }, wijzigingen: [{ tijd: Date.UTC(2026, 9, 24, 9), wie: 'Kim', actie: 'boek aangepast', details: 'B0001: beschrijving' }], boek: { boek_id: (vraag || {}).boek_id, soort: (vraag || {}).boek_id === 'F0001' ? 'film' : 'boek', titel: (BOEKEN.concat(VEEL, [FILM]).find((b) => b.id === (vraag || {}).boek_id) || {}).t, auteur: '', extra_onderwerpen: 'Fictie', trefwoorden: 'Lesbisch', cover_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', beschrijving: '' } },
     bezoekersCijfers: { ok: true, cijfers: { totaal: 31, perWeek: false, verloop: [{ dag: '2026-09-27', n: 0 }, { dag: '2026-09-28', n: 0 }, { dag: '2026-10-24', n: 24 }, { dag: '2026-10-25', n: 0 }, { dag: '2026-10-26', n: 7 }], paginas: [], bronnen: [], toestellen: [], landen: [] } },
     filmsVoorbeeld: { ok: true, filmsTonen: false, teksten: { films: 'Verzonnen tekst over films.' },
       boeken: JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/catalogus.json'))).boeken.filter((x) => x.s === 'film') },
@@ -483,6 +485,66 @@ async function meldAan(page, basis, pagina) {
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });
+  await test('bestuursscherm: thema\'s, categorieën en trefwoorden aanpassen, kort formulier, films apart, samen aanpassen, veelgestelde vragen', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    const vragen = [];
+    page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
+    await meldAan(page, basis, 'bestuur.html');
+    // Een boek: thema's als vinkjes, trefwoorden als labels.
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
+    await page.fill('#beheer-boek-zoek', 'zee');
+    await page.click('#sectie .kaartlijst button >> nth=0');
+    await page.waitForSelector('#bb-extra_onderwerpen-0');
+    verwacht(await page.isChecked('#bb-extra_onderwerpen-0'), 'Fictie is aangevinkt');
+    await page.check('label:has-text("Gender") input');
+    await page.fill('#bb-trefwoorden-nieuw', 'Coming-out');
+    await page.press('#bb-trefwoorden-nieuw', 'Enter');
+    await page.click('button[aria-label="Haal Lesbisch weg"]');
+    await page.fill('#bb-categorieen-nieuw', 'Roman');
+    await page.click('#bb-categorieen-nieuw ~ button:has-text("Voeg toe")');
+    verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    await page.click('#sectie form button[type="submit"]');
+    await page.waitForSelector('#melding :text("Bewaard")');
+    const bewaar = vragen.find((x) => x.actie === 'beheerBoekBewaren');
+    verwacht(bewaar && bewaar.velden.extra_onderwerpen === 'Fictie, Gender' && bewaar.velden.trefwoorden === 'Coming-out' && bewaar.velden.categorieen === 'Roman', 'Bewaard: ' + JSON.stringify(bewaar && bewaar.velden));
+    // Een nieuw boek: enkel het nodige open.
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
+    await page.click('button:has-text("+ Nieuw boek toevoegen")');
+    verwacht(await page.isVisible('#bb-titel') && !(await page.isVisible('#bb-uitgeverij')) && await page.isVisible('summary:has-text("Meer gegevens")'), 'Kort formulier');
+    verwacht(!(await page.$('#bb-soort option[value="film"]')), 'Film is geen soort bij een boek');
+    // Films: niet tussen de boeken, wel in een eigen onderdeel.
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
+    await page.fill('#beheer-boek-zoek', 'verzonnen film');
+    verwacht(!/Een verzonnen film/.test(await page.textContent('#sectie')), 'De film staat tussen de boeken');
+    await page.click('#sectienav button:has-text("Films")');
+    await page.click('#sectie .kaartlijst button:has-text("Een verzonnen film")');
+    await page.waitForSelector('#bb-duur');
+    verwacht(/Regie/.test(await page.textContent('#sectie form')) && !(await page.$('#bb-isbn')), 'Formulier van een film');
+    await page.click('button:has-text("Terug naar de films")');
+    await page.click('button:has-text("+ Nieuwe film toevoegen")');
+    verwacht(/Nieuwe film/.test(await page.textContent('#sectie h2')), 'Nieuwe film');
+    // Samen aanpassen: een trefwoord toevoegen, de rest blijft.
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
+    await page.click('button:has-text("Meerdere boeken tegelijk aanpassen")');
+    await page.fill('#bulk-zoek', 'zee');
+    await page.check('.vinklijst input[type="checkbox"] >> nth=0');
+    await page.selectOption('#bulk-veld', 'trefwoorden');
+    verwacht((await page.inputValue('#bulk-modus')) === 'erbij', 'Standaard: toevoegen');
+    await page.fill('#bulk-waarde', 'Coming-out');
+    page.once('dialog', (d) => { verwacht(/voegt "Coming-out" toe/.test(d.message()), d.message()); d.accept(); });
+    await page.click('button:has-text("Pas aan")');
+    await page.waitForSelector('#melding :text("1 boek aangepast")');
+    const bulk = vragen.find((x) => x.actie === 'beheerBoekenBulk');
+    verwacht(bulk && bulk.veld === 'trefwoorden' && bulk.modus === 'erbij', 'Bulk: ' + JSON.stringify(bulk));
+    // Veelgestelde vragen: een eigen onderdeel, niet meer bij Nieuws en agenda.
+    await page.click('#sectienav button:has-text("Nieuws en agenda")');
+    await page.waitForSelector('#sectie h2:has-text("Nieuws en agenda")');
+    verwacht(!(await page.$('#sectie button:has-text("Veelgestelde vragen")')), 'Veelgestelde vragen staat nog bij Nieuws en agenda');
+    await page.click('#sectienav button:has-text("Veelgestelde vragen")');
+    await page.waitForSelector('#sectie button:has-text("Nieuwe vraag")');
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
   await test('bestuursscherm: lijst van boeken zonder beschrijving', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
     await meldAan(page, basis, 'bestuur.html');
@@ -772,10 +834,10 @@ async function meldAan(page, basis, pagina) {
     await page.reload();
     await page.waitForSelector('#sectienav button');
     await page.waitForFunction(() => /Today/.test(document.querySelector('#sectienav').textContent));
-    verwacht((await page.textContent('.taal-knop')) === 'Nederlands', 'Engels blijft na herladen');
+    verwacht((await page.textContent('.taal-knop')) === 'NL', 'Engels blijft na herladen');
     await Promise.all([page.waitForNavigation(), page.click('.taal-knop')]);
     await page.waitForSelector('#sectienav button');
-    verwacht(/Vandaag/.test(await page.textContent('#sectienav')) && (await page.textContent('.taal-knop')) === 'English', 'Terug naar het Nederlands');
+    verwacht(/Vandaag/.test(await page.textContent('#sectienav')) && (await page.textContent('.taal-knop')) === 'ENG', 'Terug naar het Nederlands');
     // Checklist: blijft afgevinkt na herladen.
     await page.click('#sectienav button:has-text("Checklist voor de shift")');
     await page.check('#check-openen-0');
@@ -962,6 +1024,7 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("Bewerk dit boek")');
     await page.waitForSelector('#sb-titel');
     await page.waitForSelector('#sb-auteur');
+    verwacht(await page.isChecked('#sb-extra_onderwerpen-0') && /Lesbisch/.test(await page.textContent('dialog')) && !!(await page.$('#sb-status')) && !!(await page.$('#sb-uitleenbaar')), 'Thema\'s, trefwoorden en beschikbaarheid ontbreken');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     // Cover: een vierkante foto wordt 2 op 3, met een schuifbalk.
     await page.setInputFiles('#sb-foto', path.join(MAP, 'icons/icoon-192.png'));

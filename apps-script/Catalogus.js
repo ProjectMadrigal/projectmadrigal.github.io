@@ -40,7 +40,7 @@ var ONDERWERP_VOORSTELLEN = [
   [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
   [/biogra|^bio$|memoir|dagboek/, 'Biografie'],
   [/poezie|gedicht|poetry|poem/, 'Poëzie'],
-  [/graphic|strip|comic|manga/, 'Graphic novel'],
+  [/graphic novel|graphic memoir|\bstrips?\b|stripverha|stripboek|stripalbum|\bcomics?\b|manga|beeldroman/, 'Graphic novel'],
   [/young adult|^ya$|jeugd|kinder/, 'Young Adult'],
   [/pulp/, 'Pulp'],
   [/erotic|erotiek|bdsm|kink|fetish|leder|leather/, 'Erotica en BDSM'],
@@ -428,6 +428,10 @@ function verwerkNieuweBoekenAutomatisch() {
   // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
   try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
+  // Eén keer: Graphic novel weg bij boeken die het enkel door het woord "graphic" kregen (OnderwerpRaden.js).
+  try { graphicNovelHerstellenEenmalig(); } catch (e) { logboek('systeem', 'graphicNovelHerstellen', 'Fout: ' + e.message); }
+  // De ISBN-10 bij elk ISBN dat met 978 begint (Beschrijvingen.js).
+  try { isbn10AanvullenAutomatisch(); } catch (e) { logboek('systeem', 'isbn10', 'Fout: ' + e.message); }
   // Eén keer per dag: elke auteur als "Achternaam, Voornaam" (Auteurs.js).
   try { auteursOpkuisenAutomatisch(); } catch (e) { logboek('systeem', 'auteursOpkuisen', 'Fout: ' + e.message); }
   try { deelBoekenInAutomatisch(); } catch (e) { logboek('systeem', 'deelBoekenIn', 'Fout: ' + e.message); }
