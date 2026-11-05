@@ -16,6 +16,8 @@
 var INDELEN_MIN_CATEGORIE = 1;
 var INDELEN_MIN_TREFWOORD = 1;      // één treffer is genoeg: een beschrijving noemt een onderwerp vaak maar één keer
 var INDELEN_MIN_TREFWOORD_FILM = 1;
+// Thema's die bij een film geen trefwoord worden: dat zijn eigenlijk soorten boeken.
+var INDELEN_GEEN_FILMTREFWOORD = ['Fictie', 'Klassiekers', 'Zines', 'Pulp', 'Young Adult', 'Graphic novel', 'Poëzie', 'Biografie', 'Onderzoek', 'Kunst en Fotoboek'];
 
 /*
  * Ingebouwde zoekwoorden per naam (de sleutel is genreSleutel van de naam). Een woord telt als een woord in de
@@ -164,6 +166,13 @@ function deelBoekenIn(catalogus, namen, welke) {
       minFilm: INDELEN_MIN_TREFWOORD_FILM,
       zoekwoorden: indelenZoekwoorden(r.naam, r.zoekwoorden) };
   });
+  // Films hebben geen thema's maar genres. Een thema als Coming-out of Kolonialisme kan daarom bij een film
+  // een trefwoord zijn (niet de thema's die eigenlijk een soort boek zijn, zoals Fictie of Poëzie).
+  var filmKandidaten = kandidaten.filter(function (k) { return k.kolom === 'trefwoorden'; }).concat(alleThemas().filter(function (t) {
+    return INDELEN_GEEN_FILMTREFWOORD.indexOf(t) === -1;
+  }).map(function (t) {
+    return { naam: t, kolom: 'trefwoorden', min: INDELEN_MIN_TREFWOORD_FILM, minFilm: INDELEN_MIN_TREFWOORD_FILM, zoekwoorden: indelenZoekwoorden(t, '') };
+  }));
   var uit = [];
   catalogus.forEach(function (b) {
     if (isLeeg(b.boek_id) || isLeeg(b.titel)) return;
@@ -177,8 +186,7 @@ function deelBoekenIn(catalogus, namen, welke) {
     var erbij = { extra_onderwerpen: [], categorieen: [], trefwoorden: [] };
     // Thema's: elk thema dat duidelijk voorkomt.
     if (!film) onderwerpScores(b).forEach(function (s) { if (s[1] >= ONDERWERP_ZEKER_MIN) erbij.extra_onderwerpen.push(s[0]); });
-    kandidaten.forEach(function (k) {
-      if (film && k.kolom !== 'trefwoorden') return;
+    (film ? filmKandidaten : kandidaten).forEach(function (k) {
       if (indelenScore(k.zoekwoorden, titelWoorden, tekstWoorden) >= (film ? k.minFilm : k.min)) erbij[k.kolom].push(k.naam);
     });
     var velden = {}, nieuw = {};

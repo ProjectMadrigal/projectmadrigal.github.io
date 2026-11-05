@@ -191,7 +191,7 @@
   /** Vertalingen van waarden uit de catalogus (filtergroepen, talen, ...). */
   var WAARDEN_EN = {
     'Gender': 'Gender', 'Seksualiteit': 'Sexuality', 'Feminisme': 'Feminism', 'Fictie': 'Fiction',
-    'Klassiekers': 'Classics', 'Geschiedenis': 'History', 'Maatschappij': 'Society', 'Politiek': 'Politics', 'Religie en Spiritualiteit': 'Religion and Spirituality', 'Geschiedenis en maatschappij': 'History and society', 'Biografie': 'Biography',
+    'Klassiekers': 'Classics', 'Geschiedenis': 'History', 'Maatschappij': 'Society', 'Politiek': 'Politics', 'Intersekse': 'Intersex', 'Coming-out': 'Coming out', 'Relaties': 'Relationships', 'Polyamorie': 'Polyamory', 'Kolonialisme': 'Colonialism', 'Cultuur': 'Culture', 'Diversiteit': 'Diversity', 'Ecologie': 'Ecology', 'Gezondheid': 'Health', 'Onderzoek': 'Research', 'Marxisme': 'Marxism', 'Cuba': 'Cuba', 'Religie en Spiritualiteit': 'Religion and Spirituality', 'Geschiedenis en maatschappij': 'History and society', 'Biografie': 'Biography',
     'Poëzie': 'Poetry', 'Graphic novel': 'Graphic novel', 'Young Adult': 'Young Adult', 'Pulp': 'Pulp',
     'Erotica en BDSM': 'Erotica and BDSM', 'Zines': 'Zines', 'Kunst en fotografie': 'Art and photography', 'Gezondheid': 'Health',
     'Nederlands': 'Dutch', 'Engels': 'English', 'Frans': 'French', 'Duits': 'German', 'Spaans': 'Spanish', 'Italiaans': 'Italian', 'Portugees': 'Portuguese',

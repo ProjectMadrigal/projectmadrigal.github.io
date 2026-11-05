@@ -141,6 +141,7 @@ function categorieenOverzicht(catalogus, oudeTags) {
 function categorieenZonderThemas(catalogus) {
   var veranderd = [];
   catalogus.forEach(function (b) {
+    if (isFilm(b)) return; // een film heeft geen thema's: daar blijft het trefwoord
     var naarThema = [], velden = {};
     ['categorieen', 'trefwoorden'].forEach(function (kol) {
       var lijst = splitsLijst(b[kol]);
@@ -239,6 +240,24 @@ function vernieuwCategorieen(oudeTags) {
       SpreadsheetApp.newDataValidation().requireValueInList(keuzes, true).setAllowInvalid(true).build());
   });
   return rijen;
+}
+
+/**
+ * Eén keer na nieuwe thema's (bv. Coming-out, Kolonialisme): namen die nu een thema zijn, verhuizen uit de kolommen
+ * categorieen en trefwoorden naar extra_onderwerpen, en verdwijnen uit het tabblad en de keuzelijsten.
+ * Vanuit verwerkNieuweBoekenAutomatisch. THEMAS_VERSIE verhogen als er weer thema's bijkomen.
+ */
+var THEMAS_VERSIE = 'bib-2026-11';
+function themasOpnieuwIndelenEenmalig() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('themas_versie') === THEMAS_VERSIE) return;
+  if (!spreadsheet().getSheetByName('Categorieën en trefwoorden')) { props.setProperty('themas_versie', THEMAS_VERSIE); return; }
+  var tabel = leesTabel('Catalogus');
+  var voor = categorieenZonderThemas(tabel.rijen.map(function (b) { return Object.assign({}, b); })).length;
+  vernieuwCategorieen([]);
+  props.setProperty('themas_versie', THEMAS_VERSIE);
+  leegCache();
+  logboek('systeem', 'thema\'s', 'Nieuwe thema\'s van de bib: ' + voor + ' boeken hadden een categorie of trefwoord met de naam van een thema. Die staat nu bij de thema\'s.');
 }
 
 /** Menu: Boeken > Categorieën en trefwoorden: vernieuw de lijst en de keuzelijsten. */

@@ -26,17 +26,32 @@ var BRONKOLOMMEN = {
 };
 
 /** De standaard filtergroepen op de website, in deze volgorde. */
-var FILTERGROEPEN = ['Gender', 'Seksualiteit', 'Feminisme', 'Fictie', 'Klassiekers', 'Geschiedenis', 'Maatschappij', 'Politiek', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
+// De thema's van de bib (zoals in de kasten). Een eigen thema erbij kan ook met de instelling eigen_themas.
+var FILTERGROEPEN = ['Gender', 'Intersekse', 'Seksualiteit', 'Coming-out', 'Relaties', 'Polyamorie', 'Feminisme', 'Fictie', 'Klassiekers',
+  'Geschiedenis', 'Kolonialisme', 'Maatschappij', 'Cultuur', 'Diversiteit', 'Ecologie', 'Gezondheid', 'Onderzoek', 'Politiek', 'Marxisme',
+  'Cuba', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
 
 /** Voorstellen voor de vertaaltabel: een genre met dit woord erin gaat naar deze groep. */
 var ONDERWERP_VOORSTELLEN = [
   [/gender|trans|non ?binair|interseks|intersex/, 'Gender'],
+  [/interseks|intersex/, 'Intersekse'],
   [/seks|sexualiteit|homo|lesb|queer|lgbt|holebi|coming out|gay|polyamor|relatie/, 'Seksualiteit'],
+  [/coming out|comingout|uit de kast/, 'Coming-out'],
+  [/relatie|relationship|huwelijk|liefde/, 'Relaties'],
+  [/polyamor/, 'Polyamorie'],
   [/femin|vrouw/, 'Feminisme'],
   [/roman|(?<!non ?)fictie|(?<!non ?)fiction|verhal|verhaal|proza|literatuur|thriller|detective|fantasy|science|kort/, 'Fictie'],
   [/geschied|histor|kolonial|fascis|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
+  [/kolonial|colonial|dekolonis|decolonis|slavernij/, 'Kolonialisme'],
   [/maatschap|sociolog|essay|non ?fictie|non ?fiction|filosof|ecolog|cultuur|onderzoek|racism|migrat|economi/, 'Maatschappij'],
+  [/cultuur|culture|kunst/, 'Cultuur'],
+  [/divers|inclusi|racism|migrat/, 'Diversiteit'],
+  [/ecolog|klimaat|climate|milieu|duurzaam/, 'Ecologie'],
+  [/gezond|health|ziekte|medisch|medic|hiv|aids|psychisch|mentale/, 'Gezondheid'],
+  [/onderzoek|research|wetenschap|studie/, 'Onderzoek'],
   [/politi|activis|marx|anarch|socialis|communis|democrat|verkiezing|protest|revolut/, 'Politiek'],
+  [/marx|communis|socialis|kapitalis/, 'Marxisme'],
+  [/cuba|havana/, 'Cuba'],
   [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
   [/biogra|^bio$|memoir|dagboek/, 'Biografie'],
   [/poezie|gedicht|poetry|poem/, 'Poëzie'],
@@ -428,6 +443,8 @@ function verwerkNieuweBoekenAutomatisch() {
   // Nieuwe covers van een andere site (Google Books, Open Library, ...): een kopie naar Google Drive (CoversBewaren.js).
   try { waakOverCoversBewaren(); } catch (e) { /* volgend uur opnieuw */ }
   // Eén keer per dag: thema's, categorieën en trefwoorden op titel en beschrijving (Indelen.js).
+  // Eén keer na nieuwe thema's: dubbels uit categorieën en trefwoorden naar de thema's (OudeBoeken.js).
+  try { themasOpnieuwIndelenEenmalig(); } catch (e) { logboek('systeem', 'thema\'s', 'Fout: ' + e.message); }
   // Eén keer: Graphic novel weg bij boeken die het enkel door het woord "graphic" kregen (OnderwerpRaden.js).
   try { graphicNovelHerstellenEenmalig(); } catch (e) { logboek('systeem', 'graphicNovelHerstellen', 'Fout: ' + e.message); }
   // De ISBN-10 bij elk ISBN dat met 978 begint (Beschrijvingen.js).

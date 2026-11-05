@@ -212,7 +212,7 @@ test('thema\'s: Geschiedenis, Maatschappij en Religie en Spiritualiteit apart', 
 
 test('filtergroepen: vertaaltabel, extra onderwerpen, klassieker en zines', () => {
   const v2 = M.vertaalTabel([{ genre: 'Politiek', filtergroepen: 'Maatschappij' }]);
-  gelijk(M.filtergroepenVan({ genre: '', extra_onderwerpen: 'Politiek, intersex, Iets onbekends, FICTIE', soort: 'boek' }, v2), ['Politiek', 'Gender', 'Fictie'], 'enkel vaste thema\'s');
+  gelijk(M.filtergroepenVan({ genre: '', extra_onderwerpen: 'Politiek, intersex, Iets onbekends, FICTIE', soort: 'boek' }, v2), ['Politiek', 'Gender', 'Intersekse', 'Fictie'], 'enkel vaste thema\'s');
   const vertaal = M.vertaalTabel([{ genre: 'Roman', filtergroepen: 'Fictie' }]);
   const g = M.filtergroepenVan({ genre: 'roman', extra_onderwerpen: 'gender; Seksualiteit', klassieker: true, soort: 'boek' }, vertaal);
   gelijk(Array.from(g), ['Fictie', 'Gender', 'Seksualiteit', 'Klassiekers']);
@@ -734,7 +734,7 @@ test('publieke catalogus: categorieën en trefwoorden altijd, triggerwaarschuwin
   s.catalogus[0].trefwoorden = 'lesbisch, coming-out';
   s.catalogus[0].triggerwaarschuwingen = 'Geweld';
   let b = M.bouwPubliekeCatalogus(s, []).boeken.find((x) => x.id === s.catalogus[0].boek_id);
-  gelijk([Array.from(b.ca), Array.from(b.k), b.tw], [['Roman'], ['lesbisch', 'coming-out'], undefined]);
+  gelijk([Array.from(b.ca), Array.from(b.k), b.tw], [['Roman'], ['lesbisch'], undefined]); // Coming-out is een thema: niet dubbel bij de trefwoorden
   s.inst.triggerwaarschuwingen_tonen = true;
   b = M.bouwPubliekeCatalogus(s, []).boeken.find((x) => x.id === s.catalogus[0].boek_id);
   gelijk(Array.from(b.tw), ['Geweld']);
@@ -2045,7 +2045,7 @@ test('indelen op titel en beschrijving: thema, categorie en trefwoord erbij, noo
   ];
   const uit = M.deelBoekenIn(cat, namen);
   gelijk(uit.map((r) => r.boek_id), ['B1', 'B2', 'B3', 'F1']);
-  gelijk([cat[4].trefwoorden, !cat[4].categorieen, !cat[4].extra_onderwerpen], ['Lesbisch', true, true], 'een film krijgt enkel trefwoorden');
+  gelijk([cat[4].trefwoorden, !cat[4].categorieen, !cat[4].extra_onderwerpen], ['Lesbisch, Geschiedenis', true, true], 'een film krijgt enkel trefwoorden (een thema als Geschiedenis wordt bij een film een trefwoord)');
   gelijk([cat[0].categorieen, cat[0].trefwoorden], ['Roman, Crime', 'Eigen woord'], 'moord en rechercheur: Crime, en het eigen trefwoord blijft');
   gelijk([cat[1].categorieen, cat[1].trefwoorden], ['Sport', 'Lesbisch'], 'lesbiennes in de titel telt dubbel');
   gelijk([cat[2].trefwoorden], ['Lesbisch, Zee'], 'eigen zoekwoorden tellen, Queer staat op weg, lesbisch één keer is genoeg');
@@ -2220,6 +2220,17 @@ test('Graphic novel: niet op het woord graphic of striptease, en herstel van wat
   ];
   gelijk(Array.from(M.graphicNovelHerstellen(cat, {})), ['B1']);
   gelijk(cat.map((b) => b.extra_onderwerpen), ['Seksualiteit', 'Graphic novel', 'Graphic novel', 'Graphic novel'], 'zonder "graphic" in de tekst (B4) blijft het: dat koos iemand zelf');
+});
+
+test('de thema\'s van de bib: Intersekse, Coming-out, Kolonialisme, Marxisme, ... en niet dubbel bij categorieën of trefwoorden', () => {
+  ['Intersekse', 'Coming-out', 'Relaties', 'Polyamorie', 'Kolonialisme', 'Cultuur', 'Diversiteit', 'Ecologie', 'Gezondheid', 'Onderzoek', 'Marxisme', 'Cuba']
+    .forEach((t) => assert.ok(M.FILTERGROEPEN.indexOf(t) > -1, t));
+  gelijk([M.themaExact('coming out'), M.themaExact('Intersekse')], ['Coming-out', 'Intersekse']);
+  gelijk(M.themaVan('Marxistische theorie', {}), ['Politiek', 'Marxisme']);
+  const cat = [{ boek_id: 'B1', categorieen: 'Roman', trefwoorden: 'Coming out, Lesbisch, Polyamorie', extra_onderwerpen: 'Fictie' },
+    { boek_id: 'F1', soort: 'film', trefwoorden: 'Coming-out' }];
+  gelijk(Array.from(M.categorieenZonderThemas(cat)), ['B1']);
+  gelijk([cat[0].trefwoorden, cat[0].extra_onderwerpen, cat[1].trefwoorden], ['Lesbisch', 'Fictie, Coming-out, Polyamorie', 'Coming-out']);
 });
 
 test('Politiek is een apart thema, los van Maatschappij', () => {
@@ -3674,7 +3685,7 @@ test('onderwerpen raden: genre eerst, dan enkel een duidelijk thema uit de tekst
   assert.strictEqual(rij.toepassen, 'gedaan');
   // Woorden
   assert.strictEqual(M.zekerOnderwerp(M.onderwerpScores({ titel: 'Godin', beschrijving: 'over de godin en het eeuwige' })), '', '=god en =eeuw tellen niet voor godin en eeuwig');
-  gelijk(M.onderwerpScores({ titel: '', beschrijving: 'Over coming out en seksualiteit.' }), [['Seksualiteit', 2]]);
+  gelijk(M.onderwerpScores({ titel: '', beschrijving: 'Over coming out en seksualiteit.' }), [['Seksualiteit', 2], ['Coming-out', 1]]);
 });
 
 
