@@ -105,8 +105,29 @@
 
   /** De knop terug naar het menu: groot en in het midden, zodat je ze niet over het hoofd ziet. */
   function menuKnop() {
-    return el('div', { class: 'knoppen midden' }, el('button', { type: 'button', class: 'knop tweede menu-knop', onclick: toonMenu }, '← Terug naar het menu'));
+    return el('div', { class: 'knoppen midden' }, el('button', { type: 'button', class: 'knop tweede menu-knop', onclick: naarMenu }, '← Terug naar het menu'));
   }
+
+  /*
+   * Elk scherm uit het menu staat in het adres (bv. balie.html#terugbrengen). Zo werkt de knop Terug van de
+   * browser: die brengt je terug naar het menu. Na herladen opent hetzelfde scherm.
+   */
+  function naarMenu() {
+    if (history.state && history.state.balie) history.back(); else { history.replaceState(null, '', location.pathname); toonMenu(); }
+  }
+  function openScherm(k) {
+    history.pushState({ balie: k[3] }, '', '#' + k[3]);
+    k[2]();
+  }
+  function schermUitAdres() {
+    var naam = location.hash.slice(1);
+    return menuKeuzes().filter(function (k) { return k[3] === naam; })[0] || null;
+  }
+  window.addEventListener('popstate', function () {
+    if (!data) return;
+    var k = schermUitAdres();
+    if (k) k[2](); else toonMenu();
+  });
 
   /** Toont een scherm in het werkvlak, met een knop terug naar het menu. */
   function scherm(titel) {
@@ -214,21 +235,25 @@
 
   /* ---------- Menu ---------- */
 
-  function toonMenu() {
-    var knoppen = [
-      ['Uitlenen', '📕', toonUitlenen],
-      ['Terugbrengen', '↩', toonTerugbrengen],
-      ['Verlengen', '↻', toonVerlengen],
-      ['Reserveren', '⧗', toonReserveren],
-      ['Lener opzoeken', '🔍', toonLenerOpzoeken],
-      ['Nieuwe lener', '＋', toonNieuweLener],
-      ['Rooster', '📅', toonRooster],
-      ['Checklist', '✓', function () { metVrijwilligers('checklist'); }],
-      ['Handleiding', '📖', function () { metVrijwilligers('handleiding'); }]
+  /** De keuzes van het menu: [naam, teken, scherm, naam in het adres]. */
+  function menuKeuzes() {
+    return [
+      ['Uitlenen', '📕', function () { toonUitlenen(); }, 'uitlenen'],
+      ['Terugbrengen', '↩', toonTerugbrengen, 'terugbrengen'],
+      ['Verlengen', '↻', toonVerlengen, 'verlengen'],
+      ['Reserveren', '⧗', toonReserveren, 'reserveren'],
+      ['Lener opzoeken', '🔍', toonLenerOpzoeken, 'lener-opzoeken'],
+      ['Nieuwe lener', '＋', toonNieuweLener, 'nieuwe-lener'],
+      ['Rooster', '📅', toonRooster, 'rooster'],
+      ['Checklist', '✓', function () { metVrijwilligers('checklist'); }, 'checklist'],
+      ['Handleiding', '📖', function () { metVrijwilligers('handleiding'); }, 'handleiding']
     ];
+  }
+
+  function toonMenu() {
     D.vervang(werkvlak, el('h2', { class: 'verborgen' }, 'Menu'), el('nav', { class: 'menu-raster', 'aria-label': 'Wat wil je doen?' },
-      knoppen.map(function (k) {
-        return el('button', { type: 'button', class: 'knop', onclick: function () { k[2](); } }, el('span', { 'aria-hidden': 'true' }, k[1]), k[0]);
+      menuKeuzes().map(function (k) {
+        return el('button', { type: 'button', class: 'knop', onclick: function () { openScherm(k); } }, el('span', { 'aria-hidden': 'true' }, k[1]), k[0]);
       })));
   }
 
@@ -359,7 +384,7 @@
           apartBlokken(r.apartLeggen),
           el('div', { class: 'knoppen' },
             el('button', { type: 'button', class: 'knop', onclick: function () { toonUitlenen(lener); } }, 'Nog een boek voor ' + lener.v),
-            el('button', { type: 'button', class: 'knop tweede', onclick: toonMenu }, 'Klaar')));
+            el('button', { type: 'button', class: 'knop tweede', onclick: naarMenu }, 'Klaar')));
         laad();
       });
     });
@@ -421,7 +446,7 @@
             r.apartLeggen && r.apartLeggen.length ? null : el('p', {}, 'Het boek mag terug in de kast.'),
             el('div', { class: 'knoppen' },
               el('button', { type: 'button', class: 'knop', onclick: toonTerugbrengen }, 'Nog een boek terugbrengen'),
-              el('button', { type: 'button', class: 'knop tweede', onclick: toonMenu }, 'Klaar')));
+              el('button', { type: 'button', class: 'knop tweede', onclick: naarMenu }, 'Klaar')));
           laad();
         });
       });
@@ -464,7 +489,7 @@
             el('div', { class: 'groot-resultaat', role: 'status' },
               el('p', {}, '"' + u.titel + '" voor lener ' + u.lenersnummer + ' (' + u.voornaam + ')'),
               el('p', { class: 'groot' }, r.terugTekst)),
-            el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop tweede', onclick: toonMenu }, 'Klaar')));
+            el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop tweede', onclick: naarMenu }, 'Klaar')));
           laad();
         });
       });
@@ -531,7 +556,7 @@
         scherm('Gereserveerd',
           el('div', { class: 'groot-resultaat', role: 'status' }, el('p', { class: 'groot' }, 'In de wachtrij'), el('p', {}, r.tekst)),
           el('p', {}, 'Komt het boek terug, dan toont het uitleenscherm dat het apart moet liggen.'),
-          el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop tweede', onclick: toonMenu }, 'Klaar')));
+          el('div', { class: 'knoppen' }, el('button', { type: 'button', class: 'knop tweede', onclick: naarMenu }, 'Klaar')));
         laad();
       });
     });
@@ -593,7 +618,7 @@
             el('p', {}, 'Schrijf dit nummer op een kaartje voor ' + r.voornaam + '.')),
           el('div', { class: 'knoppen' },
             el('button', { type: 'button', class: 'knop', onclick: function () { laad().then(function () { toonUitlenen(lener); }); } }, 'Meteen een boek uitlenen'),
-            el('button', { type: 'button', class: 'knop tweede', onclick: toonMenu }, 'Klaar')));
+            el('button', { type: 'button', class: 'knop tweede', onclick: naarMenu }, 'Klaar')));
         laad();
       });
     });
@@ -635,7 +660,8 @@
         var m = /^#uitlenen=(.+)$/.exec(location.hash);
         var lener = m ? data.leners.filter(function (l) { return String(l.n) === decodeURIComponent(m[1]); })[0] : null;
         if (m) history.replaceState(null, '', location.pathname);
-        if (lener) toonUitlenen(lener); else toonMenu();
+        var k = schermUitAdres();
+        if (lener) toonUitlenen(lener); else if (k) { history.replaceState({ balie: k[3] }, '', '#' + k[3]); k[2](); } else toonMenu();
       });
     }
   });

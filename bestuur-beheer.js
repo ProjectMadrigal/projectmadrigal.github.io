@@ -186,6 +186,9 @@
   var ZICHTBAAR_NIEUW = [0, 1, 4];
   var LABELS_FILM = { auteur: 'Regie', jaartal: 'Jaar', genre: 'Genres', duur: 'Duur in minuten', land: 'Land', aantal: 'Aantal exemplaren' };
 
+  /** Deze stap in de geschiedenis van de browser, zodat Terug van de browser hier terugkomt (zie stap in bestuur.js). */
+  function stap(ctx, herteken, vervang) { if (ctx.stap) ctx.stap(herteken, vervang); }
+
   var vanLijst = ''; // kwam je van de lijst zonder cover ('cover') of zonder beschrijving ('beschrijving')? Dan gaat "Terug" daarheen.
   var lijstBoeken = []; // de boeken van die lijst, in dezelfde volgorde en met de zoekterm: voor Vorig en Volgend boek
   var LIJST_STAP = 100; // zoveel boeken toont een lijst per keer
@@ -202,6 +205,7 @@
 
   /** Vrijwilligersscherm: een cover toevoegen met een foto. De andere velden past het bestuur aan. */
   function coverToevoegen(vak, ctx, b) {
+    stap(ctx, function () { vanLijst = 'cover'; coverToevoegen(vak, ctx, b); });
     D.vervang(vak, ctx.kop(b.t, [b.a, b.id].filter(Boolean).join(' · ')),
       fotoBlok({ boek_id: b.id }, null, ctx),
       knoppen.apply(null, bladerKnoppen(vak, ctx, b.id).concat(
@@ -229,6 +233,7 @@
    * Het bestuur keurt ze goed in het bestuursscherm (Voorgestelde beschrijvingen). Pas dan staat ze op de website.
    */
   function beschrijvingVoorstellen(vak, ctx, b) {
+    stap(ctx, function () { vanLijst = 'beschrijving'; beschrijvingVoorstellen(vak, ctx, b); });
     var tekst = el('textarea', { id: 'vb-tekst', rows: '8', maxlength: '3000' });
     var fout = el('div', { 'aria-live': 'assertive' });
     var al = (ctx.data.voorgesteld || []).indexOf(b.id) > -1;
@@ -285,6 +290,7 @@
 
   function toonBoeken(vak, ctx) {
     vanLijst = '';
+    stap(ctx, function () { toonBoeken(vak, ctx); });
     var zonder = enkelBoeken(ctx).filter(function (b) { return !b.c; }).length;
     var zonderTekst = enkelBoeken(ctx).filter(function (b) { return b.zb; }).length;
     var index = Z.maakIndex(enkelBoeken(ctx));
@@ -322,6 +328,7 @@
   /** Films: een eigen onderdeel, met de velden van een film (regie, duur, land, genres). */
   function toonFilms(vak, ctx) {
     vanLijst = 'films';
+    stap(ctx, function () { toonFilms(vak, ctx); });
     var films = enkelFilms(ctx).slice().sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
     var index = Z.maakIndex(films);
     var zoekveld = el('input', { type: 'search', id: 'beheer-film-zoek', autocomplete: 'off', placeholder: 'Titel, regie of ID' });
@@ -353,10 +360,12 @@
    */
   function toonLijst(vak, ctx, soort) {
     vanLijst = soort;
+    stap(ctx, function () { toonLijst(vak, ctx, soort); });
     var cover = soort === 'cover';
     var stand = lijstStand[soort];
     var voorgesteld = ctx.data.voorgesteld || [];
-    var alle = (ctx.data.boeken || []).filter(function (b) { return cover ? !b.c : b.zb; })
+    // Enkel boeken en zines: films hebben een eigen onderdeel. Zo klopt het aantal met dat op de knop.
+    var alle = enkelBoeken(ctx).filter(function (b) { return cover ? !b.c : b.zb; })
       .map(function (b) { return !cover && voorgesteld.indexOf(b.id) > -1 ? Object.assign({}, b, { voorgesteld: true }) : b; })
       .sort(function (a, b) { return Z.sorteerTekst(a.t).localeCompare(Z.sorteerTekst(b.t), 'nl'); });
     var filterId = cover ? 'zonder-cover-zoek' : 'zonder-beschrijving-zoek';
@@ -809,6 +818,7 @@
   /* ---------- Schenking: boek na boek invoeren ---------- */
 
   function toonReeksStart(vak, ctx) {
+    stap(ctx, function () { toonReeksStart(vak, ctx); });
     var herkomst = el('input', { type: 'text', id: 'reeks-herkomst', maxlength: '120', placeholder: 'bv. schenking van een verzonnen naam, oktober 2026' });
     var fout = el('div', { 'aria-live': 'assertive' });
     D.vervang(vak, ctx.kop('Schenking invoeren', 'Vul eerst de herkomst in. Die komt bij elk boek van deze reeks. Daarna scan of typ je het ISBN, kijk je de gegevens na en klik je op Voeg toe en volgend boek. Zo gaat het boek na boek, tot je de reeks stopt.'),
@@ -829,6 +839,7 @@
   var BULK_LIJSTEN = ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'aanrader', 'leeslijsten'];
 
   function toonBulk(vak, ctx, films) {
+    stap(ctx, function () { toonBulk(vak, ctx, films); });
     var gekozen = {};
     var wat = films ? 'film' : 'boek', wat2 = films ? 'films' : 'boeken';
     var index = Z.maakIndex(films ? enkelFilms(ctx) : enkelBoeken(ctx));
@@ -905,6 +916,12 @@
   /** Het formulier voor een boek. boek: bestaand boek of {} voor een nieuw. */
   function boekFormulier(vak, ctx, boek, nieuw, extra) {
     extra = extra || {};
+    var lijstNu = vanLijst;
+    // Een bestaand boek haalt Terug opnieuw op: zo zie je wat er nu in de Catalogus staat, niet wat er vroeger stond.
+    stap(ctx, function () {
+      vanLijst = lijstNu;
+      if (nieuw || !boek.boek_id) boekFormulier(vak, ctx, boek, nieuw, extra); else bewerkBoek(vak, ctx, boek.boek_id);
+    }, extra.opnieuw);
     var film = extra.film || schoonSoort(boek.soort) === 'film';
     var velden = [];
     var fout = el('div', { 'aria-live': 'assertive' });
@@ -1029,10 +1046,12 @@
   }
 
   function bewerkBoek(vak, ctx, id) {
+    // Terug van de browser: het formulier komt in de plaats van deze stap, ook al laadt het boek pas straks.
+    var opnieuw = !!(ctx.opnieuw && ctx.opnieuw());
     D.vervang(vak, el('p', {}, 'Boek laden...'));
     B.voerUit('beheerBoekOphalen', { boek_id: id }).then(function (r) {
       if (!r.ok) { B.melding($('melding'), 'fout', r.fout); toonBoeken(vak, ctx); return; }
-      boekFormulier(vak, ctx, r.boek, false, r);
+      boekFormulier(vak, ctx, r.boek, false, Object.assign({}, r, { opnieuw: opnieuw }));
     });
   }
 
@@ -1368,6 +1387,7 @@
   function toonVragen(vak, ctx) { toonInhoud(vak, ctx, true); }
 
   function toonInhoud(vak, ctx, vragen) {
+    stap(ctx, function () { toonInhoud(vak, ctx, vragen); });
     vragen = !!vragen;
     laadInhoud(vak, ctx, function () {
       var vrijwilliger = ctx.scherm === 'vrijwilliger';
@@ -1403,6 +1423,7 @@
   }
 
   function inhoudFormulier(vak, ctx, soort, rij) {
+    stap(ctx, function () { inhoudFormulier(vak, ctx, soort, rij); });
     var vrijwilliger = ctx.scherm === 'vrijwilliger';
     // Een vrijwilliger kiest niet zelf of het online staat: dat doet het bestuur.
     var namen = vrijwilliger ? soort[2].filter(function (n) { return n !== 'publiek'; }) : soort[2];
@@ -1490,6 +1511,7 @@
   }
 
   function toonLeeslijsten(vak, ctx) {
+    stap(ctx, function () { toonLeeslijsten(vak, ctx); });
     laadInhoud(vak, ctx, function () {
       var rijen = (inhoud.tabbladen.Leeslijsten || []).slice().sort(function (a, b) {
         return (Number(a.volgorde) || 999) - (Number(b.volgorde) || 999) || String(a.naam).localeCompare(String(b.naam));
@@ -1531,6 +1553,7 @@
 
   /** Naam, uitleg en volgorde van een lijst. rij leeg: een nieuwe lijst. */
   function leeslijstFormulier(vak, ctx, rij) {
+    stap(ctx, function () { leeslijstFormulier(vak, ctx, rij); });
     var velden = LIJST_VELDEN.map(function (naam) { return veld('ll', naam, rij ? rij[naam] : (naam === 'publiek' ? 'ja' : '')); });
     var fout = el('div', { 'aria-live': 'assertive' });
     var bewaar = el('button', { type: 'submit', class: 'knop' }, rij ? 'Bewaar' : 'Maak de lijst');
@@ -1580,6 +1603,7 @@
    * in één keer naar de spreadsheet.
    */
   function leeslijstOpenen(vak, ctx, rij) {
+    stap(ctx, function () { leeslijstOpenen(vak, ctx, rij); });
     var naam = rij.naam;
     var boeken = ctx.data.boeken || [];
     var index = Z.maakIndex(boeken);
