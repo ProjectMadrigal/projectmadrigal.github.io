@@ -269,8 +269,8 @@
   function bladerKnoppen(vak, ctx, id) {
     var vorig = buurBoek(id, -1), volgend = buurBoek(id, 1);
     return [
-      vorig ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { openUitLijst(vak, ctx, vorig); } }, '‹ Vorig boek') : null,
-      volgend ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { openUitLijst(vak, ctx, volgend); } }, 'Volgend boek ›') : null
+      vorig ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { openUitLijst(vak, ctx, vorig); } }, vanLijst === 'films' ? '‹ Vorige film' : '‹ Vorig boek') : null,
+      volgend ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { openUitLijst(vak, ctx, volgend); } }, vanLijst === 'films' ? 'Volgende film ›' : 'Volgend boek ›') : null
     ].filter(Boolean);
   }
 
@@ -438,7 +438,7 @@
 
   /** Het blok om een foto van de cover te nemen en te bewaren (enkel voor een bestaand boek). */
   /** Het blok om de tekst van de achterkant te laten lezen. Die komt in het veld beschrijving. */
-  function achterkantBlok(beschrijvingVeld, slot) {
+  function achterkantBlok(beschrijvingVeld, slot, film) {
     var invoer = el('input', { type: 'file', id: 'bb-achterkant', accept: 'image/*', capture: 'environment' });
     var melding = el('p', { class: 'hulptekst', 'aria-live': 'polite' });
     invoer.addEventListener('change', function () {
@@ -463,7 +463,7 @@
       }, function (e) { melding.textContent = e.message; });
     });
     return el('fieldset', { class: 'blok' }, el('legend', {}, 'Tekst van de achterkant'),
-      el('p', { class: 'hulptekst' }, 'Neem een foto van de achterflap, recht van boven en met goed licht. Google leest de tekst en zet ze in het veld Beschrijving. Lees ze altijd na voor je bewaart.'),
+      el('p', { class: 'hulptekst' }, (film ? 'Neem een foto van de achterkant van het doosje' : 'Neem een foto van de achterflap') + ', recht van boven en met goed licht. Google leest de tekst en zet ze in het veld Beschrijving. Lees ze altijd na voor je bewaart.'),
       el('div', { class: 'veld' }, el('label', { for: 'bb-achterkant' }, 'Foto van de achterkant nemen of kiezen'), invoer), melding);
   }
 
@@ -532,13 +532,13 @@
    * De huidige cover bovenaan het formulier. Volgt het veld Link naar de cover: plak je een
    * andere link of bewaar je een foto, dan zie je meteen de nieuwe cover.
    */
-  function huidigeCover(coverVeld) {
+  function huidigeCover(coverVeld, film) {
     var beeld = el('img', { alt: 'Huidige cover', style: 'max-width:8rem;border:1px solid var(--kleur-rand);border-radius:.3rem' });
     var tekst = el('p', { class: 'hulptekst' });
     function toon() {
       var url = coverVeld.invoer.value.trim();
       beeld.hidden = !url;
-      tekst.textContent = url ? '' : 'Dit boek heeft nog geen cover.';
+      tekst.textContent = url ? '' : (film ? 'Deze film heeft nog geen cover.' : 'Dit boek heeft nog geen cover.');
       if (url && beeld.getAttribute('src') !== url) beeld.src = url;
     }
     beeld.addEventListener('error', function () { beeld.hidden = true; tekst.textContent = 'De cover op deze link laadt niet.'; });
@@ -974,13 +974,14 @@
     var bewaar = el('button', { type: 'submit', class: 'knop' }, extra.reeks ? 'Voeg toe en volgend boek' : nieuw ? 'Voeg toe aan de catalogus' : 'Bewaar');
     var coverVeld = velden.filter(function (v) { return v.naam === 'cover_url'; })[0];
     var foto = nieuw ? null : fotoBlok(boek, coverVeld, ctx);
-    var cover = coverVeld ? huidigeCover(coverVeld) : null;
-    var opzoekenBestaand = nieuw ? null : zoekBlok(velden, extra.sleutel);
+    var cover = coverVeld ? huidigeCover(coverVeld, film) : null;
+    // Google Books en Open Library kennen enkel boeken. Een film vult het script zelf aan uit Wikidata (Films.js).
+    var opzoekenBestaand = nieuw || film ? null : zoekBlok(velden, extra.sleutel);
     var overzicht = nieuw ? null : boekOverzicht(ctx, boek, extra);
     var beschrijvingVeld = velden.filter(function (v) { return v.naam === 'beschrijving'; })[0];
-    var achterkant = beschrijvingVeld ? achterkantBlok(beschrijvingVeld) : null;
+    var achterkant = beschrijvingVeld ? achterkantBlok(beschrijvingVeld, '', film) : null;
     var volgend = nieuw ? null : buurBoek(boek.boek_id, 1);
-    var bewaarVolgend = volgend ? el('button', { type: 'button', class: 'knop', onclick: function () { verstuur(false, true); } }, 'Bewaar en volgend boek ›') : null;
+    var bewaarVolgend = volgend ? el('button', { type: 'button', class: 'knop', onclick: function () { verstuur(false, true); } }, film ? 'Bewaar en volgende film ›' : 'Bewaar en volgend boek ›') : null;
     var formulier = el('form', { novalidate: true }, cover, overzicht, opzoeken, opzoekenBestaand, foto, achterkant, delen, herkomst ? el('fieldset', { class: 'blok' }, el('legend', {}, 'Intern'), herkomst.blok) : null,
       fout, knoppen.apply(null, [bewaar, bewaarVolgend].concat(nieuw ? [] : bladerKnoppen(vak, ctx, boek.boek_id),
         [el('button', { type: 'button', class: 'knop tweede', onclick: function () { terugNaarLijst(vak, ctx); } }, terugNaarLijstTekst())]).filter(Boolean)));
@@ -1014,7 +1015,7 @@
           D.vervang(fout, el('div', { class: 'melding fout', role: 'alert' }, el('p', {}, r.fout),
             r.dubbel ? knoppen(
               el('button', { type: 'button', class: 'knop tweede', onclick: function () { bewerkBoek(vak, ctx, r.dubbel); } }, 'Open ' + r.dubbel),
-              el('button', { type: 'button', class: 'knop tweede', onclick: function () { verstuur(true); } }, 'Toch als nieuw boek toevoegen')) : null));
+              el('button', { type: 'button', class: 'knop tweede', onclick: function () { verstuur(true); } }, film ? 'Toch als nieuwe film toevoegen' : 'Toch als nieuw boek toevoegen')) : null));
           return;
         }
         B.melding($('melding'), 'ok', r.tekst);
@@ -1048,9 +1049,10 @@
   function bewerkBoek(vak, ctx, id) {
     // Terug van de browser: het formulier komt in de plaats van deze stap, ook al laadt het boek pas straks.
     var opnieuw = !!(ctx.opnieuw && ctx.opnieuw());
-    D.vervang(vak, el('p', {}, 'Boek laden...'));
+    var film = (ctx.data.boeken || []).some(function (b) { return b.id === String(id) && b.f; });
+    D.vervang(vak, el('p', {}, film ? 'Film laden...' : 'Boek laden...'));
     B.voerUit('beheerBoekOphalen', { boek_id: id }).then(function (r) {
-      if (!r.ok) { B.melding($('melding'), 'fout', r.fout); toonBoeken(vak, ctx); return; }
+      if (!r.ok) { B.melding($('melding'), 'fout', r.fout); if (film) toonFilms(vak, ctx); else toonBoeken(vak, ctx); return; }
       boekFormulier(vak, ctx, r.boek, false, Object.assign({}, r, { opnieuw: opnieuw }));
     });
   }
