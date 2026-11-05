@@ -294,6 +294,13 @@ var CV_TITEL_AUTEUR = 'titel en auteur (Open Library)';
 
 var IA_BRON = 'Internet Archive';
 
+/*
+ * Vroeger kwam soms het logo van Internet Archive als cover in de Catalogus (geen afbeelding van het boek).
+ * Nieuwe covers kijkt het script meteen na (iaCoverIsEcht). Deze taak kijkt de covers na die er al staan.
+ * Stond vroeger in het bestuursscherm, nu enkel in het menu: Madrigal > Covers.
+ */
+var IA_CONTROLE_SLEUTEL = 'ia_controle_vanaf'; // het laatst nagekeken boek-ID, om in porties verder te gaan
+
 var CB_MAX_LOOPTIJD_MS = 4 * 60 * 1000;
 
 var CB_MISLUKT = 'mislukt ';
@@ -3455,6 +3462,60 @@ function controleerGrenzen(actie, ctx) {
   return overschreden;
 }
 
+/**
+ * Menu: kijkt de covers van Internet Archive na. Is de afbeelding niet staand (het logo, een pictogram),
+ * dan wist het script de cover: het boek komt weer in de lijst Boeken zonder cover en Google zoekt opnieuw.
+ * Laadt een afbeelding niet, dan blijft ze staan (misschien een storing). Werkt in porties op de achtergrond.
+ */
+function controleerIaCovers() {
+  var start = Date.now();
+  if (wachtOpDaglimiet('controleerIaCovers')) return;
+  if (!startAchtergrond('controleerIaCovers')) { meldAlBezig('controleerIaCovers'); return; }
+  var props = PropertiesService.getScriptProperties();
+  var vanaf = props.getProperty(IA_CONTROLE_SLEUTEL) || '';
+  var nagekeken = 0, gewist = [], laadtNiet = 0, rest = 0, wachten = false;
+  try {
+    var tabel = leesTabel('Catalogus');
+    var teDoen = iaCoversTeControleren(tabel.rijen, vanaf);
+    for (var i = 0; i < teDoen.length; i++) {
+      if (Date.now() - start > CV_MAX_LOOPTIJD_MS) break;
+      var boek = teDoen[i];
+      var r = null;
+      try {
+        r = haalExtern(iaControleLink(boek), { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': BS_USER_AGENT } });
+      } catch (e) {
+        if (isDaglimietFout(e)) { wachten = true; break; } // haalExtern plant de herstart al
+      }
+      var code = r ? r.getResponseCode() : 0;
+      if (code === 429 || code >= 500) { wachten = true; break; }
+      if (code !== 200) laadtNiet++;
+      else {
+        var afm = afbeeldingAfmetingen(r.getBlob().getBytes());
+        if (afm && !isStaandeCover(afm)) {
+          wijzig(boek, { cover_url: '', cover_bron: '', gb_gecontroleerd: '', cover_origineel: '', cover_bewaard: '' });
+          gewist.push(String(boek.boek_id));
+        }
+      }
+      nagekeken++;
+      vanaf = String(boek.boek_id);
+      if (nagekeken % 25 === 0 && bewaarAchtergrond(tabel)) props.setProperty(IA_CONTROLE_SLEUTEL, vanaf);
+      Utilities.sleep(CV_PAUZE_MS);
+    }
+    if (bewaarAchtergrond(tabel)) props.setProperty(IA_CONTROLE_SLEUTEL, vanaf);
+    rest = iaCoversTeControleren(tabel.rijen, vanaf).length;
+  } finally {
+    stopAchtergrond('controleerIaCovers');
+  }
+  verwijderTriggers('controleerIaCovers');
+  if (rest > 0) planTaak('controleerIaCovers', (wachten ? 15 : 1) * 60 * 1000);
+  else props.deleteProperty(IA_CONTROLE_SLEUTEL); // klaar: de volgende keer begint het vooraan
+  if (gewist.length) leegCache();
+  var tekst = nagekeken + ' covers van Internet Archive nagekeken, ' + gewist.length + ' gewist (enkel het logo)' +
+    (laadtNiet ? ', ' + laadtNiet + ' laden niet en blijven staan' : '') + ', ' + rest + ' te gaan' + (wachten ? ' (Internet Archive is druk, later verder)' : '') + '.';
+  logboek('menu', 'controleerIaCovers', tekst + (gewist.length ? ' Gewist: ' + gewist.join(', ') : ''));
+  try { spreadsheet().toast(tekst, 'Madrigal', 15); } catch (e) { Logger.log(tekst); }
+}
+
 /** De namen in een veld, elk als sleutel (zie controleAuteurSleutel), zonder dubbels. */
 function controleNamen(auteur) {
   var uit = [];
@@ -5303,6 +5364,12 @@ function htmlTekst(t) {
     .replace(/&([a-z]+);/gi, function (m, n) { return HTML_NAMEN.hasOwnProperty(n.toLowerCase()) ? HTML_NAMEN[n.toLowerCase()] : m; }));
 }
 
+/** De link om na te kijken: de oorspronkelijke link van Internet Archive als de cover al in Drive staat. */
+function iaControleLink(boek) {
+  var origineel = schoon(boek.cover_origineel);
+  return /archive\.org/i.test(origineel) ? origineel : schoon(boek.cover_url);
+}
+
 /** Haalt een afbeelding op en kijkt of het een staande cover is (en niet het logo van Internet Archive). */
 function iaCoverIsEcht(url) {
   try {
@@ -5322,6 +5389,13 @@ function iaCoversLijst(staat) {
     boeken: staat.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && schoon(b.cover_bron) === IA_BRON && !isLeeg(b.cover_url); })
       .map(function (b) { return { id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), cover: String(b.cover_url) }; })
   };
+}
+
+/** De boeken met een cover van Internet Archive, op boek-ID, na het boek-ID vanaf (leeg: allemaal). */
+function iaCoversTeControleren(rijen, vanaf) {
+  return rijen.filter(function (b) {
+    return !isLeeg(b.boek_id) && schoon(b.cover_bron) === IA_BRON && !isLeeg(b.cover_url) && (!vanaf || String(b.boek_id) > vanaf);
+  }).sort(function (a, b) { return String(a.boek_id) < String(b.boek_id) ? -1 : 1; });
 }
 
 /**
@@ -7653,6 +7727,7 @@ function onOpen() {
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
       .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
+      .addItem('Internet Archive: kijk de bewaarde covers na (wist het logo)', 'controleerIaCovers')
       .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers')
       .addSeparator()
       .addItem('Bewaar alle covers in Google Drive (kopie van covers van andere sites)', 'startCoversBewaren'))
@@ -8869,6 +8944,25 @@ function schoonMetRegels(waarde) {
 }
 
 /**
+ * Zoals schrijfKolommen, maar cel per cel: sneller als maar een paar rijen veranderden (bv. één boek
+ * in Titels en auteurs nakijken). schrijfKolommen leest en schrijft telkens de hele kolom. Bij meer dan
+ * vijf gewijzigde rijen gaat het toch kolom per kolom: anders rekent en tekent de spreadsheet te vaak.
+ */
+function schrijfCellen(tabel, kolommen) {
+  var gewijzigd = tabel.rijen.filter(function (r) { return r._gewijzigd && r._velden && r._rij >= 2 && !r._nieuw && !r._verwijderen; });
+  if (gewijzigd.length > 5) { schrijfKolommen(tabel, kolommen); return; }
+  gewijzigd.forEach(function (r) {
+    kolommen.forEach(function (kolom) {
+      var nr = tabel.kop.indexOf(kolom) + 1;
+      if (nr < 1 || !r._velden[kolom]) return;
+      tabel.blad.getRange(r._rij, nr).setValue(celWaarde(kolom, r[kolom]));
+    });
+    r._gewijzigd = false;
+    r._velden = {};
+  });
+}
+
+/**
  * Schrijft de gewijzigde waarden van enkele kolommen terug, elke kolom in één keer. Enkel de cellen van
  * gewijzigde rijen veranderen: de andere cellen krijgen hun eigen waarde terug (rechtstreeks uit het blad).
  */
@@ -9527,12 +9621,13 @@ function titelcontroleActie(actie, invoer, wie) {
   if (actie === 'titelcontroleBewaren') {
     var r = titelcontroleToepassen(catalogus.rijen, tabel.rijen, invoer, wie, vandaagTekst());
     if (!r.ok) return r;
+    // Cel per cel: enkel dit boek veranderde. Dat is veel sneller dan de hele kolom (zie schrijfCellen).
     if (r.catalogusGewijzigd) {
-      schrijfKolommen(catalogus, ['titel', 'auteur']);
+      schrijfCellen(catalogus, ['titel', 'auteur']);
       logboek(wie, 'titelcontrole', String(invoer.boek_id) + ': titel of auteur aangepast');
       leegCache();
     }
-    schrijfKolommen(tabel, ['status', 'wie', 'datum', 'titel_nu', 'auteur_nu']);
+    schrijfCellen(tabel, ['status', 'wie', 'datum', 'titel_nu', 'auteur_nu']);
     return { ok: true, tekst: r.tekst };
   }
   return { ok: true, lijst: titelcontroleLijst(catalogus.rijen, tabel.rijen) };
@@ -12511,6 +12606,8 @@ function zoekCoversInternetArchive() {
   logboek('menu', 'zoekCoversInternetArchive', verwerkt + ' opgezocht, ' + gevonden + ' covers gevonden, ' + rest + ' te gaan' + (fout ? ' (Internet Archive: ' + fout + ', later verder)' : ''));
   try { spreadsheet().toast(verwerkt + ' boeken opgezocht bij Internet Archive, ' + gevonden + ' covers gevonden.', 'Madrigal', 15); } catch (e) { Logger.log(fout); }
 }
+
+/* ---------- Bewaarde covers van Internet Archive nakijken ---------- */
 
 /** Menu: boeken zonder cover nog eens laten opzoeken bij Google (maakt gb_gecontroleerd leeg). */
 function zoekCoversOpnieuw() {

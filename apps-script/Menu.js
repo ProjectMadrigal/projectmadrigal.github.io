@@ -164,6 +164,7 @@ function onOpen() {
       .addSeparator()
       .addItem('Zoek opnieuw bij Google', 'zoekCoversOpnieuw')
       .addItem('Internet Archive: zoek de boeken van vandaag opnieuw', 'zoekIaVanVandaagOpnieuw')
+      .addItem('Internet Archive: kijk de bewaarde covers na (wist het logo)', 'controleerIaCovers')
       .addItem('Verwijder standaardafbeeldingen (zoals LibraryThing)', 'verwijderStandaardCovers')
       .addSeparator()
       .addItem('Bewaar alle covers in Google Drive (kopie van covers van andere sites)', 'startCoversBewaren'))

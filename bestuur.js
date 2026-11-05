@@ -44,20 +44,21 @@
     ['binnenkort', 'Vervalt binnenkort', toonBinnenkort, 'uitlenen', 'beide'],
     ['reservaties', 'Reservaties', toonReservaties, 'uitlenen', 'beide'],
     ['aanvragen', 'Aanvragen van de website', toonAanvragen, 'uitlenen'],
-    ['terugzetten', 'Terug te zetten', function (vak) { V.terugzetten(vak, context()); }, 'uitlenen', 'beide'],
     ['lopend', 'Alle uitleningen', toonLopend, 'uitlenen', 'beide'],
     ['opzoeken', 'Boek opzoeken', function (vak) { V.opzoeken(vak, context()); }, 'uitlenen', 'vrijwilliger'],
     // Enkel het bestuur: leners en geld.
     ['leners', 'Leners', toonLeners, 'leners'],
     ['borgen', 'Borgen en giften', toonBorgen, 'leners'],
     ['uitzonderingen', 'Uitzonderingen', toonUitzonderingen, 'leners'],
-    // De boeken in de kast (zie ook bestuur-beheer.js).
-    ['boeken', 'Boeken', function (vak) { W.boeken(vak, context()); }, 'collectie'],
-    ['covers', 'Boeken zonder cover', function (vak) { W.covers(vak, context()); }, 'collectie', 'vrijwilliger'],
+    // In de kast: alles waarvoor je bij de kasten staat, met de boeken in de hand.
+    ['terugzetten', 'Terug te zetten', function (vak) { V.terugzetten(vak, context()); }, 'kast', 'beide'],
+    ['kast', 'Kastcontrole', function (vak) { V.kast(vak, context()); }, 'kast', 'beide'],
+    ['titelcontrole', 'Titels en auteurs nakijken', function (vak) { window.MadrigalTitelcontrole.toon(vak, context()); }, 'kast', 'beide'],
+    ['covers', 'Boeken zonder cover', function (vak) { W.covers(vak, context()); }, 'kast', 'vrijwilliger'],
+    // De collectie: de gegevens van de boeken, van thuis uit (zie ook bestuur-beheer.js).
+    ['boeken', 'Boek zoeken of toevoegen', function (vak) { W.boeken(vak, context()); }, 'collectie'],
     ['beschrijvingen', 'Boeken zonder beschrijving', function (vak) { W.zonderBeschrijving(vak, context()); }, 'collectie', 'vrijwilliger'],
     ['voorstellen', 'Voorgestelde beschrijvingen', function (vak) { V.voorstellen(vak, context()); }, 'collectie'],
-    ['titelcontrole', 'Titels en auteurs nakijken', function (vak) { window.MadrigalTitelcontrole.toon(vak, context()); }, 'collectie', 'beide'],
-    ['kast', 'Kastcontrole', function (vak) { V.kast(vak, context()); }, 'collectie', 'beide'],
     ['tevervangen', 'Te vervangen', toonTeVervangen, 'collectie', 'beide'],
     ['boekstatus', 'Verloren en gevoelig', toonBoekstatus, 'collectie'],
     ['aankoop', 'Aankooplijst', function (vak) { window.MadrigalAankoop.toon(vak, context()); }, 'collectie', 'beide'],
@@ -72,7 +73,7 @@
     return VRIJWILLIGER ? s[4] === 'beide' || s[4] === 'vrijwilliger' : s[4] !== 'vrijwilliger';
   });
 
-  var GROEPEN = [['start', 'Start'], ['uitlenen', 'Uitlenen'], ['leners', 'Leners en borgen'], ['collectie', 'Collectie'], ['website', 'Website'], ['overzicht', 'Overzicht']];
+  var GROEPEN = [['start', 'Start'], ['uitlenen', 'Uitlenen'], ['leners', 'Leners en borgen'], ['kast', 'In de kast'], ['collectie', 'Collectie'], ['website', 'Website'], ['overzicht', 'Overzicht']];
 
   /* Het onderdeel staat in het adres (bv. bestuur.html#telaat): na herladen blijf je waar je was, en Terug werkt. */
   function sectieUitAdres() {
@@ -1033,9 +1034,12 @@
     var donker = leesKeuze(THEMA) === 'dark' || (!leesKeuze(THEMA) && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.setAttribute('data-theme', donker ? 'dark' : 'light');
     document.documentElement.classList.toggle('groot-lettertype', leesKeuze(LETTERS) === 'groot');
-    if ($('thema-knop')) { $('thema-knop').textContent = donker ? 'Lichte modus' : 'Donkere modus'; $('thema-knop').setAttribute('aria-pressed', donker ? 'true' : 'false'); }
-    if ($('letter-knop')) { var groot = leesKeuze(LETTERS) === 'groot'; $('letter-knop').textContent = groot ? 'Gewone letters' : 'Grotere letters'; $('letter-knop').setAttribute('aria-pressed', groot ? 'true' : 'false'); }
+    // Icoontjes in de kop: een vaste naam (voor schermlezers), aan of uit via aria-pressed. Aan = geel vlak.
+    if ($('thema-knop')) { if (!$('thema-knop').firstChild) $('thema-knop').innerHTML = ICOON_MAAN; $('thema-knop').setAttribute('aria-pressed', donker ? 'true' : 'false'); }
+    if ($('letter-knop')) { if (!$('letter-knop').firstChild) $('letter-knop').innerHTML = ICOON_LETTERS; $('letter-knop').setAttribute('aria-pressed', leesKeuze(LETTERS) === 'groot' ? 'true' : 'false'); }
   }
+  var ICOON_MAAN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  var ICOON_LETTERS = '<span class="ikoon-letters" aria-hidden="true">A<span>A</span></span>';
   if ($('thema-knop')) $('thema-knop').addEventListener('click', function () {
     bewaarKeuze(THEMA, document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
     zetWeergave();

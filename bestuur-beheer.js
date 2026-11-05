@@ -259,73 +259,24 @@
       })) : el('p', {}, 'Geen boek gevonden.'));
     }
     zoekveld.addEventListener('input', teken);
-    D.vervang(vak, ctx.kop('Boeken', 'Zoek een boek om het aan te passen, of voeg een nieuw boek toe. Alles komt in het tabblad Catalogus van de spreadsheet.'),
+    D.vervang(vak, ctx.kop('Boek zoeken of toevoegen', 'Zoek een boek om het aan te passen, of voeg een nieuw boek toe. Alles komt in het tabblad Catalogus van de spreadsheet.'),
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwBoek(vak, ctx); } }, '+ Nieuw boek toevoegen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () {
           // Een ISBN dat al in de catalogus staat: dat boek openen. Anders een nieuw boek met dat ISBN.
           scanIsbn().then(function (isbn) {
             if (!isbn) return;
-            var bekend = (ctx.data.boeken || []).filter(function (b) { return String(b.i) === isbn; })[0];
+            var bekend = (ctx.data.boeken || []).filter(function (b) { return zelfdeIsbn(b.i, isbn); })[0];
             if (bekend) bewerkBoek(vak, ctx, bekend.id); else boekFormulier(vak, ctx, {}, true, { isbn: isbn });
           });
         } }, 'Scan een ISBN'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonCoversZoeken(vak, ctx); } }, 'Zoek ontbrekende covers en beschrijvingen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderCover(vak, ctx); } }, 'Boeken zonder cover (' + zonder + ')'),
-        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderBeschrijving(vak, ctx); } }, 'Boeken zonder beschrijving (' + zonderTekst + ')'),
-        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonIaControle(vak, ctx); } }, 'Controleer covers van Internet Archive')),
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonZonderBeschrijving(vak, ctx); } }, 'Boeken zonder beschrijving (' + zonderTekst + ')')),
       knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonReeksStart(vak, ctx); } }, 'Schenking invoeren (boek na boek)'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonBulk(vak, ctx); } }, 'Meerdere boeken tegelijk aanpassen'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { downloadCsv('catalogus.csv', ctx.data.boeken || []); } }, 'Download de catalogus (CSV)')),
       el('div', { class: 'veld' }, el('label', { for: 'beheer-boek-zoek' }, 'Zoek een boek'), zoekveld), lijst);
     teken();
-  }
-
-  /** Kijkt alle covers van Internet Archive na en toont die met enkel het logo, om ze te wissen. */
-  function toonIaControle(vak, ctx) {
-    var voortgang = el('progress', { max: '1', value: '0', style: 'width:100%' });
-    var status = el('p', { 'aria-live': 'polite' }, 'Lijst ophalen...');
-    var resultaat = el('div');
-    D.vervang(vak, ctx.kop('Covers van Internet Archive nakijken', 'Heeft een boek bij Internet Archive geen afbeelding, dan toont die het eigen logo. Deze pagina zoekt die logo\'s. Je ziet ze eerst, daarna kan je ze wissen.'),
-      voortgang, status, resultaat, knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { naarBoeken(vak, ctx); } }, terugTekst(ctx))));
-    B.voerUit('beheerIaCovers').then(function (r) {
-      if (!r.ok) { status.textContent = r.fout || 'De lijst laden lukte niet.'; return; }
-      var boeken = r.boeken, slecht = [], gedaan = 0;
-      if (!boeken.length) { status.textContent = 'Er zijn geen covers van Internet Archive.'; return; }
-      voortgang.max = boeken.length;
-      var volgende = 0;
-      function werker() {
-        if (volgende >= boeken.length) return Promise.resolve();
-        var b = boeken[volgende++];
-        return isStaandBeeld(b.cover).then(function (staand) {
-          if (staand !== true) { b.reden = staand === null ? 'laadt niet' : 'logo of geen boekcover'; slecht.push(b); }
-          gedaan++; voortgang.value = gedaan;
-          status.textContent = gedaan + ' van ' + boeken.length + ' nagekeken, ' + slecht.length + ' zonder echte cover.';
-          return werker();
-        });
-      }
-      // Vier tegelijk: sneller, maar zonder Internet Archive te overladen.
-      Promise.all([werker(), werker(), werker(), werker()]).then(function () {
-        if (!slecht.length) { status.textContent = 'Alle ' + boeken.length + ' covers van Internet Archive zijn echte covers.'; return; }
-        var wis = el('button', { type: 'button', class: 'knop' }, 'Wis deze ' + slecht.length + ' covers');
-        wis.addEventListener('click', function () {
-          var klaar = bezig(wis, 'Bezig met wissen...');
-          B.voerUit('beheerIaCoversWissen', { ids: slecht.map(function (b) { return b.id; }) }).then(function (a) {
-            klaar();
-            if (!a.ok) { status.textContent = a.fout; return; }
-            wis.hidden = true;
-            status.textContent = a.tekst + ' Die boeken staan nu in de lijst Boeken zonder cover, en Google zoekt ze opnieuw op.';
-            slecht.forEach(function (s) { (ctx.data.boeken || []).forEach(function (x) { if (x.id === s.id) x.c = false; }); });
-          });
-        });
-        D.vervang(resultaat,
-          el('p', {}, slecht.length + ' covers tonen geen boek. Kijk ze even na:'),
-          el('ul', { class: 'aanraders', style: 'margin-bottom:1rem' }, slecht.map(function (b) {
-            return el('li', { class: 'aanrader' }, el('img', { src: b.cover, alt: '', loading: 'lazy', style: 'width:100%;max-width:8rem;border:1px solid var(--kleur-rand)' }),
-              el('span', { class: 'aanrader-titel' }, b.t), el('span', { class: 'aanrader-auteur' }, [b.a, b.id, b.reden].filter(Boolean).join(' · ')));
-          })),
-          knoppen(wis));
-      });
-    });
   }
 
   /** Alle boeken zonder cover, alfabetisch: handig om met je gsm langs de kasten te gaan en foto's te nemen. */
@@ -616,14 +567,56 @@
         var s = document.createElement('script');
         s.src = ZXING_URL;
         s.onload = function () { if (window.ZXing) klaar(window.ZXing); else mislukt(new Error('ZXing laadt niet.')); };
-        s.onerror = function () { zxingBelofte = null; mislukt(new Error('De scanner kon niet laden.')); };
+        s.onerror = function () { zxingBelofte = null; mislukt(new Error('De scanner kon niet laden. Heb je internet? Probeer opnieuw, of typ het ISBN in. Lukt het nooit? Zet dan een advertentieblokker uit voor deze site.')); };
         document.head.appendChild(s);
       });
     }
     return zxingBelofte;
   }
 
+  /*
+   * De lezer van de browser zelf (BarcodeDetector), als die echt werkt. Sommige toestellen hebben hem wel,
+   * maar zonder streepjescodes (EAN-13) of zonder de dienst erachter. Dan: null, en ZXing neemt over.
+   */
+  var ingebouwdWerkt = true;
+  function ingebouwdeLezer(video) {
+    if (!ingebouwdWerkt || !('BarcodeDetector' in window)) return Promise.resolve(null);
+    var formaten = window.BarcodeDetector.getSupportedFormats ? window.BarcodeDetector.getSupportedFormats() : Promise.resolve(['ean_13']);
+    return Promise.resolve(formaten).then(function (lijst) {
+      if ((lijst || []).indexOf('ean_13') === -1) throw new Error('geen EAN-13');
+      var detector = new window.BarcodeDetector({ formats: ['ean_13'] });
+      return function () { return detector.detect(video).then(function (codes) { return codes.map(function (c) { return c.rawValue; }).filter(isIsbn)[0] || ''; }); };
+    }).then(null, function () { ingebouwdWerkt = false; return null; });
+  }
+
   function isIsbn(c) { return /^97[89]\d{10}$/.test(String(c || '')); }
+
+  /**
+   * Een getypt of gescand ISBN als ISBN-13, of '' als het geen geldig ISBN is.
+   * Een ISBN-10 (oudere boeken, tot 2007: 10 tekens, soms met een X op het einde) wordt 978 + 9 cijfers +
+   * een nieuw controlecijfer. Dat is ook wat de streepjescode van zo'n boek bevat. Streepjes en spaties tellen niet.
+   */
+  function naarIsbn13(tekst) {
+    var t = String(tekst || '').toUpperCase().replace(/^ISBN/, '').replace(/[^0-9X]/g, '');
+    if (/^\d{9}[\dX]$/.test(t)) {
+      var som10 = 0;
+      for (var i = 0; i < 10; i++) som10 += (t[i] === 'X' ? 10 : Number(t[i])) * (10 - i);
+      if (som10 % 11) return '';
+      var kern = '978' + t.slice(0, 9), som = 0;
+      for (var j = 0; j < 12; j++) som += Number(kern[j]) * (j % 2 ? 3 : 1);
+      return kern + ((10 - som % 10) % 10);
+    }
+    if (!isIsbn(t)) return '';
+    var s13 = 0;
+    for (var k = 0; k < 12; k++) s13 += Number(t[k]) * (k % 2 ? 3 : 1);
+    return (10 - s13 % 10) % 10 === Number(t[12]) ? t : '';
+  }
+
+  /** Zelfde ISBN? Ook als het ene als ISBN-10 of met streepjes geschreven is. */
+  function zelfdeIsbn(a, b) {
+    var x = naarIsbn13(a), y = naarIsbn13(b);
+    return !!x && x === y;
+  }
 
   /** Leest een ISBN uit een canvas met ZXing. Geeft het ISBN of ''. */
   function leesIsbnZxing(ZX, canvas) {
@@ -670,7 +663,8 @@
       document.body.appendChild(dialoog);
       dialoog.showModal();
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        status.textContent = 'Deze browser kan de camera niet gebruiken. Typ het ISBN in.';
+        // Meestal: de site is geopend vanuit een andere app (WhatsApp, Instagram, Messenger, ...). Die laten de camera niet toe.
+        status.textContent = 'Deze browser kan de camera niet gebruiken. Open de site in Chrome of Safari (niet vanuit WhatsApp, Instagram of Messenger), of typ het ISBN in.';
         return;
       }
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function (s) {
@@ -679,20 +673,18 @@
         return video.play();
       }).then(function () {
         if (klaarOk) return;
-        var lees;
-        if ('BarcodeDetector' in window) {
-          var detector = new window.BarcodeDetector({ formats: ['ean_13'] });
-          lees = function () { return detector.detect(video).then(function (codes) { return codes.map(function (c) { return c.rawValue; }).filter(isIsbn)[0] || ''; }); };
-        } else {
-          status.textContent = 'Scanner laden...';
-          lees = function () {
-            return laadZxing().then(function (ZX) {
-              doek.width = video.videoWidth; doek.height = video.videoHeight;
-              doek.getContext('2d').drawImage(video, 0, 0);
-              return leesIsbnZxing(ZX, doek);
-            });
-          };
-        }
+        return ingebouwdeLezer(video);
+      }).then(function (ingebouwd) {
+        if (klaarOk) return;
+        var metZxing = function () {
+          return laadZxing().then(function (ZX) {
+            doek.width = video.videoWidth; doek.height = video.videoHeight;
+            doek.getContext('2d').drawImage(video, 0, 0);
+            return leesIsbnZxing(ZX, doek);
+          });
+        };
+        var lees = ingebouwd || metZxing;
+        if (!ingebouwd) status.textContent = 'Scanner laden...';
         (function kijk() {
           if (klaarOk) return;
           lees().then(function (isbn) {
@@ -706,10 +698,18 @@
             if (isbn) { einde(isbn); return; }
             if (!opties.doorlopend) status.textContent = 'Zoeken naar een streepjescode...';
             setTimeout(kijk, 300);
-          }, function (e) { status.textContent = e.message || 'Scannen lukt niet. Typ het ISBN in.'; });
+          }, function (e) {
+            // De lezer van de browser zelf werkt toch niet (bv. "Barcode detection service unavailable"
+            // op een toestel zonder Google Play-diensten): verder met ZXing, zonder dat iemand iets merkt.
+            if (lees === ingebouwd) { ingebouwdWerkt = false; lees = metZxing; status.textContent = 'Scanner laden...'; setTimeout(kijk, 0); return; }
+            status.textContent = (e && e.message) || 'Scannen lukt niet. Typ het ISBN in.';
+          });
         })();
-      }, function () {
-        status.textContent = 'De camera opent niet. Geef deze site toestemming voor de camera, of typ het ISBN in.';
+      }, function (e) {
+        // Geen toestemming, of een andere app gebruikt de camera al.
+        status.textContent = e && e.name === 'NotAllowedError'
+          ? 'De camera opent niet: deze site heeft geen toestemming. Geef toestemming in de instellingen van je browser (het slotje naast het adres), of typ het ISBN in.'
+          : 'De camera opent niet. Sluit andere apps die de camera gebruiken en probeer opnieuw, of typ het ISBN in.';
       });
     });
   }
@@ -1640,6 +1640,10 @@
     scanIsbn: scanIsbn,
     boekKnop: boekKnop,
     isIsbn: isIsbn,
+    naarIsbn13: naarIsbn13,
+    zelfdeIsbn: zelfdeIsbn,
+    /** Voor titelcontrole.js: de link naar de cover van een boek, of ''. */
+    coverLink: function (id) { return laadCoverLinks().then(function (links) { return links[id] || ''; }); },
     instellingen: toonInstellingen,
     /** Bij Vernieuw: nieuws, agenda en instellingen opnieuw ophalen. */
     vergeet: function () { inhoud = null; }

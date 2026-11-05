@@ -486,7 +486,7 @@ async function meldAan(page, basis, pagina) {
   await test('bestuursscherm: lijst van boeken zonder beschrijving', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
     await meldAan(page, basis, 'bestuur.html');
-    await page.click('#sectienav button:has-text("Boeken")');
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
     await page.click('button:has-text("Boeken zonder beschrijving (151)")');
     let titels = await page.$$eval('.kaartlijst strong', (x) => x.map((e) => e.textContent));
     verwacht(titels.length === 100 && titels[0] === 'Verzonnen titel 000', 'Eerste 100: ' + titels.length + ', ' + titels[0]);
@@ -545,7 +545,7 @@ async function meldAan(page, basis, pagina) {
     await page.goBack();
     await page.waitForFunction(() => /Vandaag/.test(document.querySelector('#sectie h2').textContent));
     // Kleine cover bij een boek met cover
-    await page.click('#sectienav button:has-text("Boeken")');
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
     await page.fill('#beheer-boek-zoek', 'kasten');
     await page.waitForSelector('.mini-cover img');
     // Zoek dit boek op het internet: vult de lege beschrijving in
@@ -586,7 +586,7 @@ async function meldAan(page, basis, pagina) {
     await page.waitForFunction(() => /Herinnering 2 van 2/.test(document.querySelector('#sectie h2').textContent));
     verwacht(await page.isVisible('a:has-text("Open in je mail")'), 'Mail-knop bij de tweede');
     // Boek: overzicht met uitleningen en laatst aangepast
-    await page.click('#sectienav button:has-text("Boeken")');
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
     await page.fill('#beheer-boek-zoek', 'zee');
     await page.click('.kaartlijst button');
     await page.waitForSelector('.boek-overzicht');
@@ -639,8 +639,10 @@ async function meldAan(page, basis, pagina) {
     // Uitleg per onderdeel
     verwacht(await page.isVisible('#hulp summary:has-text("Hoe werkt dit?")'), 'Uitleg bij Vandaag');
     // Donkere modus en grotere letters
+    verwacht((await page.getAttribute('#thema-knop', 'aria-label')) === 'Donkere modus' && await page.$('#thema-knop svg') && await page.$('.kop #letter-knop .ikoon-letters'), 'Icoontjes in de kop');
     await page.click('#thema-knop');
     const thema1 = await page.getAttribute('html', 'data-theme');
+    verwacht((await page.getAttribute('#thema-knop', 'aria-pressed')) === (thema1 === 'dark' ? 'true' : 'false'), 'aria-pressed volgt de donkere modus');
     await page.click('#thema-knop');
     verwacht(thema1 !== await page.getAttribute('html', 'data-theme'), 'Thema wisselt');
     await page.click('#letter-knop');
@@ -670,7 +672,7 @@ async function meldAan(page, basis, pagina) {
     await page.click('.kaart >> nth=0 >> button:has-text("Verleng")');
     await page.waitForSelector('#melding :text("verlengd")');
     // CSV van de catalogus
-    await page.click('#sectienav button:has-text("Boeken")');
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
     const [download] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Download de catalogus (CSV)")')]);
     const inhoud = fs.readFileSync(await download.path(), 'utf8');
     verwacht(download.suggestedFilename() === 'catalogus.csv' && /boek_id;titel;auteur/.test(inhoud) && /De verzonnen zee/.test(inhoud), 'CSV: ' + inhoud.slice(0, 80));
@@ -683,7 +685,7 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("Pas aan")');
     await page.waitForSelector('#melding :text("1 boek aangepast")');
     // Schenking boek na boek
-    await page.click('#sectienav button:has-text("Boeken")');
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
     await page.click('button:has-text("Schenking invoeren")');
     await page.fill('#reeks-herkomst', 'Schenking van een verzonnen naam');
     await page.click('button:has-text("Start")');
@@ -718,9 +720,9 @@ async function meldAan(page, basis, pagina) {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'vrijwilliger' });
     await meldAan(page, basis, 'vrijwilliger.html');
     const knoppen = await page.$$eval('#sectienav button', (x) => x.map((e) => e.textContent.replace(/ \(.*\)$/, '')));
-    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Rooster', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Reservaties', 'Terug te zetten', 'Alle uitleningen', 'Boek opzoeken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Titels en auteurs nakijken', 'Kastcontrole', 'Te vervangen', 'Aankooplijst', 'Nieuws en agenda', 'Leeslijsten']), 'Onderdelen: ' + knoppen.join(', '));
+    verwacht(JSON.stringify(knoppen) === JSON.stringify(['Vandaag', 'Rooster', 'Handleiding', 'Checklist voor de shift', 'Iets melden', 'Mijn voorstellen en meldingen', 'Te laat', 'Vervalt binnenkort', 'Reservaties', 'Alle uitleningen', 'Boek opzoeken', 'Terug te zetten', 'Kastcontrole', 'Titels en auteurs nakijken', 'Boeken zonder cover', 'Boeken zonder beschrijving', 'Te vervangen', 'Aankooplijst', 'Nieuws en agenda', 'Leeslijsten']), 'Onderdelen: ' + knoppen.join(', '));
     const groepen = await page.$$eval('#sectienav .navgroep-kop', (e) => e.map((x) => x.textContent));
-    verwacht(JSON.stringify(groepen) === JSON.stringify(['Start', 'Uitlenen', 'Collectie', 'Website']), 'Groepen: ' + groepen.join(', '));
+    verwacht(JSON.stringify(groepen) === JSON.stringify(['Start', 'Uitlenen', 'In de kast', 'Collectie', 'Website']), 'Groepen: ' + groepen.join(', '));
     verwacht(!/Logboek/.test(await page.textContent('#sectie')), 'Vandaag toont het Logboek aan een vrijwilliger');
     await page.click('#sectienav button:has-text("Te laat")');
     verwacht(!/0400000000|Kopieer herinnering/.test(await page.textContent('#sectie')), 'Contactgegevens zichtbaar');
@@ -805,6 +807,15 @@ async function meldAan(page, basis, pagina) {
     await page.fill('#kast-isbn', '9780306406157');
     await page.click('button:has-text("Voeg toe")');
     verwacht(/Niet in de catalogus \(1\)/.test(await page.textContent('#sectie')), 'Onbekend ISBN niet getoond');
+    // Hetzelfde boek als ISBN-10, met streepjes: telt niet dubbel. Een fout ISBN geeft een melding.
+    await page.fill('#kast-isbn', '0-306-40615-2');
+    await page.click('button:has-text("Voeg toe")');
+    verwacht(/Niet in de catalogus \(1\)/.test(await page.textContent('#sectie')), 'ISBN-10 niet herkend als hetzelfde boek');
+    await page.fill('#kast-isbn', '0306406153');
+    await page.click('button:has-text("Voeg toe")');
+    verwacht(/geen geldig ISBN/.test(await page.textContent('#sectie')), 'Fout ISBN zonder melding');
+    verwacht(JSON.stringify(await page.evaluate(() => ['0306406152', '080442957X', '978-0-306-40615-7', '9780306406158', '12345'].map(window.MadrigalBestuurBeheer.naarIsbn13))) ===
+      JSON.stringify(['9780306406157', '9780804429573', '9780306406157', '', '']), 'ISBN-10 naar ISBN-13');
     await page.check('#kast-B0002');
     const tekst = await page.textContent('#sectie');
     verwacht(/Ontbreekt \(0\)/.test(tekst) && /Uitgeleend \(1\)/.test(tekst) && /Gevonden \(1\)/.test(tekst), 'Resultaat kastcontrole: ' + tekst.slice(0, 300));
@@ -977,6 +988,7 @@ async function meldAan(page, basis, pagina) {
     const vragen = [];
     page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
     await meldAan(page, basis, 'verkoop.html');
+    verwacht((await page.getAttribute('#naar-scherm', 'href')) === 'vrijwilliger.html', 'Vrijwilliger: de knop gaat naar het vrijwilligersscherm');
     await page.click('#werkvlak button:has-text("Open")');
     verwacht(/Mee: 2 · verkocht: 0 · nog hier: 2 · thuis: 1/.test(await page.textContent('#werkvlak')), 'Stand van het boek');
     // Zoals op de website: een kaart met (tijdelijke) cover, thema's en de beschrijving om open te klappen.
@@ -1025,6 +1037,7 @@ async function meldAan(page, basis, pagina) {
     const vragen = [];
     page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
     await meldAan(page, basis, 'verkoop.html');
+    verwacht((await page.getAttribute('#naar-scherm', 'href')) === 'bestuur.html', 'Met de bestuurscode: geen knop naar het bestuursscherm');
     await page.click('#werkvlak button:has-text("Voorraad beheren")');
     await page.waitForSelector('#vr-zoek');
     verwacht(/De verzonnen zee/.test(await page.textContent('#werkvlak')) && !/Stille lichten/.test(await page.textContent('#werkvlak')), 'Zonder zoekterm: enkel wat te koop is');
@@ -1113,6 +1126,15 @@ async function meldAan(page, basis, pagina) {
     verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Kim van Dam; Jo Bos', 'Van Dam, Kim; Bos, Jo'))) === 'van Dam, Kim; Bos, Jo', 'Twee auteurs met tussenvoegsel');
     verwacht((await page.evaluate(() => window.MadrigalTitelcontrole.auteurInVorm('Kim van Dam & Jo Bos', 'Van Dam, Kim & Bos, Jo'))) === 'van Dam, Kim & Bos, Jo', 'Twee auteurs met &');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
+    // De cover van het boek staat erbij (B0002 heeft er een, B0001 niet).
+    await page.waitForSelector('.tc-cover img[src^="data:"]');
+    // Vorige: terug naar het boek dat je net bewaarde, met wat je bewaarde in de velden. Daarna weer verder.
+    await page.click('button:has-text("‹ Vorige")');
+    verwacht((await page.inputValue('#tc-titel')) === 'De verzonnen zee' && (await page.inputValue('#tc-auteur')) === 'Verbeek, Mira', 'Vorige toont het bewaarde boek niet: ' + await page.inputValue('#tc-titel'));
+    verwacht(/Al nagekeken in dit bezoek/.test(await page.textContent('#tc-al')), 'Geen uitleg bij een al nagekeken boek');
+    verwacht(/Geen cover/.test(await page.textContent('.tc-cover')), 'Boek zonder cover');
+    await page.click('button:has-text("Volgende ›")');
+    verwacht((await page.inputValue('#tc-titel')) === 'Twee kasten vol', 'Volgende na Vorige');
     await page.selectOption('#tc-kast', 'Maatschappij');
     await page.click('button:has-text("Niet in de kast")');
     await page.waitForSelector('text=Op de lijst voor het bestuur.');

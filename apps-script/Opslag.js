@@ -292,6 +292,25 @@ function schrijfKolommen(tabel, kolommen) {
   tabel.rijen.forEach(function (r) { if (r._gewijzigd && !r._nieuw && !r._verwijderen) { r._gewijzigd = false; r._velden = {}; } });
 }
 
+/**
+ * Zoals schrijfKolommen, maar cel per cel: sneller als maar een paar rijen veranderden (bv. één boek
+ * in Titels en auteurs nakijken). schrijfKolommen leest en schrijft telkens de hele kolom. Bij meer dan
+ * vijf gewijzigde rijen gaat het toch kolom per kolom: anders rekent en tekent de spreadsheet te vaak.
+ */
+function schrijfCellen(tabel, kolommen) {
+  var gewijzigd = tabel.rijen.filter(function (r) { return r._gewijzigd && r._velden && r._rij >= 2 && !r._nieuw && !r._verwijderen; });
+  if (gewijzigd.length > 5) { schrijfKolommen(tabel, kolommen); return; }
+  gewijzigd.forEach(function (r) {
+    kolommen.forEach(function (kolom) {
+      var nr = tabel.kop.indexOf(kolom) + 1;
+      if (nr < 1 || !r._velden[kolom]) return;
+      tabel.blad.getRange(r._rij, nr).setValue(celWaarde(kolom, r[kolom]));
+    });
+    r._gewijzigd = false;
+    r._velden = {};
+  });
+}
+
 /** Zet een rij-object om naar een lijst celwaarden volgens de kop. */
 function rijNaarWaarden(kop, obj) {
   return kop.map(function (k) { return k ? celWaarde(k, obj[k]) : ''; });

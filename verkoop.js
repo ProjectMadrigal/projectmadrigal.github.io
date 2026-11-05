@@ -460,6 +460,11 @@
   /* ---------- Starten ---------- */
 
   function start() {
+    // Aangemeld met de code van het bestuur: de knop gaat naar het bestuursscherm.
+    if (B.sessie.rol === 'bestuur' && $('naar-scherm')) {
+      $('naar-scherm').href = 'bestuur.html';
+      $('naar-scherm').textContent = 'Naar het bestuursscherm';
+    }
     try { data = JSON.parse(lees(DATA) || 'null'); } catch (e) { data = null; }
     teken();
     laad().then(stuurDoor);

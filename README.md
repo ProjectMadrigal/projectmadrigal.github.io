@@ -255,6 +255,8 @@ Kort:
 
 ## A7. Het bestuursscherm
 
+Het menu van het bestuurs- en vrijwilligersscherm heeft groepen. **In de kast** bundelt alles waarvoor je bij de kasten staat, met de boeken in de hand: **Terug te zetten**, **Kastcontrole**, **Titels en auteurs nakijken** en (bij vrijwilligers) **Boeken zonder cover**. **Collectie** is wat je ook van thuis uit kan: boeken zoeken en aanpassen, beschrijvingen, de aankooplijst. Rechts bovenaan staan twee icoontjes: de maan zet de **donkere modus** aan of uit, de twee A's de **grotere letters**. Een geel vlakje betekent: staat aan.
+
 Het bestuursscherm toont:
 
 - wat **te laat** is, met de contactgegevens en een herinnering om te kopiëren of meteen via WhatsApp of mail te versturen;
@@ -273,7 +275,7 @@ Verstuurde je een herinnering? Klik op **Herinnering verstuurd**, dan zie je wan
 
 **De website aanpassen zonder de spreadsheet.** Het bestuursscherm heeft drie onderdelen om de website te beheren. Alles komt in dezelfde spreadsheet terecht, je kan dus ook daar blijven werken.
 
-- **Boeken:** zoek een boek en pas het aan (status, aanrader, startpagina, beschrijving, cover, aantal, ...). Of klik op **Nieuw boek toevoegen**: vul het ISBN in en klik op **Zoek gegevens op**, dan vult de site titel, auteur, cover en beschrijving voor je in via Open Library en Google Books. Staat het ISBN al in de catalogus, dan zegt de site dat en kan je beter het aantal verhogen.
+- **Collectie > Boek zoeken of toevoegen:** zoek een boek en pas het aan (status, aanrader, startpagina, beschrijving, cover, aantal, ...). Of klik op **Nieuw boek toevoegen**: vul het ISBN in en klik op **Zoek gegevens op**, dan vult de site titel, auteur, cover en beschrijving voor je in via Open Library en Google Books. Staat het ISBN al in de catalogus, dan zegt de site dat en kan je beter het aantal verhogen.
 - **Nieuws en agenda:** berichten, events en veelgestelde vragen toevoegen, aanpassen, verbergen of verwijderen.
 - **Teksten en instellingen:** openingsuren, teksten en de andere instellingen. De codes (`toegangscode_balie`, `code_bestuur`, `rooster_code`) en de Google Books-sleutel staan hier niet: die pas je enkel in de spreadsheet aan.
 
@@ -382,6 +384,9 @@ Films (dvd's) staan in de Catalogus, net als de boeken, met soort `film` en een 
 | "Het tabblad Catalogus bestaat niet" | Je startte in Apps Script een andere functie dan **installeer**. Kies **installeer** in de keuzelijst naast **Uitvoeren**. |
 | Het opzoeken van boekgegevens stopt halverwege | Normaal: het gaat na een minuut vanzelf verder. Bij een daglimiet van Google na 6 uur. Het Logboek toont de stand. |
 | "Er ging iets mis: ..." | Kijk in het tabblad **Logboek**, en in Apps Script bij **Uitvoeringen** (links, het lijstje). |
+| Scannen: "Deze browser kan de camera niet gebruiken" | De site is geopend vanuit een andere app (WhatsApp, Instagram, Messenger). Open ze in Chrome of Safari. |
+| Scannen: "De scanner kon niet laden" | Het toestel haalt de lezer ZXing niet binnen (geen internet, of een advertentieblokker blokkeert jsDelivr). Probeer met internet, zet de blokker uit voor deze site, of typ het ISBN. |
+| Scannen: de camera opent, maar herkent niets | Oude boeken (voor ongeveer 1975) hebben geen streepjescode, Amerikaanse pockets soms enkel een prijscode. Typ dan het ISBN: 13 cijfers of 10 tekens (ISBN-10) mag allebei. |
 | Iets anders | Noteer wat je deed en wat je zag, en geef dat aan de beheerder. |
 
 ---
@@ -540,7 +545,7 @@ Je mag "Madrigal > Installeer tabbladen" later opnieuw uitvoeren. Bestaande tabb
    - **Een foto van de achterkant.** Open een boek in het bestuursscherm en gebruik **Tekst van de achterkant**. Google leest de tekst van de foto en zet ze in het veld Beschrijving. Lees ze na en klik op Bewaar. Nodig: zet in Apps Script de service **Drive API** aan (links naast Services op **+** klikken, **Drive API** kiezen, **Toevoegen**).
 
    **Nog geen cover?** Vijf extra manieren:
-   - **Internet Archive.** Miljoenen ingescande boeken, ook oudere en tweedehands uitgaven. De knop in het bestuursscherm zoekt daar als derde bron, na Google en Open Library. Werkt dat niet vanuit je browser, kies dan **Madrigal > Covers > Zoek covers bij Internet Archive** in het menu. De kolom `ia_gezocht` toont welke boeken al opgezocht werden. Heeft een boek daar geen afbeelding, dan toont Internet Archive zijn logo: zo'n beeld neemt de site niet over (een cover is staand, het logo vierkant). Staan er toch logo's in de catalogus, gebruik dan **Bestuursscherm > Boeken > Controleer covers van Internet Archive**.
+   - **Internet Archive.** Miljoenen ingescande boeken, ook oudere en tweedehands uitgaven. De knop in het bestuursscherm zoekt daar als derde bron, na Google en Open Library. Werkt dat niet vanuit je browser, kies dan **Madrigal > Covers > Zoek covers bij Internet Archive** in het menu. De kolom `ia_gezocht` toont welke boeken al opgezocht werden. Heeft een boek daar geen afbeelding, dan toont Internet Archive zijn logo: zo'n beeld neemt de site niet over (een cover is staand, het logo vierkant). Staan er toch logo's in de catalogus (van voor die controle), kies dan **Madrigal > Covers > Internet Archive: kijk de bewaarde covers na (wist het logo)**. Het script kijkt elke cover van Internet Archive na en wist wat geen staande afbeelding is. Die boeken komen terug in de lijst Boeken zonder cover en Google zoekt ze opnieuw op. Een cover die niet laadt, blijft staan. Het werkt in porties op de achtergrond, het Logboek toont welke boeken gewist zijn.
    - **Een foto in de bib.** Bestuursscherm > Boeken > **Boeken zonder cover**. Kies een boek en neem met je gsm een foto van de voorkant. De site verkleint de foto, bewaart ze in de map `cover_map` (standaard "Project Madrigal covers") op Google Drive en zet de link in `cover_url`. Een foto kan je ook bij elk ander boek nemen, om een slechte cover te vervangen. Tip: een effen achtergrond, goed licht en geen schaduw.
    - **Madrigal > Covers > Zoek covers bij bol.com.** Vooral nuttig voor Nederlandstalige boeken. Je hebt een gratis partneraccount bij bol.com nodig: maak daar in de API-instellingen een Client ID en Client Secret, en zet die in Instellingen bij `bol_client_id` en `bol_client_secret`. Lees eerst de voorwaarden van het partnerprogramma na. Met **Madrigal > Testen > Test bol.com** zie je wat bol.com voor één ISBN teruggeeft.
    - **Madrigal > Covers > Zoek covers van andere uitgaven.** Neemt de cover van een herdruk of een andere vertaling, of zoekt op titel en auteur. De kolom `cover_bron` vermeldt vanwaar de cover komt, zodat je covers van een andere uitgave kan nakijken.

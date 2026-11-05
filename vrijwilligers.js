@@ -214,7 +214,7 @@
     var inKast = {};
     k.boeken.forEach(function (b) { inKast[b.id] = true; });
     k.gescand.forEach(function (isbn) {
-      var b = boeken.filter(function (x) { return x.i === isbn; })[0];
+      var b = boeken.filter(function (x) { return W && W.zelfdeIsbn ? W.zelfdeIsbn(x.i, isbn) : x.i === isbn; })[0];
       if (!b) res.onbekend.push(isbn);
       else if (!inKast[b.id] && res.anderOnderwerp.indexOf(b) === -1) res.anderOnderwerp.push(b);
     });
@@ -262,7 +262,7 @@
   /** Een ISBN telt mee. Geeft de tekst voor onder het camerabeeld. */
   function verwerkIsbn(ctx, isbn) {
     if (kast.gescand.indexOf(isbn) === -1) kast.gescand.push(isbn);
-    var b = (ctx.data.boeken || []).filter(function (x) { return x.i === isbn; })[0];
+    var b = (ctx.data.boeken || []).filter(function (x) { return W.zelfdeIsbn(x.i, isbn); })[0];
     if (!b) return isbn + ': niet in de catalogus.';
     var inKast = kast.boeken.some(function (x) { return x.id === b.id; });
     if (inKast) kast.gevonden[b.id] = true;
@@ -271,12 +271,13 @@
 
   function toonKastBezig(vak, ctx) {
     var res = kastResultaat(kast, ctx.data.boeken || [], ctx.data.lopend || []);
-    var isbnVeld = el('input', { type: 'text', id: 'kast-isbn', inputmode: 'numeric', autocomplete: 'off', placeholder: '978...' });
+    var isbnVeld = el('input', { type: 'text', id: 'kast-isbn', autocomplete: 'off', placeholder: '978... of een ISBN-10' }); // geen cijfertoetsenbord: een ISBN-10 kan op X eindigen
     var status = el('p', { 'aria-live': 'polite' });
     function voegIsbnToe(e) {
       e.preventDefault();
-      var isbn = isbnVeld.value.replace(/[^\dX]/gi, '');
-      if (!W.isIsbn(isbn)) { status.textContent = 'Dit is geen ISBN-13.'; return; }
+      // ISBN-13 of ISBN-10 (oudere boeken): allebei goed.
+      var isbn = W.naarIsbn13(isbnVeld.value);
+      if (!isbn) { status.textContent = 'Dit is geen geldig ISBN. Een ISBN heeft 13 cijfers (978...) of, bij oudere boeken, 10 tekens. Kijk het nog eens na.'; return; }
       var tekst = verwerkIsbn(ctx, isbn);
       toonKastBezig(vak, ctx);
       B.melding($('melding'), 'info', tekst);
@@ -554,6 +555,8 @@
       if (!q) { D.vervang(lijst); return; }
       var id = q.toUpperCase();
       var gevonden = boeken.filter(function (b) { return b.id === id || b.id === id.replace(/-\d+$/, ''); });
+      // Een ISBN, ook als ISBN-10 of met streepjes.
+      if (!gevonden.length && W && W.naarIsbn13 && W.naarIsbn13(q)) gevonden = boeken.filter(function (b) { return W.zelfdeIsbn(b.i, q); });
       if (!gevonden.length) gevonden = Z.zoek(index, q).slice(0, 10).map(function (r) { return r.boek; });
       D.vervang(lijst, gevonden.length ? el('ul', { class: 'kaartlijst' }, gevonden.map(function (b) { return boekKaart(b, ctx); })) : el('p', {}, 'Geen boek gevonden.'));
     }

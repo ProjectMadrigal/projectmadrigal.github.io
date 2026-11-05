@@ -541,12 +541,13 @@ function titelcontroleActie(actie, invoer, wie) {
   if (actie === 'titelcontroleBewaren') {
     var r = titelcontroleToepassen(catalogus.rijen, tabel.rijen, invoer, wie, vandaagTekst());
     if (!r.ok) return r;
+    // Cel per cel: enkel dit boek veranderde. Dat is veel sneller dan de hele kolom (zie schrijfCellen).
     if (r.catalogusGewijzigd) {
-      schrijfKolommen(catalogus, ['titel', 'auteur']);
+      schrijfCellen(catalogus, ['titel', 'auteur']);
       logboek(wie, 'titelcontrole', String(invoer.boek_id) + ': titel of auteur aangepast');
       leegCache();
     }
-    schrijfKolommen(tabel, ['status', 'wie', 'datum', 'titel_nu', 'auteur_nu']);
+    schrijfCellen(tabel, ['status', 'wie', 'datum', 'titel_nu', 'auteur_nu']);
     return { ok: true, tekst: r.tekst };
   }
   return { ok: true, lijst: titelcontroleLijst(catalogus.rijen, tabel.rijen) };
