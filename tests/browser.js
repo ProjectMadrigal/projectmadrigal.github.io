@@ -71,7 +71,7 @@ const AANKOOP = [
   { id: 'K0003', t: 'Stille lichten', a: 'Fictief, Kim', i: '', g: '', p: 12, l: '', r: '', d: '2026-09-01', w: 'Kim', k: false, s: 'binnen', b: 'B0003', db: '2026-10-01' }
 ];
 const VERKOOP = {
-  teKoop: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', prijs: 8, o: true, stock: 3, c: '', g: ['Fictie', 'Gender'], d: 'Een verzonnen verhaal over de zee.' }],
+  teKoop: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', prijs: 8, o: true, stock: 3, c: '', g: ['Fictie', 'Gender'], d: 'Een verzonnen verhaal over de zee.', u: 'Uitgeverij Fictie', j: 1999, l: 'Nederlands', v: 'Paperback', n: 'nieuw' }],
   standjes: [{ standje_id: 'S0001', naam: 'Pride Antwerpen', thema: 'Pride', datum: '2026-08-08', locatie: 'Groenplaats', status: 'bezig',
     boeken: [{ boek_id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', mee: 2, verkocht: 0, prijs: 8, o: true, stock: 3, c: '', g: ['Fictie', 'Gender'], d: 'Een verzonnen verhaal over de zee.' }],
     omzet: { totaal: 0, perBetaalwijze: {} }, aantalVerkopen: 0 }],
@@ -1052,6 +1052,10 @@ async function meldAan(page, basis, pagina) {
     page.on('request', (q) => { if (q.method() === 'POST') vragen.push(JSON.parse(q.postData() || '{}')); });
     await meldAan(page, basis, 'verkoop.html');
     verwacht((await page.getAttribute('#naar-scherm', 'href')) === 'vrijwilliger.html', 'Vrijwilliger: de knop gaat naar het vrijwilligersscherm');
+    // Lijst voor kopers: titel, gegevens en prijs, zonder aantallen.
+    const [lijstKopers] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Download voor Excel")')]);
+    const csvKopers = fs.readFileSync(await lijstKopers.path(), 'utf8');
+    verwacht(/^\ufefftitel;auteur;uitgeverij/.test(csvKopers) && /De verzonnen zee;Verbeek, Mira;Uitgeverij Fictie;1999;Nederlands;;Paperback;nieuw/.test(csvKopers) && /;8;ja/.test(csvKopers) && !/stock|aantal|\b3\b/.test(csvKopers.split('\n')[0]), 'Lijst voor kopers: ' + csvKopers.slice(0, 200));
     await page.click('#werkvlak button:has-text("Open")');
     verwacht(/Mee: 2 · verkocht: 0 · nog hier: 2 · thuis: 1/.test(await page.textContent('#werkvlak')), 'Stand van het boek');
     // Zoals op de website: een kaart met (tijdelijke) cover, thema's en de beschrijving om open te klappen.

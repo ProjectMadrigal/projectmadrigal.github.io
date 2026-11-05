@@ -50,6 +50,54 @@
 
   function prijsTekst(p) { return p === null || p === undefined || p === '' ? 'geen prijs' : D.euro(p); }
 
+  /* ---------- Lijst voor kopers (zonder aantallen) ---------- */
+
+  /** De gegevens van een boek op één regel: uitgeverij, jaar, taal, pagina's, uitvoering, nieuw of tweedehands, ISBN. */
+  function gegevensRegel(b) {
+    return [b.u, b.j, b.l, b.p ? b.p + ' blz.' : '', b.v, b.n, b.i ? 'ISBN ' + b.i : ''].filter(Boolean).join(' · ');
+  }
+  function koperPrijs(b) {
+    return b.prijs === null || b.prijs === undefined || b.prijs === '' ? 'prijs op aanvraag' : D.euro(b.prijs) + (b.o ? ' (onderhandelbaar)' : '');
+  }
+
+  /** Drukt de lijst voor kopers af (of bewaar ze als PDF via de afdrukknop van de browser). Zonder aantallen. */
+  function drukKopersLijst() {
+    var boeken = data.teKoop || [];
+    var vak = el('div', { class: 'afdruk kopers', id: 'afdruk' },
+      el('h1', {}, 'Te koop bij Project Madrigal'),
+      el('p', {}, boeken.length + (boeken.length === 1 ? ' boek' : ' boeken') + ' · ' + D.korteDatum(new Date().toISOString().slice(0, 10))),
+      boeken.map(function (b) {
+        return el('div', { class: 'koper-boek' },
+          el('h2', {}, b.t, el('span', { class: 'koper-prijs' }, koperPrijs(b))),
+          b.a ? el('p', { class: 'koper-auteur' }, b.a) : null,
+          gegevensRegel(b) ? el('p', { class: 'koper-meta' }, gegevensRegel(b)) : null,
+          (b.g || []).length ? el('p', { class: 'koper-meta' }, 'Thema\'s: ' + b.g.join(', ')) : null,
+          b.d ? el('p', {}, b.d) : null);
+      }));
+    document.body.appendChild(vak);
+    document.body.classList.add('druk-lijst');
+    window.addEventListener('afterprint', function weg() {
+      document.body.classList.remove('druk-lijst');
+      vak.remove();
+      window.removeEventListener('afterprint', weg);
+    });
+    window.print();
+  }
+
+  /** De lijst voor kopers als bestand voor Excel (CSV), zonder aantallen. */
+  function downloadKopersLijst() {
+    var cel = function (w) { w = String(w === undefined || w === null ? '' : w); return /[";\n]/.test(w) ? '"' + w.replace(/"/g, '""') + '"' : w; };
+    var rijen = [['titel', 'auteur', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'staat', 'isbn', 'themas', 'beschrijving', 'prijs', 'onderhandelbaar']]
+      .concat((data.teKoop || []).map(function (b) {
+        return [b.t, b.a, b.u, b.j, b.l, b.p, b.v, b.n, b.i ? '\'' + b.i : '', (b.g || []).join(', '), b.d, b.prijs === null ? '' : String(b.prijs).replace('.', ','), b.o ? 'ja' : 'nee'];
+      }));
+    var tekst = '\ufeff' + rijen.map(function (r) { return r.map(cel).join(';'); }).join('\r\n');
+    var link = el('a', { href: URL.createObjectURL(new Blob([tekst], { type: 'text/csv;charset=utf-8' })), download: 'te-koop-madrigal.csv', hidden: true }, 'Download');
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+  }
+
   /* ---------- Een boek als kaart, zoals op de website ---------- */
 
   /** De cover, of een gekleurd vlak met titel en auteur als er geen is (of als er geen internet is). */
@@ -158,6 +206,10 @@
       knoppen(el('button', { type: 'button', class: 'knop', onclick: toonNieuwStandje }, '+ Nieuw standje'),
         el('button', { type: 'button', class: 'knop tweede', onclick: function () { opStock = true; teken(); } }, 'Bekijk de voorraad (' + data.teKoop.length + (data.teKoop.length === 1 ? ' boek)' : ' boeken)')),
         B.sessie.rol === 'bestuur' ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { opVoorraad = true; teken(); } }, 'Voorraad beheren') : null),
+      data.teKoop.length ? el('div', { class: 'blok' }, el('h3', {}, 'Lijst voor kopers'),
+        el('p', { class: 'hulptekst' }, 'Alle boeken die te koop zijn, met titel, auteur, gegevens, thema\'s, een korte beschrijving en de prijs. Zonder aantallen. Bewaar ze als PDF via de afdrukknop, of open ze in Excel.'),
+        knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: drukKopersLijst }, 'Druk af of bewaar als PDF'),
+          el('button', { type: 'button', class: 'knop tweede', onclick: downloadKopersLijst }, 'Download voor Excel'))) : null,
       B.sessie.rol === 'bestuur' ? null : el('p', { class: 'hulptekst' }, 'Boeken aan de voorraad toevoegen kan enkel met de code van het bestuur.'),
       open.length ? el('ul', { class: 'kaartlijst' }, open.map(kaart)) : el('p', {}, 'Er is nog geen standje gepland.'),
       dicht.length ? [el('h3', { style: 'margin-top:1.5rem' }, 'Afgesloten'), el('ul', { class: 'kaartlijst' }, dicht.map(kaart))] : null);

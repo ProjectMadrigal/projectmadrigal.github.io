@@ -2294,6 +2294,13 @@ test('tabbladen: elk tabblad van het script heeft een vaste plaats in een groep'
   assert.ok(v.indexOf('Verkooplijst') > v.indexOf('Voorraad') && v.indexOf('Verkooplijst') < v.indexOf('Logboek'));
 });
 
+test('verkoop: de gegevens voor de lijst voor kopers, lege velden weg', () => {
+  gelijk(M.verkoopGegevens({ isbn: '9780306406157', uitgeverij: 'Uitgeverij Fictie', jaartal: 1999, taal: 'Nederlands', paginas: '', uitvoering: 'Paperback', nieuwstaat: 'nee' }),
+    { i: '9780306406157', u: 'Uitgeverij Fictie', j: 1999, l: 'Nederlands', v: 'Paperback', n: 'tweedehands' });
+  const o = M.verkoopOverzicht({ catalogus: [{ boek_id: 'B1', titel: 'Zee', auteur: 'Verbeek, Mira', te_koop_aantal: 2, prijs: 8, taal: 'Engels' }], standjes: [], standjeBoeken: [], verkopen: [] });
+  gelijk([o.teKoop[0].l, o.teKoop[0].stock], ['Engels', 2]);
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);

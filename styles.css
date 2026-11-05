@@ -707,6 +707,15 @@ html.groot-lettertype { font-size: 118.75%; }
   body.druk-lijst #afdruk { display: block; color: #000; background: #fff; }
   #afdruk table { width: 100%; border-collapse: collapse; font-size: 10pt; }
   #afdruk th, #afdruk td { border-bottom: 1px solid #999; padding: 3pt 4pt; text-align: left; }
+  /* Lijst voor kopers (verkoop.js) */
+  #afdruk.kopers { font-size: 10pt; }
+  #afdruk.kopers h1 { font-size: 16pt; margin: 0 0 4pt; }
+  #afdruk .koper-boek { break-inside: avoid; border-bottom: 1px solid #999; padding: 6pt 0; }
+  #afdruk .koper-boek h2 { font-size: 11pt; margin: 0; display: flex; justify-content: space-between; gap: 12pt; }
+  #afdruk .koper-prijs { white-space: nowrap; font-weight: bold; }
+  #afdruk .koper-auteur { margin: 1pt 0; font-style: italic; }
+  #afdruk .koper-meta { margin: 1pt 0; color: #333; }
+  #afdruk .koper-boek p { margin: 2pt 0; }
 }
 
 /* Uitleenscherm: de knop terug naar het menu, in het midden. */
