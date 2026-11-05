@@ -497,8 +497,8 @@ async function meldAan(page, basis, pagina) {
     await page.waitForSelector('#bb-extra_onderwerpen-0');
     verwacht(await page.isChecked('#bb-extra_onderwerpen-0'), 'Fictie is aangevinkt');
     await page.check('label:has-text("Gender") input');
-    await page.fill('#bb-trefwoorden-nieuw', 'Coming-out');
-    await page.press('#bb-trefwoorden-nieuw', 'Enter');
+    await page.selectOption('#bb-trefwoorden-kies', 'Coming-out');
+    verwacht(await page.$('#bb-taal option[value="Duits"]') && await page.$('#bb-uitvoering option[value="Pocket"]'), 'Keuzelijsten taal en uitvoering');
     await page.click('button[aria-label="Haal Lesbisch weg"]');
     await page.fill('#bb-categorieen-nieuw', 'Roman');
     await page.click('#bb-categorieen-nieuw ~ button:has-text("Voeg toe")');
@@ -510,7 +510,7 @@ async function meldAan(page, basis, pagina) {
     // Een nieuw boek: enkel het nodige open.
     await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
     await page.click('button:has-text("+ Nieuw boek toevoegen")');
-    verwacht(await page.isVisible('#bb-titel') && !(await page.isVisible('#bb-uitgeverij')) && await page.isVisible('summary:has-text("Meer gegevens")'), 'Kort formulier');
+    verwacht(await page.isVisible('#bb-titel') && await page.isVisible('#bb-uitgeverij') && await page.isVisible('#bb-extra_onderwerpen-0') && !(await page.isVisible('#bb-status')) && await page.isVisible('summary:has-text("Meer gegevens")'), 'Kort formulier');
     verwacht(!(await page.$('#bb-soort option[value="film"]')), 'Film is geen soort bij een boek');
     // Films: niet tussen de boeken, wel in een eigen onderdeel.
     await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');

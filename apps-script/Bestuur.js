@@ -35,10 +35,17 @@ function baliecatalogus(staat, vertaal) {
 /**
  * De keuzes voor het formulier van een boek in het bestuursscherm: de thema's van de website, en alle
  * categorieën, trefwoorden, triggerwaarschuwingen en genres die al in de Catalogus staan (alfabetisch).
+ * tabRijen: het tabblad Categorieën en trefwoorden (mag leeg zijn), voor namen die nog bij geen boek staan.
  */
-function boekKeuzes(catalogus) {
+function boekKeuzes(catalogus, tabRijen) {
   var lijst = function (kolom, enkelFilms) {
     var gezien = {}, uit = [];
+    // Ook de namen uit het tabblad Categorieën en trefwoorden, die nog bij geen boek staan: zo vul je de keuzes aan.
+    var soort = { categorieen: 'categorie', trefwoorden: 'trefwoord', triggerwaarschuwingen: 'triggerwaarschuwing' }[kolom];
+    (soort ? tabRijen || [] : []).forEach(function (r) {
+      var k = normaliseerTekst(r.naam);
+      if (k && normaliseerTekst(r.soort) === soort && !gezien[k]) { gezien[k] = true; uit.push(schoon(r.naam)); }
+    });
     catalogus.forEach(function (b) {
       if (enkelFilms !== undefined && isFilm(b) !== enkelFilms) return;
       splitsLijst(b[kolom]).forEach(function (n) {
@@ -240,7 +247,7 @@ function bestuurGegevens(staat, onderwerpRijen) {
     uitzonderingen: uitzonderingen,
     boekstatus: boekenMetStatus(staat),
     privacy: staat.inst.tekst_privacy,
-    keuzes: boekKeuzes(staat.catalogus),
+    keuzes: boekKeuzes(staat.catalogus, staat.categorieenTab),
     boeken: baliecatalogus(staat, vertaal),
     leners: staat.leners.map(function (l) {
       return {

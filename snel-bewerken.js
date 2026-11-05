@@ -25,7 +25,9 @@
     status: [['', 'Gewoon'], ['verloren', 'Verloren'], ['gevoelig verborgen', 'Gevoelig, verborgen'], ['gevoelig zichtbaar', 'Gevoelig, zichtbaar met label']],
     publiek: [['ja', 'Ja'], ['nee', 'Nee, verborgen']],
     uitleenbaar: [['ja', 'Ja'], ['nee', 'Nee']],
-    te_koop: [['', 'Nee'], ['ja', 'Ja, te koop en niet uitleenbaar']]
+    te_koop: [['', 'Nee'], ['ja', 'Ja, te koop en niet uitleenbaar']],
+    taal: [['', 'Onbekend'], ['Nederlands', 'Nederlands'], ['Engels', 'Engels'], ['Frans', 'Frans'], ['Duits', 'Duits']],
+    uitvoering: [['', 'Onbekend'], ['Hardcover', 'Hardcover'], ['Paperback', 'Paperback'], ['Pocket', 'Pocket']]
   };
   // [veld in de Catalogus, label, soort invoer, groep]. Soort: tekst, getal, lang, keuze, vinkjes, lijst.
   // Een lijst krijgt zijn keuzes uit beheerBoekOphalen (r.keuzes): themas, categorieen, trefwoorden, triggerwaarschuwingen.
@@ -35,9 +37,9 @@
     ['auteur', 'Auteur', 'tekst'],
     ['uitgeverij', 'Uitgeverij', 'tekst'],
     ['jaartal', 'Jaartal', 'getal'],
-    ['taal', 'Taal', 'tekst'],
+    ['taal', 'Taal', 'keuze'],
     ['paginas', "Pagina's", 'getal'],
-    ['uitvoering', 'Uitvoering', 'tekst'],
+    ['uitvoering', 'Uitvoering', 'keuze'],
     ['isbn', 'ISBN', 'tekst'],
     ['beschrijving', 'Beschrijving', 'lang'],
     ['beschrijving_en', 'Beschrijving in het Engels (leeg: het script vertaalt ze)', 'lang'],

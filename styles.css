@@ -740,7 +740,7 @@ html.groot-lettertype { font-size: 118.75%; }
 .lijstveld-weg:hover { color: var(--kleur-fout); }
 .lijstveld-weg:focus-visible { outline: 3px solid var(--kleur-focus); outline-offset: 1px; }
 .lijstveld-toevoegen { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-.lijstveld-toevoegen input { flex: 1 1 14rem; }
+.lijstveld-toevoegen input, .lijstveld-toevoegen select { flex: 1 1 14rem; }
 details.meer-gegevens > summary { cursor: pointer; font-weight: bold; padding: .5rem 0; }
 details.meer-gegevens > summary:focus-visible { outline: 3px solid var(--kleur-focus); outline-offset: 2px; }
 .snel-bewerken .sb-kopje { margin: 1.25rem 0 .5rem; font-size: 1.05rem; }

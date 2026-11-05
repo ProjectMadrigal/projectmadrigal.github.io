@@ -2673,6 +2673,9 @@ test('bestuursscherm: keuzelijsten voor thema\'s, categorieën en trefwoorden, e
   const k = M.boekKeuzes(cat);
   gelijk([Array.from(k.categorieen), Array.from(k.trefwoorden), Array.from(k.triggerwaarschuwingen), Array.from(k.filmgenres)],
     [['Essay', 'Roman'], ['lesbisch', 'Zee'], ['Geweld'], ['Drama', 'Komedie']]);
+  // Namen uit het tabblad Categorieën en trefwoorden komen er ook bij, ook zonder boek.
+  const k2 = M.boekKeuzes(cat, [{ naam: 'Kookboek', soort: 'categorie' }, { naam: 'Pride', soort: 'trefwoord' }, { naam: 'Roman', soort: 'categorie' }, { naam: 'Weg', soort: 'weg' }]);
+  gelijk([Array.from(k2.categorieen), Array.from(k2.trefwoorden)], [['Essay', 'Kookboek', 'Roman'], ['lesbisch', 'Pride', 'Zee']]);
   assert.ok(k.themas.indexOf('Gender') > -1 && k.themas.indexOf('Politiek') > -1);
   const s = maakStaat();
   s.catalogus.push({ boek_id: 'F0001', soort: 'film', titel: 'Een film', aantal: 1, uitleenbaar: 'ja', publiek: 'ja' });

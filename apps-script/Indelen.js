@@ -262,3 +262,11 @@ function deelBoekenInAutomatisch() {
   var uit = deelBoekenInUitvoeren();
   if (uit.length) logboek('systeem', 'deelBoekenIn', indelingTekst(uit));
 }
+
+/** De rijen van het tabblad Categorieën en trefwoorden, of [] als het (nog) niet bestaat. */
+function categorieenTabRijen() {
+  try {
+    var blad = spreadsheet().getSheetByName('Categorieën en trefwoorden');
+    return blad && blad.getLastRow() > 1 ? leesTabel('Categorieën en trefwoorden').rijen : [];
+  } catch (e) { return []; }
+}

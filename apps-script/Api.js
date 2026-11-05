@@ -345,6 +345,7 @@ function voerActieUit(actie, invoer, rol) {
         antwoord.data.handleiding = handleiding(staat.inst);
         break;
       case 'bestuurData':
+        staat.categorieenTab = categorieenTabRijen();
         antwoord = { ok: true, data: bestuurGegevens(staat, leesTabel('Onderwerpen').rijen) };
         antwoord.data.aanvragen = openAanvragen(spreadsheet().getSheetByName('Aanvragen') ? leesTabel('Aanvragen').rijen : []);
         antwoord.data.onlineReserveren = staat.inst.online_reserveren === true;
@@ -387,6 +388,7 @@ function voerActieUit(actie, invoer, rol) {
       case 'borgTerugbetaald': antwoord = borgTerugbetaald(staat, invoer); break;
       case 'herinneringVerstuurd': antwoord = herinneringVerstuurd(staat, invoer); break;
       case 'beheerBoekOphalen':
+        staat.categorieenTab = categorieenTabRijen();
         antwoord = boekOphalen(staat, invoer);
         if (antwoord.ok) {
           antwoord.historiek = boekHistoriek(staat, invoer.boek_id);
