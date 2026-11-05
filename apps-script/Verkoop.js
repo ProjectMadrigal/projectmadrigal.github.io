@@ -50,13 +50,27 @@ function verkoopKaart(b, vertaal) {
   };
 }
 
+/**
+ * De gegevens die een koper wil weten, voor de lijst voor kopers in het verkoopscherm. Lege velden vallen weg.
+ * i: ISBN, u: uitgeverij, j: jaartal, l: taal, p: pagina's, v: uitvoering, n: nieuw of tweedehands.
+ */
+function verkoopGegevens(b) {
+  var uit = {
+    i: schoon(b.isbn), u: schoon(b.uitgeverij), j: parseerGetal(b.jaartal) || '', l: schoon(b.taal), p: parseerGetal(b.paginas) || '',
+    v: schoon(b.uitvoering), n: jaNee(b.nieuwstaat) === 'ja' ? 'nieuw' : jaNee(b.nieuwstaat) === 'nee' ? 'tweedehands' : ''
+  };
+  Object.keys(uit).forEach(function (k) { if (isLeeg(uit[k])) delete uit[k]; });
+  return uit;
+}
+
 /** Het overzicht voor het verkoopscherm. tabellen: { catalogus, standjes, standjeBoeken, verkopen, onderwerpen? } (rijen). */
 function verkoopOverzicht(tabellen) {
   var vertaal = vertaalTabel(tabellen.onderwerpen || []);
   var perBoek = {};
   tabellen.catalogus.forEach(function (b) { if (!isLeeg(b.boek_id)) perBoek[String(b.boek_id)] = b; });
   var teKoop = tabellen.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && stockVan(b) > 0; }).map(function (b) {
-    return Object.assign({ id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), prijs: verkoopGetal(b.prijs), o: jaNee(b.onderhandelbaar) === 'ja', stock: stockVan(b) }, verkoopKaart(b, vertaal));
+    return Object.assign({ id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), prijs: verkoopGetal(b.prijs), o: jaNee(b.onderhandelbaar) === 'ja', stock: stockVan(b) },
+      verkoopKaart(b, vertaal), verkoopGegevens(b));
   }).sort(function (a, b) { return a.t.localeCompare(b.t); });
 
   var standjes = tabellen.standjes.filter(function (s) { return !isLeeg(s.standje_id); }).map(function (s) {

@@ -10661,6 +10661,19 @@ function verkoopActie(actie, invoer, wie) {
   return r;
 }
 
+/**
+ * De gegevens die een koper wil weten, voor de lijst voor kopers in het verkoopscherm. Lege velden vallen weg.
+ * i: ISBN, u: uitgeverij, j: jaartal, l: taal, p: pagina's, v: uitvoering, n: nieuw of tweedehands.
+ */
+function verkoopGegevens(b) {
+  var uit = {
+    i: schoon(b.isbn), u: schoon(b.uitgeverij), j: parseerGetal(b.jaartal) || '', l: schoon(b.taal), p: parseerGetal(b.paginas) || '',
+    v: schoon(b.uitvoering), n: jaNee(b.nieuwstaat) === 'ja' ? 'nieuw' : jaNee(b.nieuwstaat) === 'nee' ? 'tweedehands' : ''
+  };
+  Object.keys(uit).forEach(function (k) { if (isLeeg(uit[k])) delete uit[k]; });
+  return uit;
+}
+
 /** Een getal uit een cel of invoer: "12,50" wordt 12.5. Leeg of ongeldig: null. */
 function verkoopGetal(w) {
   if (isLeeg(w)) return null;
@@ -10749,7 +10762,8 @@ function verkoopOverzicht(tabellen) {
   var perBoek = {};
   tabellen.catalogus.forEach(function (b) { if (!isLeeg(b.boek_id)) perBoek[String(b.boek_id)] = b; });
   var teKoop = tabellen.catalogus.filter(function (b) { return !isLeeg(b.boek_id) && stockVan(b) > 0; }).map(function (b) {
-    return Object.assign({ id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), prijs: verkoopGetal(b.prijs), o: jaNee(b.onderhandelbaar) === 'ja', stock: stockVan(b) }, verkoopKaart(b, vertaal));
+    return Object.assign({ id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), prijs: verkoopGetal(b.prijs), o: jaNee(b.onderhandelbaar) === 'ja', stock: stockVan(b) },
+      verkoopKaart(b, vertaal), verkoopGegevens(b));
   }).sort(function (a, b) { return a.t.localeCompare(b.t); });
 
   var standjes = tabellen.standjes.filter(function (s) { return !isLeeg(s.standje_id); }).map(function (s) {
