@@ -83,14 +83,51 @@
     return SECTIES.some(function (s) { return s[0] === naam; }) ? naam : '';
   }
   actief = sectieUitAdres() || actief;
-  window.addEventListener('popstate', function () {
+
+  /*
+   * Stappen binnen een onderdeel (een boek openen vanuit een lijst, een formulier, ...): elke stap komt in de
+   * geschiedenis van de browser, zodat de knop Terug van de browser naar de vorige stap gaat.
+   * Een stap onthoudt hoe het scherm opnieuw te tekenen. Na herladen is dat weg: dan toont Terug het onderdeel zelf.
+   */
+  var stappen = {}, stapTeller = 0, stapVervangt = false;
+  function stap(herteken, vervang) {
+    var id = ++stapTeller;
+    stappen[id] = herteken;
+    var st = history.state || {};
+    var nieuw = { sectie: actief, stap: id };
+    // De eerste stap van een onderdeel, opnieuw tekenen of Terug: geen nieuwe plaats in de geschiedenis.
+    if (vervang || stapVervangt || !st.stap || st.sectie !== actief) history.replaceState(nieuw, '', '#' + actief);
+    else history.pushState(nieuw, '', '#' + actief);
+  }
+  function zonderNieuweStap(fn) {
+    var was = stapVervangt;
+    stapVervangt = true;
+    try { fn(); } finally { stapVervangt = was; }
+  }
+  window.addEventListener('popstate', function (e) {
+    if (!data) return;
     var naam = sectieUitAdres() || 'vandaag';
-    if (data && naam !== actief) toonSectie(naam, true, true);
+    var st = e.state || {};
+    var herteken = st.sectie === naam && stappen[st.stap];
+    if (!herteken) {
+      if (naam !== actief || st.stap) zonderNieuweStap(function () { toonSectie(naam, true, true); });
+      return;
+    }
+    D.vervang($('melding'));
+    if (naam !== actief) { actief = naam; tekenNav(); toonHulp(naam); }
+    zonderNieuweStap(herteken);
+    var kop = $('sectie').querySelector('h2');
+    if (kop) kop.focus();
   });
 
-  /** Wat bestuur-beheer.js nodig heeft van dit scherm. */
+  /** Wat bestuur-beheer.js nodig heeft van dit scherm. data: altijd de verste gegevens, ook in een stap van vroeger. */
   function context() {
-    return { data: data, kop: kop, laad: laad, scherm: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur', toonSectie: function (naam) { toonSectie(naam, true); }, tekenNav: tekenNav };
+    return {
+      get data() { return data; }, kop: kop, laad: laad, scherm: VRIJWILLIGER ? 'vrijwilliger' : 'bestuur',
+      toonSectie: function (naam) { toonSectie(naam, true); }, tekenNav: tekenNav, stap: stap,
+      /** Tekent het scherm nu opnieuw (Terug, of na het laden)? Dan komt er geen nieuwe stap bij. */
+      opnieuw: function () { return stapVervangt; }
+    };
   }
 
   /* ---------- Gegevens en navigatie ---------- */
@@ -108,7 +145,7 @@
     data = nieuw;
     $('bestuur-info').textContent = 'Aangemeld als ' + B.sessie.wie + ' · ' + data.vandaagTekst;
     tekenNav();
-    if (volledig) toonSectie(actief, false);
+    if (volledig) zonderNieuweStap(function () { toonSectie(actief, false); });
   }
 
   function laad() {
@@ -902,7 +939,8 @@
   function toonVandaag(vak) {
     var klaar = (data.reservaties || []).filter(function (r) { return r.status === 'klaar om op te halen'; }).length;
     var wacht = (data.reservaties || []).length - klaar;
-    var boeken = data.boeken || [];
+    // Enkel boeken en zines: films hebben een eigen onderdeel, net als in de lijsten zonder cover en zonder beschrijving.
+    var boeken = (data.boeken || []).filter(function (b) { return !b.f; });
     var zonderCover = boeken.filter(function (b) { return !b.c; }).length;
     var zonderTekst = boeken.filter(function (b) { return b.zb; }).length;
     var punten = [

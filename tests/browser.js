@@ -24,6 +24,8 @@ const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.css': '
 
 let geslaagd = 0, mislukt = 0;
 async function test(naam, fn) {
+  // ENKEL=tekst node tests/browser.js: enkel de tests met die tekst in de naam.
+  if (process.env.ENKEL && naam.indexOf(process.env.ENKEL) === -1) return;
   try { await fn(); geslaagd++; console.log('  ok   ' + naam); }
   catch (e) { mislukt++; console.log('  FOUT ' + naam + '\n       ' + String(e.message || e).split('\n').join('\n       ')); }
 }
@@ -582,6 +584,50 @@ async function meldAan(page, basis, pagina) {
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });
+  await test('bestuursscherm: de knop Terug van de browser, en hetzelfde aantal op de knop als in de lijst', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
+    await meldAan(page, basis, 'bestuur.html');
+    const kop = () => page.evaluate(() => (document.querySelector('#sectie h2') || {}).textContent || '');
+    await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
+    const knop = await page.textContent('button:has-text("Boeken zonder cover (")');
+    await page.click('button:has-text("Boeken zonder cover (")');
+    const lijstKop = await kop();
+    verwacht(knop.match(/\(\d+\)/)[0] === lijstKop.match(/\(\d+\)/)[0], 'Knop ' + knop + ', lijst ' + lijstKop);
+    verwacht(!/Een verzonnen film/.test(await page.textContent('#sectie')), 'Een film staat in de lijst zonder cover');
+    await page.click('.kaartlijst button');
+    await page.waitForSelector('button:has-text("Terug naar de lijst zonder cover")');
+    const boekKop = await kop();
+    await page.goBack();
+    await page.waitForFunction(() => /Boeken zonder cover/.test((document.querySelector('#sectie h2') || {}).textContent));
+    await page.goBack();
+    await page.waitForFunction(() => /Boek zoeken of toevoegen/.test((document.querySelector('#sectie h2') || {}).textContent));
+    await page.goForward();
+    await page.waitForFunction(() => /Boeken zonder cover/.test((document.querySelector('#sectie h2') || {}).textContent));
+    await page.goForward();
+    await page.waitForFunction((t) => (document.querySelector('#sectie h2') || {}).textContent === t, boekKop);
+    // Naar een ander onderdeel en terug.
+    await page.click('#sectienav button:has-text("Cijfers")');
+    await page.goBack();
+    await page.waitForFunction((t) => (document.querySelector('#sectie h2') || {}).textContent === t, boekKop);
+    verwacht(/#boeken$/.test(page.url()), 'Adres: ' + page.url());
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
+  await test('uitleenscherm: de knop Terug van de browser brengt je naar het menu', async () => {
+    const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'balie' });
+    await meldAan(page, basis, 'balie.html');
+    await page.click('.menu-raster button:has-text("Terugbrengen")');
+    await page.waitForFunction(() => /#terugbrengen$/.test(location.href));
+    await page.goBack();
+    await page.waitForSelector('.menu-raster');
+    await page.goForward();
+    await page.waitForSelector('.menu-knop');
+    await page.click('.menu-knop');
+    await page.waitForSelector('.menu-raster');
+    verwacht(!/#/.test(page.url()), 'Adres na Terug naar het menu: ' + page.url());
+    await ctx.close();
+    verwacht(!fouten.length, fouten.join(' | '));
+  });
   await test('bestuursscherm: Vandaag, Logboek, adres, kleine covers en zoeken op het internet', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, { rol: 'bestuur' });
     // Google Books nagebootst: één verzonnen uitgave met beschrijving en cover.
@@ -605,7 +651,7 @@ async function meldAan(page, basis, pagina) {
     await page.reload();
     await page.waitForSelector('#logboek-filter');
     await page.goBack();
-    await page.waitForFunction(() => /Vandaag/.test(document.querySelector('#sectie h2').textContent));
+    await page.waitForFunction(() => /Vandaag/.test((document.querySelector('#sectie h2') || {}).textContent));
     // Kleine cover bij een boek met cover
     await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
     await page.fill('#beheer-boek-zoek', 'kasten');
@@ -621,7 +667,7 @@ async function meldAan(page, basis, pagina) {
     await page.setViewportSize({ width: 375, height: 800 });
     verwacht(await page.isVisible('#sectiekeuze') && !(await page.isVisible('#sectienav .navgroep')), 'Keuzelijst op de gsm');
     await page.selectOption('#sectiekeuze', 'telaat');
-    await page.waitForFunction(() => /Te laat/.test(document.querySelector('#sectie h2').textContent));
+    await page.waitForFunction(() => /Te laat/.test((document.querySelector('#sectie h2') || {}).textContent));
     await ctx.close();
     verwacht(!fouten.length, fouten.join(' | '));
   });
@@ -645,7 +691,7 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("Verstuur de herinneringen een voor een")');
     verwacht(await page.isVisible('a:has-text("Open in WhatsApp")'), 'WhatsApp-knop');
     await page.click('button:has-text("Herinnering verstuurd")');
-    await page.waitForFunction(() => /Herinnering 2 van 2/.test(document.querySelector('#sectie h2').textContent));
+    await page.waitForFunction(() => /Herinnering 2 van 2/.test((document.querySelector('#sectie h2') || {}).textContent));
     verwacht(await page.isVisible('a:has-text("Open in je mail")'), 'Mail-knop bij de tweede');
     // Boek: overzicht met uitleningen en laatst aangepast
     await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
