@@ -28,28 +28,31 @@ var BRONKOLOMMEN = {
 /** De standaard filtergroepen op de website, in deze volgorde. */
 // De thema's van de bib (zoals in de kasten). Een eigen thema erbij kan ook met de instelling eigen_themas.
 var FILTERGROEPEN = ['Gender', 'Intersekse', 'Seksualiteit', 'Coming-out', 'Relaties', 'Polyamorie', 'Feminisme', 'Fictie', 'Klassiekers',
-  'Geschiedenis', 'Kolonialisme', 'Maatschappij', 'Cultuur', 'Diversiteit', 'Ecologie', 'Gezondheid', 'Onderzoek', 'Politiek', 'Marxisme',
+  'Geschiedenis', 'Kolonialisme', 'Fascisme', 'Maatschappij', 'Cultuur', 'Diversiteit', 'Ecologie', 'Gezondheid', 'Onderzoek', 'Politiek', 'Marxisme',
   'Cuba', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
 
 /** Voorstellen voor de vertaaltabel: een genre met dit woord erin gaat naar deze groep. */
 var ONDERWERP_VOORSTELLEN = [
-  [/gender|trans|non ?binair|interseks|intersex/, 'Gender'],
+  // Elk woord wijst naar één thema: Intersekse is geen Gender, Coming-out geen Seksualiteit, Kolonialisme en Fascisme
+  // geen Geschiedenis, Marxisme geen Politiek. Dat zijn aparte thema's.
+  [/gender|trans|non ?binair/, 'Gender'],
   [/interseks|intersex/, 'Intersekse'],
-  [/seks|sexualiteit|homo|lesb|queer|lgbt|holebi|coming out|gay|polyamor|relatie/, 'Seksualiteit'],
+  [/seks|sexualiteit|homo|lesb|queer|lgbt|holebi|gay/, 'Seksualiteit'],
   [/coming out|comingout|uit de kast/, 'Coming-out'],
   [/relatie|relationship|huwelijk|liefde/, 'Relaties'],
   [/polyamor/, 'Polyamorie'],
   [/femin|vrouw/, 'Feminisme'],
   [/roman|(?<!non ?)fictie|(?<!non ?)fiction|verhal|verhaal|proza|literatuur|thriller|detective|fantasy|science|kort/, 'Fictie'],
-  [/geschied|histor|kolonial|fascis|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
+  [/geschied|histor|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
   [/kolonial|colonial|dekolonis|decolonis|slavernij/, 'Kolonialisme'],
+  [/fascis|nazi|extreemrechts|extreem rechts|far right/, 'Fascisme'],
   [/maatschap|sociolog|essay|non ?fictie|non ?fiction|filosof|ecolog|cultuur|onderzoek|racism|migrat|economi/, 'Maatschappij'],
   [/cultuur|culture|kunst/, 'Cultuur'],
   [/divers|inclusi|racism|migrat/, 'Diversiteit'],
   [/ecolog|klimaat|climate|milieu|duurzaam/, 'Ecologie'],
   [/gezond|health|ziekte|medisch|medic|hiv|aids|psychisch|mentale/, 'Gezondheid'],
   [/onderzoek|research|wetenschap|studie/, 'Onderzoek'],
-  [/politi|activis|marx|anarch|socialis|communis|democrat|verkiezing|protest|revolut/, 'Politiek'],
+  [/politi|activis|anarch|democrat|verkiezing|protest|revolut/, 'Politiek'],
   [/marx|communis|socialis|kapitalis/, 'Marxisme'],
   [/cuba|havana/, 'Cuba'],
   [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
@@ -571,9 +574,9 @@ function stelFiltergroepenVoor(genre) {
  * vertaal: object genre (genormaliseerd) -> lijst filtergroepen.
  */
 function filtergroepenVan(boek, vertaal) {
-  var ruw = (vertaal[normaliseerTekst(boek.genre)] || []).slice();
-  // Een genre met de naam van een thema (bv. Kunst en Fotoboek) komt vanzelf in dat thema.
-  if (themaExact(boek.genre)) ruw.push(themaExact(boek.genre));
+  // Een genre met de naam van een thema (bv. Intersekse) komt enkel in dat thema, niet ook in een ander
+  // dat de vertaaltabel er vroeger bij zette (Intersekse is geen Gender).
+  var ruw = themaExact(boek.genre) ? [themaExact(boek.genre)] : (vertaal[normaliseerTekst(boek.genre)] || []).slice();
   splitsLijst(boek.extra_onderwerpen).forEach(function (g) { ruw.push(g); });
   if (jaNee(boek.klassieker) === 'ja') ruw.push('Klassiekers');
   if (normaliseerTekst(boek.soort) === 'zine') ruw.push('Zines');

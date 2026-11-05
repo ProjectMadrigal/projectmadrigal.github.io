@@ -245,28 +245,31 @@ var BRONKOLOMMEN = {
 
 // De thema's van de bib (zoals in de kasten). Een eigen thema erbij kan ook met de instelling eigen_themas.
 var FILTERGROEPEN = ['Gender', 'Intersekse', 'Seksualiteit', 'Coming-out', 'Relaties', 'Polyamorie', 'Feminisme', 'Fictie', 'Klassiekers',
-  'Geschiedenis', 'Kolonialisme', 'Maatschappij', 'Cultuur', 'Diversiteit', 'Ecologie', 'Gezondheid', 'Onderzoek', 'Politiek', 'Marxisme',
+  'Geschiedenis', 'Kolonialisme', 'Fascisme', 'Maatschappij', 'Cultuur', 'Diversiteit', 'Ecologie', 'Gezondheid', 'Onderzoek', 'Politiek', 'Marxisme',
   'Cuba', 'Religie en Spiritualiteit', 'Biografie', 'Poëzie', 'Graphic novel', 'Young Adult', 'Pulp', 'Erotica en BDSM', 'Zines'];
 
 /** Voorstellen voor de vertaaltabel: een genre met dit woord erin gaat naar deze groep. */
 var ONDERWERP_VOORSTELLEN = [
-  [/gender|trans|non ?binair|interseks|intersex/, 'Gender'],
+  // Elk woord wijst naar één thema: Intersekse is geen Gender, Coming-out geen Seksualiteit, Kolonialisme en Fascisme
+  // geen Geschiedenis, Marxisme geen Politiek. Dat zijn aparte thema's.
+  [/gender|trans|non ?binair/, 'Gender'],
   [/interseks|intersex/, 'Intersekse'],
-  [/seks|sexualiteit|homo|lesb|queer|lgbt|holebi|coming out|gay|polyamor|relatie/, 'Seksualiteit'],
+  [/seks|sexualiteit|homo|lesb|queer|lgbt|holebi|gay/, 'Seksualiteit'],
   [/coming out|comingout|uit de kast/, 'Coming-out'],
   [/relatie|relationship|huwelijk|liefde/, 'Relaties'],
   [/polyamor/, 'Polyamorie'],
   [/femin|vrouw/, 'Feminisme'],
   [/roman|(?<!non ?)fictie|(?<!non ?)fiction|verhal|verhaal|proza|literatuur|thriller|detective|fantasy|science|kort/, 'Fictie'],
-  [/geschied|histor|kolonial|fascis|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
+  [/geschied|histor|oorlog|holocaust|middeleeuw|archief/, 'Geschiedenis'],
   [/kolonial|colonial|dekolonis|decolonis|slavernij/, 'Kolonialisme'],
+  [/fascis|nazi|extreemrechts|extreem rechts|far right/, 'Fascisme'],
   [/maatschap|sociolog|essay|non ?fictie|non ?fiction|filosof|ecolog|cultuur|onderzoek|racism|migrat|economi/, 'Maatschappij'],
   [/cultuur|culture|kunst/, 'Cultuur'],
   [/divers|inclusi|racism|migrat/, 'Diversiteit'],
   [/ecolog|klimaat|climate|milieu|duurzaam/, 'Ecologie'],
   [/gezond|health|ziekte|medisch|medic|hiv|aids|psychisch|mentale/, 'Gezondheid'],
   [/onderzoek|research|wetenschap|studie/, 'Onderzoek'],
-  [/politi|activis|marx|anarch|socialis|communis|democrat|verkiezing|protest|revolut/, 'Politiek'],
+  [/politi|activis|anarch|democrat|verkiezing|protest|revolut/, 'Politiek'],
   [/marx|communis|socialis|kapitalis/, 'Marxisme'],
   [/cuba|havana/, 'Cuba'],
   [/religi|spiritu|geloof|godsdienst|theolog|bijbel|koran|islam|moslim|jood|joods|jodendom|christ|kathol|kerk|boeddh|hindu|heks|wicca|mystiek|zingeving|astrolog|tarot|meditat/, 'Religie en Spiritualiteit'],
@@ -794,7 +797,7 @@ var ONDERWERP_TEKST_WOORDEN = [
   // Niet "graphic" alleen (graphic sex, graphic design) en niet "strip" als begin (striptease, stripped).
   ['Graphic novel', ['graphic novel', 'graphic memoir', 'stripverhaal', 'stripboek', 'stripalbum', '=strip', '=strips', '=comic', '=comics', 'manga', 'beeldroman']],
   ['Biografie', ['biografie', 'biography', 'memoir', 'memoires', 'autobiografie', 'autobiography', 'dagboek', 'levensverhaal', 'diary']],
-  ['Gender', ['transgender', 'transitie', 'transvrouw', 'transman', 'nonbinair', 'non binair', 'genderidentiteit', 'genderqueer', 'intersekse', 'intersex']],
+  ['Gender', ['transgender', 'transitie', 'transvrouw', 'transman', 'nonbinair', 'non binair', 'genderidentiteit', 'genderqueer']],
   ['Feminisme', ['feminis', 'patriarchaat', 'patriarchy', 'vrouwenbeweging', 'vrouwenrechten', 'misogyn']],
   ['Geschiedenis', ['geschiedenis', 'history', 'historisch', 'historical', '=eeuw', '=eeuwen', '=century', '=centuries', 'oorlog', 'holocaust', 'archief']],
   ['Maatschappij', ['essay', 'samenleving', 'maatschappij', 'society', 'sociolog', 'filosof', 'philosoph', 'onderzoek', 'research']],
@@ -802,12 +805,13 @@ var ONDERWERP_TEKST_WOORDEN = [
   ['Religie en Spiritualiteit', ['religie', 'religion', 'geloof', 'faith', 'kerk', 'church', 'bijbel', 'bible', 'islam', 'spiritualiteit', 'spiritual', 'tarot', 'heks', 'witch', '=god', '=goden', '=gods']],
   ['Young Adult', ['young adult', 'tiener', 'teen', 'jongeren', 'middelbare school', 'high school', 'puber']],
   ['Erotica en BDSM', ['erotisch', 'erotiek', 'erotic', 'bdsm', 'kink', 'fetish', '=leder', 'leather', 'dominant', 'submissive']],
-  ['Seksualiteit', ['seksualiteit', 'sexuality', 'coming out', 'comingout', 'seksuele', 'sexual']],
+  ['Seksualiteit', ['seksualiteit', 'sexuality', 'seksuele', 'sexual']],
   ['Intersekse', ['intersekse', 'interseks', 'intersex']],
   ['Coming-out', ['coming out', 'comingout', 'uit de kast']],
   ['Relaties', ['relatie', 'relationship', 'huwelijk', 'marriage', 'scheiding', 'divorce']],
   ['Polyamorie', ['polyamor', 'open relatie', 'open relationship']],
   ['Kolonialisme', ['kolonial', 'colonial', 'dekolonis', 'decolonis', 'slavernij', 'slavery']],
+  ['Fascisme', ['fascis', 'nazi', 'extreemrechts', 'extreem rechts', 'far right']],
   ['Cultuur', ['cultuur', 'culture', 'kunstenaar', 'artist']],
   ['Diversiteit', ['diversiteit', 'diversity', 'inclusie', 'inclusion', 'racisme', 'racism']],
   ['Ecologie', ['ecolog', 'klimaat', 'climate', 'milieu', 'duurzaam', 'sustainab']],
@@ -994,7 +998,7 @@ var CATEGORIE_KOLOM = { categorie: 'categorieen', trefwoord: 'trefwoorden', trig
  * categorieen en trefwoorden naar extra_onderwerpen, en verdwijnen uit het tabblad en de keuzelijsten.
  * Vanuit verwerkNieuweBoekenAutomatisch. THEMAS_VERSIE verhogen als er weer thema's bijkomen.
  */
-var THEMAS_VERSIE = 'bib-2026-11';
+var THEMAS_VERSIE = 'bib-2026-11b';
 
 // Woorden in een naam die niets zeggen over wie het is.
 var NAAM_STOPWOORDEN = ['van', 'der', 'den', 'het', 'von', 'and', 'een', 'etc', 'the', 'les', 'des', 'del', 'della', 'ter', 'ten'];
@@ -4508,9 +4512,9 @@ function filmWikiUrl(taal, titel) {
  * vertaal: object genre (genormaliseerd) -> lijst filtergroepen.
  */
 function filtergroepenVan(boek, vertaal) {
-  var ruw = (vertaal[normaliseerTekst(boek.genre)] || []).slice();
-  // Een genre met de naam van een thema (bv. Kunst en Fotoboek) komt vanzelf in dat thema.
-  if (themaExact(boek.genre)) ruw.push(themaExact(boek.genre));
+  // Een genre met de naam van een thema (bv. Intersekse) komt enkel in dat thema, niet ook in een ander
+  // dat de vertaaltabel er vroeger bij zette (Intersekse is geen Gender).
+  var ruw = themaExact(boek.genre) ? [themaExact(boek.genre)] : (vertaal[normaliseerTekst(boek.genre)] || []).slice();
   splitsLijst(boek.extra_onderwerpen).forEach(function (g) { ruw.push(g); });
   if (jaNee(boek.klassieker) === 'ja') ruw.push('Klassiekers');
   if (normaliseerTekst(boek.soort) === 'zine') ruw.push('Zines');
