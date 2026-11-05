@@ -387,6 +387,8 @@ async function meldAan(page, basis, pagina) {
     verwacht(b < a, 'De band beweegt niet: ' + a + ' → ' + b);
     await page.click('.band-knop');
     verwacht(await page.textContent('.band-knop') === 'Laat lopen', 'Knop na pauzeren');
+    // Even wachten: de browser zet de band pas stil bij het volgende beeld.
+    await page.waitForTimeout(200);
     const c = await plaats(); await page.waitForTimeout(600); const d = await plaats();
     verwacht(c === d, 'De band beweegt na Pauzeer: ' + c + ' → ' + d);
     await ctx.close();
