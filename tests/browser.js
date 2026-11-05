@@ -371,6 +371,34 @@ async function meldAan(page, basis, pagina) {
     verwacht(!r.fouten.length, r.fouten.join(' | '));
   });
 
+  await test('startpagina: In de kijker is één bewegende rij, met Pauzeer, en staat stil bij minder beweging', async () => {
+    const site = JSON.parse(fs.readFileSync(path.join(MAP, 'voorbeeld/site.json')));
+    const aantal = site.aanraders.filter((b) => (b.r || []).length || !b.n).length;
+    const { ctx, page, fouten } = await nieuweContext(browser, {});
+    await page.goto(basis + '/index.html');
+    await page.waitForSelector('#aanraders-band .aanrader');
+    const rij = await page.$$eval('#aanraders-band > li', (x) => new Set(x.map((li) => li.getBoundingClientRect().top)).size);
+    verwacht(rij === 1, 'Meer dan één rij: ' + rij);
+    const echt = await page.$$eval('#aanraders-band > li:not([aria-hidden])', (x) => x.length);
+    const tab = await page.$$eval('#aanraders-band a:not([tabindex="-1"])', (x) => x.length);
+    verwacht(echt === aantal && tab === aantal, 'Elk boek één keer voor schermlezer en toetsenbord: ' + echt + ', ' + tab + ', verwacht ' + aantal);
+    const plaats = () => page.$eval('#aanraders-band', (e) => new DOMMatrix(getComputedStyle(e).transform).m41);
+    const a = await plaats(); await page.waitForTimeout(600); const b = await plaats();
+    verwacht(b < a, 'De band beweegt niet: ' + a + ' → ' + b);
+    await page.click('.band-knop');
+    verwacht(await page.textContent('.band-knop') === 'Laat lopen', 'Knop na pauzeren');
+    const c = await plaats(); await page.waitForTimeout(600); const d = await plaats();
+    verwacht(c === d, 'De band beweegt na Pauzeer: ' + c + ' → ' + d);
+    await ctx.close();
+    const stil = await nieuweContext(browser, { context: { reducedMotion: 'reduce' } });
+    await stil.page.goto(basis + '/index.html');
+    await stil.page.waitForSelector('#aanraders-band .aanrader');
+    const kopie = await stil.page.$$eval('#aanraders-band .band-kopie', (x) => x.filter((e) => e.offsetParent !== null).length);
+    verwacht(kopie === 0 && !(await stil.page.isVisible('.band-knop')), 'Bij minder beweging: geen kopieën, geen knop');
+    await stil.ctx.close();
+    verwacht(!fouten.length && !stil.fouten.length, fouten.concat(stil.fouten).join(' | '));
+  });
+
   await test('startpagina: een e-mailadres in de tekst van een event is een link', async () => {
     const { ctx, page, fouten } = await nieuweContext(browser, {});
     await page.goto(basis + '/index.html');

@@ -179,15 +179,49 @@
     return groepen;
   }
 
+  /*
+   * In de kijker: één rij boeken die als een band over het scherm schuift. Het label op elk boek zegt wie het aanraadt.
+   *   - De band herhaalt de boeken (minstens BAND_MIN per ronde), zodat hij zonder sprong rondloopt. Die kopieën zijn
+   *     verborgen voor schermlezers en het toetsenbord: daar staat elk boek één keer.
+   *   - Stil met de knop Pauzeer, met de muis erop of met de focus op een boek.
+   *   - Wie minder beweging wil (prefers-reduced-motion): geen beweging, je schuift zelf (zie .band in styles.css).
+   */
+  var BAND_MIN = 10;
+  var BAND_SECONDEN_PER_BOEK = 4;
+  var bandGepauzeerd = false;
+
+  function verbergKopie(li) {
+    li.setAttribute('aria-hidden', 'true');
+    li.classList.add('band-kopie');
+    Array.prototype.forEach.call(li.querySelectorAll('a'), function (a) { a.setAttribute('tabindex', '-1'); });
+    return li;
+  }
+
   function tekenAanraders(lijst) {
     var groepen = aanraderGroepen(lijst);
-    return groepen.map(function (g, i) {
-      var id = 'aanradergroep-' + i;
-      return el('div', { class: 'aanradergroep' },
-        el('h3', { id: id, class: g.ster ? 'met-ster' : null }, g.titel),
-        el('ul', { class: 'aanraders', 'aria-labelledby': id }, g.boeken.map(function (b) { return aanrader(b, false); })),
-        g.naam ? el('p', { class: 'meer' }, el('a', { href: 'boeken.html#/?aanrader=' + encodeURIComponent('Aanrader van ' + g.naam) }, T.t('alleAanradersVan', { naam: g.naam }))) : null);
+    if (!groepen.length) return [];
+    var boeken = [].concat.apply([], groepen.map(function (g) { return g.boeken; }));
+    var ronde = [];
+    for (var i = 0; ronde.length < Math.max(BAND_MIN, boeken.length); i++) {
+      var li = aanrader(boeken[i % boeken.length], false);
+      ronde.push(i < boeken.length ? li : verbergKopie(li));
+    }
+    // De tweede helft is een kopie van de eerste: als die op de plaats van de eerste staat, begint de band opnieuw.
+    var kopie = ronde.map(function (li) { return verbergKopie(li.cloneNode(true)); });
+    var spoor = el('ul', { class: 'band-spoor', id: 'aanraders-band', 'aria-labelledby': 'aanraders-titel' }, ronde.concat(kopie));
+    spoor.style.animationDuration = (ronde.length * BAND_SECONDEN_PER_BOEK) + 's';
+    var knop = el('button', { type: 'button', class: 'knop klein tweede band-knop', 'aria-controls': 'aanraders-band' });
+    function zet() {
+      spoor.classList.toggle('gepauzeerd', bandGepauzeerd);
+      knop.textContent = T.t(bandGepauzeerd ? 'bandSpeel' : 'bandPauze');
+      knop.setAttribute('aria-pressed', bandGepauzeerd ? 'true' : 'false');
+    }
+    knop.addEventListener('click', function () { bandGepauzeerd = !bandGepauzeerd; zet(); });
+    zet();
+    var links = groepen.filter(function (g) { return g.naam; }).map(function (g) {
+      return el('p', { class: 'meer' }, el('a', { href: 'boeken.html#/?aanrader=' + encodeURIComponent('Aanrader van ' + g.naam) }, T.t('alleAanradersVan', { naam: g.naam })));
     });
+    return [el('div', { class: 'band-knoppen' }, knop), el('div', { class: 'band' }, spoor)].concat(links);
   }
 
   function teken() {
