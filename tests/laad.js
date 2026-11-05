@@ -53,6 +53,7 @@ const SCRIPTS = [
   'apps-script/Genres.js',
   'apps-script/Indelen.js',
   'apps-script/Auteurs.js',
+  'apps-script/VerkoopLijst.js',
   'apps-script/CoversBewaren.js',
   'apps-script/Privacy.js',
   'apps-script/Overzetten.js',

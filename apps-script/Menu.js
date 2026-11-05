@@ -182,7 +182,8 @@ function onOpen() {
       .addItem('Vul de films aan (Wikidata en Wikipedia)', 'vulFilmsAan')
       .addItem('Deel de films in op titel en beschrijving (trefwoorden)', 'deelFilmsInMenu'))
     .addSubMenu(ui.createMenu('Verkoop')
-      .addItem('Werk de voorraad bij', 'voorraadBijwerkenMenu'))
+      .addItem('Werk de voorraad bij', 'voorraadBijwerkenMenu')
+      .addItem('Neem de verkooplijst over (tabblad Verkooplijst)', 'neemVerkooplijstOver'))
     .addSeparator()
     // De spreadsheet zelf.
     .addSubMenu(ui.createMenu('Spreadsheet en onderhoud')
