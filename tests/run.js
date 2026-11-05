@@ -2249,6 +2249,35 @@ test('vertaaltabel: genres die bij een nieuw thema horen, krijgen dat thema (en 
   gelijk(M.vertaaltabelNieuweThemas(rijen).length, 0, 'opnieuw: niets meer');
 });
 
+test('verkooplijst: bestaande boeken krijgen een aantal en prijs te koop, nieuwe komen erbij als enkel te koop', () => {
+  const waarden = [
+    ['Verkoop', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', ''],
+    ['Titel ', 'Auteur(s)', 'ISBN', 'Uitgeverij', 'Jaartal', 'Taal', "Pagina's", 'Uitvoering', 'Nieuwstaat', 'Genre', 'Aantal ', 'Prijs '],
+    ['De verzonnen zee', 'Verbeek, Mira', '978 0 306 40615 7', 'Uitgeverij Fictie', 1999, 'Nederlands ', 200, 'Paperback ', 'nieuw ', 'fictie', '3 + 1 inkijkexemplaar', 12],
+    ['Licht in de kast', 'Ander, Kim', '', '', 2020, 'Engels ', '', 'Paperback ', '2e hands', 'sexualiteit ', '', ''],
+    ['Twee kasten vol: een roman', 'Rein Dewit', '', '', '', '', '', '', '', '', 2, '7,5']
+  ];
+  const lijst = M.leesVerkooplijst(waarden);
+  gelijk(lijst.map((r) => [r.rij, r.titel, r.aantalTekst, r.prijs]), [[4, 'De verzonnen zee', '3 + 1 inkijkexemplaar', 12], [5, 'Licht in de kast', '', null], [6, 'Twee kasten vol: een roman', '2', 7.5]]);
+  const cat = [
+    { boek_id: 'B0001', soort: 'boek', titel: 'De verzonnen zee', auteur: 'Verbeek, Mira', isbn: '9780306406157', aantal: 1, uitleenbaar: 'ja' },
+    { boek_id: 'B0002', soort: 'boek', titel: 'Twee kasten vol', auteur: 'Dewit, Rein', isbn: '', aantal: 1, uitleenbaar: 'ja' }
+  ];
+  let nr = 2;
+  const uit = M.verkooplijstToepassen(cat, lijst, () => 'B' + String(++nr).padStart(4, '0'), '2026-11-05');
+  gelijk(uit.map((r) => [r.boek_id, r.nieuw]), [['B0001', false], ['B0003', true], ['B0002', false]]);
+  gelijk([cat[0].te_koop_aantal, cat[0].prijs, cat[0].uitleenbaar], [3, 12, 'ja'], 'uitlenen blijft');
+  gelijk([cat[1].te_koop_aantal, cat[1].prijs], [2, 7.5]);
+  const n = cat[2];
+  gelijk([n.titel, n.auteur, n.taal, n.nieuwstaat, n.uitleenbaar, n.publiek, n.te_koop_aantal, n.prijs, n.herkomst],
+    ['Licht in de kast', 'Ander, Kim', 'Engels', 'nee', 'nee', 'nee', 1, '', 'verkooplijst']);
+  assert.ok(/inkijkexemplaar/.test(uit[0].opmerking) && /aantal ontbrak/.test(uit[1].opmerking) && /prijs nog/.test(uit[1].opmerking));
+  // Opnieuw: verwerkte rijen worden overgeslagen.
+  lijst.forEach((r, i) => { r.verwerkt = uit[i].verwerkt; });
+  gelijk(M.verkooplijstToepassen(cat, lijst, () => 'X', '2026-11-05').length, 0);
+});
+
 test('Politiek is een apart thema, los van Maatschappij', () => {
   gelijk([M.themaVan('Politiek', {}), M.themaVan('Activisme', {}), M.themaVan('Essay', {})], [['Politiek'], ['Politiek'], ['Maatschappij']]);
   gelijk(M.FILTERGROEPEN.indexOf('Politiek') > -1, true);
