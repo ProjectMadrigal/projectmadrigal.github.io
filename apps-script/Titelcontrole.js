@@ -474,7 +474,7 @@ function titelcontroleToepassen(catalogus, rijen, invoer, wie, vandaag) {
 function titelcontroleTabel() {
   var ss = spreadsheet();
   if (!ss.getSheetByName(TITELCONTROLE_TABBLAD)) {
-    var blad = ss.insertSheet(TITELCONTROLE_TABBLAD);
+    var blad = maakTabblad(TITELCONTROLE_TABBLAD);
     var kop = KOLOMMEN[TITELCONTROLE_TABBLAD];
     blad.getRange(1, 1, 1, kop.length).setValues([kop]);
     opmaakKop(blad, kop.length);

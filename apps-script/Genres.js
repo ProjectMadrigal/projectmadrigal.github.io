@@ -190,7 +190,7 @@ function kuisGenresOp() {
   leegCache();
   // Overzicht van wat veranderde.
   var ss = spreadsheet();
-  var blad = ss.getSheetByName(GENRES_TABBLAD) || ss.insertSheet(GENRES_TABBLAD);
+  var blad = ss.getSheetByName(GENRES_TABBLAD) || maakTabblad(GENRES_TABBLAD);
   blad.clear();
   blad.getRange(1, 1, blad.getMaxRows(), blad.getMaxColumns()).clearDataValidations();
   var kop = ['genre_vroeger', 'aantal_boeken', 'genre_nu'];

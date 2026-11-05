@@ -218,7 +218,7 @@ function deelBoekenInUitvoeren(welke) {
     if (uit.length) schrijfKolommen(catalogus, ['extra_onderwerpen', 'categorieen', 'trefwoorden']);
     if (uit.length) {
       var ss = spreadsheet();
-      var blad = ss.getSheetByName('Indeling') || ss.insertSheet('Indeling');
+      var blad = ss.getSheetByName('Indeling') || maakTabblad('Indeling');
       var kolommen = KOLOMMEN['Indeling'];
       blad.clear();
       var waarden = [kolommen].concat(uit.map(function (r) { return kolommen.map(function (k) { return r[k]; }); }));

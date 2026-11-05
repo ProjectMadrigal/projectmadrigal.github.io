@@ -252,7 +252,7 @@ function rondAf(n) {
 /** Schrijft het tabblad Voorraad opnieuw. catalogus en verkopen: rijen (zoals leesTabel ze geeft). */
 function schrijfVoorraad(catalogus, verkopen) {
   var ss = spreadsheet();
-  var blad = ss.getSheetByName('Voorraad') || ss.insertSheet('Voorraad');
+  var blad = ss.getSheetByName('Voorraad') || maakTabblad('Voorraad');
   var v = voorraadRijen(catalogus, verkopen);
   var info = 'Overzicht van het script, bijgewerkt op ' + Utilities.formatDate(new Date(), tijdzone(), 'dd/MM/yyyy HH:mm') +
     '. Pas prijzen en aantallen aan in de Catalogus (te_koop_aantal, prijs, onderhandelbaar): dit tabblad volgt vanzelf.';

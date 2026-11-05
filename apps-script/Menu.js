@@ -21,7 +21,7 @@ function zorgVoorTabbladen(namen) {
     if (!kolommen) return;
     var blad = ss.getSheetByName(naam);
     if (!blad) {
-      blad = ss.insertSheet(naam);
+      blad = maakTabblad(naam);
       blad.getRange(1, 1, 1, kolommen.length).setValues([kolommen]);
       opmaakKop(blad, kolommen.length);
       return;
@@ -39,7 +39,7 @@ function installeer() {
   var ss = spreadsheet();
 
   // Instellingen: sleutel, waarde, uitleg.
-  var inst = ss.getSheetByName('Instellingen') || ss.insertSheet('Instellingen');
+  var inst = ss.getSheetByName('Instellingen') || maakTabblad('Instellingen');
   if (inst.getLastRow() === 0) {
     inst.appendRow(['sleutel', 'waarde', 'uitleg']);
     opmaakKop(inst, 3);
@@ -66,7 +66,7 @@ function installeer() {
 
   // De andere tabbladen met hun kolommen.
   Object.keys(KOLOMMEN).forEach(function (naam) {
-    var blad = ss.getSheetByName(naam) || ss.insertSheet(naam);
+    var blad = ss.getSheetByName(naam) || maakTabblad(naam);
     var kolommen = KOLOMMEN[naam];
     var kop = blad.getLastRow() > 0 ? blad.getRange(1, 1, 1, Math.max(1, blad.getLastColumn())).getValues()[0].map(schoon) : [];
     var ontbrekend = kolommen.filter(function (k) { return kop.indexOf(k) === -1; });
