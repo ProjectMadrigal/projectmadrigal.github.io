@@ -150,6 +150,7 @@ function antwoord(rol, actie, vraag) {
     aankoopImporteren: { ok: true, gelukt: ((vraag || {}).boeken || []).length, tekst: ((vraag || {}).boeken || []).length + ' boek staat nu op de aankooplijst.', lijst: AANKOOP },
     voorraadCatalogus: { ok: true, boeken: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', i: '', stock: 3, prijs: 8, o: true }, { id: 'B0002', t: 'Stille lichten', a: 'Fictief, Kim', i: '9780000000002', stock: 0, prijs: null, o: false }] },
     voorraadZetten: { ok: true, tekst: '"Stille lichten": 2 te koop aan 7,50 euro.', data: VERKOOP },
+    voorraadBoekAanpassen: { ok: true, tekst: 'Bewaard. "De verzonnen zee": 3 te koop aan 8 euro.', data: VERKOOP },
     voorraadNieuwBoek: { ok: true, nieuw: true, boek_id: 'B0099', tekst: 'Bewaard. "Een nieuw verzonnen boek" staat nu in de Catalogus als B0099, met 1 exemplaar te koop (nog zonder prijs). Het is enkel te koop: niet uitleenbaar en niet op de website.', data: VERKOOP },
     verkopenDoorsturen: { ok: true, bewaard: ((vraag || {}).verkopen || []).map((v) => v.verkoop_id), nieuw: ((vraag || {}).verkopen || []).length, fouten: [], data: VERKOOP },
     boekVervangen: { ok: true, tekst: '"Stille lichten": vervangen. Het staat weer gewoon in de catalogus.' },
@@ -1230,6 +1231,15 @@ async function meldAan(page, basis, pagina) {
     verwacht(n && n.titel === 'Een nieuw verzonnen boek' && n.prijs === '' && n.te_koop_aantal === '1' && n.taal === 'Engels', 'Nieuw boek doorgestuurd: ' + JSON.stringify(n));
     verwacht(!!(await page.$('#vr-zoek')), 'Terug in Voorraad beheren');
     verwacht(!!(await page.$('#werkvlak button:has-text("+ Nieuw boek aan de voorraad toevoegen")')), 'Knop Nieuw boek');
+    // Alle gegevens van een boek uit de voorraad aanpassen.
+    await page.click('#werkvlak li:has-text("De verzonnen zee") button:has-text("Alle gegevens aanpassen")');
+    await page.waitForSelector('#nv-titel');
+    verwacht(await page.inputValue('#nv-titel') === 'De verzonnen zee' && await page.inputValue('#nv-aantal') === '3', 'Gegevens staan klaar');
+    await page.fill('#nv-uitgeverij', 'Uitgeverij Verzonnen');
+    await page.click('#werkvlak button:has-text("Bewaar")');
+    await page.waitForSelector('text=Bewaard. "De verzonnen zee"');
+    const a = vragen.filter((x) => x.actie === 'voorraadBoekAanpassen').pop();
+    verwacht(a && a.boek_id === 'B0001' && a.uitgeverij === 'Uitgeverij Verzonnen' && a.te_koop_aantal === '3', 'Aanpassen doorgestuurd: ' + JSON.stringify(a));
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
     await ctx.close();
     const vw = await nieuweContext(browser, { rol: 'vrijwilliger' });

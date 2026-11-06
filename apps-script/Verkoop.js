@@ -205,7 +205,12 @@ function standjeStatus(rijen, invoer) {
 /** Alle boeken uit de Catalogus, om er een te kiezen en aan de voorraad toe te voegen. Geen films. */
 function voorraadCatalogus(catalogus) {
   return catalogus.filter(function (b) { return !isLeeg(b.boek_id) && !isLeeg(b.titel) && !isFilm(b); }).map(function (b) {
-    return { id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), i: String(b.isbn || ''), stock: stockVan(b), prijs: verkoopGetal(b.prijs), o: jaNee(b.onderhandelbaar) === 'ja' };
+    var nieuw = jaNee(b.nieuwstaat);
+    return {
+      id: String(b.boek_id), t: schoon(b.titel), a: schoon(b.auteur), i: String(b.isbn || ''), stock: stockVan(b), prijs: verkoopGetal(b.prijs), o: jaNee(b.onderhandelbaar) === 'ja',
+      // Voor Alle gegevens aanpassen: zoals het formulier ze toont.
+      u: schoon(b.uitgeverij), j: parseerGetal(b.jaartal) || '', l: schoon(b.taal), v: schoon(b.uitvoering), n: nieuw === 'ja' ? 'nieuw' : nieuw === 'nee' ? 'tweedehands' : ''
+    };
   }).sort(function (a, b) { return a.t.localeCompare(b.t); });
 }
 
@@ -274,6 +279,31 @@ function voorraadNieuwBoek(catalogus, invoer, nieuwId, vandaag) {
       ' Het uitlenen van dat boek verandert niet.';
   }
   return { ok: true, boek_id: uit.boek_id, nieuw: uit.nieuw, tekst: tekst };
+}
+
+/**
+ * Alle gegevens van een boek uit de voorraad aanpassen (formulier Alle gegevens aanpassen in het verkoopscherm).
+ * invoer: { boek_id, titel, auteur, isbn, uitgeverij, jaartal, taal, uitvoering, nieuwstaat, te_koop_aantal, prijs, onderhandelbaar }.
+ * Dezelfde controles als het boekformulier van het bestuursscherm (beheerVelden). Geeft { ok, tekst } of { ok: false, fout }.
+ */
+function voorraadBoekAanpassen(catalogus, invoer) {
+  invoer = invoer || {};
+  var boek = catalogus.filter(function (b) { return String(b.boek_id) === String(invoer.boek_id); })[0];
+  if (!boek) return { ok: false, fout: 'Dit boek bestaat niet.' };
+  var ruw = {};
+  ['titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'uitvoering'].forEach(function (k) { if (invoer.hasOwnProperty(k)) ruw[k] = invoer[k]; });
+  if (invoer.hasOwnProperty('nieuwstaat')) ruw.nieuwstaat = verkoopNieuwstaat(invoer.nieuwstaat);
+  var r = beheerVelden(ruw, Object.keys(ruw));
+  if (r.fout) return { ok: false, fout: r.fout };
+  if (r.velden.hasOwnProperty('titel') && !r.velden.titel) return { ok: false, fout: 'Vul de titel in.' };
+  if (r.velden.isbn && !normaliseerIsbn(r.velden.isbn).isbn && !normaliseerIsbn(r.velden.isbn).issn) return { ok: false, fout: 'Dit ISBN klopt niet. Kijk het na, of laat het leeg.' };
+  // Eerst aantal en prijs nakijken: een fout daar mag de rest niet half bewaren.
+  var kopie = { boek_id: boek.boek_id, titel: boek.titel };
+  var v = voorraadZetten([kopie], { boek_id: boek.boek_id, te_koop_aantal: invoer.te_koop_aantal, prijs: invoer.prijs, onderhandelbaar: invoer.onderhandelbaar });
+  if (!v.ok) return v;
+  wijzig(boek, r.velden);
+  voorraadZetten(catalogus, { boek_id: boek.boek_id, te_koop_aantal: invoer.te_koop_aantal, prijs: invoer.prijs, onderhandelbaar: invoer.onderhandelbaar });
+  return { ok: true, tekst: 'Bewaard. ' + v.tekst.replace(/^"[^"]*"/, '"' + schoon(boek.titel) + '"') };
 }
 
 /* ---------- Tabblad Voorraad ---------- */
@@ -392,8 +422,9 @@ function verkoopActie(actie, invoer, wie) {
       bewaarTabel(catalogus);
       try { schrijfVoorraad(rijen.catalogus, rijen.verkopen); } catch (e) { /* het overzicht is een extraatje */ }
     }
-  } else if (actie === 'voorraadZetten' || actie === 'voorraadNieuwBoek') {
+  } else if (actie === 'voorraadZetten' || actie === 'voorraadNieuwBoek' || actie === 'voorraadBoekAanpassen') {
     if (actie === 'voorraadZetten') r = voorraadZetten(rijen.catalogus, invoer);
+    else if (actie === 'voorraadBoekAanpassen') r = voorraadBoekAanpassen(rijen.catalogus, invoer);
     else {
       var ids = maakIdGenerator(rijen.catalogus);
       r = voorraadNieuwBoek(rijen.catalogus, invoer, function (soort) { return ids.nieuw(soort); }, vandaagTekst());

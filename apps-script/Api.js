@@ -63,6 +63,7 @@ var ACTIES = {
   voorraadCatalogus: 'bestuur',
   voorraadZetten: 'bestuur',
   voorraadNieuwBoek: 'bestuur',
+  voorraadBoekAanpassen: 'bestuur',
   // De aankooplijst (Aankoop.js): vrijwilligers voegen toe, het bestuur past aan, duidt aan en verwijdert.
   aankoopData: 'vrijwilliger',
   aankoopToevoegen: 'vrijwilliger',
@@ -326,9 +327,9 @@ function voerActieUit(actie, invoer, rol) {
     if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
     if (/^aankoop/.test(actie)) return aankoopActie(actie, invoer, wie, rol);
     if (/^titelcontrole/.test(actie)) return titelcontroleActie(actie, invoer, wie);
-    if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus', 'voorraadCatalogus', 'voorraadZetten', 'voorraadNieuwBoek'].indexOf(actie) > -1) {
+    if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus', 'voorraadCatalogus', 'voorraadZetten', 'voorraadNieuwBoek', 'voorraadBoekAanpassen'].indexOf(actie) > -1) {
       var verkoop = verkoopActie(actie, invoer, wie);
-      if (verkoop.ok && ((actie === 'verkopenDoorsturen' && verkoop.nieuw) || actie === 'voorraadZetten' || actie === 'voorraadNieuwBoek')) leegCache();
+      if (verkoop.ok && ((actie === 'verkopenDoorsturen' && verkoop.nieuw) || actie === 'voorraadZetten' || actie === 'voorraadNieuwBoek' || actie === 'voorraadBoekAanpassen')) leegCache();
       return verkoop;
     }
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {

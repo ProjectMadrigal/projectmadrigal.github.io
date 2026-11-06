@@ -389,7 +389,8 @@
       el('div', { class: 'knoppen' },
         el('label', { for: idAantal }, 'Aantal te koop '), aantal,
         el('label', { for: idPrijs }, 'Prijs in euro '), prijs,
-        el('label', { for: idO }, o, ' Onderhandelbaar'), knop),
+        el('label', { for: idO }, o, ' Onderhandelbaar'), knop,
+        el('button', { type: 'button', class: 'knop tweede', onclick: function () { alleGegevens(b); } }, 'Alle gegevens aanpassen')),
       fout);
   }
 
@@ -430,31 +431,46 @@
       lijst);
   }
 
+  /** Alle gegevens van een boek aanpassen. De catalogus van Voorraad beheren heeft die gegevens. */
+  function alleGegevens(b) {
+    if (!navigator.onLine) { B.melding($('melding'), 'fout', 'Dit kan enkel met internet.'); return; }
+    var laad = catalogus ? Promise.resolve() : B.voerUit('voorraadCatalogus').then(function (r) { if (r.ok) catalogus = r.boeken; });
+    laad.then(function () {
+      var volledig = (catalogus || []).filter(function (x) { return x.id === b.id; })[0];
+      nieuwVoorraadBoek('', volledig || b);
+    });
+  }
+
   /** Een boek aan de voorraad toevoegen dat nog niet in de Catalogus staat (enkel het bestuur, met internet). */
-  function nieuwVoorraadBoek(titel) {
+  function nieuwVoorraadBoek(titel, bestaand) {
+    // bestaand: een boek uit Voorraad beheren. Dan pas je alle gegevens van dat boek aan in plaats van een nieuw toe te voegen.
+    var b = bestaand || null;
     var fout = el('div', { 'aria-live': 'assertive' });
     function invoer(id, label, attr) {
       var v = el('input', Object.assign({ type: 'text', id: id }, attr || {}));
       return { invoer: v, blok: el('div', { class: 'veld' }, el('label', { for: id }, label), v) };
     }
-    function keuze(id, label, opties) {
-      var v = el('select', { id: id }, [el('option', { value: '' }, '(niet ingevuld)')].concat(opties.map(function (o) { return el('option', { value: o }, o); })));
+    function keuze(id, label, opties, waarde) {
+      var v = el('select', { id: id }, [el('option', { value: '' }, '(niet ingevuld)')].concat(opties.map(function (o) { return el('option', { value: o, selected: o === waarde }, o); })));
       return { invoer: v, blok: el('div', { class: 'veld' }, el('label', { for: id }, label), v) };
     }
     var velden = {
-      titel: invoer('nv-titel', 'Titel (verplicht)', { maxlength: '200', required: true, value: titel || '' }),
-      auteur: invoer('nv-auteur', 'Auteur (Achternaam, Voornaam)', { maxlength: '200' }),
-      isbn: invoer('nv-isbn', 'ISBN', { maxlength: '20', inputmode: 'numeric' }),
-      uitgeverij: invoer('nv-uitgeverij', 'Uitgeverij', { maxlength: '120' }),
-      jaartal: invoer('nv-jaartal', 'Jaartal', { maxlength: '4', inputmode: 'numeric', class: 'kort' }),
-      taal: keuze('nv-taal', 'Taal', ['Nederlands', 'Engels', 'Frans', 'Duits']),
-      uitvoering: keuze('nv-uitvoering', 'Uitvoering', ['Hardcover', 'Paperback', 'Pocket']),
-      nieuwstaat: keuze('nv-nieuwstaat', 'Nieuw of tweedehands', ['nieuw', 'tweedehands']),
-      te_koop_aantal: invoer('nv-aantal', 'Aantal te koop (verplicht)', { type: 'number', min: '1', step: '1', value: '1', class: 'kort', inputmode: 'numeric' }),
-      prijs: invoer('nv-prijs', 'Prijs in euro (mag leeg, vul ze later in of bij de verkoop)', { inputmode: 'decimal', class: 'kort' })
+      titel: invoer('nv-titel', 'Titel (verplicht)', { maxlength: '200', required: true, value: b ? b.t : titel || '' }),
+      auteur: invoer('nv-auteur', 'Auteur (Achternaam, Voornaam)', { maxlength: '200', value: b ? b.a || '' : '' }),
+      isbn: invoer('nv-isbn', 'ISBN', { maxlength: '20', inputmode: 'numeric', value: b ? b.i || '' : '' }),
+      uitgeverij: invoer('nv-uitgeverij', 'Uitgeverij', { maxlength: '120', value: b ? b.u || '' : '' }),
+      jaartal: invoer('nv-jaartal', 'Jaartal', { maxlength: '4', inputmode: 'numeric', class: 'kort', value: b && b.j ? String(b.j) : '' }),
+      taal: keuze('nv-taal', 'Taal', ['Nederlands', 'Engels', 'Frans', 'Duits'], b && b.l),
+      uitvoering: keuze('nv-uitvoering', 'Uitvoering', ['Hardcover', 'Paperback', 'Pocket'], b && b.v),
+      nieuwstaat: keuze('nv-nieuwstaat', 'Nieuw of tweedehands', ['nieuw', 'tweedehands'], b && b.n),
+      te_koop_aantal: invoer('nv-aantal', b ? 'Aantal te koop (0: niet meer te koop)' : 'Aantal te koop (verplicht)',
+        { type: 'number', min: b ? '0' : '1', step: '1', value: b ? String(b.stock) : '1', class: 'kort', inputmode: 'numeric' }),
+      prijs: invoer('nv-prijs', 'Prijs in euro (mag leeg, vul ze later in of bij de verkoop)',
+        { inputmode: 'decimal', class: 'kort', value: b && b.prijs !== null && b.prijs !== undefined ? String(b.prijs).replace('.', ',') : '' })
     };
     var o = el('input', { type: 'checkbox', id: 'nv-o' });
-    var bewaar = el('button', { type: 'submit', class: 'knop' }, 'Voeg toe aan de voorraad');
+    o.checked = !!(b && b.o);
+    var bewaar = el('button', { type: 'submit', class: 'knop' }, b ? 'Bewaar' : 'Voeg toe aan de voorraad');
     var formulier = el('form', { novalidate: true },
       Object.keys(velden).map(function (k) { return velden[k].blok; }),
       el('div', { class: 'veld' }, el('label', { for: 'nv-o' }, o, ' Prijs onderhandelbaar')),
@@ -467,7 +483,8 @@
       Object.keys(velden).forEach(function (k) { waarden[k] = velden[k].invoer.value.trim(); });
       if (!waarden.titel) { B.melding(fout, 'fout', 'Vul de titel in.'); velden.titel.invoer.focus(); return; }
       bewaar.disabled = true;
-      B.voerUit('voorraadNieuwBoek', waarden).then(function (r) {
+      if (b) waarden.boek_id = b.id;
+      B.voerUit(b ? 'voorraadBoekAanpassen' : 'voorraadNieuwBoek', waarden).then(function (r) {
         bewaar.disabled = false;
         if (!r.ok) { B.melding(fout, 'fout', r.fout || 'Het boek kon niet bewaard worden.'); return; }
         if (r.data) gebruik(r.data);
@@ -479,8 +496,9 @@
     });
     D.vervang($('werkvlak'),
       knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonVoorraad(); } }, '← Voorraad beheren')),
-      el('h2', { tabindex: '-1' }, 'Nieuw boek aan de voorraad toevoegen'),
-      el('p', {}, 'Vul in wat je weet. Enkel de titel en het aantal zijn verplicht. Staat het boek toch al in de Catalogus (zelfde ISBN, of zelfde titel en auteur), dan krijgt dat boek het aantal en de prijs.'),
+      el('h2', { tabindex: '-1' }, b ? 'Gegevens aanpassen: ' + b.t : 'Nieuw boek aan de voorraad toevoegen'),
+      el('p', {}, b ? 'Pas aan wat niet klopt en klik op Bewaar. Alles komt in de Catalogus (' + b.id + '). Thema\'s, beschrijving en cover pas je aan in het bestuursscherm.'
+        : 'Vul in wat je weet. Enkel de titel en het aantal zijn verplicht. Staat het boek toch al in de Catalogus (zelfde ISBN, of zelfde titel en auteur), dan krijgt dat boek het aantal en de prijs.'),
       formulier);
     $('werkvlak').querySelector('h2').focus();
     velden.titel.invoer.focus();

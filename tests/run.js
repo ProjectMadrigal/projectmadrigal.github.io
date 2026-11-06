@@ -1832,6 +1832,26 @@ test('voorraad beheren: een nieuw boek dat nog niet in de Catalogus staat', () =
   assert.strictEqual(r.tekst, 'Bewaard, en er kwam geen tweede boek bij. "Atlas van niets" stond al in de Catalogus als B0001. Dat boek staat nu met 1 exemplaar te koop aan 10 euro. Vroeger stonden er 3 te koop. Het uitlenen van dat boek verandert niet.', 'zonder prijs blijft de oude prijs');
 });
 
+test('voorraad beheren: alle gegevens van een boek aanpassen', () => {
+  const catalogus = [{ boek_id: 'B0001', soort: 'boek', titel: 'Atlas van niets', auteur: 'Bedacht, Noor', isbn: '', uitgeverij: '', te_koop_aantal: 2, prijs: 8, onderhandelbaar: 'nee', nieuwstaat: '' }];
+  const lijst = M.voorraadCatalogus(catalogus);
+  gelijk([lijst[0].u, lijst[0].n], ['', '']);
+  assert.strictEqual(M.voorraadBoekAanpassen(catalogus, { boek_id: 'B9', titel: 'X', te_koop_aantal: 1 }).ok, false);
+  assert.strictEqual(M.voorraadBoekAanpassen(catalogus, { boek_id: 'B0001', titel: '', te_koop_aantal: 1 }).ok, false, 'titel nodig');
+  let r = M.voorraadBoekAanpassen(catalogus, { boek_id: 'B0001', titel: 'Atlas van alles', uitgeverij: 'Verzonnen', te_koop_aantal: 'twee', prijs: 5 });
+  assert.strictEqual(r.ok, false, 'fout aantal');
+  assert.strictEqual(catalogus[0].titel, 'Atlas van niets', 'bij een fout verandert niets');
+  r = M.voorraadBoekAanpassen(catalogus, { boek_id: 'B0001', titel: 'Atlas van alles', auteur: 'Bedacht, Noor', isbn: '978-0-306-40615-7', uitgeverij: 'Verzonnen', jaartal: '2001',
+    taal: 'Engels', uitvoering: 'Paperback', nieuwstaat: 'tweedehands', te_koop_aantal: '3', prijs: '9,50', onderhandelbaar: true });
+  assert.ok(r.ok, r.fout);
+  const b = catalogus[0];
+  gelijk([b.titel, b.isbn, b.uitgeverij, b.jaartal, b.taal, b.uitvoering, b.nieuwstaat, b.te_koop_aantal, b.prijs, b.onderhandelbaar],
+    ['Atlas van alles', '9780306406157', 'Verzonnen', 2001, 'Engels', 'Paperback', 'nee', 3, 9.5, 'ja']);
+  assert.strictEqual(r.tekst, 'Bewaard. "Atlas van alles": 3 te koop aan 9,50 euro.');
+  gelijk([M.voorraadCatalogus(catalogus)[0].n, M.voorraadCatalogus(catalogus)[0].u], ['tweedehands', 'Verzonnen']);
+  assert.strictEqual(M.voorraadBoekAanpassen(catalogus, { boek_id: 'B0001', titel: 'X', isbn: '123', te_koop_aantal: 1 }).ok, false, 'fout ISBN');
+});
+
 test('verkoopscherm: cover, korte beschrijving en thema\'s zoals op de website', () => {
   const t = {
     catalogus: [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Vera Verzonnen', genre: 'Queer fictie', extra_onderwerpen: 'Gender', cover_url: 'https://voorbeeld.test/c.jpg',
