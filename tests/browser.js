@@ -1197,7 +1197,8 @@ async function meldAan(page, basis, pagina) {
     // Ook vanuit Bekijk de voorraad: Pas aan op de kaart.
     await page.click('#werkvlak button:has-text("Alle standjes")');
     await page.click('#werkvlak button:has-text("Bekijk de voorraad")');
-    await page.click('#werkvlak button:has-text("Pas aan")');
+    verwacht(await page.isVisible('#werkvlak button:has-text("Alle gegevens aanpassen")'), 'Alle gegevens aanpassen meteen zichtbaar op de kaart');
+    await page.click('#werkvlak button:has-text("Aantal en prijs aanpassen")');
     await page.fill('#vr-prijs-B0001', '9');
     await page.click('#werkvlak .boek button:has-text("Bewaar")');
     await page.waitForFunction(() => document.querySelectorAll('#werkvlak .melding').length > 0);
