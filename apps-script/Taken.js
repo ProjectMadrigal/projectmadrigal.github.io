@@ -244,7 +244,7 @@ function extraCijfers(staat) {
 /* ---------- Meerdere boeken tegelijk aanpassen (bestuursscherm) ---------- */
 
 var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'status', 'aanrader', 'startpagina',
-  'publiek', 'uitleenbaar', 'te_koop', 'klassieker', 'leeslijsten'];
+  'publiek', 'uitleenbaar', 'te_koop', 'te_koop_aantal', 'prijs', 'onderhandelbaar', 'klassieker', 'leeslijsten'];
 // Velden met een lijst (komma's): je kan er iets aan toevoegen of uit weghalen, zonder de rest te overschrijven.
 var BULK_LIJSTEN = ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'aanrader', 'leeslijsten'];
 

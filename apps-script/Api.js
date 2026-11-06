@@ -435,6 +435,11 @@ function voerActieUit(actie, invoer, rol) {
     if (staat.catalogusGewijzigd) {
       bewaarTabel(staat.tabellen.Catalogus);
       werkOnderwerpenBij(); // een nieuw genre komt zo in de vertaaltabel Onderwerpen
+      // Aantal te koop, prijs of onderhandelbaar aangepast in het bestuursscherm: ook het tabblad Voorraad bijwerken.
+      var verkoopVelden = Object.keys(invoer.velden || {}).concat(invoer.veld ? [invoer.veld] : []);
+      if (antwoord.ok && verkoopVelden.some(function (k) { return VOORRAAD_BRON.indexOf(k) > -1; })) {
+        try { schrijfVoorraad(staat.catalogus, spreadsheet().getSheetByName('Verkopen') ? leesTabel('Verkopen').rijen : []); } catch (e) { /* het overzicht is een extraatje */ }
+      }
     }
     if (meldingen.length || (antwoord.ok && actie !== 'balieData' && actie !== 'bestuurData' && actie !== 'filmsVoorbeeld')) leegCache();
     if (meldingen.length && antwoord.ok) antwoord.apartLeggen = (antwoord.apartLeggen || []).concat(meldingen);

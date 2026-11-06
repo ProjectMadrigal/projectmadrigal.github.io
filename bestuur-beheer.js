@@ -26,7 +26,8 @@
     aantal: 'Aantal exemplaren', uitleenbaar: 'Uitleenbaar', publiek: 'Op de website', status: 'Status',
     startpagina: 'Op de startpagina', leeslijsten: 'Leeslijsten', beschrijving: 'Beschrijving (Nederlands)', beschrijving_en: 'Beschrijving (Engels)',
     cover_url: 'Link naar de cover', herkomst: 'Herkomst', notitie: 'Notitie (enkel voor het bestuur)',
-    land: 'Land (films)', originele_titel: 'Originele titel', duur: 'Duur in minuten (films)', film_tip: 'Kijktip (film niet in de bib)', te_koop: 'Te koop',
+    land: 'Land (films)', originele_titel: 'Originele titel', duur: 'Duur in minuten (films)', film_tip: 'Kijktip (film niet in de bib)', te_koop: 'Enkel te koop (oude markering)',
+    te_koop_aantal: 'Exemplaren te koop', prijs: 'Prijs in euro', onderhandelbaar: 'Prijs onderhandelbaar',
     datum: 'Datum', uur: 'Uur', titel_en: 'Titel (Engels)', tekst: 'Tekst', tekst_en: 'Tekst (Engels)',
     locatie: 'Locatie', afbeelding: 'Link naar een afbeelding', link: 'Link voor meer info',
     online_vanaf: 'Online vanaf', zichtbaar_vanaf: 'Zichtbaar vanaf', zichtbaar_tot: 'Zichtbaar tot en met',
@@ -39,6 +40,9 @@
     land: 'Bij een film: het land of de landen, gescheiden door komma\'s',
     originele_titel: 'Enkel als die verschilt van de titel, bv. de titel in de taal van de film of van het oorspronkelijke boek.',
     film_tip: 'Ja: deze film is niet in de bib, maar we raden hem aan. Niet uitleenbaar.',
+    te_koop_aantal: 'Los van de exemplaren om uit te lenen: een boek kan uitleenbaar zijn en ook te koop. Leeg of 0: niet te koop. Met 1 of meer staat het boek in het verkoopscherm.',
+    prijs: 'Bv. 8 of 12,50. Mag leeg: dan vul je de prijs in bij de verkoop.',
+    te_koop: 'Ja: enkel te koop, en daardoor niet uitleenbaar. Mag het ook uitleenbaar zijn, zet dan Nee en vul bij een boek Exemplaren te koop in.',
     aanrader: 'Voornamen, gescheiden door komma\'s. Wordt het label "Aanrader van ..."',
     leeslijsten: 'Namen van leeslijsten, gescheiden door komma\'s. Uitleg en Engelse naam zet je in het tabblad Leeslijsten.',
     extra_onderwerpen: 'De thema\'s van de website. Vink aan wat past. Een thema kan ook vanzelf komen uit het genre.',
@@ -63,7 +67,8 @@
   var KEUZES = {
     soort: [['boek', 'Boek'], ['zine', 'Zine'], ['film', 'Film']],
     film_tip: [['', 'Nee'], ['ja', 'Ja, enkel een kijktip']],
-    te_koop: [['', 'Nee'], ['ja', 'Ja, te koop en niet uitleenbaar']],
+    te_koop: [['', 'Nee'], ['ja', 'Ja, enkel te koop en niet uitleenbaar']],
+    onderhandelbaar: [['', 'Nee, vaste prijs'], ['ja', 'Ja']],
     nieuwstaat: [['', 'Onbekend'], ['ja', 'Nieuw'], ['nee', 'Tweedehands']],
     taal: [['', 'Onbekend'], ['Nederlands', 'Nederlands'], ['Engels', 'Engels'], ['Frans', 'Frans'], ['Duits', 'Duits']],
     uitvoering: [['', 'Onbekend'], ['Hardcover', 'Hardcover'], ['Paperback', 'Paperback'], ['Pocket', 'Pocket']],
@@ -75,7 +80,7 @@
   };
 
   var LANG = ['notitie', 'beschrijving', 'beschrijving_en', 'tekst', 'tekst_en', 'antwoord', 'antwoord_en', 'uitleg', 'uitleg_en'];
-  var GETAL = ['jaartal', 'paginas', 'aantal', 'volgorde', 'duur'];
+  var GETAL = ['jaartal', 'paginas', 'aantal', 'volgorde', 'duur', 'te_koop_aantal'];
 
   // Velden met een lijst (komma's in de spreadsheet): vinkjes of labels in het formulier (zie lijstVeld).
   var LIJSTVELDEN = { extra_onderwerpen: 'themas', categorieen: 'categorieen', trefwoorden: 'trefwoorden', triggerwaarschuwingen: 'triggerwaarschuwingen' };
@@ -169,7 +174,8 @@
   var GROEPEN_BOEK = [
     ['Het boek', ['isbn', 'titel', 'auteur', 'soort', 'aantal']],
     ['Thema\'s, categorieën en trefwoorden', ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'klassieker', 'genre']],
-    ['Beschikbaar en zichtbaar', ['status', 'publiek', 'uitleenbaar', 'te_koop', 'startpagina']],
+    ['Uitlenen en verkopen', ['uitleenbaar', 'te_koop_aantal', 'prijs', 'onderhandelbaar', 'te_koop']],
+    ['Zichtbaar', ['status', 'publiek', 'startpagina']],
     ['Op de website', ['cover_url', 'beschrijving', 'beschrijving_en', 'originele_titel', 'aanrader', 'leeslijsten']],
     ['Meer over het boek', ['uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat']],
     ['Intern (niet op de website)', ['notitie']]
@@ -183,7 +189,9 @@
     ['Intern (niet op de website)', ['notitie']]
   ];
   // Welke groepen (nummer in GROEPEN_BOEK of GROEPEN_FILM) bij een nieuw boek of een nieuwe film open staan.
+  // Bij een boek ook Uitlenen en verkopen: zo duid je meteen aan of het uitleenbaar en/of te koop is.
   var ZICHTBAAR_NIEUW = [0, 1, 4];
+  var ZICHTBAAR_NIEUW_BOEK = [0, 1, 2, 5];
   var LABELS_FILM = { auteur: 'Regie', jaartal: 'Jaar', genre: 'Genres', duur: 'Duur in minuten', land: 'Land', aantal: 'Aantal exemplaren' };
 
   /** Deze stap in de geschiedenis van de browser, zodat Terug van de browser hier terugkomt (zie stap in bestuur.js). */
@@ -833,7 +841,7 @@
   /* ---------- Meerdere boeken tegelijk aanpassen ---------- */
 
   var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'status', 'publiek', 'uitleenbaar',
-    'te_koop', 'startpagina', 'aanrader', 'leeslijsten', 'klassieker'];
+    'te_koop_aantal', 'prijs', 'onderhandelbaar', 'te_koop', 'startpagina', 'aanrader', 'leeslijsten', 'klassieker'];
   var BULK_FILM = ['genre', 'trefwoorden', 'triggerwaarschuwingen', 'status', 'publiek', 'uitleenbaar', 'film_tip', 'te_koop', 'startpagina', 'aanrader', 'leeslijsten'];
   // Velden met een lijst: iets toevoegen of weghalen, de rest blijft (zelfde lijst als BULK_LIJSTEN in Taken.js).
   var BULK_LIJSTEN = ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'aanrader', 'leeslijsten'];
@@ -929,6 +937,8 @@
     huidigeLabels = film ? LABELS_FILM : {};
     var groepen = (film ? GROEPEN_FILM : GROEPEN_BOEK).map(function (g) {
       return el('fieldset', { class: 'blok' }, el('legend', {}, g[0]), g[1].map(function (naam) {
+        // De oude markering "enkel te koop" (niet uitleenbaar) enkel tonen bij een boek dat ze nog heeft, om ze weg te halen.
+        if (naam === 'te_koop' && !film && String(boek.te_koop || '').toLowerCase() !== 'ja') return null;
         var v = veld('bb', naam, boek[naam] !== undefined ? boek[naam] : (nieuw && KEUZES[naam] ? KEUZES[naam][0][0] : ''));
         // Bij een boek is Film geen keuze: films hebben een eigen onderdeel.
         if (naam === 'soort' && !film) Array.prototype.slice.call(v.invoer.options).forEach(function (o) { if (o.value === 'film' && v.oud !== 'film') o.remove(); });
@@ -938,8 +948,9 @@
     });
     huidigeLabels = {};
     // Nieuw: het boek, de thema's en de gegevens open. De rest staat dichtgeklapt: dat kan later, ook voor meerdere samen.
-    var open = ZICHTBAAR_NIEUW.map(function (i) { return groepen[i]; });
-    var dicht = groepen.filter(function (g, i) { return ZICHTBAAR_NIEUW.indexOf(i) === -1; });
+    var zichtbaar = film ? ZICHTBAAR_NIEUW : ZICHTBAAR_NIEUW_BOEK;
+    var open = zichtbaar.map(function (i) { return groepen[i]; });
+    var dicht = groepen.filter(function (g, i) { return zichtbaar.indexOf(i) === -1; });
     var delen = nieuw ? open.concat(el('details', { class: 'blok meer-gegevens' },
       el('summary', {}, 'Meer gegevens (mag later, of voor meerdere ' + (film ? 'films' : 'boeken') + ' samen)'), dicht)) : groepen;
     var herkomst = nieuw ? veld('bb', 'herkomst', extra.reeks ? extra.reeks.herkomst : '') : null;

@@ -172,11 +172,13 @@ var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
   'aanrader', 'genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
   'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie',
-  'land', 'duur', 'film_tip', 'te_koop', 'originele_titel'
+  'land', 'duur', 'film_tip', 'te_koop', 'originele_titel',
+  // Verkoop: los van het uitlenen. Een boek kan uitleenbaar zijn en ook exemplaren te koop hebben.
+  'te_koop_aantal', 'prijs', 'onderhandelbaar'
 ];
 
 /** Velden met ja/nee. Bij startpagina betekent leeg "automatisch". */
-var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'startpagina', 'film_tip', 'te_koop'];
+var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'startpagina', 'film_tip', 'te_koop', 'onderhandelbaar'];
 
 /** Tabbladen met inhoud van de website, en de kolommen die je via de website kan aanpassen. */
 var BEHEER_INHOUD = {
@@ -1116,7 +1118,7 @@ var VOORRANG_MS = 30 * 60 * 1000;
 var HUIDIGE_TAAK = ''; // de achtergrondtaak die nu loopt (zie startAchtergrond)
 
 var BULK_VELDEN = ['genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'status', 'aanrader', 'startpagina',
-  'publiek', 'uitleenbaar', 'te_koop', 'klassieker', 'leeslijsten'];
+  'publiek', 'uitleenbaar', 'te_koop', 'te_koop_aantal', 'prijs', 'onderhandelbaar', 'klassieker', 'leeslijsten'];
 
 // Velden met een lijst (komma's): je kan er iets aan toevoegen of uit weghalen, zonder de rest te overschrijven.
 var BULK_LIJSTEN = ['extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'aanrader', 'leeslijsten'];
@@ -2263,7 +2265,13 @@ function beheerVeld(veld, ruw) {
     if (w && !veiligeCoverUrl(w)) return { fout: 'Een link moet beginnen met https://' };
     return { waarde: w };
   }
-  if (veld === 'jaartal' || veld === 'paginas' || veld === 'aantal' || veld === 'volgorde' || veld === 'duur') {
+  if (veld === 'prijs') {
+    if (!w) return { waarde: '' };
+    var p = verkoopGetal(w);
+    if (p === null || p < 0) return { fout: 'Vul bij prijs een bedrag in, bv. 8 of 12,50. Of laat het leeg.' };
+    return { waarde: p };
+  }
+  if (veld === 'jaartal' || veld === 'paginas' || veld === 'aantal' || veld === 'volgorde' || veld === 'duur' || veld === 'te_koop_aantal') {
     if (!w) return { waarde: '' };
     var n = parseerGetal(w);
     if (n === null || n < 0 || n !== Math.round(n)) return { fout: 'Vul bij ' + veld + ' een geheel getal in.' };
@@ -11979,6 +11987,11 @@ function voerActieUit(actie, invoer, rol) {
     if (staat.catalogusGewijzigd) {
       bewaarTabel(staat.tabellen.Catalogus);
       werkOnderwerpenBij(); // een nieuw genre komt zo in de vertaaltabel Onderwerpen
+      // Aantal te koop, prijs of onderhandelbaar aangepast in het bestuursscherm: ook het tabblad Voorraad bijwerken.
+      var verkoopVelden = Object.keys(invoer.velden || {}).concat(invoer.veld ? [invoer.veld] : []);
+      if (antwoord.ok && verkoopVelden.some(function (k) { return VOORRAAD_BRON.indexOf(k) > -1; })) {
+        try { schrijfVoorraad(staat.catalogus, spreadsheet().getSheetByName('Verkopen') ? leesTabel('Verkopen').rijen : []); } catch (e) { /* het overzicht is een extraatje */ }
+      }
     }
     if (meldingen.length || (antwoord.ok && actie !== 'balieData' && actie !== 'bestuurData' && actie !== 'filmsVoorbeeld')) leegCache();
     if (meldingen.length && antwoord.ok) antwoord.apartLeggen = (antwoord.apartLeggen || []).concat(meldingen);
