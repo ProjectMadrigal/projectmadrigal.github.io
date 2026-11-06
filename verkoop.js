@@ -255,7 +255,7 @@
     }));
     var inhoud = weergave === 'klaarzetten' ? klaarzetten(s) : weergave === 'overzicht' ? overzicht(s) : verkopen(s);
     D.vervang($('werkvlak'),
-      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { huidig = null; teken(); } }, '← Alle standjes')),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { huidig = null; teken(); } }, '← Terug naar het hoofdscherm')),
       el('h2', { tabindex: '-1' }, s.naam),
       el('p', { class: 'hulptekst' }, [D.korteDatum(s.datum), s.thema, s.locatie, s.status].filter(Boolean).join(' · ')),
       keuze, inhoud);
@@ -356,7 +356,7 @@
     zoek.addEventListener('input', tekenLijst);
     tekenLijst();
     D.vervang($('werkvlak'),
-      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { opStock = false; teken(); } }, '← Alle standjes')),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { opStock = false; teken(); } }, '← Terug naar het hoofdscherm')),
       el('h2', { tabindex: '-1' }, 'Voorraad'),
       el('p', {}, data.teKoop.length + (data.teKoop.length === 1 ? ' boek, ' : ' boeken, ') + exemplaren + (exemplaren === 1 ? ' exemplaar' : ' exemplaren') + ' te koop, samen ' + D.euro(waarde) + '.'),
       el('div', { class: 'veld' }, el('label', { for: 'st-zoek' }, 'Zoek in de voorraad'), zoek),
@@ -395,7 +395,7 @@
   }
 
   function toonVoorraad() {
-    var terug = knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { opVoorraad = false; teken(); } }, '← Alle standjes'));
+    var terug = knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { opVoorraad = false; teken(); } }, '← Terug naar het hoofdscherm'));
     if (!catalogus) {
       D.vervang($('werkvlak'), terug, el('h2', { tabindex: '-1' }, 'Voorraad beheren'), el('p', {}, 'De catalogus laden...'));
       if (!navigator.onLine) { D.vervang($('werkvlak'), terug, el('h2', {}, 'Voorraad beheren'), el('p', {}, 'Dit kan enkel met internet.')); return; }

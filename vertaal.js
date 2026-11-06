@@ -105,6 +105,7 @@
    "vaste prijs": "fixed price",
    "onderhandelbaar": "negotiable",
    "Alle standjes": "All stands",
+   "Terug naar het hoofdscherm": "Back to the main screen",
    "omzet": "revenue",
    "Geen boek te koop gevonden. Staat er een getal in de kolom te_koop_aantal van de Catalogus": "No book for sale found. Is there a number in the te_koop_aantal column of the Catalogue",
    "onderhandelbaar: pas aan als je minder vraagt": "negotiable: change it if you ask less",
