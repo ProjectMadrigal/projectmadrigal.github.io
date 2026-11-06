@@ -451,7 +451,7 @@
       uitvoering: keuze('nv-uitvoering', 'Uitvoering', ['Hardcover', 'Paperback', 'Pocket']),
       nieuwstaat: keuze('nv-nieuwstaat', 'Nieuw of tweedehands', ['nieuw', 'tweedehands']),
       te_koop_aantal: invoer('nv-aantal', 'Aantal te koop (verplicht)', { type: 'number', min: '1', step: '1', value: '1', class: 'kort', inputmode: 'numeric' }),
-      prijs: invoer('nv-prijs', 'Prijs in euro (verplicht)', { inputmode: 'decimal', class: 'kort' })
+      prijs: invoer('nv-prijs', 'Prijs in euro (mag leeg, vul ze later in of bij de verkoop)', { inputmode: 'decimal', class: 'kort' })
     };
     var o = el('input', { type: 'checkbox', id: 'nv-o' });
     var bewaar = el('button', { type: 'submit', class: 'knop' }, 'Voeg toe aan de voorraad');
@@ -466,7 +466,6 @@
       var waarden = { onderhandelbaar: o.checked };
       Object.keys(velden).forEach(function (k) { waarden[k] = velden[k].invoer.value.trim(); });
       if (!waarden.titel) { B.melding(fout, 'fout', 'Vul de titel in.'); velden.titel.invoer.focus(); return; }
-      if (!waarden.prijs) { B.melding(fout, 'fout', 'Vul een prijs in.'); velden.prijs.invoer.focus(); return; }
       bewaar.disabled = true;
       B.voerUit('voorraadNieuwBoek', waarden).then(function (r) {
         bewaar.disabled = false;
@@ -481,7 +480,7 @@
     D.vervang($('werkvlak'),
       knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonVoorraad(); } }, '← Voorraad beheren')),
       el('h2', { tabindex: '-1' }, 'Nieuw boek aan de voorraad toevoegen'),
-      el('p', {}, 'Vul in wat je weet. Titel, aantal en prijs zijn verplicht. Staat het boek toch al in de Catalogus (zelfde ISBN, of zelfde titel en auteur), dan krijgt dat boek het aantal en de prijs.'),
+      el('p', {}, 'Vul in wat je weet. Enkel de titel en het aantal zijn verplicht. Staat het boek toch al in de Catalogus (zelfde ISBN, of zelfde titel en auteur), dan krijgt dat boek het aantal en de prijs.'),
       formulier);
     $('werkvlak').querySelector('h2').focus();
     velden.titel.invoer.focus();

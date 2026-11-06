@@ -220,10 +220,14 @@ function voorraadZetten(catalogus, invoer) {
   if (aantal === null || aantal < 0 || aantal > 999 || aantal !== Math.round(aantal)) return { ok: false, fout: 'Vul een aantal in, 0 of meer.' };
   var prijs = isLeeg(invoer.prijs) ? null : verkoopGetal(invoer.prijs);
   if (!isLeeg(invoer.prijs) && (prijs === null || prijs < 0)) return { ok: false, fout: 'Vul een geldige prijs in, bv. 8 of 12,50.' };
-  if (aantal > 0 && prijs === null) return { ok: false, fout: 'Vul een prijs in.' };
   wijzig(boek, { te_koop_aantal: aantal, prijs: prijs === null ? '' : prijs, onderhandelbaar: invoer.onderhandelbaar ? 'ja' : 'nee' });
   var titel = '"' + schoon(boek.titel) + '"';
-  return { ok: true, tekst: aantal ? titel + ': ' + aantal + ' te koop aan ' + (prijs % 1 ? prijs.toFixed(2) : String(prijs)).replace('.', ',') + ' euro.' : titel + ' is niet meer te koop.' };
+  return { ok: true, tekst: aantal ? titel + ': ' + aantal + ' te koop' + prijsZin(prijs) : titel + ' is niet meer te koop.' };
+}
+
+/** " aan 12,50 euro." of, zonder prijs, " (nog zonder prijs)." */
+function prijsZin(prijs) {
+  return prijs === null ? ' (nog zonder prijs).' : ' aan ' + (prijs % 1 ? prijs.toFixed(2) : String(prijs)).replace('.', ',') + ' euro.';
 }
 
 /**
@@ -239,8 +243,9 @@ function voorraadNieuwBoek(catalogus, invoer, nieuwId, vandaag) {
   if (!titel) return { ok: false, fout: 'Vul de titel in.' };
   var aantal = verkoopGetal(invoer.te_koop_aantal);
   if (aantal === null || aantal < 1 || aantal > 999 || aantal !== Math.round(aantal)) return { ok: false, fout: 'Vul een aantal in, 1 of meer.' };
-  var prijs = verkoopGetal(invoer.prijs);
-  if (prijs === null || prijs < 0) return { ok: false, fout: 'Vul een geldige prijs in, bv. 8 of 12,50.' };
+  // De prijs mag leeg blijven: vul ze later in, of typ ze bij de verkoop op het standje.
+  var prijs = isLeeg(invoer.prijs) ? null : verkoopGetal(invoer.prijs);
+  if (!isLeeg(invoer.prijs) && (prijs === null || prijs < 0)) return { ok: false, fout: 'Vul een geldige prijs in, bv. 8 of 12,50. Of laat de prijs leeg.' };
   var isbn = tekstInvoer(invoer.isbn, 20);
   if (isbn && !normaliseerIsbn(isbn).isbn) return { ok: false, fout: 'Dit ISBN klopt niet. Kijk het na, of laat het leeg.' };
   var rij = {
@@ -253,8 +258,7 @@ function voorraadNieuwBoek(catalogus, invoer, nieuwId, vandaag) {
   var velden = { onderhandelbaar: invoer.onderhandelbaar ? 'ja' : 'nee' };
   if (uit.nieuw) velden.herkomst = 'verkoopscherm';
   wijzig(boek, velden);
-  var prijsTekst = (prijs % 1 ? prijs.toFixed(2) : String(prijs)).replace('.', ',');
-  var wat = '"' + schoon(boek.titel) + '": ' + aantal + ' te koop aan ' + prijsTekst + ' euro.';
+  var wat = '"' + schoon(boek.titel) + '": ' + aantal + ' te koop' + prijsZin(prijs);
   return {
     ok: true, boek_id: uit.boek_id, nieuw: uit.nieuw,
     tekst: uit.nieuw ? wat + ' Het boek staat nu in de Catalogus als ' + uit.boek_id + ', enkel te koop (niet uitleenbaar en niet op de website).'

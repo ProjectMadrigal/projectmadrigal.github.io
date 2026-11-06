@@ -1215,14 +1215,16 @@ async function meldAan(page, basis, pagina) {
     await page.waitForSelector('#nv-titel');
     verwacht(await page.inputValue('#nv-titel') === 'Een nieuw verzonnen boek', 'De zoekterm staat als titel klaar');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid formulier: ' + (await axe(page)).join(' | '));
+    // Zonder titel: een foutmelding. De prijs mag leeg.
+    await page.fill('#nv-titel', '');
     await page.click('#werkvlak button:has-text("Voeg toe aan de voorraad")');
     await page.waitForSelector('#werkvlak .melding.fout');
-    await page.fill('#nv-prijs', '6');
+    await page.fill('#nv-titel', 'Een nieuw verzonnen boek');
     await page.selectOption('#nv-taal', 'Engels');
     await page.click('#werkvlak button:has-text("Voeg toe aan de voorraad")');
     await page.waitForSelector('text=staat nu in de Catalogus als B0099');
     const n = vragen.filter((x) => x.actie === 'voorraadNieuwBoek').pop();
-    verwacht(n && n.titel === 'Een nieuw verzonnen boek' && n.prijs === '6' && n.te_koop_aantal === '1' && n.taal === 'Engels', 'Nieuw boek doorgestuurd: ' + JSON.stringify(n));
+    verwacht(n && n.titel === 'Een nieuw verzonnen boek' && n.prijs === '' && n.te_koop_aantal === '1' && n.taal === 'Engels', 'Nieuw boek doorgestuurd: ' + JSON.stringify(n));
     verwacht(!!(await page.$('#vr-zoek')), 'Terug in Voorraad beheren');
     verwacht(!!(await page.$('#werkvlak button:has-text("+ Nieuw boek aan de voorraad toevoegen")')), 'Knop Nieuw boek');
     verwacht(!(await axe(page)).length, 'Toegankelijkheid: ' + (await axe(page)).join(' | '));
