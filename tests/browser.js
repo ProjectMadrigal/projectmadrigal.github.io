@@ -545,6 +545,9 @@ async function meldAan(page, basis, pagina) {
     await page.click('button:has-text("+ Nieuw boek toevoegen")');
     verwacht(await page.isVisible('#bb-titel') && await page.isVisible('#bb-uitgeverij') && await page.isVisible('#bb-extra_onderwerpen-0') && !(await page.isVisible('#bb-status')) && await page.isVisible('summary:has-text("Meer gegevens")'), 'Kort formulier');
     verwacht(!(await page.$('#bb-soort option[value="film"]')), 'Film is geen soort bij een boek');
+    // Uitleenbaar en te koop: allebei meteen zichtbaar bij een nieuw boek. De oude markering "enkel te koop" niet.
+    verwacht(await page.isVisible('#bb-uitleenbaar') && await page.isVisible('#bb-te_koop_aantal') && await page.isVisible('#bb-prijs'), 'Uitleenbaar en te koop zichtbaar');
+    verwacht(!(await page.$('#bb-te_koop')), 'De oude markering staat er niet bij een nieuw boek');
     // Films: niet tussen de boeken, wel in een eigen onderdeel.
     await page.click('#sectienav button:has-text("Boek zoeken of toevoegen")');
     await page.fill('#beheer-boek-zoek', 'verzonnen film');
@@ -557,7 +560,7 @@ async function meldAan(page, basis, pagina) {
     await page.fill('#bb-cover_url', '');
     await page.dispatchEvent('#bb-cover_url', 'input');
     const filmTekst = await page.textContent('#sectie');
-    verwacht(/Deze film heeft nog geen cover/.test(filmTekst) && !/dit boek|Boek laden|volgend boek/i.test(filmTekst), 'Tekst bij een film: ' + filmTekst.match(/.{0,40}boek.{0,40}/i));
+    verwacht(/Deze film heeft nog geen cover/.test(filmTekst) && !/dit boek|Boek laden|volgend boek/i.test(filmTekst), 'Tekst bij een film: ' + (filmTekst.match(/.{0,40}(dit boek|Boek laden|volgend boek).{0,40}/i) || ['geen "Deze film heeft nog geen cover"'])[0]);
     await page.click('button:has-text("Terug naar de films")');
     await page.click('button:has-text("+ Nieuwe film toevoegen")');
     verwacht(/Nieuwe film/.test(await page.textContent('#sectie h2')), 'Nieuwe film');

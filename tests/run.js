@@ -1417,6 +1417,20 @@ test('boek aanpassen: enkel toegelaten velden, netjes gemaakt', () => {
   assert.ok(!b.herkomst);
   assert.strictEqual(s.catalogusGewijzigd, true);
 });
+test('boek aanpassen: uitleenbaar en ook te koop, met prijs', () => {
+  const s = maakStaat();
+  const r = M.boekAanpassen(s, { boek_id: 'B0002', velden: { uitleenbaar: 'ja', te_koop_aantal: '2', prijs: '7,50', onderhandelbaar: 'ja' } });
+  assert.strictEqual(r.ok, true, r.fout);
+  const b = s.catalogus[1];
+  gelijk([b.te_koop_aantal, b.prijs, b.onderhandelbaar, M.isUitleenbaar(b), M.stockVan(b)], [2, 7.5, 'ja', true, 2]);
+  assert.strictEqual(M.boekAanpassen(s, { boek_id: 'B0002', velden: { prijs: 'veel' } }).ok, false, 'geen bedrag');
+  assert.strictEqual(M.boekAanpassen(s, { boek_id: 'B0002', velden: { te_koop_aantal: '1,5' } }).ok, false, 'geen geheel getal');
+  assert.strictEqual(M.boekAanpassen(s, { boek_id: 'B0002', velden: { prijs: '' } }).ok, true, 'prijs mag leeg');
+  const n = M.boekToevoegen(s, { velden: { titel: 'Nieuw verzonnen', te_koop_aantal: '1' } }, () => 'B0777');
+  assert.strictEqual(n.ok, true);
+  const nb = s.catalogus.find((x) => x.boek_id === 'B0777');
+  gelijk([nb.uitleenbaar, nb.te_koop_aantal, M.isUitleenbaar(nb)], ['ja', 1, true], 'nieuw boek: uitleenbaar en te koop');
+});
 test('boek aanpassen: foute invoer geweigerd', () => {
   const s = maakStaat();
   assert.strictEqual(M.boekAanpassen(s, { boek_id: 'B0002', velden: { titel: '' } }).ok, false);

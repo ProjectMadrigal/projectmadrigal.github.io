@@ -15,11 +15,13 @@ var BEHEER_BOEKVELDEN = [
   'soort', 'titel', 'auteur', 'isbn', 'uitgeverij', 'jaartal', 'taal', 'paginas', 'uitvoering', 'nieuwstaat',
   'aanrader', 'genre', 'extra_onderwerpen', 'categorieen', 'trefwoorden', 'triggerwaarschuwingen', 'klassieker', 'aantal', 'uitleenbaar', 'publiek', 'status',
   'startpagina', 'leeslijsten', 'beschrijving', 'beschrijving_en', 'cover_url', 'notitie',
-  'land', 'duur', 'film_tip', 'te_koop', 'originele_titel'
+  'land', 'duur', 'film_tip', 'te_koop', 'originele_titel',
+  // Verkoop: los van het uitlenen. Een boek kan uitleenbaar zijn en ook exemplaren te koop hebben.
+  'te_koop_aantal', 'prijs', 'onderhandelbaar'
 ];
 
 /** Velden met ja/nee. Bij startpagina betekent leeg "automatisch". */
-var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'startpagina', 'film_tip', 'te_koop'];
+var BEHEER_JANEE = ['nieuwstaat', 'klassieker', 'uitleenbaar', 'publiek', 'startpagina', 'film_tip', 'te_koop', 'onderhandelbaar'];
 
 /** Tabbladen met inhoud van de website, en de kolommen die je via de website kan aanpassen. */
 var BEHEER_INHOUD = {
@@ -55,7 +57,13 @@ function beheerVeld(veld, ruw) {
     if (w && !veiligeCoverUrl(w)) return { fout: 'Een link moet beginnen met https://' };
     return { waarde: w };
   }
-  if (veld === 'jaartal' || veld === 'paginas' || veld === 'aantal' || veld === 'volgorde' || veld === 'duur') {
+  if (veld === 'prijs') {
+    if (!w) return { waarde: '' };
+    var p = verkoopGetal(w);
+    if (p === null || p < 0) return { fout: 'Vul bij prijs een bedrag in, bv. 8 of 12,50. Of laat het leeg.' };
+    return { waarde: p };
+  }
+  if (veld === 'jaartal' || veld === 'paginas' || veld === 'aantal' || veld === 'volgorde' || veld === 'duur' || veld === 'te_koop_aantal') {
     if (!w) return { waarde: '' };
     var n = parseerGetal(w);
     if (n === null || n < 0 || n !== Math.round(n)) return { fout: 'Vul bij ' + veld + ' een geheel getal in.' };
