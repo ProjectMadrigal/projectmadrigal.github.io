@@ -1792,6 +1792,25 @@ test('voorraad beheren: aantal, prijs en onderhandelbaar zetten vanuit het verko
   gelijk([r.ok, r.tekst, b.te_koop_aantal, b.onderhandelbaar], [true, '"Zee van glas" is niet meer te koop.', 0, 'nee']);
 });
 
+test('voorraad beheren: een nieuw boek dat nog niet in de Catalogus staat', () => {
+  const catalogus = [{ boek_id: 'B0001', soort: 'boek', titel: 'Atlas van niets', auteur: 'Bedacht, Noor', isbn: '9780306406157', uitleenbaar: 'ja', publiek: 'ja', te_koop_aantal: '', prijs: '' }];
+  let teller = 0;
+  const id = () => 'B9' + String(++teller).padStart(3, '0');
+  assert.strictEqual(M.voorraadNieuwBoek(catalogus, { titel: '', te_koop_aantal: 1, prijs: 5 }, id, '2026-11-06').ok, false, 'titel nodig');
+  assert.strictEqual(M.voorraadNieuwBoek(catalogus, { titel: 'X', te_koop_aantal: 0, prijs: 5 }, id, '2026-11-06').ok, false, 'aantal 1 of meer');
+  assert.strictEqual(M.voorraadNieuwBoek(catalogus, { titel: 'X', te_koop_aantal: 1, prijs: '' }, id, '2026-11-06').ok, false, 'prijs nodig');
+  assert.strictEqual(M.voorraadNieuwBoek(catalogus, { titel: 'X', isbn: '123', te_koop_aantal: 1, prijs: 5 }, id, '2026-11-06').ok, false, 'fout ISBN');
+  let r = M.voorraadNieuwBoek(catalogus, { titel: 'Zee van glas', auteur: 'Vera Verzonnen', te_koop_aantal: '2', prijs: '7,50', onderhandelbaar: true, taal: 'Engels', nieuwstaat: 'nieuw' }, id, '2026-11-06');
+  assert.ok(r.ok && r.nieuw, JSON.stringify(r));
+  const nieuw = catalogus.find((b) => b.boek_id === r.boek_id);
+  gelijk([nieuw.titel, nieuw.te_koop_aantal, nieuw.prijs, nieuw.onderhandelbaar, nieuw.uitleenbaar, nieuw.publiek, nieuw.herkomst, nieuw.nieuwstaat],
+    ['Zee van glas', 2, 7.5, 'ja', 'nee', 'nee', 'verkoopscherm', 'ja']);
+  assert.ok(/enkel te koop/.test(r.tekst));
+  // Al in de Catalogus (zelfde ISBN): dat boek krijgt aantal en prijs, er komt geen tweede bij.
+  r = M.voorraadNieuwBoek(catalogus, { titel: 'Atlas', isbn: '978-0-306-40615-7', te_koop_aantal: 3, prijs: 10 }, id, '2026-11-06');
+  gelijk([r.ok, r.nieuw, r.boek_id, catalogus.length, catalogus[0].te_koop_aantal, catalogus[0].prijs, catalogus[0].uitleenbaar, catalogus[0].onderhandelbaar], [true, false, 'B0001', 2, 3, 10, 'ja', 'nee']);
+});
+
 test('verkoopscherm: cover, korte beschrijving en thema\'s zoals op de website', () => {
   const t = {
     catalogus: [{ boek_id: 'B0001', titel: 'Zee van glas', auteur: 'Vera Verzonnen', genre: 'Queer fictie', extra_onderwerpen: 'Gender', cover_url: 'https://voorbeeld.test/c.jpg',

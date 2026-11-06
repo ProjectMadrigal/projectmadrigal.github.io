@@ -12,7 +12,8 @@
  *     Open het scherm thuis met internet: dan staan de gegevens en de pagina zelf op de gsm.
  *   - Afsluiten: het standje komt bij de afgesloten standjes, met de omzet.
  *   - Voorraad beheren (enkel met de code van het bestuur): een boek uit de Catalogus kiezen en
- *     het aantal te koop, de prijs en onderhandelbaar invullen. Enkel met internet.
+ *     het aantal te koop, de prijs en onderhandelbaar invullen. Een boek dat nog niet in de Catalogus
+ *     staat, voeg je toe met + Nieuw boek: het komt erbij als boek dat enkel te koop is. Enkel met internet.
  */
 (function (root) {
   'use strict';
@@ -415,15 +416,75 @@
         return q ? Z().normaliseer(b.t + ' ' + b.a + ' ' + b.i).indexOf(q) > -1 : b.stock > 0;
       }).slice(0, 30);
       D.vervang(lijst, boeken.length ? el('ul', { class: 'kaartlijst' }, boeken.map(rij))
-        : el('p', {}, q ? 'Geen boek gevonden in de Catalogus.' : 'Er is nog niets te koop. Zoek een boek om het toe te voegen.'));
+        : el('p', {}, q ? 'Geen boek gevonden in de Catalogus. ' : 'Er is nog niets te koop. Zoek een boek om het toe te voegen. ',
+          q ? el('button', { type: 'button', class: 'knop', onclick: function () { nieuwVoorraadBoek(zoek.value.trim()); } }, '+ Voeg "' + zoek.value.trim() + '" toe als nieuw boek') : null));
     }
     zoek.addEventListener('input', tekenLijst);
     tekenLijst();
     D.vervang($('werkvlak'), terug,
       el('h2', { tabindex: '-1' }, 'Voorraad beheren'),
       el('p', {}, 'Zoek een boek uit de Catalogus en vul in hoeveel exemplaren te koop zijn en aan welke prijs. Zet het aantal op 0 om een boek uit de verkoop te halen. Zonder zoekterm zie je wat nu te koop is.'),
-      el('div', { class: 'veld' }, el('label', { for: 'vr-zoek' }, 'Zoek een boek'), zoek),
+      knoppen(el('button', { type: 'button', class: 'knop', onclick: function () { nieuwVoorraadBoek(''); } }, '+ Nieuw boek aan de voorraad toevoegen')),
+      el('p', { class: 'hulptekst' }, 'Een nieuw boek dat nog niet in de Catalogus staat, komt erbij als boek dat enkel te koop is: niet uitleenbaar en niet op de website.'),
+      el('div', { class: 'veld' }, el('label', { for: 'vr-zoek' }, 'Zoek een boek in de Catalogus'), zoek),
       lijst);
+  }
+
+  /** Een boek aan de voorraad toevoegen dat nog niet in de Catalogus staat (enkel het bestuur, met internet). */
+  function nieuwVoorraadBoek(titel) {
+    var fout = el('div', { 'aria-live': 'assertive' });
+    function invoer(id, label, attr) {
+      var v = el('input', Object.assign({ type: 'text', id: id }, attr || {}));
+      return { invoer: v, blok: el('div', { class: 'veld' }, el('label', { for: id }, label), v) };
+    }
+    function keuze(id, label, opties) {
+      var v = el('select', { id: id }, [el('option', { value: '' }, '(niet ingevuld)')].concat(opties.map(function (o) { return el('option', { value: o }, o); })));
+      return { invoer: v, blok: el('div', { class: 'veld' }, el('label', { for: id }, label), v) };
+    }
+    var velden = {
+      titel: invoer('nv-titel', 'Titel (verplicht)', { maxlength: '200', required: true, value: titel || '' }),
+      auteur: invoer('nv-auteur', 'Auteur (Achternaam, Voornaam)', { maxlength: '200' }),
+      isbn: invoer('nv-isbn', 'ISBN', { maxlength: '20', inputmode: 'numeric' }),
+      uitgeverij: invoer('nv-uitgeverij', 'Uitgeverij', { maxlength: '120' }),
+      jaartal: invoer('nv-jaartal', 'Jaartal', { maxlength: '4', inputmode: 'numeric', class: 'kort' }),
+      taal: keuze('nv-taal', 'Taal', ['Nederlands', 'Engels', 'Frans', 'Duits']),
+      uitvoering: keuze('nv-uitvoering', 'Uitvoering', ['Hardcover', 'Paperback', 'Pocket']),
+      nieuwstaat: keuze('nv-nieuwstaat', 'Nieuw of tweedehands', ['nieuw', 'tweedehands']),
+      te_koop_aantal: invoer('nv-aantal', 'Aantal te koop (verplicht)', { type: 'number', min: '1', step: '1', value: '1', class: 'kort', inputmode: 'numeric' }),
+      prijs: invoer('nv-prijs', 'Prijs in euro (verplicht)', { inputmode: 'decimal', class: 'kort' })
+    };
+    var o = el('input', { type: 'checkbox', id: 'nv-o' });
+    var bewaar = el('button', { type: 'submit', class: 'knop' }, 'Voeg toe aan de voorraad');
+    var formulier = el('form', { novalidate: true },
+      Object.keys(velden).map(function (k) { return velden[k].blok; }),
+      el('div', { class: 'veld' }, el('label', { for: 'nv-o' }, o, ' Prijs onderhandelbaar')),
+      fout,
+      knoppen(bewaar, el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonVoorraad(); } }, 'Annuleer')));
+    formulier.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!navigator.onLine) { B.melding(fout, 'fout', 'Dit kan enkel met internet.'); return; }
+      var waarden = { onderhandelbaar: o.checked };
+      Object.keys(velden).forEach(function (k) { waarden[k] = velden[k].invoer.value.trim(); });
+      if (!waarden.titel) { B.melding(fout, 'fout', 'Vul de titel in.'); velden.titel.invoer.focus(); return; }
+      if (!waarden.prijs) { B.melding(fout, 'fout', 'Vul een prijs in.'); velden.prijs.invoer.focus(); return; }
+      bewaar.disabled = true;
+      B.voerUit('voorraadNieuwBoek', waarden).then(function (r) {
+        bewaar.disabled = false;
+        if (!r.ok) { B.melding(fout, 'fout', r.fout || 'Het boek kon niet bewaard worden.'); return; }
+        if (r.data) gebruik(r.data);
+        // De lijst van Voorraad beheren opnieuw ophalen, met het nieuwe boek erbij.
+        catalogus = null;
+        toonVoorraad();
+        B.melding($('melding'), 'ok', r.tekst);
+      });
+    });
+    D.vervang($('werkvlak'),
+      knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { toonVoorraad(); } }, '← Voorraad beheren')),
+      el('h2', { tabindex: '-1' }, 'Nieuw boek aan de voorraad toevoegen'),
+      el('p', {}, 'Vul in wat je weet. Titel, aantal en prijs zijn verplicht. Staat het boek toch al in de Catalogus (zelfde ISBN, of zelfde titel en auteur), dan krijgt dat boek het aantal en de prijs.'),
+      formulier);
+    $('werkvlak').querySelector('h2').focus();
+    velden.titel.invoer.focus();
   }
 
   /* ---------- Verkopen ---------- */
