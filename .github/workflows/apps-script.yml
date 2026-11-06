@@ -66,7 +66,15 @@ jobs:
           find . -maxdepth 1 -type f \( -name '*.js' -o -name '*.gs' \) -delete
           cp ../madrigal-script.gs ./Code.js
           clasp push --force
-          clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA::7}"
+          # Apps Script bewaart hoogstens 200 versies. Zitten we aan die grens, dan zeggen we wat je moet doen.
+          if ! uit=$(clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA::7}" 2>&1); then
+            echo "$uit"
+            if echo "$uit" | grep -qi "limit of 200 versions"; then
+              echo "::error::Apps Script heeft het maximum van 200 versies bereikt. De code staat al in Apps Script, maar de web-app draait nog op de vorige versie. Open het script, kies links Projectgeschiedenis (het klokje), klik op Versies bulksgewijs verwijderen en verwijder de oudste versies (niet de versie die nu gepubliceerd is). Start daarna deze taak opnieuw: Actions > Apps Script bijwerken > Re-run jobs."
+            fi
+            exit 1
+          fi
+          echo "$uit"
           echo "::notice::Apps Script bijgewerkt en nieuwe versie gepubliceerd (${GITHUB_SHA::7}). Voer na een grote wijziging nog Madrigal > Installeer tabbladen uit."
 
       - name: Opruimen
