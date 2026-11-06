@@ -334,7 +334,8 @@
       var standjes = opStandjes(b.id);
       var vak = el('div');
       // Het bestuur past aantal en prijs meteen hier aan.
-      var pasAan = B.sessie.rol === 'bestuur' ? el('button', { type: 'button', class: 'knop tweede', 'aria-expanded': 'false' }, 'Pas aan') : null;
+      var pasAan = B.sessie.rol === 'bestuur' ? el('button', { type: 'button', class: 'knop tweede', 'aria-expanded': 'false' }, 'Aantal en prijs aanpassen') : null;
+      var alles = B.sessie.rol === 'bestuur' ? el('button', { type: 'button', class: 'knop tweede', onclick: function () { alleGegevens(b); } }, 'Alle gegevens aanpassen') : null;
       if (pasAan) pasAan.addEventListener('click', function () {
         var open = pasAan.getAttribute('aria-expanded') === 'true';
         pasAan.setAttribute('aria-expanded', open ? 'false' : 'true');
@@ -345,7 +346,7 @@
         el('p', {}, el('strong', {}, prijsTekst(b.prijs)), b.o ? ' · onderhandelbaar' : ' · vaste prijs'),
         el('p', { class: 'meta' }, b.stock + (b.stock === 1 ? ' exemplaar' : ' exemplaren') + ' te koop'),
         standjes.length ? el('p', { class: 'meta' }, 'Klaargezet voor ' + standjes.join(', ')) : null,
-        pasAan ? knoppen(pasAan) : null, vak]);
+        pasAan ? knoppen(pasAan, alles) : null, vak]);
     }
     function tekenLijst() {
       var q = Z().normaliseer(zoek.value);
@@ -389,8 +390,7 @@
       el('div', { class: 'knoppen' },
         el('label', { for: idAantal }, 'Aantal te koop '), aantal,
         el('label', { for: idPrijs }, 'Prijs in euro '), prijs,
-        el('label', { for: idO }, o, ' Onderhandelbaar'), knop,
-        el('button', { type: 'button', class: 'knop tweede', onclick: function () { alleGegevens(b); } }, 'Alle gegevens aanpassen')),
+        el('label', { for: idO }, o, ' Onderhandelbaar'), knop),
       fout);
   }
 
@@ -409,7 +409,8 @@
     var zoek = el('input', { type: 'search', id: 'vr-zoek', autocomplete: 'off', placeholder: 'Titel, auteur of ISBN' });
     var lijst = el('div', { 'aria-live': 'polite' });
     function rij(b) {
-      return el('li', { class: 'kaart' }, el('p', {}, el('strong', {}, b.t), b.a ? ' (' + b.a + ')' : ''), voorraadVelden(b));
+      return el('li', { class: 'kaart' }, el('p', {}, el('strong', {}, b.t), b.a ? ' (' + b.a + ')' : ''), voorraadVelden(b),
+        knoppen(el('button', { type: 'button', class: 'knop tweede', onclick: function () { alleGegevens(b); } }, 'Alle gegevens aanpassen (titel, auteur, ISBN, ...)')));
     }
     function tekenLijst() {
       var q = Z().normaliseer(zoek.value);
