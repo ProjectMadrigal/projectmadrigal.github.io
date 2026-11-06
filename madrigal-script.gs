@@ -76,6 +76,7 @@ var ACTIES = {
   // Boeken aan de voorraad toevoegen vanuit het verkoopscherm: enkel het bestuur.
   voorraadCatalogus: 'bestuur',
   voorraadZetten: 'bestuur',
+  voorraadNieuwBoek: 'bestuur',
   // De aankooplijst (Aankoop.js): vrijwilligers voegen toe, het bestuur past aan, duidt aan en verwijdert.
   aankoopData: 'vrijwilliger',
   aankoopToevoegen: 'vrijwilliger',
@@ -9128,6 +9129,11 @@ function planVertaling(minuten) {
   ScriptApp.newTrigger('vertaalBeschrijvingen').timeBased().after(minuten * 60 * 1000).create();
 }
 
+/** " aan 12,50 euro." of, zonder prijs, " (nog zonder prijs)." */
+function prijsZin(prijs) {
+  return prijs === null ? ' (nog zonder prijs).' : ' aan ' + (prijs % 1 ? prijs.toFixed(2) : String(prijs)).replace('.', ',') + ' euro.';
+}
+
 /** Publiek eindpunt: een aanvraag van de website. */
 function publiekeAanvraag(invoer) {
   var inst = leesInstellingen();
@@ -10826,8 +10832,12 @@ function verkoopActie(actie, invoer, wie) {
       bewaarTabel(catalogus);
       try { schrijfVoorraad(rijen.catalogus, rijen.verkopen); } catch (e) { /* het overzicht is een extraatje */ }
     }
-  } else if (actie === 'voorraadZetten') {
-    r = voorraadZetten(rijen.catalogus, invoer);
+  } else if (actie === 'voorraadZetten' || actie === 'voorraadNieuwBoek') {
+    if (actie === 'voorraadZetten') r = voorraadZetten(rijen.catalogus, invoer);
+    else {
+      var ids = maakIdGenerator(rijen.catalogus);
+      r = voorraadNieuwBoek(rijen.catalogus, invoer, function (soort) { return ids.nieuw(soort); }, vandaagTekst());
+    }
     if (r.ok) {
       bewaarTabel(catalogus);
       // Staat er datumopmaak op de kolom prijs (dan toont de spreadsheet 7,50 als 6/1/1900)? Meteen rechtzetten.
@@ -11860,9 +11870,9 @@ function voerActieUit(actie, invoer, rol) {
     if (actie === 'briefjeMaken' || actie === 'briefjeWeg') return briefjeActie(actie, invoer, wie);
     if (/^aankoop/.test(actie)) return aankoopActie(actie, invoer, wie, rol);
     if (/^titelcontrole/.test(actie)) return titelcontroleActie(actie, invoer, wie);
-    if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus', 'voorraadCatalogus', 'voorraadZetten'].indexOf(actie) > -1) {
+    if (['verkoopData', 'standjeBewaren', 'standjeBoekZetten', 'verkopenDoorsturen', 'standjeStatus', 'voorraadCatalogus', 'voorraadZetten', 'voorraadNieuwBoek'].indexOf(actie) > -1) {
       var verkoop = verkoopActie(actie, invoer, wie);
-      if (verkoop.ok && ((actie === 'verkopenDoorsturen' && verkoop.nieuw) || actie === 'voorraadZetten')) leegCache();
+      if (verkoop.ok && ((actie === 'verkopenDoorsturen' && verkoop.nieuw) || actie === 'voorraadZetten' || actie === 'voorraadNieuwBoek')) leegCache();
       return verkoop;
     }
     if (actie === 'beheerInhoudBewaren' || actie === 'beheerInstellingBewaren') {
@@ -12063,6 +12073,44 @@ function voorraadCatalogus(catalogus) {
 }
 
 /**
+ * Een boek aan de voorraad toevoegen vanuit het verkoopscherm, ook een boek dat nog niet in de Catalogus staat.
+ * invoer: { titel, auteur, isbn, uitgeverij, jaartal, taal, uitvoering, nieuwstaat, te_koop_aantal, prijs, onderhandelbaar }.
+ *   - Staat het boek er al (zelfde ISBN, of zelfde titel en achternaam), dan krijgt dat boek het aantal en de prijs.
+ *   - Anders komt het erbij als boek dat enkel te koop is: niet uitleenbaar en niet op de website (zoals de verkooplijst).
+ * nieuwId: functie (soort) -> boek-ID. Geeft { ok, tekst, boek_id, nieuw }.
+ */
+function voorraadNieuwBoek(catalogus, invoer, nieuwId, vandaag) {
+  invoer = invoer || {};
+  var titel = tekstInvoer(invoer.titel, 200);
+  if (!titel) return { ok: false, fout: 'Vul de titel in.' };
+  var aantal = verkoopGetal(invoer.te_koop_aantal);
+  if (aantal === null || aantal < 1 || aantal > 999 || aantal !== Math.round(aantal)) return { ok: false, fout: 'Vul een aantal in, 1 of meer.' };
+  // De prijs mag leeg blijven: vul ze later in, of typ ze bij de verkoop op het standje.
+  var prijs = isLeeg(invoer.prijs) ? null : verkoopGetal(invoer.prijs);
+  if (!isLeeg(invoer.prijs) && (prijs === null || prijs < 0)) return { ok: false, fout: 'Vul een geldige prijs in, bv. 8 of 12,50. Of laat de prijs leeg.' };
+  var isbn = tekstInvoer(invoer.isbn, 20);
+  if (isbn && !normaliseerIsbn(isbn).isbn) return { ok: false, fout: 'Dit ISBN klopt niet. Kijk het na, of laat het leeg.' };
+  var rij = {
+    rij: 0, titel: titel, auteur: tekstInvoer(invoer.auteur, 200), isbn: isbn, uitgeverij: tekstInvoer(invoer.uitgeverij, 120),
+    jaartal: parseerGetal(invoer.jaartal) || '', taal: tekstInvoer(invoer.taal, 40), paginas: '', uitvoering: tekstInvoer(invoer.uitvoering, 40),
+    nieuwstaat: tekstInvoer(invoer.nieuwstaat, 40), genre: '', aantalTekst: String(aantal), prijs: prijs, verwerkt: ''
+  };
+  var uit = verkooplijstToepassen(catalogus, [rij], nieuwId, vandaag)[0];
+  var boek = catalogus.filter(function (b) { return String(b.boek_id) === uit.boek_id; })[0];
+  var velden = { onderhandelbaar: invoer.onderhandelbaar ? 'ja' : 'nee' };
+  if (uit.nieuw) velden.herkomst = 'verkoopscherm';
+  wijzig(boek, velden);
+  var wat = '"' + schoon(boek.titel) + '": ' + aantal + ' te koop' + prijsZin(prijs);
+  return {
+    ok: true, boek_id: uit.boek_id, nieuw: uit.nieuw,
+    tekst: uit.nieuw ? wat + ' Het boek staat nu in de Catalogus als ' + uit.boek_id + ', enkel te koop (niet uitleenbaar en niet op de website).'
+      : wat + ' Dit boek stond al in de Catalogus (' + uit.boek_id + ').'
+  };
+}
+
+/* ---------- Tabblad Voorraad ---------- */
+
+/**
  * De rijen van het tabblad Voorraad: elk boek met exemplaren te koop, en elk boek dat al eens verkocht werd
  * (ook als het nu uitverkocht is). Waarde: te koop maal prijs. Opbrengst: wat de verkopen echt opbrachten.
  * Geeft { rijen, totaal } terug. totaal: [te koop, waarde, verkocht, opbrengst].
@@ -12100,13 +12148,10 @@ function voorraadZetten(catalogus, invoer) {
   if (aantal === null || aantal < 0 || aantal > 999 || aantal !== Math.round(aantal)) return { ok: false, fout: 'Vul een aantal in, 0 of meer.' };
   var prijs = isLeeg(invoer.prijs) ? null : verkoopGetal(invoer.prijs);
   if (!isLeeg(invoer.prijs) && (prijs === null || prijs < 0)) return { ok: false, fout: 'Vul een geldige prijs in, bv. 8 of 12,50.' };
-  if (aantal > 0 && prijs === null) return { ok: false, fout: 'Vul een prijs in.' };
   wijzig(boek, { te_koop_aantal: aantal, prijs: prijs === null ? '' : prijs, onderhandelbaar: invoer.onderhandelbaar ? 'ja' : 'nee' });
   var titel = '"' + schoon(boek.titel) + '"';
-  return { ok: true, tekst: aantal ? titel + ': ' + aantal + ' te koop aan ' + (prijs % 1 ? prijs.toFixed(2) : String(prijs)).replace('.', ',') + ' euro.' : titel + ' is niet meer te koop.' };
+  return { ok: true, tekst: aantal ? titel + ': ' + aantal + ' te koop' + prijsZin(prijs) : titel + ' is niet meer te koop.' };
 }
-
-/* ---------- Tabblad Voorraad ---------- */
 
 /** Acties voorstelBeschrijving en voorstelBehandelen (binnen het slot, met een staat). */
 function voorstelActie(staat, actie, invoer) {
