@@ -150,7 +150,7 @@ function antwoord(rol, actie, vraag) {
     aankoopImporteren: { ok: true, gelukt: ((vraag || {}).boeken || []).length, tekst: ((vraag || {}).boeken || []).length + ' boek staat nu op de aankooplijst.', lijst: AANKOOP },
     voorraadCatalogus: { ok: true, boeken: [{ id: 'B0001', t: 'De verzonnen zee', a: 'Verbeek, Mira', i: '', stock: 3, prijs: 8, o: true }, { id: 'B0002', t: 'Stille lichten', a: 'Fictief, Kim', i: '9780000000002', stock: 0, prijs: null, o: false }] },
     voorraadZetten: { ok: true, tekst: '"Stille lichten": 2 te koop aan 7,50 euro.', data: VERKOOP },
-    voorraadNieuwBoek: { ok: true, nieuw: true, boek_id: 'B0099', tekst: '"Een nieuw verzonnen boek": 1 te koop aan 6 euro. Het boek staat nu in de Catalogus als B0099, enkel te koop (niet uitleenbaar en niet op de website).', data: VERKOOP },
+    voorraadNieuwBoek: { ok: true, nieuw: true, boek_id: 'B0099', tekst: 'Bewaard. "Een nieuw verzonnen boek" staat nu in de Catalogus als B0099, met 1 exemplaar te koop (nog zonder prijs). Het is enkel te koop: niet uitleenbaar en niet op de website.', data: VERKOOP },
     verkopenDoorsturen: { ok: true, bewaard: ((vraag || {}).verkopen || []).map((v) => v.verkoop_id), nieuw: ((vraag || {}).verkopen || []).length, fouten: [], data: VERKOOP },
     boekVervangen: { ok: true, tekst: '"Stille lichten": vervangen. Het staat weer gewoon in de catalogus.' },
     boekVerloren: { ok: true, tekst: '"Twee kasten vol" staat als verloren. De uitlening is afgesloten, de borg van 5 euro is ingehouden.' },

@@ -12095,17 +12095,27 @@ function voorraadNieuwBoek(catalogus, invoer, nieuwId, vandaag) {
     jaartal: parseerGetal(invoer.jaartal) || '', taal: tekstInvoer(invoer.taal, 40), paginas: '', uitvoering: tekstInvoer(invoer.uitvoering, 40),
     nieuwstaat: tekstInvoer(invoer.nieuwstaat, 40), genre: '', aantalTekst: String(aantal), prijs: prijs, verwerkt: ''
   };
+  // Wat er vroeger te koop stond, voor de melding: zo zie je dat er niets dubbel is.
+  var vroeger = {};
+  catalogus.forEach(function (b) { vroeger[String(b.boek_id)] = stockVan(b); });
   var uit = verkooplijstToepassen(catalogus, [rij], nieuwId, vandaag)[0];
   var boek = catalogus.filter(function (b) { return String(b.boek_id) === uit.boek_id; })[0];
   var velden = { onderhandelbaar: invoer.onderhandelbaar ? 'ja' : 'nee' };
   if (uit.nieuw) velden.herkomst = 'verkoopscherm';
   wijzig(boek, velden);
-  var wat = '"' + schoon(boek.titel) + '": ' + aantal + ' te koop' + prijsZin(prijs);
-  return {
-    ok: true, boek_id: uit.boek_id, nieuw: uit.nieuw,
-    tekst: uit.nieuw ? wat + ' Het boek staat nu in de Catalogus als ' + uit.boek_id + ', enkel te koop (niet uitleenbaar en niet op de website).'
-      : wat + ' Dit boek stond al in de Catalogus (' + uit.boek_id + ').'
-  };
+  var naam = '"' + schoon(boek.titel) + '"';
+  var nu = aantal + (aantal === 1 ? ' exemplaar' : ' exemplaren') + ' te koop' + prijsZin(verkoopGetal(boek.prijs));
+  var tekst;
+  if (uit.nieuw) {
+    tekst = 'Bewaard. ' + naam + ' staat nu in de Catalogus als ' + uit.boek_id + ', met ' + nu +
+      ' Het is enkel te koop: niet uitleenbaar en niet op de website.';
+  } else {
+    var oud = vroeger[uit.boek_id] || 0;
+    tekst = 'Bewaard, en er kwam geen tweede boek bij. ' + naam + ' stond al in de Catalogus als ' + uit.boek_id +
+      '. Dat boek staat nu met ' + nu + (oud ? ' Vroeger stonden er ' + oud + ' te koop.' : '') +
+      ' Het uitlenen van dat boek verandert niet.';
+  }
+  return { ok: true, boek_id: uit.boek_id, nieuw: uit.nieuw, tekst: tekst };
 }
 
 /* ---------- Tabblad Voorraad ---------- */
