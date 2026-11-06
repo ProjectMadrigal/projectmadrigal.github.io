@@ -1813,6 +1813,9 @@ test('voorraad beheren: een nieuw boek dat nog niet in de Catalogus staat', () =
   // Al in de Catalogus (zelfde ISBN): dat boek krijgt aantal en prijs, er komt geen tweede bij.
   r = M.voorraadNieuwBoek(catalogus, { titel: 'Atlas', isbn: '978-0-306-40615-7', te_koop_aantal: 3, prijs: 10 }, id, '2026-11-06');
   gelijk([r.ok, r.nieuw, r.boek_id, catalogus.length, catalogus[0].te_koop_aantal, catalogus[0].prijs, catalogus[0].uitleenbaar, catalogus[0].onderhandelbaar], [true, false, 'B0001', 2, 3, 10, 'ja', 'nee']);
+  assert.strictEqual(r.tekst, 'Bewaard, en er kwam geen tweede boek bij. "Atlas van niets" stond al in de Catalogus als B0001. Dat boek staat nu met 3 exemplaren te koop aan 10 euro. Het uitlenen van dat boek verandert niet.');
+  r = M.voorraadNieuwBoek(catalogus, { titel: 'Atlas van niets', auteur: 'Noor Bedacht', te_koop_aantal: 1, prijs: '' }, id, '2026-11-06');
+  assert.strictEqual(r.tekst, 'Bewaard, en er kwam geen tweede boek bij. "Atlas van niets" stond al in de Catalogus als B0001. Dat boek staat nu met 1 exemplaar te koop aan 10 euro. Vroeger stonden er 3 te koop. Het uitlenen van dat boek verandert niet.', 'zonder prijs blijft de oude prijs');
 });
 
 test('verkoopscherm: cover, korte beschrijving en thema\'s zoals op de website', () => {
