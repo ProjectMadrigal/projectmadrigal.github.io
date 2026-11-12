@@ -15,12 +15,17 @@ on:
     paths: ['madrigal-script.gs', '.github/workflows/apps-script.yml']
   workflow_dispatch:
 concurrency: apps-script
+# issues: write, om een melding te openen als Apps Script bijna 200 versies heeft (zie onderaan).
+permissions:
+  contents: read
+  issues: write
 jobs:
   bijwerken:
     runs-on: ubuntu-latest
     env:
       CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
       SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -75,6 +80,25 @@ jobs:
             exit 1
           fi
           echo "$uit"
+          # Vroege waarschuwing: Apps Script bewaart hoogstens 200 versies en het script kan oude versies niet zelf
+          # verwijderen (dat kan enkel met de hand). Vanaf 180 komt er een melding (issue) in GitHub, één keer.
+          aantal=$(clasp versions 2>/dev/null | sed -n 's/^~ *\([0-9][0-9]*\) Versions* *~.*/\1/p' | head -1 || true)
+          echo "Aantal versies in Apps Script: ${aantal:-onbekend}"
+          if [ -n "$aantal" ] && [ "$aantal" -ge 180 ]; then
+            echo "::warning::Apps Script heeft $aantal van de 200 versies. Ruim oude versies op via Projectgeschiedenis."
+            titel="Apps Script: bijna 200 versies, ruim oude versies op"
+            if ! gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$titel\" in:title" --json number --jq '.[0].number' | grep -q .; then
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$titel" --body "Apps Script heeft nu $aantal versies. Bij 200 kan de web-app niet meer bijgewerkt worden, en dan krijgt het verkoopscherm of het bestuursscherm de melding Onbekende actie bij nieuwe functies.
+
+          Zo ruim je op:
+          1. Open de spreadsheet van de catalogus en kies Extensies > Apps Script.
+          2. Klik links op Projectgeschiedenis (het klokje).
+          3. Klik op Versies bulksgewijs verwijderen, vink de oudste versies aan (bv. 100) en klik op Verwijderen. De versie die nu gepubliceerd is, staat er niet bij.
+          4. Sluit deze melding.
+
+          Het script kan oude versies niet zelf verwijderen: Google laat dat enkel met de hand toe." || echo "::warning::De melding in GitHub kon niet gemaakt worden."
+            fi
+          fi
           echo "::notice::Apps Script bijgewerkt en nieuwe versie gepubliceerd (${GITHUB_SHA::7}). Voer na een grote wijziging nog Madrigal > Installeer tabbladen uit."
 
       - name: Opruimen
