@@ -232,8 +232,17 @@
     }).sort(function (x, y) { return Z.sorteerTekst(x.a || x.t).localeCompare(Z.sorteerTekst(y.a || y.t), 'nl'); });
   }
 
+  /** De Terug-knop van de browser (zie stap in bestuur.js). vervang: geen nieuwe stap, deze vervangen. */
+  function stap(ctx, herteken, vervang) { if (ctx.stap) ctx.stap(herteken, vervang); }
+
   function toonKast(vak, ctx) {
     if (kast) { toonKastBezig(vak, ctx); return; }
+    toonKastKeuze(vak, ctx);
+  }
+
+  /** Kies een kast. Een controle die bezig is, blijft bewaard: met Vooruit of Begin kom je er terug. */
+  function toonKastKeuze(vak, ctx) {
+    stap(ctx, function () { toonKastKeuze(vak, ctx); });
     var boeken = ctx.data.boeken || [];
     var onderwerpen = [];
     boeken.forEach(function (b) { (b.g || []).forEach(function (g) { if (onderwerpen.indexOf(g) === -1) onderwerpen.push(g); }); });
@@ -253,9 +262,10 @@
       knoppen(el('button', { type: 'button', class: 'knop', onclick: function () {
         var lijst = boekenVoorKast(boeken, keuze.value, van.value, tot.value);
         if (!lijst.length) { B.melding($('melding'), 'fout', 'Geen boeken voor deze keuze.'); return; }
+        if (kast && Object.keys(kast.gevonden).length && !window.confirm('Er is nog een controle bezig (' + kast.naam + '). Een nieuwe kast starten? Wat je daar scande, gaat verloren.')) return;
         kast = { naam: [keuze.value || 'Alle onderwerpen', (van.value || tot.value) ? (van.value || 'A').toUpperCase() + ' tot ' + (tot.value || 'Z').toUpperCase() : ''].filter(Boolean).join(', '),
           boeken: lijst, gevonden: {}, gescand: [] };
-        toonKastBezig(vak, ctx);
+        toonKastBezig(vak, ctx, true);
       } }, 'Begin de controle')));
   }
 
@@ -269,7 +279,9 @@
     return '"' + b.t + '"' + (inKast ? ' gevonden.' : ' hoort niet in deze kast.');
   }
 
-  function toonKastBezig(vak, ctx) {
+  /** nieuweStap: net begonnen (een stap in de geschiedenis). Anders, bij elke scan of elk vinkje: dezelfde stap. */
+  function toonKastBezig(vak, ctx, nieuweStap) {
+    stap(ctx, function () { if (kast) toonKastBezig(vak, ctx); else toonKastKeuze(vak, ctx); }, !nieuweStap);
     var res = kastResultaat(kast, ctx.data.boeken || [], ctx.data.lopend || []);
     var isbnVeld = el('input', { type: 'text', id: 'kast-isbn', autocomplete: 'off', placeholder: '978... of een ISBN-10' }); // geen cijfertoetsenbord: een ISBN-10 kan op X eindigen
     var status = el('p', { 'aria-live': 'polite' });
@@ -328,7 +340,7 @@
       knoppen(meldKnop, el('button', { type: 'button', class: 'knop tweede', onclick: function () {
         if (res.gevonden.length && !window.confirm('Stoppen met deze kast? Wat je scande, gaat verloren.')) return;
         kast = null;
-        toonKast(vak, ctx);
+        toonKastKeuze(vak, ctx);
       } }, 'Andere kast kiezen')));
   }
 

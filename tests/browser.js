@@ -952,6 +952,11 @@ async function meldAan(page, basis, pagina) {
     // Kastcontrole: een onbekend ISBN typen, B0002 met de hand aanvinken. B0001 is uitgeleend.
     await page.click('#sectienav button:has-text("Kastcontrole")');
     await page.click('button:has-text("Begin de controle")');
+    // De knop Terug van de browser: terug naar de keuze van de kast, Vooruit weer naar de controle.
+    await page.goBack();
+    await page.waitForSelector('#kast-onderwerp');
+    await page.goForward();
+    await page.waitForSelector('#kast-isbn');
     await page.fill('#kast-isbn', '9780306406157');
     await page.click('button:has-text("Voeg toe")');
     verwacht(/Niet in de catalogus \(1\)/.test(await page.textContent('#sectie')), 'Onbekend ISBN niet getoond');
@@ -1297,6 +1302,12 @@ async function meldAan(page, basis, pagina) {
     verwacht(v && v.boek_id === 'B0001' && v.status === 'aangepast' && v.titel === 'De verzonnen zee' && v.auteur === 'Verbeek, Mira', 'Doorgestuurd: ' + JSON.stringify(v));
     // Volgende boek, in een andere kast
     verwacht((await page.inputValue('#tc-titel')) === 'Twee kasten vol', 'Volgende boek');
+    // De knop Terug van de browser: terug naar het vorige boek, Vooruit weer naar dit boek.
+    await page.goBack();
+    await page.waitForFunction(() => document.querySelector('#tc-titel') && document.querySelector('#tc-titel').value !== 'Twee kasten vol');
+    verwacht(/Fictie: boek 1 van/.test(await page.textContent('#sectie')), 'Terug naar het eerste boek');
+    await page.goForward();
+    await page.waitForFunction(() => document.querySelector('#tc-titel') && document.querySelector('#tc-titel').value === 'Twee kasten vol');
     verwacht(/De Wit, Rein/.test(await page.textContent('#sectie table')), 'Versie van de oude website');
     // De stocklijst is hier gelijk aan nu: die rij staat er niet. Enkel de auteur van de oude website is anders.
     verwacht(!/Stocklijst/.test(await page.textContent('#sectie table')), 'De stocklijst gelijk aan nu wordt niet getoond');

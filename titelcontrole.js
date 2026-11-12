@@ -24,6 +24,9 @@
   var kast = '';      // gekozen onderwerp, '' = alle kasten
   var plaats = 0;     // het hoeveelste boek in de gekozen kast
   var nagekeken = {}; // boek_id: { x, status, bezig } van wat je in dit bezoek nakeek: blijft in de rij voor Vorige
+  // De Terug-knop van de browser: elke andere kast of elk ander boek is een stap (zie stap in bestuur.js).
+  // laatsteStand: kast en plaats van de vorige stap. Opnieuw tekenen op dezelfde plaats maakt geen nieuwe stap.
+  var laatsteStand = null;
   var wachtrij = [];  // bewaren gebeurt een voor een op de achtergrond
   var bezigMet = 0;   // zoveel boeken worden nog bewaard
   var statusVak = null; // de melding van het bewaren: blijft staan als het scherm opnieuw tekent
@@ -115,6 +118,7 @@
 
   function toon(vak, ctx) {
     // Telkens vers: de lijst kan intussen opnieuw gemaakt zijn (ook via het menu in de spreadsheet).
+    laatsteStand = null;
     laad(vak, ctx);
   }
 
@@ -139,6 +143,12 @@
     }
     if (bestuur) delen.push(maakBlok(vak, ctx, melding));
     D.vervang(vak, delen);
+    if (ctx.stap) {
+      var k = kast, p = plaats, stand = k + '|' + p;
+      // Na het laden (laatsteStand leeg) of op dezelfde plaats: deze stap vervangen, niet een nieuwe erbij.
+      ctx.stap(function () { kast = k; plaats = p; laatsteStand = stand; teken(vak, ctx); }, laatsteStand === null || laatsteStand === stand);
+      laatsteStand = stand;
+    }
   }
 
   function kastKeuze(vak, ctx) {
